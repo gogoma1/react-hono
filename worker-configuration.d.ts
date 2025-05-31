@@ -4,6 +4,7 @@
 declare namespace Cloudflare {
 	interface Env {
 		ASSETS: Fetcher;
+        HYPERDRIVE: Hyperdrive;
 	}
 }
 interface Env extends Cloudflare.Env {}

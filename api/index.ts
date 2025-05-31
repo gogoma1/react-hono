@@ -2,8 +2,9 @@
 
 import { Hono } from 'hono';
 import { getSupabase, supabaseMiddleware } from './routes/middleware/auth.middleware';
+import exampleSelectPgTablesRoute from './routes/example/selectpg_tables';
 
-const app = new Hono();
+const app = new Hono<{Bindings: Env}>();
 app.use('*', supabaseMiddleware());
 
 const routes = app.get('/api/user', async (c) => {
@@ -56,6 +57,8 @@ app.get('/countries', async (c) => {
   if (error) console.log(error);
   return c.json(data);
 });
+
+app.route('/example', exampleSelectPgTablesRoute);
 
 export type AppType = typeof routes;
 

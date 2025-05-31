@@ -156,51 +156,38 @@ There are two different ways to deploy this application: Full Experience and Dem
 - [Hono - Fast, Lightweight, Web Framework for Cloudflare Workers](https://hono.dev/docs/getting-started/cloudflare-workers)
 - [Workers Smart Placement](https://developers.cloudflare.com/workers/configuration/smart-placement/)
 
+
+
 ```
 react-hono
-├─ .env
 ├─ api
 │  ├─ index.ts
 │  └─ routes
+│     ├─ example
+│     │  └─ selectpg_tables.ts
 │     └─ middleware
 │        └─ auth.middleware.ts
-├─ docker-compose.yml
+├─ catfile.md
 ├─ eslint.config.js
 ├─ index.html
-├─ init.sql
 ├─ package-lock.json
 ├─ package.json
-├─ postcss.config.js
-├─ preview-image.png
 ├─ public
-│  └─ images
-│     └─ books
-│        ├─ anna-karenina.jpg
-│        ├─ brothers-karamazov.jpg
-│        ├─ east-of-eden.jpg
-│        ├─ fifth-season.jpg
-│        ├─ giovannis-room.jpg
-│        ├─ jane-eyre.jpg
-│        ├─ left-hand-of-darkness.jpg
-│        ├─ my-brilliant-friend.jpg
-│        └─ remains-of-the-day.jpg
-├─ README.md
-├─ src
-│  ├─ App.jsx
-│  ├─ components
-│  │  ├─ BookCard.jsx
-│  │  ├─ BookDetail.jsx
-│  │  ├─ BooksList.jsx
-│  │  ├─ Breadcrumbs.jsx
-│  │  ├─ MockDataBanner.jsx
-│  │  └─ Sidebar.jsx
+├─ react
+│  ├─ App.tsx
+│  ├─ features
+│  │  └─ kakaologin
+│  │     └─ model
+│  │        └─ kakaologin.tsx
 │  ├─ index.css
-│  ├─ lib
-│  │  └─ utils.js
-│  └─ main.jsx
-├─ tsconfig.cloudflare.json
+│  ├─ main.tsx
+│  └─ pages
+│     └─ example.tsx
+├─ README.md
+├─ tsconfig.app.json
 ├─ tsconfig.json
 ├─ tsconfig.node.json
+├─ tsconfig.worker.json
 ├─ vite.config.js
 ├─ worker-configuration.d.ts
 └─ wrangler.jsonc
