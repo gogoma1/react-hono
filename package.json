@@ -41,6 +41,7 @@
     "@types/react-dom": "19.0.4",
     "@vitejs/plugin-react": "4.4.1",
     "autoprefixer": "10.4.21",
+    "concurrently": "^9.1.2",
     "drizzle-kit": "^0.31.1",
     "eslint": "9.27.0",
     "eslint-plugin-react": "7.37.5",
@@ -58,7 +59,9 @@
     "cf-typegen": "wrangler types",
     "check": "vite build && wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
-    "dev": "vite",
+    "dev:frontend": "vite", 
+    "dev:backend": "npx wrangler dev --remote", 
+    "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\"", 
     "lint": "eslint .",
     "preview": "vite preview"
   },
