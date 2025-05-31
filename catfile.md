@@ -1,0 +1,1 @@
+find ./api ./react -type f -exec cat {} +
