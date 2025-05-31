@@ -1,32 +1,26 @@
 // react-hono/react/App.tsx
-import { BrowserRouter as Router, Routes, Route } from 'react-router';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router'; // Link 추가
 import HomePage from './pages/HomePage';
-// 다른 페이지들이 있다면 여기에 import 합니다.
-// import AboutPage from './pages/AboutPage';
-// import ProfilePage from './pages/ProfilePage';
+import ExamplePage from './pages/example'; // 새로 추가된 페이지 import
 
-// 만약 전역 레이아웃 (예: 네비게이션 바, 푸터)이 필요하다면
-// Layout 컴포넌트를 만들고 Route들을 감쌀 수 있습니다.
-// const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-//   <div>
-//     <nav>Navbar</nav>
-//     <main>{children}</main>
-//     <footer>Footer</footer>
-//   </div>
-// );
+// 간단한 네비게이션 예시
+const Navigation: React.FC = () => (
+  <nav style={{ marginBottom: '20px', padding: '10px', background: '#eee' }}>
+    <Link to="/" style={{ marginRight: '10px' }}>Home</Link>
+    <Link to="/example">Example Page (pg_tables)</Link>
+  </nav>
+);
 
 function App() {
   return (
     <Router>
-      {/* <Layout> */}
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          {/* 다른 라우트들 */}
-          {/* <Route path="/about" element={<AboutPage />} /> */}
-          {/* <Route path="/profile" element={<ProfilePage />} /> */}
-          {/* 인증이 필요한 라우트는 ProtectedRoute 같은 컴포넌트로 감쌀 수 있습니다. */}
-        </Routes>
-      {/* </Layout> */}
+      <Navigation /> {/* 모든 페이지 상단에 네비게이션 바 추가 */}
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/example" element={<ExamplePage />} /> {/* ExamplePage 라우트 추가 */}
+        {/* 다른 라우트들 */}
+      </Routes>
     </Router>
   );
 }

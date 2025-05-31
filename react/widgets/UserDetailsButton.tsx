@@ -13,7 +13,7 @@ export const UserDetailsButton: React.FC = () => {
     setError(null);
     setIsLoading(true);
     try {
-      const res = await honoClient.api.user.$get();
+      const res = await honoClient.user.$get();
 
       if (!res.ok) {
         let errorMsg = `Error: ${res.status} ${res.statusText}`;
