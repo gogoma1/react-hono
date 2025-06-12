@@ -1,0 +1,30 @@
+.action-cell-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+}
+
+.action-icon-button {
+    background: none;
+    border: none;
+    padding: 4px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-color-secondary, #666);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.action-icon-button:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+    color: var(--text-color-primary, #333);
+}
+
+.action-icon-button.delete:hover {
+    color: #e53e3e; /* 삭제 아이콘은 호버 시 붉은색으로 */
+    background-color: rgba(229, 62, 62, 0.1);
+}

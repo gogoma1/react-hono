@@ -1,0 +1,127 @@
+/* client/src/components/rootlayout/GlassNavbar.css */
+.glass-navbar {
+    width: 100%;
+    height: var(--navbar-height);
+    padding: 0 13px;
+    box-sizing: border-box;
+    background: var(--navbar-glass-bg);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    z-index: 100;
+    color: var(--text-primary);
+    /* border-bottom 제거됨 */
+}
+
+.navbar-left,
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-right: 0px;
+}
+
+.navbar-logo-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--text-primary);
+    padding: 5px;
+    /* 클릭 영역 확보 */
+    border-radius: 6px;
+    /* 호버 효과 위한 준비 */
+    transition: background-color 0.2s ease;
+}
+
+.navbar-logo-link:hover {
+    background-color: var(--menu-item-hover-bg);
+}
+
+.navbar-logo-icon {
+    color: var(--accent-color);
+}
+
+
+.navbar-icon-button {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    transition: background-color 0.2s ease-out, color 0.2s ease-out;
+}
+
+.navbar-icon-button:hover {
+    background-color: var(--menu-item-hover-bg);
+    color: var(--text-primary);
+}
+
+.navbar-icon-button.active {
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    color: var(--accent-color-darker);
+}
+
+.hamburger-button,
+.settings-button-mobile {
+    display: none;
+    /* 모바일 미디어쿼리에서 block/flex로 변경 */
+}
+
+
+.profile-button svg {
+    color: var(--text-secondary);
+}
+
+.profile-button:hover svg {
+    color: var(--text-primary);
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+    .glass-navbar {
+        padding: 0 20px;
+    }
+
+    .profile-button {
+        margin-left: auto;
+        /* 태블릿에서 프로필 버튼을 오른쪽으로 밀착 */
+    }
+
+    /* 만약 태블릿에서 설정 버튼도 보인다면, 해당 버튼과의 순서 고려 필요 */
+    /* 현재 TSX에서는 설정 버튼은 모바일에서만 보이므로, 태블릿에서는 프로필 버튼만 존재 (가정) */
+    /* 만약 다른 아이콘 버튼들이 navbar-right에 있다면, 그 순서에 따라 조정 필요 */
+}
+
+/* 모바일 반응형 스타일 (768px 이하) */
+@media (max-width: 768px) {
+    .glass-navbar {
+        padding: 0 10px;
+        height: var(--navbar-height-mobile);
+    }
+
+    .hamburger-button {
+        display: flex;
+    }
+
+    .settings-button-mobile {
+        display: flex;
+        /* TSX 마크업 순서에 따라 프로필 버튼 왼쪽에 위치 */
+    }
+
+    .navbar-logo-link {
+        margin-left: 6px;
+    }
+
+    .profile-button {
+        /* 모바일에서도 프로필 버튼 보이도록 (TSX에서 조건 제거로 이미 처리) */
+        display: flex;
+    }
+}

@@ -1,35 +1,38 @@
+// file: api/routes/example/selectpg_tables.ts
+
 import { Hono } from 'hono';
 import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
+// 1. Drizzle의 Raw SQL 실행을 위해 'sql' 함수를 가져옵니다.
+import { sql } from 'drizzle-orm';
 
-// Env 타입을 가져옵니다. (worker-configuration.d.ts 에서 정의될 예정)
-// 또는 여기서 직접 정의할 수도 있지만, 전역적으로 관리하는 것이 좋습니다.
-// 예: type AppEnv = { Bindings: Env }
+const exampleRoutes = new Hono<{ Bindings: Env }>();
 
-const exampleRoutes = new Hono<{ Bindings: Env }>(); // Hono에 Env 타입 바인딩
-
-exampleRoutes.get('/pg-tables', async (c) => {
-  // Create a database client that connects to your database via Hyperdrive
-  // using the Hyperdrive credentials
-  const sql = postgres(c.env.HYPERDRIVE.connectionString, {
-    // Limit the connections for the Worker request to 5 due to Workers' limits on concurrent external connections
+exampleRoutes.get('/pgtables', async (c) => {
+  // postgres.js를 사용한 DB 클라이언트 생성 (이 부분은 동일)
+  const sqlConnection = postgres(c.env.HYPERDRIVE.connectionString, {
     max: 5,
-    // If you are not using array types in your Postgres schema, disable `fetch_types` to avoid an additional round-trip (unnecessary latency)
     fetch_types: false,
   });
 
   try {
-    // A very simple test query
-    const result = await sql`SELECT * FROM pg_tables`; // SQL 쿼리 수정 (pg_tables는 보통 스키마 지정 필요 없음)
+    // 2. postgres.js 연결로 Drizzle 클라이언트를 생성합니다.
+    // Raw SQL만 실행할 경우 스키마는 전달하지 않아도 되지만,
+    // 다른 쿼리와의 일관성을 위해 포함하는 것이 좋습니다.
+    const db = drizzle(sqlConnection);
 
-    // Clean up the client, ensuring we don't kill the worker before that is
-    // completed.
-    c.executionCtx.waitUntil(sql.end());
+    // 3. db.execute()와 Drizzle의 `sql` 태그를 사용하여 Raw SQL 쿼리를 실행합니다.
+    // 기존의 `sql` 변수와 이름이 겹치지 않도록 `sqlConnection`으로 변경했습니다.
+    const result = await db.execute(sql`SELECT * FROM pg_tables`);
 
-    // Return result rows as JSON
-    return c.json({ success: true, result: result });
+
+    // 연결을 정리합니다.
+    c.executionCtx.waitUntil(sqlConnection.end());
+
+    // 결과를 JSON으로 반환합니다.
+    return c.json({ success: true, result });
   } catch (e: any) {
     console.error('Database error:', e.message);
-    // Hono에서는 c.json으로 에러 응답을 보내는 것이 일반적입니다.
     return c.json({ success: false, error: e.message }, 500);
   }
 });

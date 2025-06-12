@@ -1,0 +1,315 @@
+/* client/src/App.css */
+
+.app-container {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.background-blobs-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.layout-main-wrapper {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.content-body-wrapper {
+  display: flex;
+  flex-grow: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.main-content {
+  flex-grow: 1;
+  background-color: var(--main-content-bg-color);
+  padding: 25px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 5;
+  height: 100%;
+  box-sizing: border-box;
+  border-top-left-radius: var(--main-content-border-radius);
+  border-top-right-radius: var(--main-content-border-radius);
+  /* 양쪽 상단 모서리 둥글게 */
+  box-shadow:
+    /* 안쪽 그림자 */
+    inset 0px 6px 12px -6px rgba(0, 0, 0, 0.07),
+    inset 5px 0px 10px -5px rgba(0, 0, 0, 0.05),
+    inset -5px 0px 10px -5px rgba(0, 0, 0, 0.045);
+}
+
+.clickable-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 105;
+  /* 모바일 사이드바(110)보다 낮게 */
+  background-color: rgba(var(--mobile-overlay-bg-rgb), var(--mobile-overlay-bg-opacity));
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease-in-out, visibility 0s 0.3s linear;
+  cursor: pointer;
+  backdrop-filter: blur(var(--mobile-overlay-blur)) saturate(100%);
+  -webkit-backdrop-filter: blur(var(--mobile-overlay-blur)) saturate(100%);
+}
+
+.clickable-overlay.open {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.3s ease-in-out, visibility 0s 0s linear;
+}
+
+/* --- 반응형 레이아웃 --- */
+@media (max-width: 1024px) and (min-width: 769px) {
+
+  /* 태블릿 */
+  .main-content {
+    padding: 20px;
+    border-top-left-radius: calc(var(--main-content-border-radius) - 3px);
+    /* 태블릿에서 약간 작은 둥글게 */
+    border-top-right-radius: calc(var(--main-content-border-radius) - 3px);
+  }
+}
+
+@media (max-width: 768px) {
+
+  /* 모바일 */
+  .app-container {
+    overflow-x: hidden;
+    /* 가로 스크롤 절대 방지 */
+  }
+
+  .main-content {
+    padding: 15px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    box-shadow: none;
+  }
+
+  /* 모바일 사이드바 공통 애니메이션 및 기본 위치 (구체적인 스타일은 각 사이드바 CSS) */
+  .mobile-sidebar {
+    position: fixed !important;
+    top: 0;
+    height: 100vh !important;
+    z-index: 110;
+    box-shadow: 0 8px 35px rgba(0, 0, 0, 0.28);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+
+    left: 0;
+    /* 또는 right: 0; 각 사이드바에 맞게 */
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .mobile-sidebar.right-mobile-sidebar {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+  }
+
+  .mobile-sidebar.open {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* 닫힐 때만 visibility를 늦게 적용하려면 JS에서 transitionend 이벤트로 제어하는 것이 가장 확실합니다. */
+}
+
+ㅁ
+
+/* filepath: c:\Users\nicew\Desktop\fullstack\monorepo\client\src\App.css */
+.app-container {
+  position: relative;
+  /* 자식 요소의 fixed positioning 기준 */
+  min-height: 100vh;
+  display: flex;
+  /* layout-main-wrapper가 flex-grow 하도록 */
+  flex-direction: column;
+}
+
+.background-blobs-wrapper {
+  position: fixed;
+  /* 화면 전체에 고정 */
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  /* 가장 뒤에 위치 */
+  overflow: hidden;
+  /* 블롭이 넘치지 않도록 */
+  pointer-events: none;
+  /* 클릭 이벤트 통과 */
+}
+
+.layout-main-wrapper {
+  position: relative;
+  /* z-index 컨텍스트 생성 */
+  z-index: 1;
+  /* 블롭보다 위에 */
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  /* app-container의 남은 공간 차지 */
+  height: 100vh;
+  /* 화면 전체 높이 */
+  box-sizing: border-box;
+  overflow: hidden;
+  /* 내부 스크롤은 각 컴포넌트에서 관리 */
+}
+
+.content-body-wrapper {
+  display: flex;
+  flex-grow: 1;
+  /* Navbar 제외한 나머지 공간 차지 */
+  overflow: hidden;
+  /* 내부 스크롤 관리 */
+  position: relative;
+  /* 사이드바 등의 위치 기준 */
+}
+
+.main-content {
+  flex-grow: 1;
+  /* 사이드바 제외한 중앙 공간 차지 */
+  background-color: var(--main-content-bg-color);
+  padding: 25px;
+  overflow-y: auto;
+  /* 컨텐츠가 길어지면 스크롤 */
+  position: relative;
+  z-index: 5;
+  /* 사이드바(z-index: 90), Navbar(z-index: 100) 보다 낮게 */
+  /* height는 브레이크포인트에 따라 다르게 설정 */
+  box-sizing: border-box;
+  border-top-left-radius: var(--main-content-border-radius);
+  border-top-right-radius: var(--main-content-border-radius);
+  box-shadow:
+    /* 은은한 내부 그림자 효과 */
+    inset 0px 6px 12px -6px rgba(0, 0, 0, 0.07),
+    inset 5px 0px 10px -5px rgba(0, 0, 0, 0.05),
+    inset -5px 0px 10px -5px rgba(0, 0, 0, 0.045);
+}
+
+.desktop-layout .main-content,
+.tablet-layout .main-content {
+  height: calc(100vh - var(--navbar-height));
+}
+
+.mobile-layout .main-content {
+  height: calc(100vh - var(--navbar-height-mobile));
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  box-shadow: none;
+}
+
+
+/* Clickable Overlay for Mobile Sidebar */
+.clickable-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 105;
+  /* 모바일 사이드바(110) 보다는 낮고, Navbar(100) 보다는 높게 */
+  background-color: rgba(var(--mobile-overlay-bg-rgb), var(--mobile-overlay-bg-opacity));
+  opacity: 0;
+  visibility: hidden;
+  /* 초기에는 안보이고, 접근성 트리에서도 제외 */
+  transition: opacity 0.3s ease-in-out, visibility 0s 0.3s linear;
+  /* visibility는 트랜지션 지연 */
+  cursor: pointer;
+  backdrop-filter: blur(var(--mobile-overlay-blur)) saturate(100%);
+  -webkit-backdrop-filter: blur(var(--mobile-overlay-blur)) saturate(100%);
+}
+
+.clickable-overlay.active {
+  /* 'open' -> 'active' */
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.3s ease-in-out, visibility 0s 0s linear;
+  /* 보일때는 지연 없이 */
+}
+
+/* Tablet specific adjustments */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .main-content {
+    /* .tablet-layout .main-content 와 동일하므로 중복 제거 가능 */
+    padding: 20px;
+    /* border-top-left-radius 와 border-top-right-radius 는 위에서 이미 tablet-layout에 적용됨 */
+  }
+}
+
+/* Mobile specific adjustments */
+@media (max-width: 768px) {
+  .main-content {
+    /* .mobile-layout .main-content 와 동일하므로 중복 제거 가능 */
+    padding: 15px;
+  }
+
+  /* 
+    공통 모바일 사이드바 레이아웃 스타일
+    - `transform`, `opacity`, `transition`은 각 사이드바 CSS 파일에서 관리합니다.
+    - `width`, `max-width`도 각 사이드바 CSS에서 정의하여 유연성을 높입니다.
+  */
+  .mobile-sidebar {
+    position: fixed;
+    /* 화면에 고정 */
+    top: 0;
+    height: 100vh;
+    /* 화면 전체 높이 */
+    z-index: 110;
+    /* 오버레이(105)보다 위에 */
+    box-shadow: 0 8px 35px rgba(0, 0, 0, 0.28);
+    /* 그림자 효과 */
+    overflow-y: auto;
+    /* 내용 많을 시 스크롤 */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+
+    /* 아래 속성들은 각 사이드바 CSS 파일로 이동 */
+    /* width: var(--mobile-sidebar-width-ratio); */
+    /* max-width: var(--mobile-sidebar-max-width); */
+    /* background: var(--mobile-sidebar-glass-bg); */
+    /* backdrop-filter: var(--glass-blur-effect); */
+    /* -webkit-backdrop-filter: var(--glass-blur-effect); */
+    /* opacity: 0; */
+    /* pointer-events: none; */
+    /* transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+                opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); */
+  }
+
+  /* 
+    .mobile-sidebar.left-mobile-sidebar 와 .mobile-sidebar.right-mobile-sidebar 의
+    `left`, `right`, 초기 `transform` 값은 각 사이드바 CSS 파일에서 정의합니다.
+  */
+
+  /* 
+    .mobile-sidebar.open 관련 스타일 (transform: translateX(0), opacity: 1, pointer-events: auto)은
+    각 사이드바 CSS 파일의 .open 클래스에 정의됩니다.
+  */
+}

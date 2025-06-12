@@ -1,0 +1,307 @@
+/* filepath: c:\Users\nicew\Desktop\fullstack\monorepo\client\src\components\rootlayout\GlassSidebar.css */
+.glass-sidebar {
+    width: var(--sidebar-width);
+    height: 100%;
+    padding: 15px 0;
+    box-sizing: border-box;
+    background: var(--sidebar-glass-bg);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 90;
+    color: var(--text-secondary);
+    font-weight: 500;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+/* ... (기존 .glass-sidebar::-webkit-scrollbar 등 스타일 유지) ... */
+.glass-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.glass-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.glass-sidebar::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+}
+
+.glass-sidebar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.25);
+}
+
+.sidebar-header.lgs-header {
+    font-size: 11px;
+    color: var(--text-placeholder);
+    padding: 0 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    min-height: 32px;
+}
+
+.glass-sidebar:not(.collapsed):not(.mobile-sidebar) .sidebar-header.lgs-header {
+    justify-content: center;
+    margin-bottom: 18px;
+}
+
+/* .glass-sidebar.mobile-sidebar .sidebar-header.lgs-header 는 @media 규칙 안으로 이동 */
+
+.sidebar-header-text {
+    font-weight: 600;
+}
+
+.glass-sidebar.collapsed .sidebar-header.lgs-header {
+    justify-content: center;
+    padding: 0 5px;
+    min-height: 40px;
+    margin-bottom: 10px;
+}
+
+.tablet-toggle-button-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 5px 0;
+    margin-bottom: 10px;
+}
+
+.glass-sidebar:not(.collapsed) .tablet-toggle-button-wrapper {
+    justify-content: flex-end;
+    padding-right: 15px;
+}
+
+.sidebar-toggle-button.left-sidebar-toggle.tablet-control {
+    position: static;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 44px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 7px;
+    background-color: rgba(var(--accent-color-rgb), 0.08);
+    color: var(--accent-color-darker);
+    border: 1px solid rgba(var(--accent-color-rgb), 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: background-color 0.15s ease-out, box-shadow 0.15s ease-out;
+    outline: none;
+}
+
+.sidebar-toggle-button.left-sidebar-toggle.tablet-control:hover {
+    background-color: rgba(var(--accent-color-rgb), 0.15);
+    box-shadow: 0 2px 5px rgba(var(--accent-color-rgb), 0.2);
+}
+
+.sidebar-toggle-button.left-sidebar-toggle.tablet-control:focus-visible {
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.5);
+}
+
+.sidebar-nav.lgs-nav {
+    flex-grow: 1;
+    padding: 0 10px;
+}
+
+.sidebar-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-nav li {
+    margin-bottom: 2px;
+}
+
+.menu-item-link {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 10px 12px;
+    border-radius: 7px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.15s ease-out, color 0.15s ease-out, box-shadow 0.15s ease-out;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.menu-item-link:hover {
+    background-color: var(--menu-item-hover-bg);
+    color: var(--text-primary);
+}
+
+.menu-item-link.active {
+    background-color: var(--menu-item-active-bg);
+    color: var(--menu-item-active-text);
+    font-weight: 600;
+}
+
+.menu-icon-wrapper {
+    margin-right: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    color: var(--icon-color);
+    transition: color 0.15s ease-out;
+}
+
+.menu-item-link:hover .menu-icon-wrapper,
+.menu-item-link.active .menu-icon-wrapper {
+    color: var(--icon-active-color);
+}
+
+.menu-item-name {
+    flex-grow: 1;
+    line-height: 1.35;
+}
+
+.sub-menu-item-link .menu-icon-wrapper {
+    margin-left: 18px;
+}
+
+.notification-badge {
+    background-color: var(--notification-badge-bg);
+    color: var(--notification-badge-text);
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2.5px 6.5px;
+    border-radius: 10px;
+    margin-left: auto;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.glass-sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+    padding: 15px 0;
+}
+
+.glass-sidebar.collapsed .sidebar-nav.lgs-nav {
+    padding: 0 5px;
+}
+
+.glass-sidebar.collapsed .menu-item-link {
+    justify-content: center;
+    padding: 12px 8px;
+}
+
+.glass-sidebar.collapsed .menu-icon-wrapper {
+    margin-right: 0;
+}
+
+.glass-sidebar.collapsed .menu-item-name,
+.glass-sidebar.collapsed .notification-badge {
+    display: none;
+}
+
+.glass-sidebar.collapsed .sub-menu-item-link .menu-icon-wrapper {
+    margin-left: 0;
+}
+
+/* 모바일 닫기 버튼 (공통 스타일로 분리 가능) */
+.sidebar-close-button.mobile-only {
+    display: none;
+    /* 기본적으로 숨김, 모바일에서 .lgs-close-btn 등으로 display: flex; */
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background-color 0.15s ease-out;
+}
+
+.sidebar-close-button.mobile-only:hover {
+    background-color: var(--menu-item-hover-bg);
+}
+
+
+@media (max-width: 768px) {
+
+    /* .mobile-sidebar 클래스는 App.css에서 공통 레이아웃을 제공 */
+    .glass-sidebar.mobile-sidebar.left-mobile-sidebar {
+        /* App.css의 .mobile-sidebar 스타일 상속 (position, top, height, z-index, box-shadow, overflow-y) */
+        width: var(--mobile-sidebar-width-ratio);
+        max-width: var(--mobile-sidebar-max-width);
+        background: var(--mobile-sidebar-glass-bg);
+        backdrop-filter: var(--glass-blur-effect);
+        -webkit-backdrop-filter: var(--glass-blur-effect);
+        border-top-right-radius: 16px;
+        border-bottom-right-radius: 16px;
+        padding: 20px 0;
+        /* 수직 패딩, 수평은 내부 요소에서 */
+
+        left: 0;
+        transform: translateX(-100%);
+        /* 초기 상태: 왼쪽 화면 바깥 */
+        opacity: 0;
+        pointer-events: none;
+        /* 초기에는 클릭/터치 불가 */
+        transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+            opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .glass-sidebar.mobile-sidebar.left-mobile-sidebar.open {
+        transform: translateX(0);
+        /* 열린 상태: 제자리 */
+        opacity: 1;
+        pointer-events: auto;
+        /* 열리면 상호작용 가능 */
+    }
+
+    .glass-sidebar.mobile-sidebar .sidebar-header.lgs-header {
+        justify-content: space-between;
+        /* 모바일에서 헤더 정렬 */
+        margin-bottom: 15px;
+        padding: 0 20px;
+        /* 모바일 헤더 내부 패딩 */
+        min-height: 40px;
+    }
+
+    .glass-sidebar.mobile-sidebar .sidebar-header-text {
+        font-size: 0.95em;
+        color: var(--text-primary);
+    }
+
+    .glass-sidebar.mobile-sidebar .tablet-toggle-button-wrapper {
+        display: none;
+    }
+
+    .glass-sidebar.mobile-sidebar .sidebar-nav.lgs-nav {
+        padding: 0 15px;
+    }
+
+    .glass-sidebar.mobile-sidebar .menu-item-link {
+        font-size: 14.5px;
+        padding: 12px 15px;
+    }
+
+    .glass-sidebar.mobile-sidebar .menu-icon-wrapper {
+        margin-right: 15px;
+    }
+
+    .glass-sidebar.mobile-sidebar .menu-item-name,
+    .glass-sidebar.mobile-sidebar .notification-badge {
+        display: inline-block;
+    }
+
+    .sidebar-close-button.mobile-only.lgs-close-btn {
+        display: flex;
+        /* 모바일에서 닫기 버튼 표시 */
+    }
+}

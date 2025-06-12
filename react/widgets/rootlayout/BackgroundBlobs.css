@@ -1,0 +1,118 @@
+.blobs-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.blob-item {
+  position: absolute;
+  opacity: 0.28;
+  /* 이전(0.20)보다 opacity를 높여서 더 잘 보이도록 */
+  pointer-events: none;
+  border-radius: 50%;
+  left: 0;
+}
+
+/* 연한 갈색/베이지/샌드 계열로 색상 변경 */
+.blob-item.blob-1 {
+  width: 28vw;
+  /* 크기 약간 조정 */
+  height: 28vw;
+  /* 연한 베이지/샌드 */
+  background: radial-gradient(circle, rgba(220, 200, 180, 0.6), rgba(200, 180, 160, 0.35));
+  top: -10%;
+  /* 위치 미세 조정 */
+  transform: translateX(-28vw) rotate(0deg);
+  animation: flowAcrossCircle1 13s linear infinite;
+  /* 속도 미세 조정 */
+}
+
+.blob-item.blob-2 {
+  width: 38vw;
+  /* 크기 약간 조정 */
+  height: 38vw;
+  /* 부드러운 카라멜/라떼 */
+  background: radial-gradient(circle, rgba(210, 180, 150, 0.55), rgba(190, 160, 130, 0.3));
+  top: 35%;
+  /* 위치 미세 조정 */
+  transform: translateX(-38vw) rotate(0deg);
+  animation: flowAcrossCircle2 16s linear infinite;
+  animation-delay: -4s;
+}
+
+.blob-item.blob-3 {
+  width: 22vw;
+  /* 크기 약간 조정 */
+  height: 22vw;
+  /* 따뜻한 모카/옅은 황토색 */
+  background: radial-gradient(circle, rgba(200, 170, 140, 0.65), rgba(180, 150, 120, 0.4));
+  top: 60%;
+  /* 위치 미세 조정 */
+  transform: translateX(-22vw) rotate(0deg);
+  animation: flowAcrossCircle3 11s linear infinite;
+  animation-delay: -7s;
+}
+
+.blob-item.blob-4 {
+  width: 32vw;
+  /* 크기 약간 조정 */
+  height: 32vw;
+  /* 차분한 토프/그레이지 (회색빛이 도는 갈색) */
+  background: radial-gradient(circle, rgba(190, 180, 170, 0.5), rgba(170, 160, 150, 0.28));
+  top: 20%;
+  /* 위치 미세 조정 */
+  transform: translateX(-32vw) rotate(0deg);
+  animation: flowAcrossCircle1 15s linear infinite;
+  /* 애니메이션 재활용 */
+  animation-delay: -9s;
+}
+
+/* 애니메이션 키프레임 (이전과 동일 또는 필요시 미세 조정) */
+@keyframes flowAcrossCircle1 {
+  0% {
+    transform: translateX(-28vw) translateY(-6vh) scale(0.92);
+    /* 이동 범위 및 스케일 미세 조정 */
+  }
+
+  50% {
+    transform: translateX(36vw) translateY(4vh) scale(1.03);
+    /* 이동 범위 및 스케일 미세 조정 */
+  }
+
+  100% {
+    transform: translateX(100vw) translateY(-3vh) scale(0.98);
+    /* 이동 범위 및 스케일 미세 조정 */
+  }
+}
+
+@keyframes flowAcrossCircle2 {
+  0% {
+    transform: translateX(-38vw) translateY(4vh) scale(0.98);
+  }
+
+  50% {
+    transform: translateX(31vw) translateY(-8vh) scale(0.88);
+  }
+
+  100% {
+    transform: translateX(100vw) translateY(1vh) scale(1.01);
+  }
+}
+
+@keyframes flowAcrossCircle3 {
+  0% {
+    transform: translateX(-22vw) translateY(1vh) scale(1.01);
+  }
+
+  50% {
+    transform: translateX(39vw) translateY(9vh) scale(1.08);
+  }
+
+  100% {
+    transform: translateX(100vw) translateY(3vh) scale(0.95);
+  }
+}

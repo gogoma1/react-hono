@@ -1,0 +1,57 @@
+.status-changer-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.clickable-badge {
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clickable-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.status-delete {
+    background-color: #f56565; /* 붉은 계열 */
+    color: white;
+}
+.status-delete:hover {
+    background-color: #e53e3e;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.cancel-button {
+    padding: 4px;
+    border-radius: 50%;
+    color: var(--text-color-secondary, #666);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.cancel-button:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+    color: var(--text-color-primary, #333);
+}
+
+/* [추가] 아이콘과 Badge 사이의 시각적 분리를 위한 선 (선택 사항) */
+.cancel-button::after {
+    content: '';
+    display: block;
+    width: 1px;
+    height: 16px;
+    background-color: var(--border-color-light, rgba(0, 0, 0, 0.1));
+    margin-left: 8px; /* 아이콘과 선 사이 간격 */
+}

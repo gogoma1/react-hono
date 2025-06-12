@@ -1,0 +1,205 @@
+/* filepath: react/pages/LoginPage.css */
+
+.login-page-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.login-background-blobs-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+.login-page-container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.login-form-card {
+    background: var(--sidebar-glass-bg);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+    border-radius: var(--main-content-border-radius);
+    padding: 40px 50px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(var(--glass-base-bg-rgb), 0.2);
+    text-align: center;
+    width: 100%;
+    max-width: 420px;
+    color: var(--text-primary);
+}
+
+.login-title {
+    font-size: 2.2rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.login-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 35px;
+}
+
+.social-login-buttons-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+}
+
+
+/* 공통 소셜 로그인 버튼 스타일 */
+.social-login-button {
+    width: 100%;
+    min-height: 48px;
+    /* 버튼 최소 높이 설정 (카카오 버튼 이미지 높이에 맞춤) */
+    padding: 0;
+    /* 내부 콘텐츠(이미지)가 꽉 차도록 패딩 제거 */
+    border-radius: 12px;
+    /* 카카오 버튼 권장 라운드 값 (또는 --main-content-border-radius 와 유사하게) */
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    /* Google 버튼 텍스트용 */
+    font-weight: 500;
+    /* Google 버튼 텍스트용 */
+    transition: opacity 0.2s ease-in-out, filter 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    box-sizing: border-box;
+    overflow: hidden;
+    /* 내부 이미지가 둥근 모서리를 넘어가지 않도록 */
+    line-height: 0;
+    /* button 태그의 기본 line-height로 인해 이미지 하단에 여백 생기는 것 방지 */
+}
+
+/* 카카오 로그인 버튼 */
+.kakao-login-button {
+    background-color: #FEE500;
+    /* 이미지 배경색과 동일하게 */
+}
+
+.kakao-login-button:hover {
+    filter: brightness(0.96);
+    /* 호버 시 약간 어둡게 */
+}
+
+.kakao-login-button img {
+    display: block;
+    /* 이미지 하단 여백 제거 */
+    width: 100%;
+    /* 버튼 너비에 맞춤 */
+    height: auto;
+    /* 이미지 비율 유지 */
+    /* 
+    카카오 로그인 버튼 이미지의 권장 크기가 있습니다.
+    medium_wide: 300px (너비)
+    medium_narrow: 183px (너비)
+    이미지 자체에 높이값이 있으므로, width: 100% 로 하면 버튼 크기에 따라 이미지가 늘어날 수 있습니다.
+    특정 크기를 원하면 width 값을 고정하거나, max-width를 설정합니다.
+    예: max-width: 300px; margin: 0 auto; (이미지를 중앙에 두고, 버튼은 100% 너비)
+    여기서는 버튼이 100% 너비를 가지고 이미지가 그 안에 꽉 차도록 합니다.
+  */
+}
+
+
+/* 구글 로그인 버튼 */
+.google-login-button {
+    background-color: #fff;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+    /* 구글 버튼은 텍스트가 있으므로 패딩이 필요합니다. */
+    padding: 12px 18px;
+    /* 구글 버튼용 패딩 재정의 */
+    min-height: initial;
+    /* Google 버튼은 내용에 따라 높이 결정되도록 */
+    line-height: normal;
+    /* Google 버튼 텍스트를 위해 line-height 복원 */
+}
+
+.google-login-button:hover {
+    background-color: #f8f9fa;
+    border-color: #c6c6c6;
+    box-shadow: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+}
+
+.google-login-button .social-login-icon {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+}
+
+.google-login-button .social-login-text {
+    flex-grow: 1;
+    text-align: center;
+    margin-left: -18px;
+    /* 아이콘 너비만큼 당겨서 텍스트가 버튼 중앙에 오도록 */
+}
+
+
+.login-terms {
+    margin-top: 30px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.login-terms a {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-terms a:hover {
+    color: var(--accent-color-darker);
+    text-decoration: underline;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 480px) {
+    .login-form-card {
+        padding: 30px 25px;
+        border-radius: var(--main-content-border-radius);
+    }
+
+    .login-title {
+        font-size: 1.8rem;
+    }
+
+    .login-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 25px;
+    }
+
+    .social-login-button {
+        /* 모바일에서 버튼 높이, 패딩 등 조정 가능 */
+        min-height: 45px;
+        /* 카카오 버튼 높이와 유사하게 */
+    }
+
+    .google-login-button {
+        padding: 10px 15px;
+        /* 모바일에서 구글 버튼 패딩 축소 */
+    }
+}

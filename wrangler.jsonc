@@ -19,11 +19,17 @@
     "hyperdrive": [
       {
         "binding": "HYPERDRIVE",
-        "id": "[YOUR_HYPERDRIVE_ID]",
+        "id": "95c5b3cb5cf748c0b87342c4140dce10",
         "localConnectionString": "postgresql://myuser:mypassword@localhost:5432/mydatabase"
       }
     ],
-  "placement": {
+  "vars" :{
+    "SUPABASE_URL": "https://jxpwraonjgaetsoqgkxj.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cHdyYW9uamdhZXRzb3Fna3hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2NTU3OTIsImV4cCI6MjA2NDIzMTc5Mn0.vEBaNMoBG372hkWN1BiEHCatqeLQaymFLSGLvt7t7QY",
+  },
+
+  
+    "placement": {
     "mode": "smart"
   },
   "upload_source_maps": true

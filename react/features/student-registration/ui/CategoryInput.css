@@ -1,0 +1,42 @@
+/* features/student-registration/ui/CategoryInput.css */
+/* ProfileSetupPage.css 및 index.css의 스타일과 통일감 유지 */
+
+.category-input-group {
+    display: grid;
+    gap: 8px;
+}
+
+/* form-label 클래스는 StudentRegistrationForm.css 에서 공통으로 정의 */
+
+.category-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.suggestion-button {
+    padding: 4px 12px;
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    background-color: transparent;
+    color: var(--text-secondary);
+    border-radius: 16px; /* pill shape */
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.suggestion-button:hover:not(.active) {
+    border-color: var(--accent-color);
+    color: var(--accent-color-darker);
+    background-color: var(--menu-item-hover-bg);
+}
+
+.suggestion-button.active {
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
+    border-color: var(--accent-color);
+    font-weight: 600;
+}
+
+/* form-input 클래스는 StudentRegistrationForm.css 에서 공통으로 정의 */

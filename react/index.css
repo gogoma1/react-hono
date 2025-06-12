@@ -1,0 +1,154 @@
+/* client/src/index.css */
+:root {
+  /* --- 기본 설정 --- */
+  --base-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  --app-bg-color: #fdfcfa;
+
+  /* --- 텍스트 색상 --- */
+  --text-primary: #2c3e50;
+  --text-secondary: #576574;
+  --text-placeholder: #a5b1c2;
+  --text-on-accent: #ffffff;
+
+  /* --- 악센트 컬러 --- */
+  --accent-color: #e67e22;
+  --accent-color-rgb: 230, 126, 34;
+  --accent-color-darker: #d35400;
+
+  /* --- Glassmorphism UI 공통 스타일 --- */
+  --glass-base-bg-rgb: 255, 253, 250;
+  /* 기본 유리 배경 RGB (약간 더 밝게) */
+  --glass-bg-opacity-navbar: 0.5;
+  /* 네비바 투명도 */
+  --glass-bg-opacity-sidebar: 0.5;
+  /* 사이드바 투명도 */
+  --glass-bg-opacity-mobile-sidebar: 0.90;
+  /* 모바일 사이드바는 더 불투명하게 */
+  --glass-blur-effect: blur(10px) saturate(150%);
+
+  /* Navbar, Sidebar Glass 배경 (공통 변수 사용) */
+  --navbar-glass-bg: rgba(var(--glass-base-bg-rgb), var(--glass-bg-opacity-navbar));
+  --sidebar-glass-bg: rgba(var(--glass-base-bg-rgb), var(--glass-bg-opacity-sidebar));
+  --mobile-sidebar-glass-bg: rgba(var(--glass-base-bg-rgb), var(--glass-bg-opacity-mobile-sidebar));
+
+  /* --- 레이아웃 크기 --- */
+  --navbar-height: 45px;
+  --navbar-height-mobile: 45px;
+  --sidebar-width: 210px;
+  --sidebar-collapsed-width: 65px;
+  --sidebar-right-width: 60px;
+  --sidebar-right-expanded-width: 250px;
+  --mobile-sidebar-width-ratio: 78vw;
+  /* 화면 너비의 78% (약간 넓힘) */
+  --mobile-sidebar-max-width: 330px;
+  /* 최대 너비 제한 */
+  --main-content-border-radius: 18px;
+  --main-content-bg-color: #fefefe;
+
+  /* --- 메뉴 아이템 색상 --- */
+  --menu-item-hover-bg: rgba(0, 0, 0, 0.04);
+  /* 호버 배경 약간 더 연하게 */
+  --menu-item-active-bg: rgba(var(--accent-color-rgb), 0.12);
+  /* 활성 배경 약간 더 연하게 */
+  --menu-item-active-text: var(--accent-color-darker);
+  --icon-color: var(--text-secondary);
+  --icon-active-color: var(--accent-color-darker);
+
+  /* --- 알림 뱃지 --- */
+  --notification-badge-bg: #e74c3c;
+  --notification-badge-text: white;
+
+  /* --- 툴팁 스타일 변수 --- */
+  --tooltip-bg-rgb: 35, 35, 45;
+  /* 툴팁 배경 RGB (더 어둡게) */
+  --tooltip-bg-opacity: 0.96;
+  --tooltip-text-color: #e8e8e8;
+  /* 툴팁 텍스트 약간 더 밝게 */
+  --tooltip-border-radius: 6px;
+  --tooltip-padding: 8px 12px;
+  /* 툴팁 패딩 약간 넓힘 */
+  --tooltip-font-size: 12px;
+  --tooltip-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  --tooltip-arrow-size: 7px;
+  --tooltip-backdrop-blur: 4px;
+
+  /* --- 모바일 오버레이 --- */
+  --mobile-overlay-bg-rgb: 255, 255, 255;
+  --mobile-overlay-bg-opacity: 0.25;
+  /* 이전 0.3에서 약간 더 투명하게 */
+  --mobile-overlay-blur: 2.5px;
+  /* 블러 강도 약간 줄임 */
+}
+
+body {
+  margin: 0;
+  font-family: var(--base-font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--app-bg-color);
+  color: var(--text-primary);
+  overflow: hidden;
+  /* 전역 스크롤 방지 */
+  line-height: 1.5;
+  /* 기본 줄 간격 */
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  /* 모든 요소에 box-sizing 적용 */
+}
+
+/* --- Tippy.js 커스텀 테마: custom-glass --- */
+.tippy-box[data-theme~='custom-glass'] {
+  font-family: var(--base-font-family);
+  font-size: var(--tooltip-font-size);
+  font-weight: 500;
+  line-height: 1.4;
+  background-color: rgba(var(--tooltip-bg-rgb), var(--tooltip-bg-opacity));
+  color: var(--tooltip-text-color);
+  border-radius: var(--tooltip-border-radius);
+  padding: var(--tooltip-padding);
+  box-shadow: var(--tooltip-shadow);
+  backdrop-filter: blur(var(--tooltip-backdrop-blur)) saturate(110%);
+  /* 채도 조정 */
+  -webkit-backdrop-filter: blur(var(--tooltip-backdrop-blur)) saturate(110%);
+}
+
+.tippy-box[data-theme~='custom-glass'] .tippy-arrow {
+  color: rgba(var(--tooltip-bg-rgb), var(--tooltip-bg-opacity));
+  width: calc(var(--tooltip-arrow-size) * 2);
+  height: calc(var(--tooltip-arrow-size) * 2);
+}
+
+/* 스크롤바 기본 스타일 (선택적) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  /* 트랙과의 간격처럼 보이게 */
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* 파이어폭스용 스크롤바 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.18) rgba(0, 0, 0, 0.03);
+}

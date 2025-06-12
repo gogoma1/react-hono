@@ -42,7 +42,9 @@ const ExamplePage: React.FC = () => {
       // fetch('/example/pg-tables') 가 됩니다.
       // 여기서는 Hono가 /api/example/pg-tables 를 직접 처리한다고 가정합니다.
       // (즉, wrangler.jsonc의 main이 api/index.ts이고, api/index.ts에서 app.route("/api/example", ...) 로 라우팅)
-      const response = await fetch('/example/pg-tables');
+      const response = await fetch('/api/example/pgtables');
+      credentials: 'include'
+      console.log(response)
 
       if (!response.ok) {
         // HTTP 에러 상태 처리 (4xx, 5xx)

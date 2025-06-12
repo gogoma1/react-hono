@@ -1,0 +1,238 @@
+/* filepath: client/src/pages/ProfileSetupPage.css */
+
+.profile-setup-page-wrapper {
+    display: flex;
+    min-height: 100vh;
+    /* 전체 화면 높이 */
+    align-items: center;
+    /* 수직 중앙 정렬 */
+    justify-content: center;
+    /* 수평 중앙 정렬 */
+    background-color: var(--app-bg-color, #fdfcfa);
+    /* index.css의 앱 배경색 */
+    padding: 20px;
+    /* 화면 가장자리 여백 */
+    box-sizing: border-box;
+    position: relative;
+    /* 블롭 배경을 위한 기준점 */
+    overflow: hidden;
+    /* 블롭이 넘치지 않도록 */
+}
+
+/* LoginPage와 동일한 블롭 배경 래퍼 스타일 재활용 */
+/* LoginPage.css에 이미 정의되어 있다면, 이 부분은 중복될 수 있습니다. 
+   App.css 같은 곳에 공통으로 정의하는 것이 더 좋을 수 있습니다. */
+.login-background-blobs-wrapper {
+    /* ProfileSetupPage.tsx 에서 이 클래스명 사용 가정 */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    /* 콘텐츠 뒤에 위치 */
+}
+
+
+.profile-setup-container {
+    background-color: var(--main-content-bg-color, #fefefe);
+    /* 메인 콘텐츠 배경색 */
+    padding: 35px 45px;
+    /* 내부 패딩 (Svelte의 p-10과 유사하게) */
+    border-radius: var(--main-content-border-radius, 18px);
+    /* 메인 콘텐츠와 동일한 둥근 모서리 */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05), 0 1px 4px rgba(0, 0, 0, 0.03);
+    /* 부드러운 그림자 */
+    width: 100%;
+    max-width: 550px;
+    /* Svelte 코드와 유사한 최대 너비 (sm:w-[550px]) */
+    text-align: center;
+    /* 내부 텍스트 기본 중앙 정렬 */
+    position: relative;
+    /* 블롭 배경 위에 오도록 */
+    z-index: 1;
+}
+
+.profile-setup-title {
+    font-size: 2rem;
+    /* Svelte의 text-3xl과 유사하게 조정 */
+    font-weight: 700;
+    /* font-bold */
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    /* Svelte의 gap-2 와 유사 */
+}
+
+.profile-setup-subtitle {
+    font-size: 1rem;
+    /* Svelte의 text-lg 와 유사하게 조정 */
+    color: var(--text-secondary);
+    /* Svelte의 text-muted-foreground 와 유사 */
+    margin-bottom: 30px;
+    /* Svelte의 gap-6 중 일부 */
+    line-height: 1.6;
+}
+
+.profile-setup-form {
+    display: grid;
+    /* Svelte의 grid */
+    gap: 24px;
+    /* Svelte의 gap-4 와 유사 */
+    text-align: left;
+    /* 폼 내부 요소는 왼쪽 정렬 */
+}
+
+.form-group {
+    display: grid;
+    gap: 8px;
+    /* Svelte의 gap-2 (라벨과 입력 요소 사이) */
+}
+
+.form-label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    /* Label 컴포넌트의 기본 색상과 유사하게 */
+}
+
+.position-buttons-group {
+    display: flex;
+    flex-wrap: wrap;
+    /* 버튼이 많을 경우 줄바꿈 */
+    gap: 10px;
+    /* Svelte의 gap-2 */
+}
+
+.position-button {
+    flex: 1 1 auto;
+    /* 버튼이 유연하게 너비 차지 (Svelte의 flex-1) */
+    min-width: 90px;
+    /* 버튼 최소 너비 */
+    padding: 10px 12px;
+    /* 버튼 패딩 */
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    /* 기본 테두리 (Input과 유사하게) */
+    background-color: var(--main-content-bg-color, #fff);
+    /* 기본 배경 */
+    color: var(--text-secondary);
+    border-radius: 8px;
+    /* 둥근 모서리 */
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    font-weight: 500;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.position-button.active {
+    background-color: var(--accent-color, #e67e22);
+    color: var(--text-on-accent, #fff);
+    border-color: var(--accent-color, #e67e22);
+    box-shadow: 0 2px 4px rgba(var(--accent-color-rgb), 0.2);
+}
+
+.position-button:not(.active):hover {
+    border-color: var(--accent-color-darker, #d35400);
+    color: var(--accent-color-darker, #d35400);
+    /* background-color: rgba(var(--accent-color-rgb), 0.05); */
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    /* Input 컴포넌트 테두리 */
+    border-radius: 8px;
+    /* Input 컴포넌트 둥근 모서리 */
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background-color: var(--app-bg-color);
+    /* 입력 필드 배경 약간 다르게 */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input::placeholder {
+    color: var(--text-placeholder);
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--accent-color, #e67e22);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);
+    /* 포커스 시 강조 */
+}
+
+.submit-button {
+    width: 100%;
+    padding: 12px 20px;
+    background-color: var(--accent-color, #e67e22);
+    color: var(--text-on-accent, #fff);
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+    margin-top: 10px;
+    /* 위 요소와의 간격 */
+}
+
+.submit-button:hover:not(:disabled) {
+    background-color: var(--accent-color-darker, #d35400);
+}
+
+.submit-button:disabled {
+    background-color: var(--text-placeholder, #a5b1c2);
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.error-message {
+    margin-top: 15px;
+    /* Svelte의 mt-4 */
+    color: var(--notification-badge-bg, #e74c3c);
+    /* index.css의 알림 색상 또는 직접 지정 */
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: center;
+    /* Svelte의 text-center */
+}
+
+
+@media (max-width: 480px) {
+
+    /* 더 작은 화면을 위한 추가 조정 */
+    .profile-setup-container {
+        padding: 25px 20px;
+        /* 모바일에서 패딩 축소 */
+    }
+
+    .profile-setup-title {
+        font-size: 1.75rem;
+        /* 모바일에서 타이틀 크기 축소 */
+    }
+
+    .profile-setup-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 25px;
+    }
+
+    .position-buttons-group {
+        flex-direction: column;
+        /* 필요시 세로 정렬 */
+    }
+
+    .position-button {
+        font-size: 0.85rem;
+    }
+
+    .form-input {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+
+    .submit-button {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+    }
+}

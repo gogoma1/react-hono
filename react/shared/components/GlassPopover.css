@@ -1,0 +1,105 @@
+/* client/src/components/common/popover/GlassPopover.css */
+.glass-popover {
+    /* ... (기존 배경, 그림자, 패딩, z-index, 너비 등 스타일 유지) ... */
+    background: var(--sidebar-glass-bg);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+    padding: 12px;
+    z-index: 1100;
+    min-width: 180px;
+    max-width: 300px;
+    box-sizing: border-box;
+
+    /* 초기 상태 (나타날 때 애니메이션 기준) */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(0) scale(1);
+    /* ★★★ 사라질 때 이 위치/크기를 기준으로 opacity만 변경 ★★★ */
+
+    /* 트랜지션 정의 */
+    transition-property: opacity, visibility;
+    /* transform 애니메이션은 열릴 때만 */
+    transition-duration: 0.22s, 0s;
+    /* visibility는 duration 0 */
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1), linear;
+    /* 사라질 때: opacity 애니메이션(0.22s) 후 visibility 변경 */
+    transition-delay: 0s, 0.22s;
+}
+
+.glass-popover.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    /* 열렸을 때 최종 위치/크기 */
+
+    /* 열릴 때의 transform 애니메이션 (선택적) */
+    /* 만약 열릴 때도 transform 애니메이션을 주고 싶다면 아래 주석 해제 */
+    /* transform: translateY(0) scale(1); */
+    /* transition-property: opacity, transform, visibility; */
+    /* transition-duration: 0.25s, 0.25s, 0s; */
+    /* transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1), cubic-bezier(0.32, 0.72, 0, 1), linear; */
+
+    /* 열릴 때: 모든 애니메이션 지연 0s (visibility는 즉시) */
+    transition-delay: 0s, 0s;
+    /* transform 애니메이션 없다면 visibility 지연도 0s */
+}
+
+/* Popover 내부 콘텐츠 스타일링 (예시) */
+.glass-popover .popover-content {
+    color: var(--text-primary);
+}
+
+.glass-popover ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.glass-popover li a,
+.glass-popover li button {
+    display: flex;
+    /* 아이콘과 텍스트 정렬 위해 flex 사용 */
+    align-items: center;
+    /* 수직 중앙 정렬 */
+    width: 100%;
+    padding: 9px 12px;
+    /* 패딩 약간 조정 */
+    text-decoration: none;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    transition: background-color 0.15s ease-out, color 0.15s ease-out;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    /* 메뉴 아이템 폰트 두께 */
+    line-height: 1.4;
+    /* 줄 간격 */
+}
+
+.glass-popover li a:hover,
+.glass-popover li button:hover {
+    background-color: var(--menu-item-hover-bg);
+    color: var(--text-primary);
+}
+
+/* Popover 내부 아이콘 스타일 (ProfileMenuContent.tsx 에서 사용 시) */
+.glass-popover li svg {
+    /* 아이콘의 일반적인 스타일 */
+    margin-right: 10px;
+    /* vertical-align: bottom; /* flex 사용 시 불필요 */
+    color: var(--icon-color);
+    /* 아이콘 색상 변수 사용 */
+    flex-shrink: 0;
+    /* 아이콘 크기 유지 */
+}
+
+.glass-popover li a:hover svg,
+.glass-popover li button:hover svg {
+    color: var(--icon-active-color);
+    /* 호버 시 아이콘 색상 */
+}

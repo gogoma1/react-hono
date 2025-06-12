@@ -1,0 +1,14 @@
+/* shared/ui/Badge/Badge.css */
+.badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 500;
+    display: inline-block;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+    /* 기본 배경색이나 글자색은 여기서 정의하지 않거나, 매우 중립적인 색으로 정의 */
+    /* background-color: #e9ecef; */
+    /* color: #495057; */
+}
