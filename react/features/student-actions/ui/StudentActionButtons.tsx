@@ -39,7 +39,7 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
                 <button type="button" className="action-icon-button"
                     onClick={(e) => { e.stopPropagation(); onEdit(studentId); }}
                     aria-label={`${studentName} 학생 정보 수정`}>
-                    <LuPencil size={16} />
+                    <LuPencil size={16} color="#3498db" />
                 </button>
             </Tippy>
             {/* 2. 상세보기 아이콘 */}
@@ -47,7 +47,7 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
                  <button type="button" className="action-icon-button"
                     onClick={(e) => { e.stopPropagation(); onNavigate(studentId); }}
                     aria-label={`${studentName} 학생 상세 정보 보기`}>
-                    <LuBookUser size={16} />
+                    <LuBookUser size={16} color="#3498db" />
                 </button>
             </Tippy>
             {/* 3. 상태 변경(퇴원 처리 등) 아이콘 */}
@@ -55,7 +55,7 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
                 <button type="button" className="action-icon-button"
                     onClick={(e) => { e.stopPropagation(); onToggleStatusEditor(studentId); }}
                     aria-label={`${studentName} 학생 상태 변경`}>
-                    <LuCircleArrowOutDownRight size={16} />
+                    <LuCircleArrowOutDownRight size={16} color="#3498db" />
                 </button>
             </Tippy>
         </div>

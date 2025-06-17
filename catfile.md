@@ -10,4 +10,10 @@ find ./src/react-app -type f -exec echo "----- {} -----" \; -exec cat {} \;
 
 find ./react/entities \( -name "*.ts" -o -name "*.tsx" \) -type f -exec echo "----- {} -----" \; -exec cat {} +
 
-find ./api \( -name "*.ts" -o -name "*.tsx" \) -type f -exec echo "----- {} -----" \; -exec cat {} + > files2.md
+find ./react \( -name "*.ts" -o -name "*.tsx" \) -type f -exec echo "----- {} -----" \; -exec cat {} + > files3.md
+
+find  ./api \( -name "*.ts" -o -name "*.tsx" \) -type f -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > filesapi.md
+
+find  ./react \( -name "*.ts" -o -name "*.tsx" \) -type f -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > files.md
+
+find  ./react \( -name "*.css" \) -type f -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > filescss.md

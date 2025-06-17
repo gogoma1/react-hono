@@ -10,10 +10,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    position: relative;
+    
     z-index: 100;
     color: var(--text-primary);
-    /* border-bottom 제거됨 */
+
+    position: fixed;
+    top: 0;
+    left: 0;
 }
 
 .navbar-left,

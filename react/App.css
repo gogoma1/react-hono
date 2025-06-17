@@ -27,6 +27,8 @@
   height: 100vh;
   box-sizing: border-box;
   overflow: hidden;
+
+   padding-top: var(--navbar-height); /* 수정 */
 }
 
 .content-body-wrapper {
@@ -212,9 +214,11 @@
     inset 0px 6px 12px -6px rgba(0, 0, 0, 0.07),
     inset 5px 0px 10px -5px rgba(0, 0, 0, 0.05),
     inset -5px 0px 10px -5px rgba(0, 0, 0, 0.045);
+
+   scrollbar-gutter: stable;
 }
 
-.desktop-layout .main-content,
+/* .desktop-layout .main-content,
 .tablet-layout .main-content {
   height: calc(100vh - var(--navbar-height));
 }
@@ -224,7 +228,7 @@
   border-top-left-radius: 0;
   border-top-right-radius: 0;
   box-shadow: none;
-}
+} */
 
 
 /* Clickable Overlay for Mobile Sidebar */

@@ -1,0 +1,52 @@
+/* react/shared/ui/actionbutton/ActionButton.css */
+.action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+
+    /* 원형 버튼 크기 및 모양 */
+    width: 56px;
+    height: 56px;
+    border-radius: 50%; /* 요청하신 원형 스타일 */
+
+    /* 주조색(Accent Color)을 사용한 배경 */
+    background: linear-gradient(145deg, var(--accent-color), var(--accent-color-darker));
+    color: var(--text-on-accent); /* 배경색 위의 텍스트/아이콘 색상 */
+    
+    /* 입체감을 위한 그림자 */
+    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3), 
+                0 1px 3px rgba(0, 0, 0, 0.1);
+
+    /* 부드러운 전환 효과 */
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-button svg {
+    /* 내부 아이콘 크기는 버튼 크기에 맞춰 조정 */
+    width: 24px;
+    height: 24px;
+}
+
+/* 호버 시 인터랙션 효과 */
+.action-button:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(var(--accent-color-rgb), 0.35),
+                0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* 클릭 시 인터랙션 효과 */
+.action-button:active:not(:disabled) {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 2px 6px rgba(var(--accent-color-rgb), 0.3);
+}
+
+/* 비활성화 상태 */
+.action-button:disabled {
+    background: var(--text-placeholder); /* 비활성화 색상 */
+    color: rgba(255, 255, 255, 0.7);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+}

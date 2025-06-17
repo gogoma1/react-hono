@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'; // useEffect 추가 
 import { Link } from 'react-router';
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore'; // 경로 확인
-import { LuLayoutDashboard, LuMenu, LuSettings2, LuUser } from 'react-icons/lu';
+import { LuLayoutDashboard, LuMenu, LuSettings2, LuCircleUserRound } from 'react-icons/lu';
 import Tippy from '@tippyjs/react'
 
 // Popover 및 내부 콘텐츠 컴포넌트 임포트
@@ -13,7 +13,7 @@ import ProfileMenuContent from '../../features/popovermenu/ProfileMenuContent'; 
 const LogoIcon = () => <LuLayoutDashboard size={26} className="navbar-logo-icon" />;
 const HamburgerIcon = () => <LuMenu size={22} />;
 const SettingsIconMobile = () => <LuSettings2 size={20} />;
-const ProfileIcon = () => <LuUser size={22} />;
+const ProfileIcon = () => <LuCircleUserRound size={22} />;
 
 const GlassNavbar: React.FC = () => {
     const {

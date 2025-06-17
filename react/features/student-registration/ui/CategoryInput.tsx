@@ -6,9 +6,10 @@ interface CategoryInputProps {
     value: string;
     suggestions: (string | number)[];
     onChange: (value: string) => void;
-    placeholder: string;
-    type?: 'text' | 'number' | 'tel'; // tel 타입 추가
+    placeholder?: string;
+    type?: 'text' | 'number' | 'tel';
     required?: boolean;
+    hideInput?: boolean; 
 }
 
 const CategoryInput: React.FC<CategoryInputProps> = ({
@@ -19,6 +20,7 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
     placeholder,
     type = 'text',
     required = false,
+    hideInput = false, 
 }) => {
     return (
         <div className="category-input-group">
@@ -35,14 +37,17 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
                     </button>
                 ))}
             </div>
-            <input
-                type={type}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder={placeholder}
-                className="form-input"
-                required={required}
-            />
+            
+            {!hideInput && (
+                <input
+                    type={type}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    className="form-input"
+                    required={required}
+                />
+            )}
         </div>
     );
 };

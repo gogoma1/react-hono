@@ -14,7 +14,15 @@ import StudentDetailPage from './pages/StudentDetailPage';
 import AuthInitializer from './shared/lib/AuthInitializer';
 import { useAuthStore, selectIsLoadingAuth } from './shared/store/authStore';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5분 동안 캐시 유지
+
+    },
+  },
+});
 
 function App() {
     const isLoadingAuth = useAuthStore(selectIsLoadingAuth);
