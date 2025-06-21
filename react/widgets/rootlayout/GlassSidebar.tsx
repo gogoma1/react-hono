@@ -13,7 +13,7 @@ import {
      // 아이콘 import 업데이트
     LuLayoutDashboard, LuCheck, LuLibrary, LuHeart, LuActivity,
     LuChartBar, LuFileText, LuChevronLeft, LuChevronRight,
-    LuTestTubes, LuMove // 추가 아이콘
+    LuTestTubes, LuMove, LuFile // 추가 아이콘
 } from 'react-icons/lu';
 
 interface MenuItemData {
@@ -26,6 +26,7 @@ interface MenuItemData {
 
 // --- 아이콘 컴포넌트 정의 (변경 없음) ---
 const DashboardIcon = () => <LuLayoutDashboard size={18} />;
+const ProblemIcon = () => <LuFile size={18} />;
 // 예제 및 테스트용 아이콘 추가/수정
 const ExampleIcon = () => <LuTestTubes size={18} />; 
 const MoveIcon = () => <LuMove size={18} />; 
@@ -49,10 +50,11 @@ export const allMenuItems: MenuItemData[] = [
         name: '대시보드', 
         icon: <DashboardIcon /> 
     },
-    // 대시보드 하위 메뉴 예시 (App.tsx에 라우트 추가 후 주석 해제)
-    // { path: '/dashboard/activity', name: '활동', icon: <ActivityIcon />, isSubItem: true },
-    // { path: '/dashboard/statistic', name: '통계', icon: <StatisticIcon />, isSubItem: true },
-    // { path: '/dashboard/performance-cases', name: '성능 사례', icon: <PerformanceIcon />, isSubItem: true },
+    {
+        path: '/problem-workbench', // 새 페이지의 URL 경로
+        name: '문제 작업',
+        icon: <ProblemIcon />
+    },
    
      { 
         path: '/exampleget', 

@@ -4,7 +4,49 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>React Postgres Fullstack Template</title>
+    <title>Vite + React + TS</title>
+
+    <!-- [수정] 스크립트 로딩 로직을 Promise 기반으로 완전히 변경합니다. -->
+    <script>
+      // window 객체에 라이브러리 로드 완료를 알리는 Promise를 생성합니다.
+      // React 앱은 이 Promise가 완료될 때까지 기다릴 것입니다.
+      window.mathpixReady = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.id = 'mathpix-script';
+        script.src = '/mathpix-markdown-it.bundle.js';
+        script.async = true; // 비동기 로드
+
+        // 스크립트 로드가 성공했을 때 실행됩니다.
+        script.onload = () => {
+          console.log('Mathpix script has loaded successfully.');
+          if (window.loadMathJax) {
+            try {
+              window.loadMathJax();
+              console.log('MathJax has been initialized.');
+              // 모든 준비가 끝났으므로 Promise를 성공 상태(resolve)로 바꿉니다.
+              resolve(true); 
+            } catch (e) {
+              console.error('Error during MathJax initialization:', e);
+              reject(e); // MathJax 초기화 실패 시 Promise를 실패 상태로 바꿉니다.
+            }
+          } else {
+            const error = new Error('window.loadMathJax is not defined after script load.');
+            console.error(error);
+            reject(error); // 필수 함수가 없으면 Promise를 실패 상태로 바꿉니다.
+          }
+        };
+        
+        // 스크립트 로드에 실패했을 때 실행됩니다.
+        script.onerror = (error) => {
+          console.error('Failed to load the Mathpix script:', error);
+          reject(error); // Promise를 실패 상태로 바꿉니다.
+        };
+
+        // 생성한 스크립트 태그를 문서의 head에 추가하여 로드를 시작합니다.
+        document.head.appendChild(script);
+      });
+    </script>
+    
   </head>
   <body>
     <div id="root"></div>

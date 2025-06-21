@@ -8,14 +8,11 @@ import profileRoutes from './routes/profiles/profiles';
 import exampleRoute from './routes/example/selectpg_tables';
 import studentRoutes from './routes/manage/student';
 import { supabaseMiddleware } from './routes/middleware/auth.middleware';
+import r2ImageRoutes from './routes/r2/image';
 
 // --- Hono 앱 타입 정의 (AppEnv) ---
 export type AppEnv = {
-    Bindings: {
-        HYPERDRIVE: Hyperdrive;
-        SUPABASE_URL: string;
-        SUPABASE_ANON_KEY: string;
-    },
+    Bindings: Env;
     Variables: {
         supabase: import('@supabase/supabase-js').SupabaseClient;
         user: import('@supabase/supabase-js').User;
@@ -44,6 +41,7 @@ app.use(supabaseMiddleware());
 app.route('/example', exampleRoute); 
 app.route('/profiles', profileRoutes); 
 app.route('/manage/student', studentRoutes);
+app.route('/r2', r2ImageRoutes);
 
 
 

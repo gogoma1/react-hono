@@ -2,49 +2,60 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 
 const breakpoints = {
-    mobile: 768, // 모바일 화면 너비 기준 (이하)
-    tablet: 1024, // 태블릿 화면 너비 기준 (이하, 모바일 초과)
+    mobile: 768,
+    tablet: 1024,
 };
 
-// 현재 뷰포트에 따른 브레이크포인트 타입을 정의합니다.
 type Breakpoint = 'mobile' | 'tablet' | 'desktop';
 
-// 현재 창 너비를 기반으로 브레이크포인트를 반환하는 함수입니다.
+// [신규] 모든 토글 가능한 학생 테이블 컬럼의 키 목록
+const allStudentTableColumns: string[] = [
+    'grade', 'subject', 'status', 'teacher', 'student_phone', 
+    'guardian_phone', 'school_name', 'tuition', 'admission_date', 'discharge_date'
+];
+
+// [신규] 컬럼 가시성의 초기 상태 (모두 보이도록 설정)
+const initialColumnVisibility = allStudentTableColumns.reduce((acc, key) => {
+    acc[key] = true;
+    return acc;
+}, {} as Record<string, boolean>);
+
+
 const getCurrentBreakpoint = (): Breakpoint => {
-    if (typeof window === 'undefined') return 'desktop'; // SSR 또는 테스트 환경 기본값
+    if (typeof window === 'undefined') return 'desktop';
     const width = window.innerWidth;
-    if (width < breakpoints.mobile) return 'mobile';
-    if (width < breakpoints.tablet) return 'tablet';
+    if (width <= breakpoints.mobile) return 'mobile';
+    if (width <= breakpoints.tablet) return 'tablet';
     return 'desktop';
 };
 
-// UI 상태 및 관련 액션을 정의하는 인터페이스입니다.
 export interface UIState {
-    // 오른쪽 사이드바 (데스크탑/태블릿 확장 상태, 모바일에서는 열림 상태)
-    isRightSidebarExpanded: boolean; // 데스크탑/태블릿에서 확장 여부
-    toggleRightSidebar: () => void;   // 모든 뷰포트에서 오른쪽 사이드바 토글
-    setRightSidebarExpanded: (expanded: boolean) => void; // 데스크탑/태블릿 확장 상태 직접 설정
-
-    // 왼쪽 사이드바 (데스크탑/태블릿 확장 상태, 모바일에서는 열림 상태)
-    isLeftSidebarExpanded: boolean; // 데스크탑/태블릿에서 확장 여부
-    toggleLeftSidebar: () => void;    // 모든 뷰포트에서 왼쪽 사이드바 토글
-    setLeftSidebarExpanded: (expanded: boolean) => void; // 데스크탑/태블릿 확장 상태 직접 설정
-
-    // 모바일 뷰에서 현재 열린 사이드바의 종류를 관리합니다. ('left', 'right', 또는 null)
+    isRightSidebarExpanded: boolean;
+    toggleRightSidebar: () => void;
+    setRightSidebarExpanded: (expanded: boolean) => void;
+    isLeftSidebarExpanded: boolean;
+    toggleLeftSidebar: () => void;
+    setLeftSidebarExpanded: (expanded: boolean) => void;
     mobileSidebarType: 'left' | 'right' | null;
-    openMobileSidebar: (type: 'left' | 'right') => void; // 특정 모바일 사이드바 열기
-    closeMobileSidebar: () => void;                     // 모든 모바일 사이드바 닫기
-
-    // 현재 애플리케이션의 브레이크포인트 상태입니다.
+    openMobileSidebar: (type: 'left' | 'right') => void;
+    closeMobileSidebar: () => void;
     currentBreakpoint: Breakpoint;
-    updateBreakpoint: () => void; // 윈도우 리사이즈 시 브레이크포인트 업데이트
+    updateBreakpoint: () => void;
+    // [신규] 컬럼 가시성 상태 및 액션 추가
+    columnVisibility: Record<string, boolean>;
+    toggleColumnVisibility: (key: string) => void;
 }
 
-// Zustand 스토어를 생성합니다.
+const log = (action: string, payload?: any) => {
+    console.log(`[UIStore] Action: ${action}`, payload !== undefined ? { payload } : '');
+};
+
+
 export const useUIStore = create(
     subscribeWithSelector<UIState>((set, get) => ({
         isRightSidebarExpanded: false,
         toggleRightSidebar: () => {
+            log('toggleRightSidebar');
             const currentBp = get().currentBreakpoint;
             if (currentBp === 'mobile') {
                 if (get().mobileSidebarType === 'right') {
@@ -56,10 +67,23 @@ export const useUIStore = create(
                 set((state) => ({ isRightSidebarExpanded: !state.isRightSidebarExpanded }));
             }
         },
-        setRightSidebarExpanded: (expanded) => set({ isRightSidebarExpanded: expanded }),
+        setRightSidebarExpanded: (expanded: boolean) => {
+            log('setRightSidebarExpanded', expanded);
+            const { currentBreakpoint, openMobileSidebar, closeMobileSidebar } = get();
+            if (currentBreakpoint === 'mobile') {
+                if (expanded) {
+                    openMobileSidebar('right');
+                } else {
+                    closeMobileSidebar();
+                }
+            } else {
+                set({ isRightSidebarExpanded: expanded });
+            }
+        },
 
         isLeftSidebarExpanded: true,
         toggleLeftSidebar: () => {
+            log('toggleLeftSidebar');
             const currentBp = get().currentBreakpoint;
             if (currentBp === 'mobile') {
                 if (get().mobileSidebarType === 'left') {
@@ -71,17 +95,29 @@ export const useUIStore = create(
                 set((state) => ({ isLeftSidebarExpanded: !state.isLeftSidebarExpanded }));
             }
         },
-        setLeftSidebarExpanded: (expanded) => set({ isLeftSidebarExpanded: expanded }),
+        setLeftSidebarExpanded: (expanded) => {
+            log('setLeftSidebarExpanded', expanded);
+            set({ isLeftSidebarExpanded: expanded });
+        },
 
         mobileSidebarType: null,
-        openMobileSidebar: (type) => set({ mobileSidebarType: type }),
-        closeMobileSidebar: () => set({ mobileSidebarType: null }),
+        openMobileSidebar: (type) => {
+            log('openMobileSidebar', type);
+            set({ mobileSidebarType: type });
+        },
+        closeMobileSidebar: () => {
+            if (get().mobileSidebarType !== null) {
+                log('closeMobileSidebar');
+                set({ mobileSidebarType: null });
+            }
+        },
         
         currentBreakpoint: getCurrentBreakpoint(),
         updateBreakpoint: () => {
             const newBreakpoint = getCurrentBreakpoint();
             const oldBreakpoint = get().currentBreakpoint;
             if (newBreakpoint !== oldBreakpoint) {
+                log('updateBreakpoint', { from: oldBreakpoint, to: newBreakpoint });
                 set({ currentBreakpoint: newBreakpoint });
                 get().closeMobileSidebar();
 
@@ -92,25 +128,31 @@ export const useUIStore = create(
                 }
             }
         },
+
+        // [신규] 컬럼 가시성 상태 및 액션 구현
+        columnVisibility: initialColumnVisibility,
+        toggleColumnVisibility: (key: string) => {
+            log('toggleColumnVisibility', key);
+            set((state) => ({
+                columnVisibility: {
+                    ...state.columnVisibility,
+                    [key]: !state.columnVisibility[key],
+                }
+            }));
+        },
     }))
 );
 
-// --- 스토어 초기화 및 이벤트 리스너 등록 ---
-// 클라이언트 사이드에서만 실행되도록 window 객체 존재 여부 확인
 if (typeof window !== 'undefined') {
     const { updateBreakpoint, setLeftSidebarExpanded, currentBreakpoint } = useUIStore.getState();
 
-    // 윈도우 리사이즈 이벤트에 updateBreakpoint 함수 연결
     window.addEventListener('resize', updateBreakpoint);
 
-    // 앱 초기 로드 시 현재 브레이크포인트에 따라 왼쪽 사이드바 상태 설정
     const initialBp = currentBreakpoint;
     if (initialBp === 'desktop') {
         setLeftSidebarExpanded(true);
-    } else { // tablet 또는 mobile
+    } else {
         setLeftSidebarExpanded(false);
     }
-    // 초기 브레이크포인트 업데이트 강제 실행 (최신 상태 보장)
-    // updateBreakpoint(); // Zustand v4에서는 스토어 외부에서 getState().action() 호출 권장
     useUIStore.getState().updateBreakpoint();
 }

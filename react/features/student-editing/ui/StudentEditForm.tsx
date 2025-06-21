@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
     useStudentDataWithRQ, 
     type Student, 
@@ -15,19 +15,45 @@ interface StudentEditFormProps {
 
 const statusOptions: Student['status'][] = ['재원', '휴원', '퇴원'];
 
+// [최종 수정] reduce를 사용하여 타입 안정성을 높인 getUniqueValues 함수
+const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K): (string | number)[] => {
+    if (!items || items.length === 0) { // 오타 수정
+        return [];
+    }
+
+    const uniqueValues = items.reduce((acc: Set<string | number>, item) => {
+        const value = item[key];
+        if (typeof value === 'string' && value.trim() !== '') {
+            acc.add(value);
+        } else if (typeof value === 'number') {
+            acc.add(value);
+        }
+        return acc;
+    }, new Set<string | number>());
+
+    return Array.from(uniqueValues);
+};
+
+
 const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess }) => {
-    const { updateStudent, updateStudentStatus } = useStudentDataWithRQ();
+    const { students, updateStudent, updateStudentStatus } = useStudentDataWithRQ();
 
     const [name, setName] = useState('');
     const [grade, setGrade] = useState('');
     const [className, setClassName] = useState('');
     const [subject, setSubject] = useState('');
+    const [teacher, setTeacher] = useState('');
     const [status, setStatus] = useState<Student['status']>('재원');
     const [studentPhone, setStudentPhone] = useState('');
     const [guardianPhone, setGuardianPhone] = useState('');
     const [schoolName, setSchoolName] = useState('');
     const [tuition, setTuition] = useState('');
 
+    const uniqueClassNames = useMemo(() => getUniqueValues(students, 'class_name').sort(), [students]);
+    const uniqueSubjects = useMemo(() => getUniqueValues(students, 'subject').sort(), [students]);
+    const uniqueSchoolNames = useMemo(() => getUniqueValues(students, 'school_name').sort(), [students]);
+    const uniqueTeachers = useMemo(() => getUniqueValues(students, 'teacher').sort(), [students]);
+    
     useEffect(() => {
         if (student) {
             setName(student.student_name);
@@ -35,6 +61,7 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
             setClassName(student.class_name || '');
             setSubject(student.subject);
             setStatus(student.status);
+            setTeacher(student.teacher || '');
             setStudentPhone(student.student_phone || '');
             setGuardianPhone(student.guardian_phone || '');
             setSchoolName(student.school_name || '');
@@ -56,6 +83,7 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
             grade: grade.trim(),
             class_name: className.trim() || null,
             subject: subject.trim(),
+            teacher: teacher.trim() || null,
             status: status,
             student_phone: studentPhone.trim() || null,
             guardian_phone: guardianPhone.trim() || null,
@@ -98,7 +126,7 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
                     label="반" 
                     value={className} 
                     onChange={setClassName} 
-                    suggestions={[]} 
+                    suggestions={uniqueClassNames} 
                     placeholder="직접 입력 (예: 1반, 심화반)"
                 />
 
@@ -106,8 +134,15 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
                     label="과목" 
                     value={subject} 
                     onChange={setSubject} 
-                    suggestions={[]} 
+                    suggestions={uniqueSubjects} 
                     placeholder="직접 입력 (예: 수학, 영어)"
+                />
+                <CategoryInput 
+                    label="담당 강사" 
+                    value={teacher} 
+                    onChange={setTeacher} 
+                    suggestions={uniqueTeachers} 
+                    placeholder="직접 입력 (예: 김리액)"
                 />
                 <CategoryInput 
                     label="학생 연락처" 
@@ -129,7 +164,7 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
                     label="학교명" 
                     value={schoolName} 
                     onChange={setSchoolName} 
-                    suggestions={[]} 
+                    suggestions={uniqueSchoolNames} 
                     placeholder="직접 입력 (예: OO고등학교)"
                 />
                 <CategoryInput 

@@ -1,26 +1,13 @@
 .glass-table-wrapper {
     width: 100%;
     box-sizing: border-box;
-
-    /* Glassmorphism 배경 */
     background: rgba(255, 255, 255, 0.1);
-    /* 매우 연한 흰색 유리, --navbar-glass-bg 등과 유사하게 조정 가능 */
     backdrop-filter: blur(10px) saturate(150%);
     -webkit-backdrop-filter: blur(10px) saturate(150%);
-
     border-radius: 18px;
-    /* 부드러운 모서리 */
     border: 1px solid rgba(255, 255, 255, 0.18);
-    /* 옅은 테두리 */
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    /* 부드러운 그림자 */
     overflow: hidden;
-    /* 내부 스크롤 컨테이너가 둥근 모서리를 넘지 않도록 */
-
-}
-
-.glass-table td:first-child {
-    text-align: center;
 }
 
 .glass-table-caption {
@@ -28,24 +15,32 @@
     font-size: 1.1em;
     font-weight: 600;
     color: var(--text-primary);
-    /* CSS 변수 사용 */
     margin-bottom: 15px;
     padding-left: 5px;
-    /* 약간의 여백 */
     text-align: left;
 }
 
 .glass-table-scroll-container {
     width: 100%;
     overflow-x: auto;
-    /* 내용이 테이블 너비보다 클 경우 가로 스크롤 */
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+    /* [추가] 기본 커서를 grab으로 설정 */
+    cursor: grab;
 }
+
+/* [추가] 드래그 중일 때 커서 모양 변경 및 텍스트 선택 방지 */
+.glass-table-scroll-container.dragging {
+    cursor: grabbing;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
 
 .glass-table-scroll-container::-webkit-scrollbar {
     height: 8px;
-    /* 가로 스크롤바 높이 */
     background: transparent;
 }
 
@@ -60,76 +55,58 @@
 
 .glass-table {
     width: 100%;
+    min-width: max-content;
     border-collapse: collapse;
-    /* 셀 사이 간격 제거 */
     color: var(--text-secondary);
-    /* 기본 텍스트 색상, CSS 변수 사용 */
     font-size: 0.9em;
 }
 
 .glass-table th,
 .glass-table td {
     padding: 12px 15px;
-    /* 셀 내부 패딩 */
     text-align: left;
     vertical-align: middle;
     border-bottom: 1px solid rgba(129, 127, 127, 0.1);
-    /* 셀 구분선 (매우 옅게) */
+    white-space: nowrap;
+}
+
+.glass-table td:first-child {
+    text-align: center;
+}
+
+.glass-table thead {
+    background: rgba(0, 0, 0, 0.05);
 }
 
 .glass-table th {
     font-size: 0.9em;
     font-weight: 400;
     color: var(--text-primary);
-    /* 헤더 텍스트 색상 */
-    /* background-color: rgba(255, 255, 255, 0.05); /* 헤더 배경 약간 다르게 (선택) */
     position: sticky;
-    /* 스크롤 시 헤더 고정 (선택 사항, 스크롤 컨테이너 필요) */
     top: 0;
-    /* 스티키 헤더 위치 */
     z-index: 1;
-    /* 다른 내용 위에 오도록 */
 }
-
-/* 스티키 헤더 사용 시 배경색을 명확히 주는 것이 좋음 */
-.glass-table thead {
-    background: rgba(0, 0, 0, 0.05);
-
-    /* 스티키 헤더 배경 */
-    /* backdrop-filter 와 중첩될 수 있으므로, 부모 wrapper의 backdrop-filter가 적용됨 */
-}
-
-
 
 .glass-table tbody tr:hover {
     background-color: rgba(0, 0, 0, 0.05);
-    /* 행 호버 효과 */
 }
 
-
-
-/* 로딩 및 빈 상태 스타일 */
 .loading-cell,
 .empty-cell {
     text-align: center !important;
-    /* 가운데 정렬 강제 */
     padding: 40px 15px !important;
-    /* 충분한 패딩 */
     color: var(--text-placeholder);
-    /* CSS 변수 사용 */
     font-style: italic;
 }
 
 .loading-cell .spinner {
     border: 3px solid rgba(255, 255, 255, 0.2);
     border-top: 3px solid var(--accent-color);
-    /* CSS 변수 사용 */
     border-radius: 50%;
     width: 24px;
     height: 24px;
     animation: spin 1s linear infinite;
     margin: 0 auto 10px auto;
-    /* 가운데 정렬 및 텍스트와의 간격 */
 }
 
 .loading-cell span {
@@ -137,13 +114,8 @@
 }
 
 @keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .glass-table th.sortable {
@@ -163,14 +135,92 @@
   gap: 6px;
   width: 100%;
   height: 100%;
-  justify-content: flex-start; /* 헤더 텍스트 기본 정렬 */
+  justify-content: flex-start;
 }
 
 .glass-table .sort-header-button:hover {
-  color: var(--text-color-primary-strong, #000); /* 호버 시 색상 강조 */
+  color: var(--text-color-primary-strong, #000);
 }
 
 .glass-table .sort-arrow {
   flex-shrink: 0;
   transition: opacity 0.2s;
+}
+
+/* ===== 고정 컬럼(Sticky Column)을 위한 스타일 ===== */
+
+/* 1. 고정될 셀(th, td) 자체의 스타일 */
+.glass-table th.sticky-col,
+.glass-table td.sticky-col {
+  position: -webkit-sticky;
+  position: sticky;
+  z-index: 2;
+  background: none;
+  padding: 0;
+  /* [수정] 고정 컬럼은 기본 커서로 설정하여 grab/grabbing을 덮어씌움 */
+  cursor: default;
+}
+
+/* 2. 셀 내부의 새로운 div 래퍼(.cell-content)에 스타일 적용 */
+.glass-table td.sticky-col .cell-content,
+.glass-table th.sticky-col .cell-content {
+  background: rgba(var(--glass-base-bg-rgb), 0.85);
+  backdrop-filter: var(--glass-blur-effect);
+  -webkit-backdrop-filter: var(--glass-blur-effect);
+  padding: 12px 15px;
+  height: 100%; 
+  display: flex;
+  align-items: center;
+}
+
+/* [추가] 고정 컬럼 내의 상호작용 가능한 요소(버튼, 링크 등)는 다시 포인터 커서로 변경 */
+.glass-table .sticky-col button,
+.glass-table .sticky-col a {
+    cursor: pointer;
+}
+
+/* 3. 호버 효과도 내부 div에 적용 */
+.glass-table tbody tr:hover td.sticky-col .cell-content {
+    background: linear-gradient(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.04)),
+                rgba(var(--glass-base-bg-rgb), 0.85);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+}
+
+/* 4. 헤더의 고정 컬럼 스타일 */
+.glass-table th.sticky-col {
+  z-index: 3; 
+}
+.glass-table th.sticky-col .cell-content {
+    background: linear-gradient(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05)),
+                rgba(var(--glass-base-bg-rgb), 0.85);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+}
+
+/* 5. 고정 컬럼의 좌/우 경계 스타일 (border 대신 box-shadow 사용) */
+.glass-table .first-sticky-col {
+  left: 0;
+  box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.15);
+}
+
+.glass-table .last-sticky-col {
+  right: 0;
+  box-shadow: -4px 0 8px -4px rgba(0, 0, 0, 0.15);
+}
+
+/* 첫 번째 컬럼과 마지막 컬럼이 겹칠 경우(컬럼이 적을 때)를 대비하여 z-index 조정 */
+.glass-table .last-sticky-col {
+    z-index: 4; /* 첫 번째 고정 컬럼보다 위에 오도록 */
+}
+.glass-table th.last-sticky-col {
+    z-index: 5;
+}
+
+/* 정렬 버튼이 있는 헤더 셀의 경우, 버튼이 div를 꽉 채우도록 */
+.glass-table th.sortable .cell-content {
+    padding: 0;
+}
+.glass-table th.sortable .cell-content .sort-header-button {
+    padding: 12px 15px;
 }

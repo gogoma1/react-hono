@@ -5,6 +5,11 @@ declare namespace Cloudflare {
 	interface Env {
 		ASSETS: Fetcher;
         HYPERDRIVE: Hyperdrive;
+        MY_R2_BUCKET: R2Bucket;
+        R2_PUBLIC_URL: string;
+        SUPABASE_URL: string;
+        SUPABASE_ANON_KEY: string;
+        R2_PUBLIC_URL_PREVIEW: string;
 	}
 }
 interface Env extends Cloudflare.Env {}

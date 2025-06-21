@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import StudentDisplayTable from '../../entities/student/ui/StudentDisplayTable';
-// [수정] GRADE_LEVELS 상수를 import합니다.
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../../entities/student/model/useStudentDataWithRQ';
 import { useRowSelection } from '../../features/row-selection/model/useRowSelection';
 import type { SortConfig } from '../../shared/ui/glasstable/GlassTable';
+import { useDragToScroll } from '../../shared/hooks/useDragToScroll';
 
 type StatusValue = Student['status'];
 
@@ -13,51 +13,45 @@ const statusOrder: { [key in StatusValue]: number } = {
 };
 
 interface StudentTableWidgetProps {
+    students: Student[];
+    isLoading: boolean;
     onRequestEdit: (student: Student) => void;
 }
 
-const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ onRequestEdit }) => {
+const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], isLoading, onRequestEdit }) => {
+    const { ref: scrollContainerRef, onMouseDown, isDragging } = useDragToScroll<HTMLDivElement>();
+
     const navigate = useNavigate();
-    const { students, isLoadingStudents, isStudentsError, studentsError, updateStudent, deleteStudent } = useStudentDataWithRQ();
+    const { updateStudent, deleteStudent } = useStudentDataWithRQ();
 
     const [editingStatusRowId, setEditingStatusRowId] = useState<string | null>(null);
-    const studentList: Student[] = students || [];
-    const studentIds = useMemo(() => studentList.map(s => s.id), [studentList]);
+    const [activeCardId, setActiveCardId] = useState<string | null>(null);
+    const studentIds = useMemo(() => students.map(s => s.id), [students]);
 
     const { selectedIds, toggleRow, isAllSelected, toggleSelectAll } = useRowSelection<string>({ allItems: studentIds });
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'student_name', direction: 'asc' });
 
     const sortedStudents = useMemo(() => {
-        return [...studentList].sort((a, b) => {
-            // 1. 상태(status)를 기준으로 1차 정렬
+        return [...students].sort((a, b) => {
             const statusComparison = statusOrder[a.status] - statusOrder[b.status];
             if (statusComparison !== 0) {
                 return statusComparison;
             }
 
-            // 2. 사용자가 선택한 기준으로 2차 정렬
             if (!sortConfig) return 0;
             
-            // ▼▼▼▼▼ [핵심] '학년' 컬럼에 대한 커스텀 정렬 로직 ▼▼▼▼▼
             if (sortConfig.key === 'grade') {
-                // GRADE_LEVELS 배열에서 각 학년의 순번(index)을 찾습니다.
                 const aRank = GRADE_LEVELS.indexOf(a.grade);
                 const bRank = GRADE_LEVELS.indexOf(b.grade);
-
-                // 만약 목록에 없는 학년값(예: null 또는 예외 케이스)이 있다면 맨 뒤로 보냅니다.
                 const aFinalRank = aRank === -1 ? Infinity : aRank;
                 const bFinalRank = bRank === -1 ? Infinity : bRank;
-
                 const comparison = aFinalRank - bFinalRank;
                 return sortConfig.direction === 'asc' ? comparison : -comparison;
             }
-            // ▲▲▲▲▲ [핵심] 로직 끝 ▲▲▲▲▲
 
-            // '학년'이 아닌 다른 모든 컬럼에 대한 일반 정렬 로직
             const key = sortConfig.key as keyof Student;
             const aValue = a[key];
             const bValue = b[key];
-            
             if (aValue == null) return 1;
             if (bValue == null) return -1;
 
@@ -67,7 +61,7 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ onRequestEdit }
 
             return sortConfig.direction === 'asc' ? comparison : -comparison;
         });
-    }, [studentList, sortConfig]);
+    }, [students, sortConfig]);
 
     const handleSort = (key: string) => {
         setSortConfig(current => ({
@@ -76,15 +70,17 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ onRequestEdit }
         }));
     };
 
+    // [핵심 수정] 데스크탑과 모바일에서 공통으로 사용할 수정 요청 핸들러
     const handleEdit = (studentId: string) => {
-        const student = studentList.find(s => s.id === studentId);
+        const student = students.find(s => s.id === studentId);
         if (student) {
-            onRequestEdit(student);
+            // DashBoard에 정의된 onRequestEdit를 호출하여 사이드바 모드를 'edit'으로 변경
+            onRequestEdit(student); 
         } else {
             console.error("수정할 학생을 찾을 수 없습니다:", studentId);
         }
     };
-
+    
     const handleNavigate = (studentId: string) => {
         setEditingStatusRowId(null);
         navigate(`/student/${studentId}`);
@@ -107,6 +103,7 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ onRequestEdit }
             console.error("상태 업데이트 중 오류 발생:", error);
         } finally {
             setEditingStatusRowId(null);
+            setActiveCardId(null);
         }
     };
 
@@ -114,32 +111,41 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ onRequestEdit }
         setEditingStatusRowId(null);
     };
 
-    if (isStudentsError) {
-        return (
-            <div style={{ padding: '20px', color: 'red' }}>
-                <h2>학생 데이터 로딩 오류</h2>
-                <p>{studentsError?.message || '알 수 없는 오류'}</p>
-            </div>
-        );
-    }
+    const handleCardClick = (studentId: string) => {
+        if (editingStatusRowId !== null) return;
+        
+        setActiveCardId(prevId => (prevId === studentId ? null : studentId));
+    };
+    
+    const closeActiveCard = () => {
+        setActiveCardId(null);
+    };
 
     return (
         <StudentDisplayTable
+            ref={scrollContainerRef}
+            scrollContainerProps={{
+                onMouseDown: onMouseDown,
+                className: isDragging ? 'dragging' : '',
+            }}
             students={sortedStudents}
-            isLoading={isLoadingStudents}
+            isLoading={isLoading}
             sortConfig={sortConfig}
             onSort={handleSort}
             selectedIds={selectedIds}
             onToggleRow={toggleRow}
             isHeaderChecked={isAllSelected}
             onToggleHeader={toggleSelectAll}
-            isHeaderDisabled={studentList.length === 0}
+            isHeaderDisabled={students.length === 0}
             editingStatusRowId={editingStatusRowId}
-            onEdit={handleEdit}
+            onEdit={handleEdit} // [수정] 공통 핸들러 전달
             onNavigate={handleNavigate}
             onToggleStatusEditor={handleToggleStatusEditor}
             onStatusUpdate={handleStatusUpdate}
             onCancel={handleCancelStatusEdit}
+            activeCardId={activeCardId}
+            onCardClick={handleCardClick}
+            closeActiveCard={closeActiveCard}
         />
     );
 };

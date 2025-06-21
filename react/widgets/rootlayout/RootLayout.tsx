@@ -1,50 +1,83 @@
-import React from 'react'; // React.memo를 사용하기 위해 import 추가
-import { Outlet } from 'react-router';
+import React, { useMemo } from 'react';
+import { Outlet, useLocation } from 'react-router';
 import { useUIStore } from '../../shared/store/uiStore';
+import { useLayoutStore, selectStudentSearchProps } from '../../shared/store/layoutStore';
 import BackgroundBlobs from '../rootlayout/BackgroundBlobs';
 import GlassNavbar from '../rootlayout/GlassNavbar';
 import GlassSidebar from '../rootlayout/GlassSidebar';
 import GlassSidebarRight from '../rootlayout/GlassSidebarRight';
+import TableSearch from '../../features/table-search/ui/TableSearch';
+import './RootLayout.css';
 
-// ▼▼▼▼▼ [핵심 1] Outlet을 포함하는 부분을 안정적인 컴포넌트로 분리하고 memo로 감쌉니다. ▼▼▼▼▼
-const MainContent = () => {
-    return (
-        <main className="main-content">
-            <Outlet />
-        </main>
-    );
-};
-const MemoizedMainContent = React.memo(MainContent);
-// ▲▲▲▲▲ [핵심 1] MainContent는 props가 없으므로, 한번 렌더링된 후에는 절대 다시 렌더링되지 않습니다. ▲▲▲▲▲
-
-
-// UILayoutContainer는 삭제하고 RootLayout으로 통합하여 구조를 단순화합니다.
 const RootLayout = () => {
-    // UI 상태 구독 로직은 RootLayout이 직접 담당합니다.
-    const currentBreakpoint = useUIStore((state) => state.currentBreakpoint);
-    const mobileSidebarType = useUIStore((state) => state.mobileSidebarType);
-    const closeMobileSidebar = useUIStore((state) => state.closeMobileSidebar);
+    const location = useLocation();
+    const { 
+        currentBreakpoint, 
+        mobileSidebarType, 
+        closeMobileSidebar, 
+        isLeftSidebarExpanded, 
+        isRightSidebarExpanded 
+    } = useUIStore();
+    const studentSearchProps = useLayoutStore(selectStudentSearchProps);
+
+    const parsedSuggestionGroups = useMemo(() => {
+        if (studentSearchProps?.suggestionGroups) {
+            try {
+                return JSON.parse(studentSearchProps.suggestionGroups);
+            } catch (e) {
+                console.error("Failed to parse suggestionGroups JSON", e);
+                return [];
+            }
+        }
+        return [];
+    }, [studentSearchProps?.suggestionGroups]);
 
     const showOverlay = currentBreakpoint === 'mobile' && mobileSidebarType !== null;
+    
+    const sidebarStateClass = `
+        ${isLeftSidebarExpanded ? 'left-sidebar-expanded' : 'left-sidebar-collapsed'}
+        ${isRightSidebarExpanded ? 'right-sidebar-expanded' : 'right-sidebar-collapsed'}
+    `.trim();
+
+    const isWorkbenchPage = location.pathname === '/problem-workbench';
+    const mainContentClasses = `main-content ${isWorkbenchPage ? 'main-content--compact-padding' : ''}`;
 
     return (
-        <div className={`app-container ${currentBreakpoint}-layout ${showOverlay ? 'mobile-sidebar-active' : ''}`}>
+        // [수정] mobile-sidebar-active 클래스를 RootLayout이 아닌 app-container에 적용
+        <div className={`app-container ${sidebarStateClass} ${showOverlay ? 'mobile-sidebar-active' : ''}`}>
             <div className="background-blobs-wrapper"><BackgroundBlobs /></div>
-            {showOverlay && (<div className={`clickable-overlay active`} onClick={closeMobileSidebar} aria-hidden="true" />)}
+            
+            {/* 
+              [핵심 수정] 
+              오버레이를 layout-main-wrapper 안으로 이동시킵니다.
+              이렇게 하면 오버레이가 사이드바(z-index: 110) 아래, 메인 콘텐츠(z-index: 5) 위에 위치하게 되어
+              사이드바는 블러 처리되지 않고 메인 콘텐츠만 블러 처리됩니다.
+            */}
             
             {currentBreakpoint === 'mobile' && <GlassSidebar />}
             {currentBreakpoint === 'mobile' && <GlassSidebarRight />}
             
-            <div className="layout-main-wrapper">
+            <div className={`layout-main-wrapper ${currentBreakpoint}-layout`}>
+                {showOverlay && (<div className={`clickable-overlay active`} onClick={closeMobileSidebar} aria-hidden="true" />)}
                 <GlassNavbar />
                 <div className="content-body-wrapper">
                     {currentBreakpoint !== 'mobile' && <GlassSidebar />}
                     
-                    {/* ▼▼▼▼▼ [핵심 2] Outlet 대신 메모이제이션된 컴포넌트를 렌더링합니다. ▼▼▼▼▼ */}
-                    <MemoizedMainContent />
-                    
+                    <main className={mainContentClasses}>
+                        <Outlet />
+                    </main>
+
                     {currentBreakpoint !== 'mobile' && <GlassSidebarRight />}
                 </div>
+
+                {studentSearchProps && (
+                    <div className="bottom-content-area">
+                        <TableSearch
+                            {...studentSearchProps}
+                            suggestionGroups={parsedSuggestionGroups}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

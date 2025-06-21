@@ -1,24 +1,91 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Tippy from '@tippyjs/react';
-// [수정] LuCircleX 아이콘을 추가로 import 합니다.
 import { LuCirclePlus, LuCircleX } from 'react-icons/lu';
-import StudentTableWidget from '../widgets/student-table/StudentTableWidget';
+
 import { useLayoutStore } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
+import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../entities/student/model/useStudentDataWithRQ';
+
 import StudentRegistrationForm from '../features/student-registration/ui/StudentRegistrationForm';
 import StudentEditForm from '../features/student-editing/ui/StudentEditForm';
-import type { Student } from '../entities/student/model/useStudentDataWithRQ';
+import StudentTableWidget from '../widgets/student-table/StudentTableWidget';
+import { useTableSearch } from '../features/table-search/model/useTableSearch';
+import type { SuggestionGroup } from '../features/table-search/ui/TableSearch';
 
 const PlusIcon = () => <LuCirclePlus size={22} />;
-// [추가] 닫기 아이콘 컴포넌트를 정의합니다.
 const CloseIcon = () => <LuCircleX size={22} />;
 
-const DashBoard: React.FC = () => {
-    const { setRightSidebarContent, setRightSidebarTrigger } = useLayoutStore();
-    const { isRightSidebarExpanded, setRightSidebarExpanded } = useUIStore();
+function usePrevious<T>(value: T): T | undefined {
+  const ref = useRef<T | undefined>(undefined);
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref.current;
+}
 
+const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] => {
+    if (!items || !Array.isArray(items) || items.length === 0) return [];
+    
+    const values = items.map(item => item[key]).filter((value): value is string => value != null && String(value).trim() !== '');
+    const uniqueValues = Array.from(new Set(values));
+    
+    if (key === 'grade') {
+        return uniqueValues.sort((a, b) => {
+            const indexA = GRADE_LEVELS.indexOf(a);
+            const indexB = GRADE_LEVELS.indexOf(b);
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+        });
+    }
+
+    return uniqueValues.sort();
+};
+
+const DashBoard: React.FC = () => {
+    const { setRightSidebarContent, setRightSidebarTrigger, setStudentSearchProps } = useLayoutStore();
+    const { isRightSidebarExpanded, setRightSidebarExpanded } = useUIStore();
+    
+    const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
+    
     const [sidebarMode, setSidebarMode] = useState<'register' | 'edit'>('register');
     const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+
+    const prevIsRightSidebarExpanded = usePrevious(isRightSidebarExpanded);
+
+    const currentStudents = students || [];
+
+    const suggestionGroups = useMemo((): SuggestionGroup[] => {
+        return [
+            { key: 'grade', suggestions: getUniqueSortedValues(currentStudents, 'grade') },
+            { key: 'subject', suggestions: getUniqueSortedValues(currentStudents, 'subject') },
+            { key: 'class_name', suggestions: getUniqueSortedValues(currentStudents, 'class_name') },
+            { key: 'teacher', suggestions: getUniqueSortedValues(currentStudents, 'teacher') },
+        ];
+    }, [currentStudents]);
+    
+    const suggestionGroupsJSON = useMemo(() => JSON.stringify(suggestionGroups), [suggestionGroups]);
+
+    const filteredStudents = useTableSearch({
+        data: currentStudents,
+        searchTerm,
+        searchableKeys: ['student_name', 'grade', 'subject', 'school_name', 'class_name', 'teacher'],
+        activeFilters,
+    }) as Student[];
+    
+    const handleFilterChange = useCallback((key: string, value: string) => {
+        setActiveFilters(prev => {
+            const newFilters = { ...prev };
+            if (newFilters[key] === value) {
+                delete newFilters[key];
+            } else {
+                newFilters[key] = value;
+            }
+            return newFilters;
+        });
+    }, []);
 
     const handleFormSuccess = useCallback(() => {
         setRightSidebarExpanded(false);
@@ -41,72 +108,72 @@ const DashBoard: React.FC = () => {
             ? <StudentEditForm student={studentToEdit} onSuccess={handleFormSuccess} />
             : <StudentRegistrationForm onSuccess={handleFormSuccess} />;
         setRightSidebarContent(content);
-    }, [sidebarMode, studentToEdit, setRightSidebarContent, handleFormSuccess]);
 
-    // ▼▼▼▼▼ [핵심] 사이드바 상태에 따라 동적으로 트리거를 교체하는 로직 ▼▼▼▼▼
-    useEffect(() => {
-        let triggerComponent;
-
-        if (isRightSidebarExpanded) {
-            // 사이드바가 열려있을 때: '닫기' 아이콘 표시
-            triggerComponent = (
-                <Tippy content="닫기" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
-                    <button
-                        onClick={() => setRightSidebarExpanded(false)} // 클릭 시 사이드바 닫기
-                        className="settings-toggle-button active" // 'active' 클래스로 스타일링 가능
-                        aria-label="사이드바 닫기"
-                    >
-                        <CloseIcon />
-                    </button>
-                </Tippy>
-            );
-        } else {
-            // 사이드바가 닫혀있을 때: '신입생 등록' 아이콘 표시
-            triggerComponent = (
-                <Tippy content="신입생 등록" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
-                    <button
-                        onClick={handleOpenRegisterSidebar}
-                        className="settings-toggle-button"
-                        aria-label="신입생 등록"
-                    >
-                        <PlusIcon />
-                    </button>
-                </Tippy>
-            );
-        }
-
-        // 동적으로 생성된 트리거를 레이아웃 스토어에 등록
+        const triggerComponent = isRightSidebarExpanded ? (
+            <Tippy content="닫기" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                <button onClick={() => setRightSidebarExpanded(false)} className="settings-toggle-button active" aria-label="사이드바 닫기">
+                    <CloseIcon />
+                </button>
+            </Tippy>
+        ) : (
+            <Tippy content="신입생 등록" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                <button onClick={handleOpenRegisterSidebar} className="settings-toggle-button" aria-label="신입생 등록">
+                    <PlusIcon />
+                </button>
+            </Tippy>
+        );
         setRightSidebarTrigger(triggerComponent);
 
-        return () => {
-            // 페이지 벗어날 때 트리거 초기화
-            setRightSidebarTrigger(null);
-        };
-    // isRightSidebarExpanded가 변경될 때마다 이 훅을 다시 실행
-    }, [isRightSidebarExpanded, setRightSidebarTrigger, handleOpenRegisterSidebar, setRightSidebarExpanded]);
-    // ▲▲▲▲▲ [핵심] 로직 끝 ▲▲▲▲▲
+    }, [sidebarMode, studentToEdit, isRightSidebarExpanded, handleFormSuccess, handleOpenRegisterSidebar, setRightSidebarContent, setRightSidebarTrigger, setRightSidebarExpanded]);
 
     useEffect(() => {
-        if (!isRightSidebarExpanded) {
-            if (sidebarMode !== 'register' || studentToEdit !== null) {
-                setTimeout(() => {
-                    setSidebarMode('register');
-                    setStudentToEdit(null);
-                }, 300);
-            }
+        setStudentSearchProps({
+            searchTerm,
+            onSearchTermChange: setSearchTerm,
+            activeFilters,
+            onFilterChange: handleFilterChange,
+            suggestionGroups: suggestionGroupsJSON,
+        });
+    }, [searchTerm, activeFilters, suggestionGroupsJSON, handleFilterChange, setStudentSearchProps]);
+
+    useEffect(() => {
+        if (prevIsRightSidebarExpanded && !isRightSidebarExpanded) {
+            const timer = setTimeout(() => {
+                setSidebarMode('register');
+                setStudentToEdit(null);
+            }, 300);
+            return () => clearTimeout(timer);
         }
-    }, [isRightSidebarExpanded, sidebarMode, studentToEdit]);
+    }, [isRightSidebarExpanded, prevIsRightSidebarExpanded]);
     
     useEffect(() => {
         return () => {
             setRightSidebarContent(null);
-            setRightSidebarExpanded(false);
+            setRightSidebarTrigger(null);
+            setStudentSearchProps(null);
         };
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+    }, [setRightSidebarContent, setRightSidebarTrigger, setStudentSearchProps]);
+    
+    if (isStudentsError) {
+        return (
+            <div style={{ padding: '20px', color: 'red', textAlign: 'center' }}>
+                <h2>학생 데이터 로딩 오류</h2>
+                <p>{studentsError?.message || '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'}</p>
+            </div>
+        );
+    }
 
     return (
-        <div>
-            <StudentTableWidget onRequestEdit={handleRequestEdit} />
+        <div style={{ position: 'relative', height: '100%' }}>
+            <StudentTableWidget 
+                students={filteredStudents} 
+                isLoading={isLoadingStudents}
+                onRequestEdit={handleRequestEdit} 
+            />
+            {/* 
+                [핵심 수정] 
+                모바일 화면에서 보이던 플로팅 액션 버튼(FAB) 렌더링 로직을 완전히 삭제합니다.
+            */}
         </div>
     );
 };

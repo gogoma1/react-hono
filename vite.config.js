@@ -11,6 +11,11 @@ export default defineConfig({
     '/example': 'http://127.0.0.1:8787',
     '/api': 'http://127.0.0.1:8787',
     '/exists': 'http://127.0.0.1:8787'
-  }
+  },
+  
+  define: {
+    // 'global'을 빈 객체로 정의하여 혹시 모를 추가 에러를 방지합니다.
+    'global': {},
+  },
 }
 });

@@ -9,10 +9,10 @@ import ExamplePage from './pages/example';
 import LoginPage from './pages/LoginPage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
 import DashBoard from './pages/DashBoard';
-// [FSD] 신규 페이지 import
 import StudentDetailPage from './pages/StudentDetailPage';
 import AuthInitializer from './shared/lib/AuthInitializer';
 import { useAuthStore, selectIsLoadingAuth } from './shared/store/authStore';
+import ProblemWorkbenchPage from './pages/ProblemWorkbenchPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,7 +46,7 @@ function App() {
                                 <Route path="/" element={<HomePage />} />
                                 <Route path="/dashboard" element={<DashBoard />} />
                                 <Route path="/exampleget" element={<ExamplePage />} />
-                                {/* [FSD] 학생 상세 페이지 라우트 추가 */}
+                                <Route path="/problem-workbench" element={<ProblemWorkbenchPage />} />
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
                             </Route>
                         </Route>

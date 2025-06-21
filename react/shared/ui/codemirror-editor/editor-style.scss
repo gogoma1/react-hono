@@ -1,0 +1,49 @@
+// filepath: react-hono/react/shared/ui/codemirror-editor/editor-style.scss
+
+.editor-wrapper {
+  height: 100%; // 에디터 높이 지정
+  width: 100%;
+  border: 1px solid #ddd;
+  overflow: hidden;
+}
+
+.cm-editor {
+  height: 100%;
+}
+
+// Decoration 스타일
+.cm-codeBlock {
+  background-color: #f7f7f7;
+  border-radius: 3px;
+}
+.cm-inlineCode {
+  color: #dd1144;
+  background-color: #f7f7f7;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+.cm-blockMath {
+  background-color: #eef8ff;
+  border-left: 3px solid #6ab0ff;
+}
+.cm-blockMathContent {
+  font-style: italic;
+}
+.cm-blockQuote {
+  border-left: 3px solid #ccc;
+  padding-left: 10px;
+  color: #666;
+}
+.cm-inlineMath {
+  border-radius: 3px;
+  padding: 0 2px;
+}
+.cm-ignoreSpellCheck {
+  text-decoration: underline dotted #ff8c00;
+}
+
+
+// 자동완성 아이콘 없는 옵션
+.auto-complete-option-noicon {
+  padding-left: 0.5em !important;
+}

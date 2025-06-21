@@ -1,0 +1,124 @@
+/* 페이지 전체를 감싸는 루트 컨테이너 */
+.problem-workbench-page {
+    height: 100%; /* RootLayout의 .main-content 높이를 채움 */
+    display: flex; /* 내부 레이아웃 컨테이너를 정렬하기 위해 */
+}
+
+/* 3개의 패널을 정렬하는 flex 레이아웃 컨테이너 */
+.problem-workbench-layout {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    width: 100%;
+    height: 100%;
+}
+
+/* 모든 패널에 적용되는 공통 스타일 (카드/패널 UI) */
+.workbench-panel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    /* 앱의 디자인 시스템 변수를 사용하여 스타일 통일 */
+    background-color: var(--glass-base-bg, rgba(255, 255, 255, 0.8));
+    border: 1px solid var(--border-color-light, #e0e0e0);
+    border-radius: 12px; /* 다른 패널들과 유사한 값으로 조정 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    overflow: hidden; /* 내부 콘텐츠가 둥근 모서리를 넘지 않도록 */
+}
+
+.panel-title {
+    padding: 12px 16px;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color-light, #e0e0e0);
+    flex-shrink: 0;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 패널 내부의 스크롤 가능한 콘텐츠 영역 */
+.panel-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 16px;
+    scrollbar-gutter: stable;
+}
+
+
+/* === 개별 패널 특화 스타일 === */
+
+/* 에디터 패널: CodeMirror가 자체 스크롤을 가지므로 패딩/스크롤 조정 */
+.editor-panel .panel-content {
+    padding: 0;
+    overflow: hidden;
+}
+
+/* CodeMirror의 실제 스크롤러를 타겟팅 */
+.editor-panel .cm-scroller {
+    overflow-y: auto !important;
+}
+
+/* 이미지 관리 패널: ImageManager 컴포넌트가 자체 패딩을 가지므로 조정 */
+.image-manager-wrapper-panel {
+    /* ImageManager 컴포넌트가 자체 패널 UI를 가지므로, 래퍼의 패딩은 제거 */
+    padding: 0;
+}
+
+
+/* === 미리보기(MathpixRenderer) 내부 스타일 (기존 코드 유지) === */
+
+/* .prose 클래스 내부의 모든 img 태그에 적용됩니다. */
+/* --- 1. 기본/가운데 정렬 (수정: #align 제외) --- */
+.prose img:not([src*="#left"]):not([src*="#right"]):not([src*="#align"]) {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 90%;
+  border-radius: 8px;
+  clear: both; 
+}
+
+/* --- 2. 왼쪽/오른쪽 Float (기존과 동일) --- */
+.prose img[src*="#left"] {
+  float: left;
+  width: 45%;
+  max-width: 350px;
+  margin: 0.5em 1.5em 1em 0;
+  border-radius: 8px;
+}
+.prose img[src*="#right"] {
+  float: right;
+  width: 45%;
+  max-width: 350px;
+  margin: 0.5em 0 1em 1.5em;
+  border-radius: 8px;
+}
+
+/* --- ✅ 3. #align 을 위한 새로운 "나란히 놓기" 스타일 --- */
+.prose div:has(+ div > img[src*="#align"]) {
+  float: left;
+  width: 55%;
+  padding-right: 20px;
+  box-sizing: border-box;
+}
+
+.prose div:has(> img[src*="#align"]) {
+  float: right;
+  width: 45%;
+}
+
+.prose div:has(> img[src*="#align"]) img {
+  width: 100%;
+  margin: 0;
+}
+
+/* --- 4. Float 효과 정리 (Clearfix) --- */
+.prose div:has(> img[src*="#align"]) + * {
+  clear: both;
+}
+
+.prose h1, .prose h2, .prose h3, .prose hr {
+  clear: both;
+}

@@ -17,3 +17,5 @@ find  ./api \( -name "*.ts" -o -name "*.tsx" \) -type f -exec echo "----- {} ---
 find  ./react \( -name "*.ts" -o -name "*.tsx" \) -type f -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > files.md
 
 find  ./react \( -name "*.css" \) -type f -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > filescss.md
+
+find  ./react/shared/ui/codemirror-editor -type f -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > files-codemirror.md

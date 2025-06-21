@@ -25,10 +25,15 @@
 /* --- 데스크탑 헤더 (토글 버튼) --- */
 .rgs-header-desktop {
     width: 100%;
-    padding: 0 10px; /* 🌟 헤더 영역 좌우 패딩 */
+    padding: 0 10px; /* 🌟 좌우 패딩 유지 */
     box-sizing: border-box;
     display: flex;
-    justify-content: center;
+    /* [수정] flex 방향을 세로로 변경 */
+    flex-direction: column;
+    /* [수정] 아이콘들을 가운데 정렬 (축소 상태) */
+    align-items: center;
+    /* [신규] 아이콘 사이의 간격 추가 */
+    gap: 10px;
 }
 .glass-sidebar-right.expanded .rgs-header-desktop {
     justify-content: flex-start;

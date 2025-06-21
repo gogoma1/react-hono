@@ -23,9 +23,19 @@
         "localConnectionString": "postgresql://myuser:mypassword@localhost:5432/mydatabase"
       }
     ],
+  "r2_buckets": [
+    {
+      "binding": "MY_R2_BUCKET",
+      "bucket_name": "problemimage",
+      "preview_bucket_name": "problemimage-preview" ,
+    }
+  ],
   "vars" :{
     "SUPABASE_URL": "https://jxpwraonjgaetsoqgkxj.supabase.co",
     "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cHdyYW9uamdhZXRzb3Fna3hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2NTU3OTIsImV4cCI6MjA2NDIzMTc5Mn0.vEBaNMoBG372hkWN1BiEHCatqeLQaymFLSGLvt7t7QY",
+    // "R2_PUBLIC_URL":"https://pub-eb8bc14505da4173971fab0835943824.r2.dev", 실제 url
+    "R2_PUBLIC_URL": "https://pub-f13c8ed5c4ed4bf990ca088c26785c34.r2.dev", // 개발용 url
+    "R2_PUBLIC_URL_PREVIEW": "https://pub-f13c8ed5c4ed4bf990ca088c26785c34.r2.dev",
   },
 
   

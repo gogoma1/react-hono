@@ -1,49 +1,58 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useLocation } from 'react-router';
 import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarContent } from '../../shared/store/layoutStore';
-// [수정] 기본 아이콘과 커스텀 아이콘을 모두 사용하므로 import는 유지
 import { LuSettings2, LuChevronRight } from 'react-icons/lu';
+import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
 
 const GlassSidebarRight: React.FC = () => {
+    const location = useLocation();
     const rightSidebarContent = useLayoutStore(selectRightSidebarContent);
-    // [수정] 커스텀 트리거 상태를 가져옵니다.
     const rightSidebarTrigger = useLayoutStore((state) => state.rightSidebarTrigger);
     
-    const { isRightSidebarExpanded, mobileSidebarType, currentBreakpoint, toggleRightSidebar, closeMobileSidebar } = useUIStore();
+    const { isRightSidebarExpanded, setRightSidebarExpanded, mobileSidebarType, currentBreakpoint, closeMobileSidebar } = useUIStore();
+    
+    const [isSettingsPanelOpen, setSettingsPanelOpen] = useState(false);
 
     const hasContent = rightSidebarContent !== null;
-    const isActuallyExpanded = (currentBreakpoint !== 'mobile' && isRightSidebarExpanded && hasContent) || (currentBreakpoint === 'mobile' && mobileSidebarType === 'right' && hasContent);
+    const isDashboardPage = location.pathname.startsWith('/dashboard');
+
+    const isActuallyExpanded = (currentBreakpoint !== 'mobile' && ( (isRightSidebarExpanded && hasContent) || isSettingsPanelOpen)) 
+        || (currentBreakpoint === 'mobile' && mobileSidebarType === 'right' && hasContent);
+
     const isOpen = currentBreakpoint === 'mobile' ? (mobileSidebarType === 'right' && hasContent) : isActuallyExpanded;
-    const tooltipContent = isActuallyExpanded ? "패널 축소" : "추가 옵션";
+
+    const handleToggleSettingsPanel = () => {
+        if (isRightSidebarExpanded) {
+            setRightSidebarExpanded(false);
+        }
+        setSettingsPanelOpen(prev => !prev);
+    };
 
     return (
         <aside className={`glass-sidebar-right ${isActuallyExpanded ? 'expanded' : ''} ${currentBreakpoint === 'mobile' ? 'mobile-sidebar right-mobile-sidebar' : ''} ${isOpen ? 'open' : ''}`}>
             {currentBreakpoint !== 'mobile' && (
                 <div className="rgs-header-desktop">
-                    {/* ▼▼▼▼▼ [핵심] 조건부 렌더링 로직 ▼▼▼▼▼ */}
-                    {rightSidebarTrigger ? (
-                        // 1. 커스텀 트리거가 있으면 그것을 렌더링
-                        rightSidebarTrigger
-                    ) : (
-                        // 2. 없으면 기본 설정 버튼을 렌더링
-                        <Tippy content={tooltipContent} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                    {/* [핵심 수정] 신입생 등록 버튼이 항상 아래에 오도록 순서 변경 및 div 래퍼 제거 */}
+                    {rightSidebarTrigger}
+
+                    {isDashboardPage && (
+                        <Tippy content="테이블 설정" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
                             <button
-                                onClick={toggleRightSidebar}
-                                className="settings-toggle-button"
-                                aria-label={tooltipContent}
-                                aria-expanded={isActuallyExpanded}
-                                disabled={!hasContent} 
+                                onClick={handleToggleSettingsPanel}
+                                className={`settings-toggle-button ${isSettingsPanelOpen ? 'active' : ''}`}
+                                aria-label="테이블 컬럼 설정"
+                                aria-expanded={isSettingsPanelOpen}
                             >
                                 <SettingsIcon />
                             </button>
                         </Tippy>
                     )}
-                    {/* ▲▲▲▲▲ [핵심] 로직 끝 ▲▲▲▲▲ */}
                 </div>
             )}
             
@@ -58,7 +67,11 @@ const GlassSidebarRight: React.FC = () => {
                             </Tippy>
                         </div>
                      )}
-                    {rightSidebarContent}
+                    
+                    {isSettingsPanelOpen 
+                        ? <TableColumnToggler /> 
+                        : rightSidebarContent
+                    }
                 </div>
             )}
         </aside>

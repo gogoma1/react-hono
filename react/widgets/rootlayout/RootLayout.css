@@ -1,0 +1,101 @@
+/* ./react/widgets/rootlayout/RootLayout.css */
+
+.main-content {
+  flex-grow: 1;
+  background-color: var(--main-content-bg-color);
+  padding: 25px;
+  /* [핵심] 검색바가 fixed이므로, 스크롤을 맨 아래로 내렸을 때 콘텐츠가 가려지지 않도록 하단 패딩 확보 */
+  padding-bottom: 150px; 
+  overflow-y: auto;
+  position: relative;
+  z-index: 5;
+  height: 100%;
+  box-sizing: border-box;
+  border-top-left-radius: var(--main-content-border-radius);
+  border-top-right-radius: var(--main-content-border-radius);
+  box-shadow: inset 0 6px 12px -6px rgba(0,0,0,.07), inset 5px 0 10px -5px rgba(0,0,0,.05), inset -5px 0 10px -5px rgba(0,0,0,.045);
+  scrollbar-gutter: stable;
+  /* flex 관련 속성 제거 */
+}
+
+/* ProblemWorkbenchPage에만 적용되는 특별 스타일 재정의 */
+.main-content.main-content--compact-padding {
+  padding-bottom: 25px; /* ProblemWorkbenchPage에서는 하단 패딩을 기본값으로 줄임 */
+}
+
+/* ... 오버레이 스타일은 동일하게 유지 ... */
+.clickable-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 105;
+  background-color: rgba(var(--mobile-overlay-bg-rgb), var(--mobile-overlay-bg-opacity));
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease-in-out, visibility 0s 0.3s linear;
+  cursor: pointer;
+  backdrop-filter: blur(var(--mobile-overlay-blur)) saturate(100%);
+  -webkit-backdrop-filter: blur(var(--mobile-overlay-blur)) saturate(100%);
+}
+.app-container.mobile-sidebar-active .clickable-overlay {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.3s ease-in-out, visibility 0s 0s linear;
+}
+
+/* [핵심] 화면 하단 고정 오버레이 래퍼 */
+.bottom-content-area {
+  position: fixed;
+  bottom: 0;
+  z-index: 95;
+  padding: 0 20px 20px; /* 패널의 좌우, 하단 간격 */
+  box-sizing: border-box;
+  pointer-events: none; /* 래퍼 자체는 클릭되지 않도록 */
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex; /* 내부 패널 중앙 정렬을 위해 */
+  justify-content: center; /* 내부 패널 중앙 정렬 */
+
+  /* [수정] 이 한 줄이 모든 문제를 해결합니다! */
+  /* 이제 이 div는 내용물의 높이만큼만 차지하여 더 이상 테이블을 덮지 않습니다. */
+  height: auto;
+}
+
+/* --- 사이드바 상태에 따른 4가지 케이스의 위치/너비 계산 --- */
+/* 1. 왼쪽 확장 / 오른쪽 축소 */
+.app-container.left-sidebar-expanded.right-sidebar-collapsed .bottom-content-area {
+  left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width) - var(--sidebar-right-width));
+}
+/* 2. 왼쪽 확장 / 오른쪽 확장 */
+.app-container.left-sidebar-expanded.right-sidebar-expanded .bottom-content-area {
+  left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width) - var(--sidebar-right-expanded-width));
+}
+/* 3. 왼쪽 축소 / 오른쪽 축소 */
+.app-container.left-sidebar-collapsed.right-sidebar-collapsed .bottom-content-area {
+  left: var(--sidebar-collapsed-width);
+  width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-width));
+}
+/* 4. 왼쪽 축소 / 오른쪽 확장 */
+.app-container.left-sidebar-collapsed.right-sidebar-expanded .bottom-content-area {
+  left: var(--sidebar-collapsed-width);
+  width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-expanded-width));
+}
+
+/* ... 반응형 스타일 ... */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .main-content {
+    padding: 20px;
+    padding-bottom: 150px;
+  }
+}
+@media (max-width: 768px) {
+  .main-content { padding: 15px; padding-bottom: 150px; }
+  .bottom-content-area {
+    left: 0 !important;
+    width: 100% !important;
+    padding: 0 10px 10px;
+  }
+}
