@@ -17,7 +17,6 @@ export interface TableColumn<T> {
   dataLabel?: string;
 }
 
-// [핵심 수정 1] 제네릭 타입 T가 항상 id를 가지도록 제약을 추가합니다.
 interface GlassTableProps<T extends { id: string | number }> {
   columns: TableColumn<T>[];
   data: T[];
@@ -29,7 +28,6 @@ interface GlassTableProps<T extends { id: string | number }> {
   scrollContainerProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
-// [핵심 수정 2] 제네릭 타입에 제약을 동일하게 적용합니다.
 function GlassTableInner<T extends { id: string | number }>(
   {
     columns,
@@ -68,6 +66,7 @@ function GlassTableInner<T extends { id: string | number }>(
                   style={{ width: col.width }}
                   className={`${col.isSortable ? 'sortable' : ''} ${col.className || ''}`.trim()}
                 >
+                  {/* [핵심 수정] 모든 th 내용을 .cell-content로 감쌈 */}
                   <div className="cell-content">
                     {col.isSortable && onSort ? (
                       <button type="button" onClick={() => onSort(String(col.key))} className="sort-header-button">
@@ -88,16 +87,15 @@ function GlassTableInner<T extends { id: string | number }>(
             ) : data.length === 0 ? (
               <tr><td colSpan={columns.length} className="empty-cell">{emptyMessage}</td></tr>
             ) : (
-              // [핵심 수정 3] key를 rowIndex 대신 item.id로 변경합니다.
               data.map((item) => (
                 <tr key={item.id}>
                   {columns.map((col, colIndex) => (
                     <td 
-                      // 셀의 key는 이제 item.id와 col.key 조합으로 더 안정적으로 만듭니다.
                       key={`${item.id}-${String(col.key)}-${colIndex}`} 
                       className={col.className || ''}
                       data-label={col.dataLabel} 
                     >
+                      {/* [핵심 수정] 모든 td 내용을 .cell-content로 감쌈 */}
                       <div className="cell-content">
                         {col.render ? col.render(item) : String(item[col.key as keyof T] ?? '')}
                       </div>
@@ -113,7 +111,6 @@ function GlassTableInner<T extends { id: string | number }>(
   );
 }
 
-// [핵심 수정 4] export하는 컴포넌트의 타입에도 제네릭 제약을 적용합니다.
 const GlassTable = forwardRef(GlassTableInner) as <T extends { id: string | number }>(
   props: GlassTableProps<T> & { ref?: React.ForwardedRef<HTMLDivElement> }
 ) => React.ReactElement;

@@ -1,3 +1,4 @@
+// ./react/shared/store/layoutStore.ts
 import { create } from 'zustand';
 import type { ReactNode } from 'react';
 
@@ -6,8 +7,12 @@ interface StoredSearchProps {
     onSearchTermChange: (value: string) => void;
     activeFilters: Record<string, string>;
     onFilterChange: (key: string, value: string) => void;
-    onResetFilters: () => void; // [추가]
-    suggestionGroups: string; // JSON 문자열로 저장
+    onResetFilters: () => void;
+    suggestionGroups: string;
+    // [추가] 새로운 버튼들을 위한 Props
+    onToggleFiltered: () => void;
+    onCreateProblemSet: () => void;
+    selectedCount: number;
 }
 
 interface SidebarTriggers {

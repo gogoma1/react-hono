@@ -179,8 +179,8 @@
     pointer-events: auto;
   }
 }
------ ./react/entities/student/ui/StudentDisplayTable.css -----
-/* ... (뱃지, 헤더 버튼 등 기존 스타일은 동일하게 유지) ... */
+----- ./react/entities/student/ui/StudentDisplayDesktop.css -----
+/* ./react/entities/student/ui/StudentDisplayDesktop.css */
 /* 재원 상태 */
 .badge.status-enroll {
     background-color: #28a745;
@@ -204,12 +204,6 @@
     background-color: #adb5bd;
     color: white;
 }
-
-/* 모바일 상태 뱃지 클래스 이름 일치시키기 (소문자) */
-.badge.status-재원 { background-color: #28a745; color: white; }
-.badge.status-휴원 { background-color: #ffc107; color: #212529; }
-.badge.status-퇴원 { background-color: #6c757d; color: white; }
-
 
 .table-cell-checkbox-td {
     border-bottom: none;
@@ -252,118 +246,116 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+----- ./react/entities/student/ui/StudentDisplayMobile.css -----
+/* ./react/entities/student/ui/StudentDisplayMobile.css */
+/* 모바일 상태 뱃지 클래스 이름 일치시키기 (소문자) */
+.badge.status-재원, .badge.status-enroll { background-color: #28a745; color: white; }
+.badge.status-휴원, .badge.status-pause { background-color: #ffc107; color: #212529; }
+.badge.status-퇴원, .badge.status-leave { background-color: #6c757d; color: white; }
+.badge.status-delete { background-color: #f56565; color: white; }
 
-/* ==========================================================================
-   [핵심 수정] 모바일 반응형 카드 스타일 (768px 이하)
-   ========================================================================== */
-@media (max-width: 768px) {
-    .glass-table-wrapper {
-        display: none;
-    }
 
-    .mobile-student-list-container {
-        padding: 5px;
-    }
-    
-    .mobile-loading-state {
-        padding: 2rem;
-        text-align: center;
-        color: var(--text-placeholder);
-    }
-    
-    .mobile-student-card {
-        background: var(--main-content-bg-color);
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        border-radius: 12px;
-        margin-bottom: 1rem;
-        padding: 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        cursor: pointer;
-        transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
-        -webkit-tap-highlight-color: transparent;
-    }
-    .mobile-student-card:hover,
-    .mobile-student-card.active {
-        border-color: rgba(var(--accent-color-rgb), 0.5);
-        box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.15);
-    }
+.mobile-student-list-container {
+    padding: 5px;
+}
 
-    .card-content-wrapper {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-    }
+.mobile-loading-state {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-placeholder);
+}
 
-    /* [수정] 카드 상단 정보 (이름, 태그) 스타일 */
-    .card-main-info {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    }
+.mobile-student-card {
+    background: var(--main-content-bg-color);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    cursor: pointer;
+    transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    -webkit-tap-highlight-color: transparent;
+}
+.mobile-student-card:hover,
+.mobile-student-card.active {
+    border-color: rgba(var(--accent-color-rgb), 0.5);
+    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.15);
+}
 
-    .main-info-name-status {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem; /* 이름과 뱃지 사이 간격 */
-    }
+.card-content-wrapper {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+}
 
-    .main-info-name {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        white-space: nowrap;
-    }
-    .main-info-tags {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-        flex-shrink: 0;
-    }
+.card-main-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
 
-    .card-details-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 0.5rem 1rem;
-        font-size: 0.85rem;
-        line-height: 1.5;
-    }
-    .detail-item {
-        display: flex;
-        flex-direction: column;
-    }
-    .detail-item span {
-        color: var(--text-secondary);
-    }
+.main-info-name-status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* 이름과 뱃지 사이 간격 */
+}
 
-    .card-actions {
-        max-height: 0;
-        overflow: hidden;
-        opacity: 0;
-        transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, margin-top 0.3s ease-in-out;
-    }
+.main-info-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+.main-info-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
 
-    .mobile-student-card.active .card-actions {
-        max-height: 100px;
-        opacity: 1;
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid rgba(0, 0, 0, 0.08);
-    }
+.card-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem 1rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+.detail-item {
+    display: flex;
+    flex-direction: column;
+}
+.detail-item span {
+    color: var(--text-secondary);
+}
 
-    .card-actions .action-cell-buttons {
-        justify-content: space-around;
-    }
-    .card-actions .status-changer-container {
-        width: 100%;
-        justify-content: space-around;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
+.card-actions {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, margin-top 0.3s ease-in-out;
+}
+
+.mobile-student-card.active .card-actions {
+    max-height: 100px;
+    opacity: 1;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.card-actions .action-cell-buttons {
+    justify-content: space-around;
+}
+.card-actions .status-changer-container {
+    width: 100%;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 ----- ./react/features/image-upload/ui/ImageManager.css -----
 /* ===== [수정됨] 패널 전체 레이아웃 ===== */
@@ -929,35 +921,43 @@
 .search-input:focus + .search-input-icon {
     color: var(--accent-color);
 }
+
+/* 필터와 액션 영역을 감싸는 Flex 컨테이너 */
+.filter-actions-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* 상단 정렬 */
+    gap: 20px;
+}
+
+/* 왼쪽 필터 칩 영역 */
+.filter-chips-area {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-grow: 1; /* 남는 공간을 모두 차지 */
+    min-width: 0; /* flex item이 줄어들 수 있도록 */
+}
+
 .suggestion-group {
     display: flex;
     align-items: center;
     gap: 10px;
 }
-/* [추가] 초기화 버튼이 있는 그룹 스타일 */
-.suggestion-group.with-reset {
-    justify-content: space-between;
-}
 
 .suggestion-buttons-wrapper {
     display: flex;
-    flex-wrap: nowrap;
-    gap: 10px;
-    overflow-x: auto;
-    padding-bottom: 5px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    flex-wrap: wrap; /* 버튼이 많아지면 줄바꿈 처리 */
+    gap: 8px;
 }
-.suggestion-buttons-wrapper::-webkit-scrollbar {
-    display: none;
-}
+
 .suggestion-chip {
-    padding: 6px 16px; 
+    padding: 5px 14px; /* 패딩 살짝 조정 */
     border: 1px solid var(--text-placeholder, #d1d5db);
     background-color: transparent;
     color: var(--text-secondary);
     border-radius: 18px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease-in-out;
@@ -987,35 +987,72 @@
     opacity: 1;
 }
 
-/* [추가] 초기화 버튼 스타일 */
-.reset-filters-button {
-    flex-shrink: 0;
+/* 오른쪽 액션 컨트롤 영역 */
+.action-controls-area {
+    display: flex;
+    flex-direction: column; /* 버튼을 세로로 정렬 */
+    gap: 8px;
+    flex-shrink: 0; /* 너비가 줄어들지 않도록 고정 */
+}
+
+.control-button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    justify-content: flex-start; /* 텍스트를 왼쪽 정렬 */
+    gap: 8px;
+    width: 100%;
+    min-width: 160px; /* 버튼의 최소 너비 설정 */
+    padding: 8px 12px;
     border-radius: 8px;
-    border: 1px solid transparent;
+    border: 1px solid rgba(0,0,0,0.1);
     background-color: rgba(0,0,0,0.05);
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease-in-out;
 }
-.reset-filters-button:hover:not(:disabled) {
-    background-color: rgba(0,0,0,0.09);
+
+.control-button:hover:not(:disabled) {
+    background-color: rgba(0,0,0,0.1);
     color: var(--text-primary);
 }
-.reset-filters-button:disabled {
-    opacity: 0.4;
+
+.control-button.primary {
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
+    border-color: transparent;
+}
+
+.control-button.primary:hover:not(:disabled) {
+    background-color: var(--accent-color-darker);
+}
+
+.control-button:disabled {
+    opacity: 0.5;
     cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
     .table-search-panel { padding: 12px; gap: 10px; }
     .search-input { padding: 12px 16px 12px 45px; font-size: 1rem; }
-    .suggestion-chip { padding: 5px 14px; font-size: 13px; }
+    
+    /* 모바일에서는 필터와 액션 영역을 세로로 배치 */
+    .filter-actions-container {
+        flex-direction: column;
+        align-items: stretch; /* 아이템들을 꽉 채우도록 */
+        gap: 12px;
+    }
+    .action-controls-area {
+        flex-direction: row; /* 모바일에서는 액션 버튼을 가로로 배치 */
+    }
+    .control-button {
+        flex-grow: 1; /* 버튼들이 가로 공간을 균등하게 차지 */
+        justify-content: center; /* 아이콘과 텍스트 중앙 정렬 */
+    }
+    .control-button span {
+        font-size: 13px;
+    }
 }
 ----- ./react/index.css -----
 /* client/src/index.css */
@@ -1917,6 +1954,8 @@ body {
     /* color: #495057; */
 }
 ----- ./react/shared/ui/glasstable/GlassTable.css -----
+/* ./react/shared/ui/glasstable/GlassTable.css */
+
 .glass-table-wrapper {
     width: 100%;
     box-sizing: border-box;
@@ -1979,15 +2018,14 @@ body {
 
 .glass-table th,
 .glass-table td {
-    padding: 12px 15px;
-    text-align: left;
+    padding: 0;
     vertical-align: middle;
     border-bottom: 1px solid rgba(129, 127, 127, 0.1);
     white-space: nowrap;
 }
 
-.glass-table td:first-child {
-    text-align: center;
+.glass-table td:first-child .cell-content {
+    justify-content: center;
 }
 
 .glass-table thead {
@@ -2025,10 +2063,6 @@ body {
     margin: 0 auto 10px auto;
 }
 
-.loading-cell span {
-    display: block;
-}
-
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -2063,16 +2097,19 @@ body {
   transition: opacity 0.2s;
 }
 
-/* ===== 고정 컬럼(Sticky Column)을 위한 스타일 (최종 수정) ===== */
+.cell-content {
+    padding: 12px 15px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
 
+/* ===== 고정 컬럼(Sticky Column) 스타일 ===== */
 .glass-table th.sticky-col,
 .glass-table td.sticky-col {
   position: -webkit-sticky;
   position: sticky;
-  z-index: 2;
   background: none;
-  padding: 0;
-  cursor: default;
 }
 
 .glass-table td.sticky-col .cell-content,
@@ -2080,16 +2117,15 @@ body {
   background: rgba(var(--glass-base-bg-rgb), 0.85);
   backdrop-filter: var(--glass-blur-effect);
   -webkit-backdrop-filter: var(--glass-blur-effect);
-  padding: 12px 15px;
-  height: 100%; 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* [핵심 1] 배경 요소가 클릭 이벤트를 무시하고 '통과'시키도록 설정합니다. */
+  /* [수정] 배경 요소가 클릭 이벤트를 통과시킴 */
   pointer-events: none;
 }
 
-/* [핵심 2] 자식 선택자(>) 대신 후손 선택자(공백)를 사용하여 모든 하위 요소에 적용합니다. */
+/* 
+[최종 수정]
+직계 자식 선택자(>) 대신 자손 선택자(공백)를 사용하여
+.cell-content 내부의 모든 중첩된 요소들이 클릭 이벤트를 받을 수 있도록 복원합니다.
+*/
 .glass-table .sticky-col .cell-content * {
     pointer-events: auto;
 }
@@ -2097,19 +2133,18 @@ body {
 .glass-table tbody tr:hover td.sticky-col .cell-content {
     background: linear-gradient(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.04)),
                 rgba(var(--glass-base-bg-rgb), 0.85);
-    backdrop-filter: var(--glass-blur-effect);
-    -webkit-backdrop-filter: var(--glass-blur-effect);
 }
 
 .glass-table th.sticky-col {
   z-index: 3; 
 }
+.glass-table td.sticky-col {
+  z-index: 2;
+}
 
 .glass-table th.sticky-col .cell-content {
     background: linear-gradient(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05)),
                 rgba(var(--glass-base-bg-rgb), 0.85);
-    backdrop-filter: var(--glass-blur-effect);
-    -webkit-backdrop-filter: var(--glass-blur-effect);
 }
 
 .glass-table .first-sticky-col {
@@ -2120,24 +2155,6 @@ body {
 .glass-table .last-sticky-col {
   right: 0;
   box-shadow: -4px 0 8px -4px rgba(0, 0, 0, 0.15);
-}
-
-.glass-table .last-sticky-col {
-    z-index: 4;
-}
-.glass-table th.last-sticky-col {
-    z-index: 5;
-}
-
-.glass-table th.sortable .cell-content {
-    padding: 0;
-}
-.glass-table th.sortable .cell-content .sort-header-button {
-    padding: 12px 15px;
-}
-
-.glass-table .last-sticky-col .cell-content {
-    justify-content: flex-start;
 }
 ----- ./react/widgets/rootlayout/BackgroundBlobs.css -----
 .blobs-container {

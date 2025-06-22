@@ -51,35 +51,43 @@
 .search-input:focus + .search-input-icon {
     color: var(--accent-color);
 }
+
+/* 필터와 액션 영역을 감싸는 Flex 컨테이너 */
+.filter-actions-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* 상단 정렬 */
+    gap: 20px;
+}
+
+/* 왼쪽 필터 칩 영역 */
+.filter-chips-area {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-grow: 1; /* 남는 공간을 모두 차지 */
+    min-width: 0; /* flex item이 줄어들 수 있도록 */
+}
+
 .suggestion-group {
     display: flex;
     align-items: center;
     gap: 10px;
 }
-/* [추가] 초기화 버튼이 있는 그룹 스타일 */
-.suggestion-group.with-reset {
-    justify-content: space-between;
-}
 
 .suggestion-buttons-wrapper {
     display: flex;
-    flex-wrap: nowrap;
-    gap: 10px;
-    overflow-x: auto;
-    padding-bottom: 5px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    flex-wrap: wrap; /* 버튼이 많아지면 줄바꿈 처리 */
+    gap: 8px;
 }
-.suggestion-buttons-wrapper::-webkit-scrollbar {
-    display: none;
-}
+
 .suggestion-chip {
-    padding: 6px 16px; 
+    padding: 5px 14px; /* 패딩 살짝 조정 */
     border: 1px solid var(--text-placeholder, #d1d5db);
     background-color: transparent;
     color: var(--text-secondary);
     border-radius: 18px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease-in-out;
@@ -109,33 +117,76 @@
     opacity: 1;
 }
 
-/* [추가] 초기화 버튼 스타일 */
-.reset-filters-button {
-    flex-shrink: 0;
+/* 오른쪽 액션 컨트롤 영역 */
+.action-controls-area {
+    display: flex;
+    flex-direction: column; /* [핵심] 버튼을 항상 세로로 정렬 */
+    gap: 8px;
+    flex-shrink: 0; /* 너비가 줄어들지 않도록 고정 */
+}
+
+.control-button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    justify-content: flex-start; /* 텍스트를 왼쪽 정렬 */
+    gap: 8px;
+    width: 100%;
+    min-width: 160px; /* 버튼의 최소 너비 설정 */
+    padding: 8px 12px;
     border-radius: 8px;
-    border: 1px solid transparent;
+    border: 1px solid rgba(0,0,0,0.1);
     background-color: rgba(0,0,0,0.05);
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease-in-out;
 }
-.reset-filters-button:hover:not(:disabled) {
-    background-color: rgba(0,0,0,0.09);
+
+.control-button:hover:not(:disabled) {
+    background-color: rgba(0,0,0,0.1);
     color: var(--text-primary);
 }
-.reset-filters-button:disabled {
-    opacity: 0.4;
+
+.control-button.primary {
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
+    border-color: transparent;
+}
+
+.control-button.primary:hover:not(:disabled) {
+    background-color: var(--accent-color-darker);
+}
+
+.control-button:disabled {
+    opacity: 0.5;
     cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
     .table-search-panel { padding: 12px; gap: 10px; }
     .search-input { padding: 12px 16px 12px 45px; font-size: 1rem; }
-    .suggestion-chip { padding: 5px 14px; font-size: 13px; }
+    
+    .filter-actions-container {
+        flex-direction: row;
+        align-items: flex-start; /* 세로 정렬을 start로 유지 */
+        gap: 12px;
+    }
+    
+    /* [수정] 모바일에서도 세로로 쌓이도록 별도의 flex-direction 변경을 하지 않습니다. */
+    .action-controls-area {
+        gap: 6px; /* 모바일에서 버튼 간격을 살짝 줄임 */
+    }
+    
+    /* [수정] 버튼 스타일을 모바일에 맞게 조정하되, 가로/세로 길이는 유지 */
+    .control-button {
+        min-width: 120px; /* 모바일에서 버튼의 최소 너비를 살짝 줄임 */
+        padding: 8px 10px;
+        font-size: 13px;
+        justify-content: center; /* 모바일에선 아이콘/텍스트 중앙 정렬 */
+    }
+
+    .control-button span {
+        display: inline;
+    }
 }

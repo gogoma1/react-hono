@@ -289,16 +289,187 @@ export function useStudentDataWithRQ() {
         } as MutationStatus<{ message: string, id: string }, Error>,
     };
 }
------ ./react/entities/student/ui/StudentDisplayTable.tsx -----
+----- ./react/entities/student/ui/StudentDisplay.tsx -----
+import React, { forwardRef } from 'react';
+import type { Student } from '../model/useStudentDataWithRQ';
+import { useUIStore } from '../../../shared/store/uiStore';
+import StudentDisplayDesktop from './StudentDisplayDesktop';
+import StudentDisplayMobile from './StudentDisplayMobile';
+import type { SortConfig } from '../../../shared/ui/glasstable/GlassTable';
+
+type StudentDisplayProps = {
+    students: Student[];
+    isLoading?: boolean;
+    sortConfig?: SortConfig | null;
+    onSort?: (key: string) => void;
+    selectedIds: Set<string>;
+    onToggleRow: (studentId: string) => void;
+    isHeaderChecked: boolean;
+    onToggleHeader: () => void;
+    isHeaderDisabled?: boolean;
+    editingStatusRowId: string | null;
+    onEdit: (student: Student) => void;
+    onNavigate: (studentId: string) => void;
+    onToggleStatusEditor: (studentId: string) => void;
+    onStatusUpdate: (studentId: string, status: Student['status'] | 'delete') => void;
+    onCancel: () => void;
+    scrollContainerProps?: React.HTMLAttributes<HTMLDivElement>;
+    activeCardId: string | null;
+    onCardClick: (studentId: string) => void;
+    closeActiveCard: () => void;
+};
+
+const StudentDisplay = forwardRef<HTMLDivElement, StudentDisplayProps>((props, ref) => {
+    const { currentBreakpoint } = useUIStore();
+    
+    if (currentBreakpoint === 'mobile') {
+        return <StudentDisplayMobile {...props} />;
+    }
+    
+    return <StudentDisplayDesktop ref={ref} {...props} />;
+});
+
+StudentDisplay.displayName = 'StudentDisplay';
+export default StudentDisplay;
+----- ./react/entities/student/ui/StudentDisplayDesktop.tsx -----
+
 import React, { forwardRef, useMemo } from 'react';
 import GlassTable, { type TableColumn, type SortConfig } from '../../../shared/ui/glasstable/GlassTable';
 import Badge from '../../../shared/ui/Badge/Badge';
-import './StudentDisplayTable.css';
 import { LuListChecks } from 'react-icons/lu';
 import TableCellCheckbox from '../../../shared/ui/TableCellCheckbox/TableCellCheckbox';
 import type { Student } from '../model/useStudentDataWithRQ';
 import StudentActionButtons from '../../../features/student-actions/ui/StudentActionButtons';
-import { useUIStore } from '../../../shared/store/uiStore';
+import { useVisibleColumns } from '../../../shared/hooks/useVisibleColumns';
+import './StudentDisplayDesktop.css';
+
+type StudentDisplayProps = {
+    students: Student[];
+    isLoading?: boolean;
+    sortConfig?: SortConfig | null;
+    onSort?: (key: string) => void;
+    selectedIds: Set<string>;
+    onToggleRow: (studentId: string) => void; // 이 prop이 중요합니다!
+    isHeaderChecked: boolean;
+    onToggleHeader: () => void;
+    isHeaderDisabled?: boolean;
+    editingStatusRowId: string | null;
+    onEdit: (student: Student) => void;
+    onNavigate: (studentId: string) => void;
+    onToggleStatusEditor: (studentId: string) => void; // 이 prop도 중요합니다!
+    onStatusUpdate: (studentId: string, status: Student['status'] | 'delete') => void;
+    onCancel: () => void;
+    scrollContainerProps?: React.HTMLAttributes<HTMLDivElement>;
+};
+
+const StudentDisplayDesktop = forwardRef<HTMLDivElement, StudentDisplayProps>((props, ref) => {
+    const {
+        students, isLoading, sortConfig, onSort, selectedIds, onToggleRow,
+        isHeaderChecked, onToggleHeader, isHeaderDisabled, scrollContainerProps,
+        onEdit, onNavigate, onToggleStatusEditor, onStatusUpdate, onCancel, editingStatusRowId
+    } = props;
+    
+    const visibleColumns = useVisibleColumns();
+    
+    const columns = useMemo(() => {
+        const allColumns: TableColumn<Student>[] = [
+            {
+                key: 'header_action_button',
+                header: <div className="header-icon-container"><button type="button" className="header-icon-button" title={isHeaderChecked ? "모든 항목 선택 해제" : "모든 항목 선택"} onClick={onToggleHeader} disabled={isHeaderDisabled || students.length === 0} aria-pressed={isHeaderChecked}><LuListChecks size={20} /></button></div>,
+                render: (student) => (
+                    <TableCellCheckbox
+                        isChecked={selectedIds.has(student.id)}
+                        onToggle={() => onToggleRow(student.id)}
+                        ariaLabel={`학생 ${student.student_name} 선택`}
+                    />
+                ),
+                className: 'sticky-col first-sticky-col',
+            },
+            { key: 'student_name', header: '이름', isSortable: true },
+            { key: 'grade', header: '학년', isSortable: true },
+            { key: 'subject', header: '과목', isSortable: true },
+            { 
+                key: 'status', 
+                header: '상태', 
+                isSortable: true, 
+                render: (student) => {
+                    let statusClassName = '';
+                    switch (student.status) {
+                        case '재원': statusClassName = 'status-enroll'; break;
+                        case '휴원': statusClassName = 'status-pause'; break;
+                        case '퇴원': statusClassName = 'status-leave'; break;
+                        default: statusClassName = 'status-default';
+                    }
+                    return <Badge className={statusClassName}>{student.status}</Badge>;
+                }
+            },
+            { key: 'teacher', header: '담당 강사', isSortable: true, render: (student) => student.teacher || '-' },
+            { key: 'student_phone', header: '학생 연락처', render: (student) => student.student_phone || '-' },
+            { key: 'guardian_phone', header: '학부모 연락처' },
+            { key: 'school_name', header: '학교명', isSortable: true },
+            { key: 'tuition', header: '수강료', isSortable: true, render: (student) => student.tuition ? student.tuition.toLocaleString() : '-' },
+            { key: 'admission_date', header: '입원일', isSortable: true, render: (student) => student.admission_date ? new Date(student.admission_date).toLocaleDateString() : '-' },
+            { key: 'discharge_date', header: '퇴원일', render: (student) => student.discharge_date ? new Date(student.discharge_date).toLocaleDateString() : '-' },
+            {
+                key: 'actions',
+                header: '관리',
+                render: (student) => (
+                    <StudentActionButtons 
+                        studentId={student.id} 
+                        studentName={student.student_name} 
+                        isEditing={editingStatusRowId === student.id}
+                        onEdit={() => onEdit(student)}
+                        onNavigate={() => onNavigate(student.id)}
+                        onToggleStatusEditor={() => onToggleStatusEditor(student.id)}
+                        onStatusUpdate={onStatusUpdate} 
+                        onCancel={onCancel}
+                    />
+                ),
+                className: 'sticky-col last-sticky-col',
+            },
+        ];
+
+        return allColumns.filter(col => visibleColumns[col.key as string]);
+
+    }, [
+        students,
+        selectedIds,
+        editingStatusRowId,
+        isHeaderChecked,
+        isHeaderDisabled,
+        onToggleHeader,
+        onToggleRow,
+        onEdit,
+        onNavigate,
+        onToggleStatusEditor,
+        onStatusUpdate,
+        onCancel,
+        visibleColumns,
+    ]);
+
+    return (
+        <GlassTable<Student>
+            ref={ref} 
+            scrollContainerProps={scrollContainerProps}
+            columns={columns}
+            data={students} // [수정] 정렬은 상위 컴포넌트(StudentTableWidget)에서 하므로 여기서는 받은 students를 그대로 사용합니다.
+            isLoading={isLoading}
+            emptyMessage="표시할 학생 정보가 없습니다."
+            sortConfig={sortConfig}
+            onSort={onSort}
+        />
+    );
+});
+
+StudentDisplayDesktop.displayName = 'StudentDisplayDesktop';
+export default StudentDisplayDesktop;
+----- ./react/entities/student/ui/StudentDisplayMobile.tsx -----
+import React from 'react';
+import Badge from '../../../shared/ui/Badge/Badge';
+import type { Student } from '../model/useStudentDataWithRQ';
+import StudentActionButtons from '../../../features/student-actions/ui/StudentActionButtons';
+import { useVisibleColumns } from '../../../shared/hooks/useVisibleColumns';
+import './StudentDisplayMobile.css';
 
 type StatusValue = Student['status'];
 
@@ -315,56 +486,21 @@ interface MobileStudentCardProps {
     closeActiveCard: () => void;
 }
 
-
-interface StudentDisplayTableProps {
-    students: Student[];
-    isLoading?: boolean;
-    sortConfig?: SortConfig | null;
-    onSort?: (key: string) => void;
-    selectedIds: Set<string>;
-    onToggleRow: (studentId: string) => void;
-    isHeaderChecked: boolean;
-    onToggleHeader: () => void;
-    isHeaderDisabled?: boolean;
-    editingStatusRowId: string | null;
-    onEdit: (student: Student) => void;
-    onNavigate: (studentId: string) => void;
-    onToggleStatusEditor: (studentId: string) => void;
-    onStatusUpdate: (studentId: string, status: StatusValue | 'delete') => void;
-    onCancel: () => void;
-    scrollContainerProps?: React.HTMLAttributes<HTMLDivElement>;
-    activeCardId: string | null;
-    onCardClick: (studentId: string) => void;
-    closeActiveCard: () => void;
-}
-
 const MobileStudentCard: React.FC<MobileStudentCardProps> = ({
-    student,
-    activeCardId,
-    onCardClick,
-    editingStatusRowId,
-    onEdit,
-    onNavigate,
-    onToggleStatusEditor,
-    onStatusUpdate,
-    onCancel,
-    closeActiveCard,
+    student, activeCardId, onCardClick, editingStatusRowId, onEdit,
+    onNavigate, onToggleStatusEditor, onStatusUpdate, onCancel, closeActiveCard,
 }) => {
     const isActive = activeCardId === student.id;
     const isEditingStatus = editingStatusRowId === student.id;
+    const visibleColumns = useVisibleColumns();
     
     const onEditRequest = () => {
         onEdit(student);
         closeActiveCard();
     };
 
-    const onNavigateRequest = () => {
-        onNavigate(student.id);
-    };
-
-    const onToggleStatusEditorRequest = () => {
-        onToggleStatusEditor(student.id);
-    };
+    const onNavigateRequest = () => onNavigate(student.id);
+    const onToggleStatusEditorRequest = () => onToggleStatusEditor(student.id);
 
     return (
         <div 
@@ -378,161 +514,80 @@ const MobileStudentCard: React.FC<MobileStudentCardProps> = ({
                 <div className="card-main-info">
                     <div className="main-info-name-status">
                         <span className="main-info-name">{student.student_name}</span>
-                        <Badge className={`status-${student.status.toLowerCase()}`}>{student.status}</Badge>
+                        {visibleColumns.status && <Badge className={`status-${student.status.toLowerCase()}`}>{student.status}</Badge>}
                     </div>
                     <div className="main-info-tags">
-                        <span>{student.grade}</span>
+                        {visibleColumns.grade && <span>{student.grade}</span>}
+                        {visibleColumns.subject && <span>{student.subject}</span>}
                         {student.class_name && <span>{student.class_name}</span>}
                     </div>
                 </div>
                 <div className="card-details-grid">
                     <div className="detail-item phones">
-                        <span>학부모: {student.guardian_phone || '-'}</span>
-                        <span>학생: {student.student_phone || '-'}</span>
+                        {visibleColumns.guardian_phone && <span>학부모: {student.guardian_phone || '-'}</span>}
+                        {visibleColumns.student_phone && <span>학생: {student.student_phone || '-'}</span>}
                     </div>
                     <div className="detail-item school-tuition">
-                        <span>학교: {student.school_name || '-'}</span>
-                        <span>수강료: {student.tuition ? student.tuition.toLocaleString() : '-'}</span>
+                        {visibleColumns.school_name && <span>학교: {student.school_name || '-'}</span>}
+                        {visibleColumns.tuition && <span>수강료: {student.tuition ? student.tuition.toLocaleString() : '-'}</span>}
                     </div>
                     <div className="detail-item dates">
-                        <span>입원일: {student.admission_date ? new Date(student.admission_date).toLocaleDateString() : '-'}</span>
-                        <span>퇴원일: {student.discharge_date ? new Date(student.discharge_date).toLocaleDateString() : '-'}</span>
+                        {visibleColumns.admission_date && <span>입원일: {student.admission_date ? new Date(student.admission_date).toLocaleDateString() : '-'}</span>}
+                        {visibleColumns.discharge_date && <span>퇴원일: {student.discharge_date ? new Date(student.discharge_date).toLocaleDateString() : '-'}</span>}
                     </div>
                     <div className="detail-item teacher-info">
-                        <span>담당 강사: {student.teacher || '-'}</span>
+                        {visibleColumns.teacher && <span>담당 강사: {student.teacher || '-'}</span>}
                     </div>
                 </div>
             </div>
             <div className="card-actions">
                 <StudentActionButtons
-                    studentId={student.id}
-                    studentName={student.student_name}
-                    isEditing={isEditingStatus}
-                    onEdit={onEditRequest} 
-                    onNavigate={onNavigateRequest}
-                    onToggleStatusEditor={onToggleStatusEditorRequest}
-                    onStatusUpdate={onStatusUpdate}
-                    onCancel={onCancel}
+                    studentId={student.id} studentName={student.student_name} isEditing={isEditingStatus}
+                    onEdit={onEditRequest} onNavigate={onNavigateRequest} onToggleStatusEditor={onToggleStatusEditorRequest}
+                    onStatusUpdate={onStatusUpdate} onCancel={onCancel}
                 />
             </div>
         </div>
     );
 };
 
-const StudentDisplayTable = forwardRef<HTMLDivElement, StudentDisplayTableProps>(
-  (props, ref) => {
-    const {
-        students, isLoading, sortConfig, onSort, selectedIds, onToggleRow,
-        isHeaderChecked, onToggleHeader, isHeaderDisabled, scrollContainerProps,
-        ...rest
-    } = props;
-    
-    const { currentBreakpoint, columnVisibility } = useUIStore();
-    
-    const allColumns: TableColumn<Student>[] = [
-        {
-            key: 'header_action_button',
-            header: <div className="header-icon-container"><button type="button" className="header-icon-button" title={isHeaderChecked ? "모든 항목 선택 해제" : "모든 항목 선택"} onClick={onToggleHeader} disabled={isHeaderDisabled || students.length === 0} aria-pressed={isHeaderChecked}><LuListChecks size={20} /></button></div>,
-            render: (student) => <TableCellCheckbox isChecked={selectedIds.has(student.id)} onToggle={() => onToggleRow(student.id)} ariaLabel={`학생 ${student.student_name} 선택`}/>,
-            className: 'sticky-col first-sticky-col',
-        },
-        { key: 'student_name', header: '이름', isSortable: true },
-        { key: 'grade', header: '학년', isSortable: true },
-        { key: 'subject', header: '과목', isSortable: true },
-        { 
-            key: 'status', 
-            header: '상태', 
-            isSortable: true, 
-            render: (student) => {
-                let statusClassName = '';
-                switch (student.status) {
-                    case '재원': statusClassName = 'status-enroll'; break;
-                    case '휴원': statusClassName = 'status-pause'; break;
-                    case '퇴원': statusClassName = 'status-leave'; break;
-                    default: statusClassName = 'status-default';
-                }
-                return <Badge className={statusClassName}>{student.status}</Badge>;
-            }
-        },
-        { key: 'teacher', header: '담당 강사', isSortable: true, render: (student) => student.teacher || '-' },
-        { key: 'student_phone', header: '학생 연락처', render: (student) => student.student_phone || '-' },
-        { key: 'guardian_phone', header: '학부모 연락처' },
-        { key: 'school_name', header: '학교명', isSortable: true },
-        { key: 'tuition', header: '수강료', isSortable: true, render: (student) => student.tuition ? student.tuition.toLocaleString() : '-' },
-        { key: 'admission_date', header: '입원일', isSortable: true, render: (student) => student.admission_date ? new Date(student.admission_date).toLocaleDateString() : '-' },
-        { key: 'discharge_date', header: '퇴원일', render: (student) => student.discharge_date ? new Date(student.discharge_date).toLocaleDateString() : '-' },
-        {
-            key: 'actions',
-            header: '관리',
-            render: (student) => (
-                <StudentActionButtons 
-                    studentId={student.id} 
-                    studentName={student.student_name} 
-                    isEditing={props.editingStatusRowId === student.id} 
-                    onEdit={() => props.onEdit(student)}
-                    onNavigate={() => props.onNavigate(student.id)}
-                    onToggleStatusEditor={() => props.onToggleStatusEditor(student.id)}
-                    onStatusUpdate={props.onStatusUpdate} 
-                    onCancel={props.onCancel}
-                />
-            ),
-            className: 'sticky-col last-sticky-col',
-        },
-    ];
+type StudentDisplayProps = {
+    students: Student[];
+    isLoading?: boolean;
+    editingStatusRowId: string | null;
+    onEdit: (student: Student) => void;
+    onNavigate: (studentId: string) => void;
+    onToggleStatusEditor: (studentId: string) => void;
+    onStatusUpdate: (studentId: string, status: Student['status'] | 'delete') => void;
+    onCancel: () => void;
+    activeCardId: string | null;
+    onCardClick: (studentId: string) => void;
+    closeActiveCard: () => void;
+};
 
-    const columns = useMemo(() => {
-        return allColumns.filter(col => {
-            return !columnVisibility.hasOwnProperty(col.key) || columnVisibility[col.key as string];
-        });
-    }, [columnVisibility, allColumns]);
+const StudentDisplayMobile: React.FC<StudentDisplayProps> = (props) => {
+    const { students, isLoading, ...rest } = props;
 
-
-    if (currentBreakpoint === 'mobile') {
-        if (isLoading) {
-            return <div className="mobile-loading-state">로딩 중...</div>;
-        }
-        if (students.length === 0) {
-            return <div className="mobile-loading-state">표시할 학생 정보가 없습니다.</div>;
-        }
-        return (
-            <div className="mobile-student-list-container">
-                {students.map(student => (
-                    <MobileStudentCard 
-                        key={student.id} 
-                        student={student}
-                        activeCardId={rest.activeCardId}
-                        onCardClick={rest.onCardClick}
-                        editingStatusRowId={rest.editingStatusRowId}
-                        onEdit={rest.onEdit}
-                        onNavigate={rest.onNavigate}
-                        onToggleStatusEditor={rest.onToggleStatusEditor}
-                        onStatusUpdate={rest.onStatusUpdate}
-                        onCancel={rest.onCancel}
-                        closeActiveCard={rest.closeActiveCard}
-                    />
-                ))}
-            </div>
-        );
+    if (isLoading) {
+        return <div className="mobile-loading-state">로딩 중...</div>;
     }
-    
+    if (students.length === 0) {
+        return <div className="mobile-loading-state">표시할 학생 정보가 없습니다.</div>;
+    }
     return (
-        <GlassTable<Student>
-            ref={ref} 
-            scrollContainerProps={scrollContainerProps}
-            columns={columns}
-            data={students}
-            isLoading={isLoading}
-            emptyMessage="표시할 학생 정보가 없습니다."
-            sortConfig={sortConfig}
-            onSort={onSort}
-        />
+        <div className="mobile-student-list-container">
+            {students.map(student => (
+                <MobileStudentCard 
+                    key={student.id} 
+                    student={student}
+                    {...rest}
+                />
+            ))}
+        </div>
     );
-});
+};
 
-
-StudentDisplayTable.displayName = 'StudentDisplayTable';
-
-export default StudentDisplayTable;
+export default StudentDisplayMobile;
 ----- ./react/features/image-upload/api/imageApi.ts -----
 import { handleApiResponse } from '../../../shared/api/api.utils';
 
@@ -1137,21 +1192,22 @@ import { useState, useCallback, useMemo } from 'react';
 
 interface UseRowSelectionProps<T extends string | number> {
     initialSelectedIds?: Set<T>;
-    allItems?: T[]; // 전체 선택/해제 기능을 위해 모든 항목의 ID 목록 (선택 사항)
+    allItems?: T[]; 
 }
 
 interface UseRowSelectionReturn<T extends string | number> {
     selectedIds: Set<T>;
     toggleRow: (id: T) => void;
     isRowSelected: (id: T) => boolean;
-    toggleSelectAll: () => void; // 모든 항목 (allItems) 기준 또는 현재 보이는 항목 기준일 수 있음
-    isAllSelected: boolean; // allItems 기준으로 계산
+    toggleSelectAll: () => void;
+    isAllSelected: boolean;
     clearSelection: () => void;
+    toggleItems: (ids: T[]) => void; // [추가] 부분 선택/해제 함수
 }
 
 export function useRowSelection<T extends string | number>({
     initialSelectedIds = new Set<T>(),
-    allItems = [], // 전체 항목 ID 배열
+    allItems = [],
 }: UseRowSelectionProps<T> = {}): UseRowSelectionReturn<T> {
     const [selectedIds, setSelectedIds] = useState<Set<T>>(initialSelectedIds);
 
@@ -1190,7 +1246,23 @@ export function useRowSelection<T extends string | number>({
             allItems.forEach(id => newSelectedIds.add(id));
             setSelectedIds(newSelectedIds);
         }
-    }, [allItems, isAllSelected, selectedIds]); // selectedIds 의존성 추가
+    }, [allItems, isAllSelected, selectedIds]);
+
+    const toggleItems = useCallback((idsToToggle: T[]) => {
+        if (idsToToggle.length === 0) return;
+
+        const allFilteredAreSelected = idsToToggle.every(id => selectedIds.has(id));
+        
+        setSelectedIds(prev => {
+            const newSelected = new Set(prev);
+            if (allFilteredAreSelected) {
+                idsToToggle.forEach(id => newSelected.delete(id));
+            } else {
+                idsToToggle.forEach(id => newSelected.add(id));
+            }
+            return newSelected;
+        });
+    }, [selectedIds]);
 
     return {
         selectedIds,
@@ -1199,6 +1271,7 @@ export function useRowSelection<T extends string | number>({
         toggleSelectAll,
         isAllSelected,
         clearSelection,
+        toggleItems, // [추가]
     };
 }
 ----- ./react/features/student-actions/ui/StudentActionButtons.tsx -----
@@ -1700,30 +1773,21 @@ export default StudentStatusChanger;
 ----- ./react/features/table-column-toggler/ui/TableColumnToggler.tsx -----
 import React from 'react';
 import { useUIStore } from '../../../shared/store/uiStore';
+import { useColumnPermissions } from '../../../shared/hooks/useColumnPermissions'; // [수정] 신규 훅 import
 import { LuEye, LuEyeOff } from 'react-icons/lu';
 import './TableColumnToggler.css';
 
-const TOGGLEABLE_COLUMNS: { key: string; label: string }[] = [
-  { key: 'grade', label: '학년' },
-  { key: 'subject', label: '과목' },
-  { key: 'status', label: '상태' },
-  { key: 'teacher', label: '담당 강사' },
-  { key: 'student_phone', label: '학생 연락처' },
-  { key: 'guardian_phone', label: '학부모 연락처' },
-  { key: 'school_name', label: '학교명' },
-  { key: 'tuition', label: '수강료' },
-  { key: 'admission_date', label: '입원일' },
-  { key: 'discharge_date', label: '퇴원일' },
-];
 
 const TableColumnToggler: React.FC = () => {
   const { columnVisibility, toggleColumnVisibility } = useUIStore();
+  const { permittedColumnsConfig } = useColumnPermissions();
 
   return (
     <div className="column-toggler-panel">
       <h4 className="toggler-title">테이블 컬럼 설정</h4>
       <div className="toggler-list">
-        {TOGGLEABLE_COLUMNS.map((col) => {
+        {/* [수정] permittedColumnsConfig를 순회하여 버튼 생성 */}
+        {permittedColumnsConfig.map((col) => {
           const isVisible = columnVisibility[col.key] ?? true;
           return (
             <button
@@ -1804,7 +1868,7 @@ export function useTableSearch({
 }
 ----- ./react/features/table-search/ui/TableSearch.tsx -----
 import React from 'react';
-import { LuSearch, LuX, LuRotateCcw } from 'react-icons/lu';
+import { LuSearch, LuX, LuRotateCcw, LuCirclePlus, LuListChecks } from 'react-icons/lu';
 import './TableSearch.css';
 
 export interface SuggestionGroup {
@@ -1819,6 +1883,9 @@ export interface TableSearchProps {
     activeFilters: Record<string, string>;
     onFilterChange: (key: string, value: string) => void;
     onResetFilters: () => void;
+    onToggleFiltered: () => void;
+    onCreateProblemSet: () => void;
+    selectedCount: number;
 }
 
 const TableSearch: React.FC<TableSearchProps> = ({
@@ -1828,11 +1895,16 @@ const TableSearch: React.FC<TableSearchProps> = ({
     activeFilters,
     onFilterChange,
     onResetFilters,
+    onToggleFiltered,
+    onCreateProblemSet,
+    selectedCount,
 }) => {
     const hasActiveFilters = Object.keys(activeFilters).length > 0;
+    const hasSuggestions = suggestionGroups.some(g => g.suggestions.length > 0);
 
     return (
         <div className="table-search-panel">
+            {/* 검색 입력창 */}
             <div className="search-input-wrapper">
                 <LuSearch className="search-input-icon" size={20} />
                 <input
@@ -1843,41 +1915,66 @@ const TableSearch: React.FC<TableSearchProps> = ({
                     onChange={(e) => onSearchTermChange(e.target.value)}
                 />
             </div>
-            {suggestionGroups.map((group, index) => (
-                group.suggestions.length > 0 && (
-                    <div key={group.key} className={`suggestion-group ${index === 2 ? 'with-reset' : ''}`}>
-                        <div className="suggestion-buttons-wrapper">
-                            {group.suggestions.map((suggestion) => {
-                                const isActive = activeFilters[group.key] === suggestion;
-                                return (
-                                    <button
-                                        key={suggestion}
-                                        type="button"
-                                        className={`suggestion-chip ${isActive ? 'active' : ''}`}
-                                        onClick={() => onFilterChange(group.key, suggestion)}
-                                    >
-                                        {suggestion}
-                                        {isActive && <LuX size={14} className="suggestion-chip-clear" />}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        {/* [추가] 세 번째 줄(index 2)에 초기화 버튼 추가 */}
-                        {index === 2 && (
-                             <button 
-                                type="button" 
-                                className="reset-filters-button"
-                                onClick={onResetFilters}
-                                disabled={!hasActiveFilters}
-                                title="필터 초기화"
-                            >
-                                <LuRotateCcw size={16} />
-                                <span>초기화</span>
-                            </button>
-                        )}
-                    </div>
-                )
-            ))}
+            
+            {/* [수정] 필터 및 액션 버튼들을 포함하는 새로운 메인 그룹 */}
+            <div className="filter-actions-container">
+                {/* 왼쪽: 필터 칩 영역 */}
+                <div className="filter-chips-area">
+                    {hasSuggestions && suggestionGroups.map((group) => (
+                        group.suggestions.length > 0 && (
+                            <div key={group.key} className="suggestion-group">
+                                <div className="suggestion-buttons-wrapper">
+                                    {group.suggestions.map((suggestion) => {
+                                        const isActive = activeFilters[group.key] === suggestion;
+                                        return (
+                                            <button
+                                                key={suggestion}
+                                                type="button"
+                                                className={`suggestion-chip ${isActive ? 'active' : ''}`}
+                                                onClick={() => onFilterChange(group.key, suggestion)}
+                                            >
+                                                {suggestion}
+                                                {isActive && <LuX size={14} className="suggestion-chip-clear" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )
+                    ))}
+                </div>
+
+                {/* 오른쪽: 액션 버튼 컨트롤 영역 */}
+                <div className="action-controls-area">
+                    <button
+                        type="button"
+                        className="control-button primary"
+                        onClick={onCreateProblemSet}
+                        disabled={selectedCount === 0}
+                    >
+                        <LuCirclePlus size={16} />
+                        <span>문제 출제 ({selectedCount})</span>
+                    </button>
+                    <button
+                        type="button"
+                        className="control-button"
+                        onClick={onToggleFiltered}
+                    >
+                        <LuListChecks size={16} />
+                        <span>결과 선택</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        className="control-button"
+                        onClick={onResetFilters}
+                        disabled={!hasActiveFilters}
+                        title="필터 초기화"
+                    >
+                        <LuRotateCcw size={16} />
+                        <span>초기화</span>
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
@@ -1906,6 +2003,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLayoutStore } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../entities/student/model/useStudentDataWithRQ';
+import { useRowSelection } from '../features/row-selection/model/useRowSelection';
 
 import StudentRegistrationForm from '../features/student-registration/ui/StudentRegistrationForm';
 import StudentEditForm from '../features/student-editing/ui/StudentEditForm';
@@ -1913,39 +2011,6 @@ import TableColumnToggler from '../features/table-column-toggler/ui/TableColumnT
 import StudentTableWidget from '../widgets/student-table/StudentTableWidget';
 import { useTableSearch } from '../features/table-search/model/useTableSearch';
 import type { SuggestionGroup } from '../features/table-search/ui/TableSearch';
-import { LuInfo } from 'react-icons/lu';
-
-const MobileSettingsPlaceholder: React.FC = () => {
-    const placeholderStyle: React.CSSProperties = {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-        padding: '20px',
-        textAlign: 'center',
-        color: 'var(--text-secondary)',
-        boxSizing: 'border-box'
-    };
-    const iconStyle: React.CSSProperties = {
-        marginBottom: '16px',
-        color: 'var(--accent-color)'
-    };
-    const titleStyle: React.CSSProperties = {
-        margin: '0 0 8px 0',
-        fontWeight: 600,
-        fontSize: '1rem',
-        color: 'var(--text-primary)'
-    };
-    return (
-        <div style={placeholderStyle}>
-            <LuInfo size={32} style={iconStyle} />
-            <h4 style={titleStyle}>알림</h4>
-            <p>테이블 컬럼 설정은 데스크탑 환경에서만 지원됩니다.</p>
-        </div>
-    );
-};
-
 
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T | undefined>(undefined);
@@ -1975,8 +2040,8 @@ const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] =
 };
 
 const DashBoard: React.FC = () => {
-    const { setRightSidebarContent, setSidebarTriggers, setStudentSearchProps } = useLayoutStore();
-    const { setRightSidebarExpanded, currentBreakpoint } = useUIStore();
+    const { setRightSidebarContent, setSidebarTriggers } = useLayoutStore.getState();
+    const { setRightSidebarExpanded } = useUIStore();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
     
@@ -1988,6 +2053,27 @@ const DashBoard: React.FC = () => {
     const prevActiveSidebarView = usePrevious(activeSidebarView);
 
     const currentStudents = students || [];
+    const studentIds = useMemo(() => currentStudents.map(s => s.id), [currentStudents]);
+
+    const { selectedIds, toggleRow, toggleItems } = useRowSelection<string>({ allItems: studentIds });
+
+    const filteredStudents = useTableSearch({
+        data: currentStudents,
+        searchTerm,
+        searchableKeys: ['student_name', 'grade', 'subject', 'school_name', 'class_name', 'teacher'],
+        activeFilters,
+    }) as Student[];
+    const filteredStudentIds = useMemo(() => filteredStudents.map(s => s.id), [filteredStudents]);
+    
+    const isFilteredAllSelected = useMemo(() => {
+        if (filteredStudentIds.length === 0) return false;
+        return filteredStudentIds.every(id => selectedIds.has(id));
+    }, [filteredStudentIds, selectedIds]);
+    
+    const handleToggleFilteredAll = useCallback(() => {
+        toggleItems(filteredStudentIds);
+    }, [toggleItems, filteredStudentIds]);
+
 
     const suggestionGroups = useMemo((): SuggestionGroup[] => {
         return [
@@ -1998,13 +2084,6 @@ const DashBoard: React.FC = () => {
     }, [currentStudents]);
     
     const suggestionGroupsJSON = useMemo(() => JSON.stringify(suggestionGroups), [suggestionGroups]);
-
-    const filteredStudents = useTableSearch({
-        data: currentStudents,
-        searchTerm,
-        searchableKeys: ['student_name', 'grade', 'subject', 'school_name', 'class_name', 'teacher'],
-        activeFilters,
-    }) as Student[];
     
     const handleFilterChange = useCallback((key: string, value: string) => {
         setActiveFilters(prev => {
@@ -2021,6 +2100,19 @@ const DashBoard: React.FC = () => {
     const handleResetFilters = useCallback(() => {
         setActiveFilters({});
     }, []);
+
+    const handleToggleFilteredSelection = useCallback(() => {
+        toggleItems(filteredStudentIds);
+    }, [toggleItems, filteredStudentIds]);
+
+    const handleCreateProblemSet = useCallback(() => {
+        if (selectedIds.size === 0) {
+            alert('선택된 학생이 없습니다.');
+            return;
+        }
+        console.log('문제 출제 대상 학생 ID:', [...selectedIds]);
+        alert(`${selectedIds.size}명의 학생을 대상으로 문제 출제 로직을 실행합니다. (콘솔 확인)`);
+    }, [selectedIds]);
 
     const handleCloseSidebar = useCallback(() => {
         setActiveSidebarView(null);
@@ -2049,11 +2141,7 @@ const DashBoard: React.FC = () => {
         } else if (activeSidebarView === 'edit' && studentToEdit) {
             setRightSidebarContent(<StudentEditForm student={studentToEdit} onSuccess={handleCloseSidebar} />);
         } else if (activeSidebarView === 'settings') {
-            if (currentBreakpoint === 'mobile') {
-                setRightSidebarContent(<MobileSettingsPlaceholder />);
-            } else {
-                setRightSidebarContent(<TableColumnToggler />);
-            }
+            setRightSidebarContent(<TableColumnToggler />);
         }
 
         if (prevActiveSidebarView !== null && activeSidebarView === null) {
@@ -2063,7 +2151,7 @@ const DashBoard: React.FC = () => {
             }, 300);
             return () => clearTimeout(timer);
         }
-    }, [activeSidebarView, studentToEdit, handleCloseSidebar, setRightSidebarExpanded, setRightSidebarContent, prevActiveSidebarView, currentBreakpoint]);
+    }, [activeSidebarView, studentToEdit, handleCloseSidebar, setRightSidebarExpanded, setRightSidebarContent, prevActiveSidebarView]);
 
     useEffect(() => {
         setSidebarTriggers({
@@ -2071,26 +2159,34 @@ const DashBoard: React.FC = () => {
             onSettingsClick: handleOpenSettingsSidebar,
             onClose: handleCloseSidebar,
         });
-
-        return () => {
-            setRightSidebarContent(null);
-            setStudentSearchProps(null);
-            setSidebarTriggers({});
-        };
-    }, [handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar, setRightSidebarContent, setStudentSearchProps, setSidebarTriggers]);
-    
+    }, [handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar, setSidebarTriggers]);
     
     useEffect(() => {
-        setStudentSearchProps({
+        useLayoutStore.getState().setStudentSearchProps({
             searchTerm,
             onSearchTermChange: setSearchTerm,
             activeFilters,
             onFilterChange: handleFilterChange,
             onResetFilters: handleResetFilters,
             suggestionGroups: suggestionGroupsJSON,
+            onToggleFiltered: handleToggleFilteredSelection,
+            onCreateProblemSet: handleCreateProblemSet,
+            selectedCount: selectedIds.size,
         });
-    }, [searchTerm, activeFilters, suggestionGroupsJSON, handleFilterChange, handleResetFilters, setStudentSearchProps]);
-    
+
+        return () => {
+            useLayoutStore.getState().setStudentSearchProps(null);
+        };
+    }, [
+        searchTerm, 
+        activeFilters, 
+        suggestionGroupsJSON, 
+        selectedIds.size, 
+        handleFilterChange, 
+        handleResetFilters, 
+        handleToggleFilteredSelection, 
+        handleCreateProblemSet
+    ]);
     
     if (isStudentsError) {
         return (
@@ -2106,7 +2202,11 @@ const DashBoard: React.FC = () => {
             <StudentTableWidget 
                 students={filteredStudents} 
                 isLoading={isLoadingStudents}
-                onRequestEdit={handleRequestEdit} 
+                onRequestEdit={handleRequestEdit}
+                selectedIds={selectedIds}
+                toggleRow={toggleRow}
+                isAllSelected={isFilteredAllSelected}
+                toggleSelectAll={handleToggleFilteredAll}
             />
         </div>
     );
@@ -2920,6 +3020,49 @@ const GlassPopover: React.FC<GlassPopoverProps> = ({
 };
 
 export default GlassPopover;
+----- ./react/shared/hooks/useColumnPermissions.ts -----
+import { useMemo } from 'react';
+
+export const COLUMN_CONFIG = [
+  { key: 'grade', label: '학년' },
+  { key: 'subject', label: '과목' },
+  { key: 'status', label: '상태' },
+  { key: 'teacher', label: '담당 강사' },
+  { key: 'student_phone', label: '학생 연락처' },
+  { key: 'guardian_phone', label: '학부모 연락처' },
+  { key: 'school_name', label: '학교명' },
+  { key: 'tuition', label: '수강료' },
+  { key: 'admission_date', label: '입원일' },
+  { key: 'discharge_date', label: '퇴원일' },
+] as const; // as const로 key 값을 string이 아닌 리터럴 타입으로 추론
+
+const ROLE_PERMISSIONS = {
+  '원장': COLUMN_CONFIG.map(c => c.key),
+  '강사': [
+    'grade', 'subject', 'status', 'teacher', 'student_phone',
+    'school_name', 'admission_date', 'discharge_date'
+  ],
+} as const;
+
+type Role = keyof typeof ROLE_PERMISSIONS;
+
+export function useColumnPermissions() {
+  const currentUserRole: Role = '원장'; // 지금은 '원장'으로 하드코딩, '강사'로 바꿔서 테스트해보세요.
+
+  const permittedColumnKeys = useMemo(() => {
+    return ROLE_PERMISSIONS[currentUserRole] || [];
+  }, [currentUserRole]);
+
+  const permittedColumnsConfig = useMemo(() => {
+    return COLUMN_CONFIG.filter(col => permittedColumnKeys.includes(col.key));
+  }, [permittedColumnKeys]);
+
+  return { 
+    permittedColumnKeys,      // 허용된 컬럼 키 배열
+    permittedColumnsConfig,   // 허용된 컬럼의 설정 객체 배열 (UI용)
+    allColumnConfig: COLUMN_CONFIG, // 테이블 정의에 필요한 전체 설정
+  };
+}
 ----- ./react/shared/hooks/useDragToScroll.ts -----
 import { useRef, useState, useCallback, useEffect } from 'react';
 
@@ -2981,6 +3124,39 @@ export function useDragToScroll<T extends HTMLElement>() {
     }, [handleMouseMove, handleMouseUp]);
 
     return { ref, onMouseDown: handleMouseDown, isDragging };
+}
+----- ./react/shared/hooks/useVisibleColumns.ts -----
+import { useMemo } from 'react';
+import { useUIStore } from '../store/uiStore';
+import { useColumnPermissions, COLUMN_CONFIG } from './useColumnPermissions';
+
+/**
+ * 권한과 사용자 설정을 조합하여
+ * 각 컬럼의 최종 표시 여부를 결정하는 훅
+ */
+export function useVisibleColumns() {
+  const { permittedColumnKeys } = useColumnPermissions();
+  const { columnVisibility: userPreferences } = useUIStore();
+
+  const finalVisibility = useMemo(() => {
+    const visibilityMap: Record<string, boolean> = {};
+
+    COLUMN_CONFIG.forEach(col => {
+      const { key } = col;
+      const hasPermission = permittedColumnKeys.includes(key);
+      const userPrefersVisible = userPreferences[key] ?? true;
+      visibilityMap[key] = hasPermission && userPrefersVisible;
+    });
+
+    visibilityMap['header_action_button'] = true;
+    visibilityMap['student_name'] = true;
+    visibilityMap['actions'] = true;
+
+    return visibilityMap;
+
+  }, [permittedColumnKeys, userPreferences]);
+
+  return finalVisibility;
 }
 ----- ./react/shared/lib/AuthInitializer.tsx -----
 
@@ -3201,8 +3377,11 @@ interface StoredSearchProps {
     onSearchTermChange: (value: string) => void;
     activeFilters: Record<string, string>;
     onFilterChange: (key: string, value: string) => void;
-    onResetFilters: () => void; // [추가]
-    suggestionGroups: string; // JSON 문자열로 저장
+    onResetFilters: () => void;
+    suggestionGroups: string;
+    onToggleFiltered: () => void;
+    onCreateProblemSet: () => void;
+    selectedCount: number;
 }
 
 interface SidebarTriggers {
@@ -7826,6 +8005,7 @@ function GlassTableInner<T extends { id: string | number }>(
                   style={{ width: col.width }}
                   className={`${col.isSortable ? 'sortable' : ''} ${col.className || ''}`.trim()}
                 >
+                  {/* [핵심 수정] 모든 th 내용을 .cell-content로 감쌈 */}
                   <div className="cell-content">
                     {col.isSortable && onSort ? (
                       <button type="button" onClick={() => onSort(String(col.key))} className="sort-header-button">
@@ -7854,6 +8034,7 @@ function GlassTableInner<T extends { id: string | number }>(
                       className={col.className || ''}
                       data-label={col.dataLabel} 
                     >
+                      {/* [핵심 수정] 모든 td 내용을 .cell-content로 감쌈 */}
                       <div className="cell-content">
                         {col.render ? col.render(item) : String(item[col.key as keyof T] ?? '')}
                       </div>
@@ -8018,6 +8199,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
 }) => {
     const handleClick = () => {
         if (!disabled) {
+            console.log(`[TableCellCheckbox] 클릭됨! onToggle 호출. 현재 isChecked: ${isChecked}`);
             onToggle(); // 외부로 상태 변경 요청 (상위에서 isChecked 상태를 업데이트해야 함)
         }
     };
@@ -8393,7 +8575,7 @@ const GlassSidebarRight: React.FC = () => {
     const rightSidebarContent = useLayoutStore(selectRightSidebarContent);
     const { onRegisterClick, onSettingsClick, onClose } = useLayoutStore(selectSidebarTriggers);
     
-    const { isRightSidebarExpanded, closeMobileSidebar, mobileSidebarType, currentBreakpoint } = useUIStore();
+    const { isRightSidebarExpanded, mobileSidebarType, currentBreakpoint } = useUIStore();
     
     const isDashboardPage = location.pathname.startsWith('/dashboard');
 
@@ -8438,7 +8620,8 @@ const GlassSidebarRight: React.FC = () => {
                      {currentBreakpoint === 'mobile' && (
                         <div className="sidebar-header rgs-mobile-header">
                             <Tippy content="닫기" placement="bottom" theme="custom-glass" animation="perspective" delay={[200, 0]}>
-                                <button onClick={closeMobileSidebar} className="sidebar-close-button mobile-only rgs-close-btn" aria-label="닫기">
+                                {/* [수정] onClick 핸들러를 uiStore의 closeMobileSidebar 직접 호출에서 layoutStore의 onClose 트리거로 변경 */}
+                                <button onClick={onClose} className="sidebar-close-button mobile-only rgs-close-btn" aria-label="닫기">
                                     <CloseRightSidebarIcon />
                                 </button>
                             </Tippy>
@@ -8542,9 +8725,8 @@ export default RootLayout;
 ----- ./react/widgets/student-table/StudentTableWidget.tsx -----
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import StudentDisplayTable from '../../entities/student/ui/StudentDisplayTable';
+import StudentDisplay from '../../entities/student/ui/StudentDisplay';
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../../entities/student/model/useStudentDataWithRQ';
-import { useRowSelection } from '../../features/row-selection/model/useRowSelection';
 import type { SortConfig } from '../../shared/ui/glasstable/GlassTable';
 import { useDragToScroll } from '../../shared/hooks/useDragToScroll';
 
@@ -8558,19 +8740,27 @@ interface StudentTableWidgetProps {
     students: Student[];
     isLoading: boolean;
     onRequestEdit: (student: Student) => void;
+    selectedIds: Set<string>;
+    toggleRow: (id: string) => void;
+    isAllSelected: boolean;
+    toggleSelectAll: () => void;
 }
 
-const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], isLoading, onRequestEdit }) => {
+const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ 
+    students = [], 
+    isLoading, 
+    onRequestEdit,
+    selectedIds,
+    toggleRow,
+    isAllSelected,
+    toggleSelectAll
+}) => {
     const { ref: scrollContainerRef, onMouseDown, isDragging } = useDragToScroll<HTMLDivElement>();
-
     const navigate = useNavigate();
     const { updateStudent, deleteStudent } = useStudentDataWithRQ();
 
     const [editingStatusRowId, setEditingStatusRowId] = useState<string | null>(null);
     const [activeCardId, setActiveCardId] = useState<string | null>(null);
-    const studentIds = useMemo(() => students.map(s => s.id), [students]);
-
-    const { selectedIds, toggleRow, isAllSelected, toggleSelectAll } = useRowSelection<string>({ allItems: studentIds });
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'student_name', direction: 'asc' });
 
     const sortedStudents = useMemo(() => {
@@ -8624,14 +8814,14 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], 
     const handleStatusUpdate = async (studentId: string, newStatus: StatusValue | 'delete') => {
         try {
             if (newStatus === 'delete') {
-                if (window.confirm("정말로 이 학생 정보를 삭제(퇴원 처리)하시겠습니까?")) {
-                    await deleteStudent(studentId); 
+                if (window.confirm("정말로 이 학생 정보를 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+                    await deleteStudent(studentId);
                 }
             } else {
                 await updateStudent({ id: studentId, status: newStatus });
             }
         } catch (error) {
-            console.error("상태 업데이트 중 오류 발생:", error);
+            console.error("상태 업데이트 또는 삭제 중 오류 발생:", error);
         } finally {
             setEditingStatusRowId(null);
             setActiveCardId(null);
@@ -8653,7 +8843,7 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], 
     };
 
     return (
-        <StudentDisplayTable
+        <StudentDisplay
             ref={scrollContainerRef}
             scrollContainerProps={{
                 onMouseDown: onMouseDown,

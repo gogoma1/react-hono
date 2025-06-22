@@ -62,6 +62,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
 }) => {
     const handleClick = () => {
         if (!disabled) {
+            console.log(`[TableCellCheckbox] 클릭됨! onToggle 호출. 현재 isChecked: ${isChecked}`);
             onToggle(); // 외부로 상태 변경 요청 (상위에서 isChecked 상태를 업데이트해야 함)
         }
     };

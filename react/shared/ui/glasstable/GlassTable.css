@@ -1,3 +1,5 @@
+/* ./react/shared/ui/glasstable/GlassTable.css */
+
 .glass-table-wrapper {
     width: 100%;
     box-sizing: border-box;
@@ -60,15 +62,14 @@
 
 .glass-table th,
 .glass-table td {
-    padding: 12px 15px;
-    text-align: left;
+    padding: 0;
     vertical-align: middle;
     border-bottom: 1px solid rgba(129, 127, 127, 0.1);
     white-space: nowrap;
 }
 
-.glass-table td:first-child {
-    text-align: center;
+.glass-table td:first-child .cell-content {
+    justify-content: center;
 }
 
 .glass-table thead {
@@ -106,10 +107,6 @@
     margin: 0 auto 10px auto;
 }
 
-.loading-cell span {
-    display: block;
-}
-
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -144,16 +141,19 @@
   transition: opacity 0.2s;
 }
 
-/* ===== 고정 컬럼(Sticky Column)을 위한 스타일 (최종 수정) ===== */
+.cell-content {
+    padding: 12px 15px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
 
+/* ===== 고정 컬럼(Sticky Column) 스타일 ===== */
 .glass-table th.sticky-col,
 .glass-table td.sticky-col {
   position: -webkit-sticky;
   position: sticky;
-  z-index: 2;
   background: none;
-  padding: 0;
-  cursor: default;
 }
 
 .glass-table td.sticky-col .cell-content,
@@ -161,16 +161,15 @@
   background: rgba(var(--glass-base-bg-rgb), 0.85);
   backdrop-filter: var(--glass-blur-effect);
   -webkit-backdrop-filter: var(--glass-blur-effect);
-  padding: 12px 15px;
-  height: 100%; 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* [핵심 1] 배경 요소가 클릭 이벤트를 무시하고 '통과'시키도록 설정합니다. */
+  /* [수정] 배경 요소가 클릭 이벤트를 통과시킴 */
   pointer-events: none;
 }
 
-/* [핵심 2] 자식 선택자(>) 대신 후손 선택자(공백)를 사용하여 모든 하위 요소에 적용합니다. */
+/* 
+[최종 수정]
+직계 자식 선택자(>) 대신 자손 선택자(공백)를 사용하여
+.cell-content 내부의 모든 중첩된 요소들이 클릭 이벤트를 받을 수 있도록 복원합니다.
+*/
 .glass-table .sticky-col .cell-content * {
     pointer-events: auto;
 }
@@ -178,19 +177,18 @@
 .glass-table tbody tr:hover td.sticky-col .cell-content {
     background: linear-gradient(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.04)),
                 rgba(var(--glass-base-bg-rgb), 0.85);
-    backdrop-filter: var(--glass-blur-effect);
-    -webkit-backdrop-filter: var(--glass-blur-effect);
 }
 
 .glass-table th.sticky-col {
   z-index: 3; 
 }
+.glass-table td.sticky-col {
+  z-index: 2;
+}
 
 .glass-table th.sticky-col .cell-content {
     background: linear-gradient(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05)),
                 rgba(var(--glass-base-bg-rgb), 0.85);
-    backdrop-filter: var(--glass-blur-effect);
-    -webkit-backdrop-filter: var(--glass-blur-effect);
 }
 
 .glass-table .first-sticky-col {
@@ -201,22 +199,4 @@
 .glass-table .last-sticky-col {
   right: 0;
   box-shadow: -4px 0 8px -4px rgba(0, 0, 0, 0.15);
-}
-
-.glass-table .last-sticky-col {
-    z-index: 4;
-}
-.glass-table th.last-sticky-col {
-    z-index: 5;
-}
-
-.glass-table th.sortable .cell-content {
-    padding: 0;
-}
-.glass-table th.sortable .cell-content .sort-header-button {
-    padding: 12px 15px;
-}
-
-.glass-table .last-sticky-col .cell-content {
-    justify-content: flex-start;
 }

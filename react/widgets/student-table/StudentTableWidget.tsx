@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import StudentDisplayTable from '../../entities/student/ui/StudentDisplayTable';
+import StudentDisplay from '../../entities/student/ui/StudentDisplay';
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../../entities/student/model/useStudentDataWithRQ';
-import { useRowSelection } from '../../features/row-selection/model/useRowSelection';
 import type { SortConfig } from '../../shared/ui/glasstable/GlassTable';
 import { useDragToScroll } from '../../shared/hooks/useDragToScroll';
 
@@ -16,22 +15,32 @@ interface StudentTableWidgetProps {
     students: Student[];
     isLoading: boolean;
     onRequestEdit: (student: Student) => void;
+    selectedIds: Set<string>;
+    toggleRow: (id: string) => void;
+    isAllSelected: boolean;
+    toggleSelectAll: () => void;
 }
 
-const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], isLoading, onRequestEdit }) => {
+const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ 
+    students = [], 
+    isLoading, 
+    onRequestEdit,
+    selectedIds,
+    toggleRow,
+    isAllSelected,
+    toggleSelectAll
+}) => {
     const { ref: scrollContainerRef, onMouseDown, isDragging } = useDragToScroll<HTMLDivElement>();
-
     const navigate = useNavigate();
     const { updateStudent, deleteStudent } = useStudentDataWithRQ();
 
     const [editingStatusRowId, setEditingStatusRowId] = useState<string | null>(null);
     const [activeCardId, setActiveCardId] = useState<string | null>(null);
-    const studentIds = useMemo(() => students.map(s => s.id), [students]);
-
-    const { selectedIds, toggleRow, isAllSelected, toggleSelectAll } = useRowSelection<string>({ allItems: studentIds });
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'student_name', direction: 'asc' });
 
     const sortedStudents = useMemo(() => {
+        // [핵심 수정] students 배열을 복사하여 원본을 수정하지 않도록 합니다.
+        // Array.prototype.sort()는 원본 배열을 변경(mutate)하기 때문입니다.
         return [...students].sort((a, b) => {
             const statusComparison = statusOrder[a.status] - statusOrder[b.status];
             if (statusComparison !== 0) {
@@ -76,20 +85,21 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], 
     };
 
     const handleToggleStatusEditor = (studentId: string) => {
+        // [수정] prevId와 studentId를 비교하여 상태 토글
         setEditingStatusRowId(prevId => (prevId === studentId ? null : studentId));
     };
 
     const handleStatusUpdate = async (studentId: string, newStatus: StatusValue | 'delete') => {
         try {
             if (newStatus === 'delete') {
-                if (window.confirm("정말로 이 학생 정보를 삭제(퇴원 처리)하시겠습니까?")) {
-                    await deleteStudent(studentId); 
+                if (window.confirm("정말로 이 학생 정보를 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+                    await deleteStudent(studentId);
                 }
             } else {
                 await updateStudent({ id: studentId, status: newStatus });
             }
         } catch (error) {
-            console.error("상태 업데이트 중 오류 발생:", error);
+            console.error("상태 업데이트 또는 삭제 중 오류 발생:", error);
         } finally {
             setEditingStatusRowId(null);
             setActiveCardId(null);
@@ -111,7 +121,7 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], 
     };
 
     return (
-        <StudentDisplayTable
+        <StudentDisplay
             ref={scrollContainerRef}
             scrollContainerProps={{
                 onMouseDown: onMouseDown,

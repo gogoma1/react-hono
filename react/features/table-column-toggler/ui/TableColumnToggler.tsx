@@ -1,30 +1,24 @@
+// ./react/features/table-column-toggler/ui/TableColumnToggler.tsx
 import React from 'react';
 import { useUIStore } from '../../../shared/store/uiStore';
+import { useColumnPermissions } from '../../../shared/hooks/useColumnPermissions'; // [수정] 신규 훅 import
 import { LuEye, LuEyeOff } from 'react-icons/lu';
 import './TableColumnToggler.css';
 
-// 토글 가능한 컬럼 목록 정의
-const TOGGLEABLE_COLUMNS: { key: string; label: string }[] = [
-  { key: 'grade', label: '학년' },
-  { key: 'subject', label: '과목' },
-  { key: 'status', label: '상태' },
-  { key: 'teacher', label: '담당 강사' },
-  { key: 'student_phone', label: '학생 연락처' },
-  { key: 'guardian_phone', label: '학부모 연락처' },
-  { key: 'school_name', label: '학교명' },
-  { key: 'tuition', label: '수강료' },
-  { key: 'admission_date', label: '입원일' },
-  { key: 'discharge_date', label: '퇴원일' },
-];
+// [삭제] 하드코딩된 컬럼 목록 제거
+// const TOGGLEABLE_COLUMNS: { key: string; label: string }[] = [ ... ];
 
 const TableColumnToggler: React.FC = () => {
   const { columnVisibility, toggleColumnVisibility } = useUIStore();
+  // [수정] 권한 훅을 사용하여 렌더링할 컬럼 목록을 가져옴
+  const { permittedColumnsConfig } = useColumnPermissions();
 
   return (
     <div className="column-toggler-panel">
       <h4 className="toggler-title">테이블 컬럼 설정</h4>
       <div className="toggler-list">
-        {TOGGLEABLE_COLUMNS.map((col) => {
+        {/* [수정] permittedColumnsConfig를 순회하여 버튼 생성 */}
+        {permittedColumnsConfig.map((col) => {
           const isVisible = columnVisibility[col.key] ?? true;
           return (
             <button

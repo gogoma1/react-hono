@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLayoutStore } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../entities/student/model/useStudentDataWithRQ';
+import { useRowSelection } from '../features/row-selection/model/useRowSelection';
 
 import StudentRegistrationForm from '../features/student-registration/ui/StudentRegistrationForm';
 import StudentEditForm from '../features/student-editing/ui/StudentEditForm';
@@ -9,10 +10,6 @@ import TableColumnToggler from '../features/table-column-toggler/ui/TableColumnT
 import StudentTableWidget from '../widgets/student-table/StudentTableWidget';
 import { useTableSearch } from '../features/table-search/model/useTableSearch';
 import type { SuggestionGroup } from '../features/table-search/ui/TableSearch';
-
-// 이 컴포넌트는 더 이상 사용되지 않으므로 삭제되었습니다.
-// import { LuInfo } from 'react-icons/lu';
-// const MobileSettingsPlaceholder: React.FC = () => { ... };
 
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T | undefined>(undefined);
@@ -42,8 +39,8 @@ const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] =
 };
 
 const DashBoard: React.FC = () => {
-    const { setRightSidebarContent, setSidebarTriggers, setStudentSearchProps } = useLayoutStore();
-    const { setRightSidebarExpanded, currentBreakpoint } = useUIStore();
+    const { setRightSidebarContent, setSidebarTriggers } = useLayoutStore.getState();
+    const { setRightSidebarExpanded } = useUIStore();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
     
@@ -55,6 +52,30 @@ const DashBoard: React.FC = () => {
     const prevActiveSidebarView = usePrevious(activeSidebarView);
 
     const currentStudents = students || [];
+    const studentIds = useMemo(() => currentStudents.map(s => s.id), [currentStudents]);
+
+    // [핵심 수정 1] `useRowSelection`에서 toggleSelectAll 대신 toggleItems를 가져옵니다.
+    const { selectedIds, toggleRow, toggleItems } = useRowSelection<string>({ allItems: studentIds });
+
+    const filteredStudents = useTableSearch({
+        data: currentStudents,
+        searchTerm,
+        searchableKeys: ['student_name', 'grade', 'subject', 'school_name', 'class_name', 'teacher'],
+        activeFilters,
+    }) as Student[];
+    const filteredStudentIds = useMemo(() => filteredStudents.map(s => s.id), [filteredStudents]);
+    
+    // [핵심 수정 2] 헤더 체크박스의 체크 여부를 계산합니다.
+    const isFilteredAllSelected = useMemo(() => {
+        if (filteredStudentIds.length === 0) return false;
+        return filteredStudentIds.every(id => selectedIds.has(id));
+    }, [filteredStudentIds, selectedIds]);
+    
+    // [핵심 수정 3] 헤더 체크박스를 토글하는 새로운 핸들러입니다.
+    const handleToggleFilteredAll = useCallback(() => {
+        toggleItems(filteredStudentIds);
+    }, [toggleItems, filteredStudentIds]);
+
 
     const suggestionGroups = useMemo((): SuggestionGroup[] => {
         return [
@@ -65,13 +86,6 @@ const DashBoard: React.FC = () => {
     }, [currentStudents]);
     
     const suggestionGroupsJSON = useMemo(() => JSON.stringify(suggestionGroups), [suggestionGroups]);
-
-    const filteredStudents = useTableSearch({
-        data: currentStudents,
-        searchTerm,
-        searchableKeys: ['student_name', 'grade', 'subject', 'school_name', 'class_name', 'teacher'],
-        activeFilters,
-    }) as Student[];
     
     const handleFilterChange = useCallback((key: string, value: string) => {
         setActiveFilters(prev => {
@@ -88,6 +102,19 @@ const DashBoard: React.FC = () => {
     const handleResetFilters = useCallback(() => {
         setActiveFilters({});
     }, []);
+
+    const handleToggleFilteredSelection = useCallback(() => {
+        toggleItems(filteredStudentIds);
+    }, [toggleItems, filteredStudentIds]);
+
+    const handleCreateProblemSet = useCallback(() => {
+        if (selectedIds.size === 0) {
+            alert('선택된 학생이 없습니다.');
+            return;
+        }
+        console.log('문제 출제 대상 학생 ID:', [...selectedIds]);
+        alert(`${selectedIds.size}명의 학생을 대상으로 문제 출제 로직을 실행합니다. (콘솔 확인)`);
+    }, [selectedIds]);
 
     const handleCloseSidebar = useCallback(() => {
         setActiveSidebarView(null);
@@ -116,8 +143,6 @@ const DashBoard: React.FC = () => {
         } else if (activeSidebarView === 'edit' && studentToEdit) {
             setRightSidebarContent(<StudentEditForm student={studentToEdit} onSuccess={handleCloseSidebar} />);
         } else if (activeSidebarView === 'settings') {
-            // [수정] 모바일/데스크탑 구분 없이 TableColumnToggler를 렌더링합니다.
-            // 이제 모바일에서도 컬럼 설정을 사용할 수 있습니다.
             setRightSidebarContent(<TableColumnToggler />);
         }
 
@@ -134,28 +159,36 @@ const DashBoard: React.FC = () => {
         setSidebarTriggers({
             onRegisterClick: handleOpenRegisterSidebar,
             onSettingsClick: handleOpenSettingsSidebar,
-            onClose: handleCloseSidebar, // onClose 콜백을 설정하여 하위 컴포넌트에서 호출할 수 있도록 함
+            onClose: handleCloseSidebar,
         });
-
-        return () => {
-            setRightSidebarContent(null);
-            setStudentSearchProps(null);
-            setSidebarTriggers({});
-        };
-    }, [handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar, setRightSidebarContent, setStudentSearchProps, setSidebarTriggers]);
-    
+    }, [handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar, setSidebarTriggers]);
     
     useEffect(() => {
-        setStudentSearchProps({
+        useLayoutStore.getState().setStudentSearchProps({
             searchTerm,
             onSearchTermChange: setSearchTerm,
             activeFilters,
             onFilterChange: handleFilterChange,
             onResetFilters: handleResetFilters,
             suggestionGroups: suggestionGroupsJSON,
+            onToggleFiltered: handleToggleFilteredSelection,
+            onCreateProblemSet: handleCreateProblemSet,
+            selectedCount: selectedIds.size,
         });
-    }, [searchTerm, activeFilters, suggestionGroupsJSON, handleFilterChange, handleResetFilters, setStudentSearchProps]);
-    
+
+        return () => {
+            useLayoutStore.getState().setStudentSearchProps(null);
+        };
+    }, [
+        searchTerm, 
+        activeFilters, 
+        suggestionGroupsJSON, 
+        selectedIds.size, 
+        handleFilterChange, 
+        handleResetFilters, 
+        handleToggleFilteredSelection, 
+        handleCreateProblemSet
+    ]);
     
     if (isStudentsError) {
         return (
@@ -171,7 +204,12 @@ const DashBoard: React.FC = () => {
             <StudentTableWidget 
                 students={filteredStudents} 
                 isLoading={isLoadingStudents}
-                onRequestEdit={handleRequestEdit} 
+                onRequestEdit={handleRequestEdit}
+                selectedIds={selectedIds}
+                toggleRow={toggleRow}
+                // [핵심 수정 4] isAllSelected와 toggleSelectAll에 새로 만든 변수와 함수를 전달합니다.
+                isAllSelected={isFilteredAllSelected}
+                toggleSelectAll={handleToggleFilteredAll}
             />
         </div>
     );
