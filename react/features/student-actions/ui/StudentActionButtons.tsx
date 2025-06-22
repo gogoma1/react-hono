@@ -11,9 +11,9 @@ interface StudentActionButtonsProps {
     studentId: string;
     studentName: string;
     isEditing: boolean;
-    onEdit: (id: string) => void;
-    onNavigate: (id: string) => void;
-    onToggleStatusEditor: (id: string) => void;
+    onEdit: () => void;
+    onNavigate: () => void;
+    onToggleStatusEditor: () => void;
     onStatusUpdate: (id: string, status: StatusValue | 'delete') => void;
     onCancel: () => void;
 }
@@ -37,7 +37,7 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
             {/* 1. 수정 아이콘 */}
             <Tippy content="수정" theme="custom-glass" placement="top">
                 <button type="button" className="action-icon-button"
-                    onClick={(e) => { e.stopPropagation(); onEdit(studentId); }}
+                    onClick={(e) => { e.stopPropagation(); onEdit(); }}
                     aria-label={`${studentName} 학생 정보 수정`}>
                     <LuPencil size={16} color="#3498db" />
                 </button>
@@ -45,7 +45,7 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
             {/* 2. 상세보기 아이콘 */}
             <Tippy content="상세 보기" theme="custom-glass" placement="top">
                  <button type="button" className="action-icon-button"
-                    onClick={(e) => { e.stopPropagation(); onNavigate(studentId); }}
+                    onClick={(e) => { e.stopPropagation(); onNavigate(); }}
                     aria-label={`${studentName} 학생 상세 정보 보기`}>
                     <LuBookUser size={16} color="#3498db" />
                 </button>
@@ -53,7 +53,7 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
             {/* 3. 상태 변경(퇴원 처리 등) 아이콘 */}
             <Tippy content="상태 변경" theme="custom-glass" placement="top">
                 <button type="button" className="action-icon-button"
-                    onClick={(e) => { e.stopPropagation(); onToggleStatusEditor(studentId); }}
+                    onClick={(e) => { e.stopPropagation(); onToggleStatusEditor(); }}
                     aria-label={`${studentName} 학생 상태 변경`}>
                     <LuCircleArrowOutDownRight size={16} color="#3498db" />
                 </button>

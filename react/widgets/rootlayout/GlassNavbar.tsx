@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router'; // useLocation import
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore } from '../../shared/store/layoutStore';
-import { LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus } from 'react-icons/lu';
+import { useLayoutStore, selectSidebarTriggers } from '../../shared/store/layoutStore';
+import { LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, LuSettings2 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
 import GlassPopover from '../../shared/components/GlassPopover';
@@ -12,9 +12,11 @@ import ProfileMenuContent from '../../features/popovermenu/ProfileMenuContent';
 const LogoIcon = () => <LuLayoutDashboard size={26} className="navbar-logo-icon" />;
 const HamburgerIcon = () => <LuMenu size={22} />;
 const ProfileIcon = () => <LuCircleUserRound size={22} />;
-const DefaultSettingsIcon = () => <LuCirclePlus size={22} />;
+const RegisterIcon = () => <LuCirclePlus size={22} />;
+const SettingsIcon = () => <LuSettings2 size={22} />;
 
 const GlassNavbar: React.FC = () => {
+    const location = useLocation(); // [추가]
     const {
         currentBreakpoint,
         toggleLeftSidebar,
@@ -22,11 +24,13 @@ const GlassNavbar: React.FC = () => {
         closeMobileSidebar,
     } = useUIStore();
     
-    // [수정] rightSidebarTrigger의 타입을 명확히 단언
-    const rightSidebarTrigger = useLayoutStore((state) => state.rightSidebarTrigger) as React.ReactElement<{ className?: string; disabled?: boolean; }> | null;
+    const { onRegisterClick, onSettingsClick } = useLayoutStore(selectSidebarTriggers);
 
     const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
     const profileButtonRef = useRef<HTMLButtonElement>(null);
+    
+    // [추가] 대시보드 페이지인지 확인
+    const isDashboardPage = location.pathname.startsWith('/dashboard');
 
     const handleProfileButtonClick = () => {
         if (currentBreakpoint === 'mobile' && mobileSidebarType && !isProfilePopoverOpen) {
@@ -43,7 +47,6 @@ const GlassNavbar: React.FC = () => {
         if (isProfilePopoverOpen) {
             handleCloseProfilePopover();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentBreakpoint]);
 
     return (
@@ -69,15 +72,18 @@ const GlassNavbar: React.FC = () => {
             <div className="navbar-right">
                 {currentBreakpoint === 'mobile' && (
                     <div className="mobile-right-actions">
-                        {React.isValidElement(rightSidebarTrigger) ? (
-                            React.cloneElement(rightSidebarTrigger, {
-                                className: `${rightSidebarTrigger.props.className || ''} mobile-nav-trigger`,
-                                disabled: true, // 모바일에서 툴팁 비활성화
-                            })
-                        ) : (
-                            <Tippy content="설정" placement="bottom-end" theme="custom-glass" delay={[300, 0]}>
-                                <button className="navbar-icon-button" aria-label="설정">
-                                    <DefaultSettingsIcon />
+                        {onRegisterClick && (
+                            <Tippy content="신입생 등록" placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={onRegisterClick} className="navbar-icon-button" aria-label="신입생 등록">
+                                    <RegisterIcon />
+                                </button>
+                            </Tippy>
+                        )}
+                        {/* [수정] 대시보드 페이지이고, onSettingsClick 함수가 있을 때만 버튼 렌더링 */}
+                        {isDashboardPage && onSettingsClick && (
+                             <Tippy content="테이블 설정" placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={onSettingsClick} className="navbar-icon-button" aria-label="테이블 설정">
+                                    <SettingsIcon />
                                 </button>
                             </Tippy>
                         )}

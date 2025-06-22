@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import Tippy from '@tippyjs/react';
-import { LuCirclePlus, LuCircleX } from 'react-icons/lu';
-
 import { useLayoutStore } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../entities/student/model/useStudentDataWithRQ';
 
 import StudentRegistrationForm from '../features/student-registration/ui/StudentRegistrationForm';
 import StudentEditForm from '../features/student-editing/ui/StudentEditForm';
+import TableColumnToggler from '../features/table-column-toggler/ui/TableColumnToggler';
 import StudentTableWidget from '../widgets/student-table/StudentTableWidget';
 import { useTableSearch } from '../features/table-search/model/useTableSearch';
 import type { SuggestionGroup } from '../features/table-search/ui/TableSearch';
 
-const PlusIcon = () => <LuCirclePlus size={22} />;
-const CloseIcon = () => <LuCircleX size={22} />;
+// 이 컴포넌트는 더 이상 사용되지 않으므로 삭제되었습니다.
+// import { LuInfo } from 'react-icons/lu';
+// const MobileSettingsPlaceholder: React.FC = () => { ... };
 
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T | undefined>(undefined);
@@ -43,17 +42,17 @@ const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] =
 };
 
 const DashBoard: React.FC = () => {
-    const { setRightSidebarContent, setRightSidebarTrigger, setStudentSearchProps } = useLayoutStore();
-    const { isRightSidebarExpanded, setRightSidebarExpanded } = useUIStore();
+    const { setRightSidebarContent, setSidebarTriggers, setStudentSearchProps } = useLayoutStore();
+    const { setRightSidebarExpanded, currentBreakpoint } = useUIStore();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
     
-    const [sidebarMode, setSidebarMode] = useState<'register' | 'edit'>('register');
+    const [activeSidebarView, setActiveSidebarView] = useState<'register' | 'edit' | 'settings' | null>(null);
     const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
 
-    const prevIsRightSidebarExpanded = usePrevious(isRightSidebarExpanded);
+    const prevActiveSidebarView = usePrevious(activeSidebarView);
 
     const currentStudents = students || [];
 
@@ -62,7 +61,6 @@ const DashBoard: React.FC = () => {
             { key: 'grade', suggestions: getUniqueSortedValues(currentStudents, 'grade') },
             { key: 'subject', suggestions: getUniqueSortedValues(currentStudents, 'subject') },
             { key: 'class_name', suggestions: getUniqueSortedValues(currentStudents, 'class_name') },
-            { key: 'teacher', suggestions: getUniqueSortedValues(currentStudents, 'teacher') },
         ];
     }, [currentStudents]);
     
@@ -87,72 +85,77 @@ const DashBoard: React.FC = () => {
         });
     }, []);
 
-    const handleFormSuccess = useCallback(() => {
-        setRightSidebarExpanded(false);
-    }, [setRightSidebarExpanded]);
+    const handleResetFilters = useCallback(() => {
+        setActiveFilters({});
+    }, []);
+
+    const handleCloseSidebar = useCallback(() => {
+        setActiveSidebarView(null);
+    }, []);
     
     const handleRequestEdit = useCallback((student: Student) => {
-        setSidebarMode('edit');
         setStudentToEdit(student);
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarExpanded]);
+        setActiveSidebarView('edit');
+    }, []);
 
     const handleOpenRegisterSidebar = useCallback(() => {
-        setSidebarMode('register');
         setStudentToEdit(null);
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarExpanded]);
+        setActiveSidebarView('register');
+    }, []);
+    
+    const handleOpenSettingsSidebar = useCallback(() => {
+        setStudentToEdit(null);
+        setActiveSidebarView('settings');
+    }, []);
 
     useEffect(() => {
-        const content = sidebarMode === 'edit' && studentToEdit
-            ? <StudentEditForm student={studentToEdit} onSuccess={handleFormSuccess} />
-            : <StudentRegistrationForm onSuccess={handleFormSuccess} />;
-        setRightSidebarContent(content);
+        setRightSidebarExpanded(activeSidebarView !== null);
 
-        const triggerComponent = isRightSidebarExpanded ? (
-            <Tippy content="닫기" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
-                <button onClick={() => setRightSidebarExpanded(false)} className="settings-toggle-button active" aria-label="사이드바 닫기">
-                    <CloseIcon />
-                </button>
-            </Tippy>
-        ) : (
-            <Tippy content="신입생 등록" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
-                <button onClick={handleOpenRegisterSidebar} className="settings-toggle-button" aria-label="신입생 등록">
-                    <PlusIcon />
-                </button>
-            </Tippy>
-        );
-        setRightSidebarTrigger(triggerComponent);
+        if (activeSidebarView === 'register') {
+            setRightSidebarContent(<StudentRegistrationForm onSuccess={handleCloseSidebar} />);
+        } else if (activeSidebarView === 'edit' && studentToEdit) {
+            setRightSidebarContent(<StudentEditForm student={studentToEdit} onSuccess={handleCloseSidebar} />);
+        } else if (activeSidebarView === 'settings') {
+            // [수정] 모바일/데스크탑 구분 없이 TableColumnToggler를 렌더링합니다.
+            // 이제 모바일에서도 컬럼 설정을 사용할 수 있습니다.
+            setRightSidebarContent(<TableColumnToggler />);
+        }
 
-    }, [sidebarMode, studentToEdit, isRightSidebarExpanded, handleFormSuccess, handleOpenRegisterSidebar, setRightSidebarContent, setRightSidebarTrigger, setRightSidebarExpanded]);
+        if (prevActiveSidebarView !== null && activeSidebarView === null) {
+            const timer = setTimeout(() => {
+                setRightSidebarContent(null);
+                setStudentToEdit(null);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [activeSidebarView, studentToEdit, handleCloseSidebar, setRightSidebarExpanded, setRightSidebarContent, prevActiveSidebarView]);
 
+    useEffect(() => {
+        setSidebarTriggers({
+            onRegisterClick: handleOpenRegisterSidebar,
+            onSettingsClick: handleOpenSettingsSidebar,
+            onClose: handleCloseSidebar, // onClose 콜백을 설정하여 하위 컴포넌트에서 호출할 수 있도록 함
+        });
+
+        return () => {
+            setRightSidebarContent(null);
+            setStudentSearchProps(null);
+            setSidebarTriggers({});
+        };
+    }, [handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar, setRightSidebarContent, setStudentSearchProps, setSidebarTriggers]);
+    
+    
     useEffect(() => {
         setStudentSearchProps({
             searchTerm,
             onSearchTermChange: setSearchTerm,
             activeFilters,
             onFilterChange: handleFilterChange,
+            onResetFilters: handleResetFilters,
             suggestionGroups: suggestionGroupsJSON,
         });
-    }, [searchTerm, activeFilters, suggestionGroupsJSON, handleFilterChange, setStudentSearchProps]);
-
-    useEffect(() => {
-        if (prevIsRightSidebarExpanded && !isRightSidebarExpanded) {
-            const timer = setTimeout(() => {
-                setSidebarMode('register');
-                setStudentToEdit(null);
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [isRightSidebarExpanded, prevIsRightSidebarExpanded]);
+    }, [searchTerm, activeFilters, suggestionGroupsJSON, handleFilterChange, handleResetFilters, setStudentSearchProps]);
     
-    useEffect(() => {
-        return () => {
-            setRightSidebarContent(null);
-            setRightSidebarTrigger(null);
-            setStudentSearchProps(null);
-        };
-    }, [setRightSidebarContent, setRightSidebarTrigger, setStudentSearchProps]);
     
     if (isStudentsError) {
         return (
@@ -170,10 +173,6 @@ const DashBoard: React.FC = () => {
                 isLoading={isLoadingStudents}
                 onRequestEdit={handleRequestEdit} 
             />
-            {/* 
-                [핵심 수정] 
-                모바일 화면에서 보이던 플로팅 액션 버튼(FAB) 렌더링 로직을 완전히 삭제합니다.
-            */}
         </div>
     );
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LuSearch, LuX } from 'react-icons/lu';
+import { LuSearch, LuX, LuRotateCcw } from 'react-icons/lu';
 import './TableSearch.css';
 
 export interface SuggestionGroup {
@@ -13,6 +13,7 @@ export interface TableSearchProps {
     suggestionGroups: SuggestionGroup[];
     activeFilters: Record<string, string>;
     onFilterChange: (key: string, value: string) => void;
+    onResetFilters: () => void;
 }
 
 const TableSearch: React.FC<TableSearchProps> = ({
@@ -21,8 +22,10 @@ const TableSearch: React.FC<TableSearchProps> = ({
     suggestionGroups,
     activeFilters,
     onFilterChange,
+    onResetFilters,
 }) => {
-    // ===== [핵심] 최상위 div가 바로 'table-search-panel'이 되도록 구조 단순화 =====
+    const hasActiveFilters = Object.keys(activeFilters).length > 0;
+
     return (
         <div className="table-search-panel">
             <div className="search-input-wrapper">
@@ -35,9 +38,9 @@ const TableSearch: React.FC<TableSearchProps> = ({
                     onChange={(e) => onSearchTermChange(e.target.value)}
                 />
             </div>
-            {suggestionGroups.map((group) => (
+            {suggestionGroups.map((group, index) => (
                 group.suggestions.length > 0 && (
-                    <div key={group.key} className="suggestion-group">
+                    <div key={group.key} className={`suggestion-group ${index === 2 ? 'with-reset' : ''}`}>
                         <div className="suggestion-buttons-wrapper">
                             {group.suggestions.map((suggestion) => {
                                 const isActive = activeFilters[group.key] === suggestion;
@@ -54,6 +57,19 @@ const TableSearch: React.FC<TableSearchProps> = ({
                                 );
                             })}
                         </div>
+                        {/* [추가] 세 번째 줄(index 2)에 초기화 버튼 추가 */}
+                        {index === 2 && (
+                             <button 
+                                type="button" 
+                                className="reset-filters-button"
+                                onClick={onResetFilters}
+                                disabled={!hasActiveFilters}
+                                title="필터 초기화"
+                            >
+                                <LuRotateCcw size={16} />
+                                <span>초기화</span>
+                            </button>
+                        )}
                     </div>
                 )
             ))}

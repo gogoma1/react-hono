@@ -23,8 +23,7 @@
 .navbar-right {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-right: 0px;
+    gap: 8px; /* [수정] 아이콘들 사이의 기본 간격 */
 }
 
 .navbar-logo-link {
@@ -33,9 +32,7 @@
     text-decoration: none;
     color: var(--text-primary);
     padding: 5px;
-    /* 클릭 영역 확보 */
     border-radius: 6px;
-    /* 호버 효과 위한 준비 */
     transition: background-color 0.2s ease;
 }
 
@@ -73,12 +70,16 @@
     color: var(--accent-color-darker);
 }
 
-.hamburger-button,
-.settings-button-mobile {
+.hamburger-button {
     display: none;
-    /* 모바일 미디어쿼리에서 block/flex로 변경 */
 }
 
+/* [추가] 모바일 오른쪽 액션 버튼 그룹 스타일 */
+.mobile-right-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* 액션 버튼들 사이의 간격 */
+}
 
 .profile-button svg {
     color: var(--text-secondary);
@@ -95,12 +96,7 @@
 
     .profile-button {
         margin-left: auto;
-        /* 태블릿에서 프로필 버튼을 오른쪽으로 밀착 */
     }
-
-    /* 만약 태블릿에서 설정 버튼도 보인다면, 해당 버튼과의 순서 고려 필요 */
-    /* 현재 TSX에서는 설정 버튼은 모바일에서만 보이므로, 태블릿에서는 프로필 버튼만 존재 (가정) */
-    /* 만약 다른 아이콘 버튼들이 navbar-right에 있다면, 그 순서에 따라 조정 필요 */
 }
 
 /* 모바일 반응형 스타일 (768px 이하) */
@@ -114,17 +110,11 @@
         display: flex;
     }
 
-    .settings-button-mobile {
-        display: flex;
-        /* TSX 마크업 순서에 따라 프로필 버튼 왼쪽에 위치 */
-    }
-
     .navbar-logo-link {
         margin-left: 6px;
     }
 
     .profile-button {
-        /* 모바일에서도 프로필 버튼 보이도록 (TSX에서 조건 제거로 이미 처리) */
         display: flex;
     }
 }

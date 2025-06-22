@@ -16,6 +16,7 @@ dist-ssr
 .env
 catfile
 wrangler.jsonc
+*.md
 
 # Editor directories and files
 .vscode/*

@@ -1,11 +1,8 @@
 /* ./react/features/table-search/ui/TableSearch.css */
 
-/* 이제 이 클래스가 컴포넌트의 최상위 루트가 됩니다. */
 .table-search-panel {
     width: 100%;
     max-width: 960px;
-    /* margin: 0 auto; 제거 -> 부모인 .bottom-content-area의 flex/justify-content로 중앙정렬 */
-
     background: var(--navbar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
     -webkit-backdrop-filter: var(--glass-blur-effect);
@@ -17,10 +14,9 @@
     flex-direction: column;
     gap: 12px;
     transition: all 0.3s ease-in-out;
-    pointer-events: auto; /* [핵심] 패널 자체는 클릭/입력이 가능해야 함 */
+    pointer-events: auto;
 }
 
-/* ... (이하 나머지 스타일은 모두 동일하게 유지) ... */
 .search-input-wrapper {
     position: relative;
     width: 100%;
@@ -60,6 +56,11 @@
     align-items: center;
     gap: 10px;
 }
+/* [추가] 초기화 버튼이 있는 그룹 스타일 */
+.suggestion-group.with-reset {
+    justify-content: space-between;
+}
+
 .suggestion-buttons-wrapper {
     display: flex;
     flex-wrap: nowrap;
@@ -106,6 +107,31 @@
 }
 .suggestion-chip.active:hover .suggestion-chip-clear {
     opacity: 1;
+}
+
+/* [추가] 초기화 버튼 스타일 */
+.reset-filters-button {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background-color: rgba(0,0,0,0.05);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.reset-filters-button:hover:not(:disabled) {
+    background-color: rgba(0,0,0,0.09);
+    color: var(--text-primary);
+}
+.reset-filters-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 @media (max-width: 768px) {

@@ -15,7 +15,7 @@ interface MobileStudentCardProps {
     activeCardId: string | null;
     onCardClick: (studentId: string) => void;
     editingStatusRowId: string | null;
-    onEdit: (studentId: string) => void;
+    onEdit: (student: Student) => void;
     onNavigate: (studentId: string) => void;
     onToggleStatusEditor: (studentId: string) => void;
     onStatusUpdate: (studentId: string, status: StatusValue | 'delete') => void;
@@ -35,7 +35,7 @@ interface StudentDisplayTableProps {
     onToggleHeader: () => void;
     isHeaderDisabled?: boolean;
     editingStatusRowId: string | null;
-    onEdit: (studentId: string) => void;
+    onEdit: (student: Student) => void;
     onNavigate: (studentId: string) => void;
     onToggleStatusEditor: (studentId: string) => void;
     onStatusUpdate: (studentId: string, status: StatusValue | 'delete') => void;
@@ -60,9 +60,12 @@ const MobileStudentCard: React.FC<MobileStudentCardProps> = ({
 }) => {
     const isActive = activeCardId === student.id;
     const isEditingStatus = editingStatusRowId === student.id;
+
+    // [추가] 모바일 컬럼 숨기기/보이기 기능을 위해 uiStore에서 상태 가져오기
+    const { columnVisibility } = useUIStore();
     
     const onEditRequest = () => {
-        onEdit(student.id);
+        onEdit(student);
         closeActiveCard();
     };
 
@@ -86,28 +89,32 @@ const MobileStudentCard: React.FC<MobileStudentCardProps> = ({
                 <div className="card-main-info">
                     <div className="main-info-name-status">
                         <span className="main-info-name">{student.student_name}</span>
-                        <Badge className={`status-${student.status.toLowerCase()}`}>{student.status}</Badge>
+                        {/* [수정] '상태' 컬럼이 보일 때만 뱃지 렌더링 */}
+                        {columnVisibility.status && <Badge className={`status-${student.status.toLowerCase()}`}>{student.status}</Badge>}
                     </div>
                     <div className="main-info-tags">
-                        <span>{student.grade}</span>
+                        {/* [수정] '학년', '과목' 컬럼이 보일 때만 해당 정보 렌더링 */}
+                        {columnVisibility.grade && <span>{student.grade}</span>}
+                        {columnVisibility.subject && <span>{student.subject}</span>}
                         {student.class_name && <span>{student.class_name}</span>}
                     </div>
                 </div>
+                {/* [수정] 각 상세 정보 항목을 컬럼 보이기/숨기기 상태에 따라 조건부 렌더링 */}
                 <div className="card-details-grid">
                     <div className="detail-item phones">
-                        <span>학부모: {student.guardian_phone || '-'}</span>
-                        <span>학생: {student.student_phone || '-'}</span>
+                        {columnVisibility.guardian_phone && <span>학부모: {student.guardian_phone || '-'}</span>}
+                        {columnVisibility.student_phone && <span>학생: {student.student_phone || '-'}</span>}
                     </div>
                     <div className="detail-item school-tuition">
-                        <span>학교: {student.school_name || '-'}</span>
-                        <span>수강료: {student.tuition ? student.tuition.toLocaleString() : '-'}</span>
+                        {columnVisibility.school_name && <span>학교: {student.school_name || '-'}</span>}
+                        {columnVisibility.tuition && <span>수강료: {student.tuition ? student.tuition.toLocaleString() : '-'}</span>}
                     </div>
                     <div className="detail-item dates">
-                        <span>입원일: {student.admission_date ? new Date(student.admission_date).toLocaleDateString() : '-'}</span>
-                        <span>퇴원일: {student.discharge_date ? new Date(student.discharge_date).toLocaleDateString() : '-'}</span>
+                        {columnVisibility.admission_date && <span>입원일: {student.admission_date ? new Date(student.admission_date).toLocaleDateString() : '-'}</span>}
+                        {columnVisibility.discharge_date && <span>퇴원일: {student.discharge_date ? new Date(student.discharge_date).toLocaleDateString() : '-'}</span>}
                     </div>
                     <div className="detail-item teacher-info">
-                        <span>담당 강사: {student.teacher || '-'}</span>
+                        {columnVisibility.teacher && <span>담당 강사: {student.teacher || '-'}</span>}
                     </div>
                 </div>
             </div>
@@ -137,7 +144,6 @@ const StudentDisplayTable = forwardRef<HTMLDivElement, StudentDisplayTableProps>
     
     const { currentBreakpoint, columnVisibility } = useUIStore();
     
-    // [핵심 수정] 훅(useMemo)을 조건부 return 보다 먼저 호출하여 Rules of Hooks 위반 문제를 해결합니다.
     const allColumns: TableColumn<Student>[] = [
         {
             key: 'header_action_button',
@@ -173,19 +179,31 @@ const StudentDisplayTable = forwardRef<HTMLDivElement, StudentDisplayTableProps>
         {
             key: 'actions',
             header: '관리',
-            render: (student) => <StudentActionButtons studentId={student.id} studentName={student.student_name} isEditing={props.editingStatusRowId === student.id} onEdit={props.onEdit} onNavigate={props.onNavigate} onToggleStatusEditor={props.onToggleStatusEditor} onStatusUpdate={props.onStatusUpdate} onCancel={props.onCancel}/>,
+            render: (student) => (
+                <StudentActionButtons 
+                    studentId={student.id} 
+                    studentName={student.student_name} 
+                    isEditing={props.editingStatusRowId === student.id} 
+                    onEdit={() => props.onEdit(student)}
+                    onNavigate={() => props.onNavigate(student.id)}
+                    onToggleStatusEditor={() => props.onToggleStatusEditor(student.id)}
+                    onStatusUpdate={props.onStatusUpdate} 
+                    onCancel={props.onCancel}
+                />
+            ),
             className: 'sticky-col last-sticky-col',
         },
     ];
 
     const columns = useMemo(() => {
+        // [수정] allColumns가 변경될 때마다 재계산되도록 의존성 배열에 추가
         return allColumns.filter(col => {
-            return !columnVisibility.hasOwnProperty(col.key) || columnVisibility[col.key as string];
+            // hasOwnProperty 체크는 columnVisibility가 null/undefined일 수 있는 경우에 대비
+            return !Object.prototype.hasOwnProperty.call(columnVisibility, col.key) || columnVisibility[col.key as string];
         });
-    }, [columnVisibility]);
+    }, [columnVisibility, allColumns]);
 
 
-    // 이제 조건부로 return 해도 안전합니다.
     if (currentBreakpoint === 'mobile') {
         if (isLoading) {
             return <div className="mobile-loading-state">로딩 중...</div>;

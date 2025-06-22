@@ -787,15 +787,100 @@
     background-color: var(--border-color-light, rgba(0, 0, 0, 0.1));
     margin-left: 8px; /* 아이콘과 선 사이 간격 */
 }
+----- ./react/features/table-column-toggler/ui/TableColumnToggler.css -----
+/* react/features/table-column-toggler/ui/TableColumnToggler.css */
+
+.column-toggler-panel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-secondary);
+  padding: 0 15px;
+  box-sizing: border-box;
+}
+
+.toggler-title {
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0 0 16px 0;
+  font-size: 1.05em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(129, 127, 127, 0.1);
+}
+
+.toggler-list {
+  padding-top: 20px;
+  padding-right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex-grow: 1;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+}
+
+.toggler-list::-webkit-scrollbar {
+  width: 6px;
+}
+.toggler-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.toggler-list::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+.toggler-button {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--text-placeholder, #d1d5db);
+  background-color: transparent;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggler-button:hover:not(.active) {
+  border-color: var(--accent-color);
+  color: var(--accent-color-darker);
+  background-color: var(--menu-item-hover-bg);
+}
+
+.toggler-button.active {
+  background-color: var(--accent-color);
+  color: var(--text-on-accent);
+  border-color: var(--accent-color);
+  font-weight: 600;
+}
+
+.toggler-button .button-label {
+  flex-grow: 1;
+  text-align: left;
+}
+
+.toggler-button .button-icon {
+  flex-shrink: 0;
+  color: var(--text-on-accent);
+}
 ----- ./react/features/table-search/ui/TableSearch.css -----
 /* ./react/features/table-search/ui/TableSearch.css */
 
-/* 이제 이 클래스가 컴포넌트의 최상위 루트가 됩니다. */
 .table-search-panel {
     width: 100%;
     max-width: 960px;
-    /* margin: 0 auto; 제거 -> 부모인 .bottom-content-area의 flex/justify-content로 중앙정렬 */
-
     background: var(--navbar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
     -webkit-backdrop-filter: var(--glass-blur-effect);
@@ -807,10 +892,9 @@
     flex-direction: column;
     gap: 12px;
     transition: all 0.3s ease-in-out;
-    pointer-events: auto; /* [핵심] 패널 자체는 클릭/입력이 가능해야 함 */
+    pointer-events: auto;
 }
 
-/* ... (이하 나머지 스타일은 모두 동일하게 유지) ... */
 .search-input-wrapper {
     position: relative;
     width: 100%;
@@ -850,6 +934,11 @@
     align-items: center;
     gap: 10px;
 }
+/* [추가] 초기화 버튼이 있는 그룹 스타일 */
+.suggestion-group.with-reset {
+    justify-content: space-between;
+}
+
 .suggestion-buttons-wrapper {
     display: flex;
     flex-wrap: nowrap;
@@ -896,6 +985,31 @@
 }
 .suggestion-chip.active:hover .suggestion-chip-clear {
     opacity: 1;
+}
+
+/* [추가] 초기화 버튼 스타일 */
+.reset-filters-button {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background-color: rgba(0,0,0,0.05);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.reset-filters-button:hover:not(:disabled) {
+    background-color: rgba(0,0,0,0.09);
+    color: var(--text-primary);
+}
+.reset-filters-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
@@ -1830,11 +1944,9 @@ body {
     overflow-x: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
-    /* [추가] 기본 커서를 grab으로 설정 */
     cursor: grab;
 }
 
-/* [추가] 드래그 중일 때 커서 모양 변경 및 텍스트 선택 방지 */
 .glass-table-scroll-container.dragging {
     cursor: grabbing;
     user-select: none;
@@ -1842,7 +1954,6 @@ body {
     -moz-user-select: none;
     -ms-user-select: none;
 }
-
 
 .glass-table-scroll-container::-webkit-scrollbar {
     height: 8px;
@@ -1952,9 +2063,8 @@ body {
   transition: opacity 0.2s;
 }
 
-/* ===== 고정 컬럼(Sticky Column)을 위한 스타일 ===== */
+/* ===== 고정 컬럼(Sticky Column)을 위한 스타일 (최종 수정) ===== */
 
-/* 1. 고정될 셀(th, td) 자체의 스타일 */
 .glass-table th.sticky-col,
 .glass-table td.sticky-col {
   position: -webkit-sticky;
@@ -1962,11 +2072,9 @@ body {
   z-index: 2;
   background: none;
   padding: 0;
-  /* [수정] 고정 컬럼은 기본 커서로 설정하여 grab/grabbing을 덮어씌움 */
   cursor: default;
 }
 
-/* 2. 셀 내부의 새로운 div 래퍼(.cell-content)에 스타일 적용 */
 .glass-table td.sticky-col .cell-content,
 .glass-table th.sticky-col .cell-content {
   background: rgba(var(--glass-base-bg-rgb), 0.85);
@@ -1976,15 +2084,16 @@ body {
   height: 100%; 
   display: flex;
   align-items: center;
+  justify-content: center;
+  /* [핵심 1] 배경 요소가 클릭 이벤트를 무시하고 '통과'시키도록 설정합니다. */
+  pointer-events: none;
 }
 
-/* [추가] 고정 컬럼 내의 상호작용 가능한 요소(버튼, 링크 등)는 다시 포인터 커서로 변경 */
-.glass-table .sticky-col button,
-.glass-table .sticky-col a {
-    cursor: pointer;
+/* [핵심 2] 자식 선택자(>) 대신 후손 선택자(공백)를 사용하여 모든 하위 요소에 적용합니다. */
+.glass-table .sticky-col .cell-content * {
+    pointer-events: auto;
 }
 
-/* 3. 호버 효과도 내부 div에 적용 */
 .glass-table tbody tr:hover td.sticky-col .cell-content {
     background: linear-gradient(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.04)),
                 rgba(var(--glass-base-bg-rgb), 0.85);
@@ -1992,10 +2101,10 @@ body {
     -webkit-backdrop-filter: var(--glass-blur-effect);
 }
 
-/* 4. 헤더의 고정 컬럼 스타일 */
 .glass-table th.sticky-col {
   z-index: 3; 
 }
+
 .glass-table th.sticky-col .cell-content {
     background: linear-gradient(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05)),
                 rgba(var(--glass-base-bg-rgb), 0.85);
@@ -2003,7 +2112,6 @@ body {
     -webkit-backdrop-filter: var(--glass-blur-effect);
 }
 
-/* 5. 고정 컬럼의 좌/우 경계 스타일 (border 대신 box-shadow 사용) */
 .glass-table .first-sticky-col {
   left: 0;
   box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.15);
@@ -2014,20 +2122,22 @@ body {
   box-shadow: -4px 0 8px -4px rgba(0, 0, 0, 0.15);
 }
 
-/* 첫 번째 컬럼과 마지막 컬럼이 겹칠 경우(컬럼이 적을 때)를 대비하여 z-index 조정 */
 .glass-table .last-sticky-col {
-    z-index: 4; /* 첫 번째 고정 컬럼보다 위에 오도록 */
+    z-index: 4;
 }
 .glass-table th.last-sticky-col {
     z-index: 5;
 }
 
-/* 정렬 버튼이 있는 헤더 셀의 경우, 버튼이 div를 꽉 채우도록 */
 .glass-table th.sortable .cell-content {
     padding: 0;
 }
 .glass-table th.sortable .cell-content .sort-header-button {
     padding: 12px 15px;
+}
+
+.glass-table .last-sticky-col .cell-content {
+    justify-content: flex-start;
 }
 ----- ./react/widgets/rootlayout/BackgroundBlobs.css -----
 .blobs-container {
@@ -2174,8 +2284,7 @@ body {
 .navbar-right {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-right: 0px;
+    gap: 8px; /* [수정] 아이콘들 사이의 기본 간격 */
 }
 
 .navbar-logo-link {
@@ -2184,9 +2293,7 @@ body {
     text-decoration: none;
     color: var(--text-primary);
     padding: 5px;
-    /* 클릭 영역 확보 */
     border-radius: 6px;
-    /* 호버 효과 위한 준비 */
     transition: background-color 0.2s ease;
 }
 
@@ -2224,12 +2331,16 @@ body {
     color: var(--accent-color-darker);
 }
 
-.hamburger-button,
-.settings-button-mobile {
+.hamburger-button {
     display: none;
-    /* 모바일 미디어쿼리에서 block/flex로 변경 */
 }
 
+/* [추가] 모바일 오른쪽 액션 버튼 그룹 스타일 */
+.mobile-right-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* 액션 버튼들 사이의 간격 */
+}
 
 .profile-button svg {
     color: var(--text-secondary);
@@ -2246,12 +2357,7 @@ body {
 
     .profile-button {
         margin-left: auto;
-        /* 태블릿에서 프로필 버튼을 오른쪽으로 밀착 */
     }
-
-    /* 만약 태블릿에서 설정 버튼도 보인다면, 해당 버튼과의 순서 고려 필요 */
-    /* 현재 TSX에서는 설정 버튼은 모바일에서만 보이므로, 태블릿에서는 프로필 버튼만 존재 (가정) */
-    /* 만약 다른 아이콘 버튼들이 navbar-right에 있다면, 그 순서에 따라 조정 필요 */
 }
 
 /* 모바일 반응형 스타일 (768px 이하) */
@@ -2265,17 +2371,11 @@ body {
         display: flex;
     }
 
-    .settings-button-mobile {
-        display: flex;
-        /* TSX 마크업 순서에 따라 프로필 버튼 왼쪽에 위치 */
-    }
-
     .navbar-logo-link {
         margin-left: 6px;
     }
 
     .profile-button {
-        /* 모바일에서도 프로필 버튼 보이도록 (TSX에서 조건 제거로 이미 처리) */
         display: flex;
     }
 }
@@ -2615,13 +2715,20 @@ body {
 /* --- 데스크탑 헤더 (토글 버튼) --- */
 .rgs-header-desktop {
     width: 100%;
-    padding: 0 10px; /* 🌟 헤더 영역 좌우 패딩 */
+    padding: 0 10px; /* 🌟 좌우 패딩 유지 */
     box-sizing: border-box;
     display: flex;
-    justify-content: center;
+    /* [수정] flex 방향을 세로로 변경 */
+    flex-direction: column;
+    /* [수정] 아이콘들을 가운데 정렬 (축소 상태) */
+    align-items: center;
+    /* [신규] 아이콘 사이의 간격 추가 */
+    gap: 10px;
 }
 .glass-sidebar-right.expanded .rgs-header-desktop {
     justify-content: flex-start;
+    /* [핵심 수정] flex-direction: column 이므로, align-items로 수평 정렬. flex-start는 왼쪽 정렬을 의미합니다. */
+    align-items: flex-start;
 }
 
 .settings-toggle-button {

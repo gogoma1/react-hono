@@ -69,17 +69,6 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], 
             direction: (current && current.key === key && current.direction === 'asc') ? 'desc' : 'asc'
         }));
     };
-
-    // [핵심 수정] 데스크탑과 모바일에서 공통으로 사용할 수정 요청 핸들러
-    const handleEdit = (studentId: string) => {
-        const student = students.find(s => s.id === studentId);
-        if (student) {
-            // DashBoard에 정의된 onRequestEdit를 호출하여 사이드바 모드를 'edit'으로 변경
-            onRequestEdit(student); 
-        } else {
-            console.error("수정할 학생을 찾을 수 없습니다:", studentId);
-        }
-    };
     
     const handleNavigate = (studentId: string) => {
         setEditingStatusRowId(null);
@@ -138,7 +127,7 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], 
             onToggleHeader={toggleSelectAll}
             isHeaderDisabled={students.length === 0}
             editingStatusRowId={editingStatusRowId}
-            onEdit={handleEdit} // [수정] 공통 핸들러 전달
+            onEdit={onRequestEdit} 
             onNavigate={handleNavigate}
             onToggleStatusEditor={handleToggleStatusEditor}
             onStatusUpdate={handleStatusUpdate}

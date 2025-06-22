@@ -290,7 +290,7 @@ export function useStudentDataWithRQ() {
     };
 }
 ----- ./react/entities/student/ui/StudentDisplayTable.tsx -----
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useMemo } from 'react';
 import GlassTable, { type TableColumn, type SortConfig } from '../../../shared/ui/glasstable/GlassTable';
 import Badge from '../../../shared/ui/Badge/Badge';
 import './StudentDisplayTable.css';
@@ -307,7 +307,7 @@ interface MobileStudentCardProps {
     activeCardId: string | null;
     onCardClick: (studentId: string) => void;
     editingStatusRowId: string | null;
-    onEdit: (studentId: string) => void;
+    onEdit: (student: Student) => void;
     onNavigate: (studentId: string) => void;
     onToggleStatusEditor: (studentId: string) => void;
     onStatusUpdate: (studentId: string, status: StatusValue | 'delete') => void;
@@ -327,7 +327,7 @@ interface StudentDisplayTableProps {
     onToggleHeader: () => void;
     isHeaderDisabled?: boolean;
     editingStatusRowId: string | null;
-    onEdit: (studentId: string) => void;
+    onEdit: (student: Student) => void;
     onNavigate: (studentId: string) => void;
     onToggleStatusEditor: (studentId: string) => void;
     onStatusUpdate: (studentId: string, status: StatusValue | 'delete') => void;
@@ -354,7 +354,7 @@ const MobileStudentCard: React.FC<MobileStudentCardProps> = ({
     const isEditingStatus = editingStatusRowId === student.id;
     
     const onEditRequest = () => {
-        onEdit(student.id);
+        onEdit(student);
         closeActiveCard();
     };
 
@@ -427,38 +427,10 @@ const StudentDisplayTable = forwardRef<HTMLDivElement, StudentDisplayTableProps>
         ...rest
     } = props;
     
-    const { currentBreakpoint } = useUIStore();
-
-    if (currentBreakpoint === 'mobile') {
-        if (isLoading) {
-            return <div className="mobile-loading-state">로딩 중...</div>;
-        }
-        if (students.length === 0) {
-            return <div className="mobile-loading-state">표시할 학생 정보가 없습니다.</div>;
-        }
-        return (
-            <div className="mobile-student-list-container">
-                {students.map(student => (
-                    <MobileStudentCard 
-                        key={student.id} 
-                        student={student}
-                        activeCardId={rest.activeCardId}
-                        onCardClick={rest.onCardClick}
-                        editingStatusRowId={rest.editingStatusRowId}
-                        onEdit={rest.onEdit}
-                        onNavigate={rest.onNavigate}
-                        onToggleStatusEditor={rest.onToggleStatusEditor}
-                        onStatusUpdate={rest.onStatusUpdate}
-                        onCancel={rest.onCancel}
-                        closeActiveCard={rest.closeActiveCard}
-                    />
-                ))}
-            </div>
-        );
-    }
+    const { currentBreakpoint, columnVisibility } = useUIStore();
     
-    const columns: TableColumn<Student>[] = [
-      {
+    const allColumns: TableColumn<Student>[] = [
+        {
             key: 'header_action_button',
             header: <div className="header-icon-container"><button type="button" className="header-icon-button" title={isHeaderChecked ? "모든 항목 선택 해제" : "모든 항목 선택"} onClick={onToggleHeader} disabled={isHeaderDisabled || students.length === 0} aria-pressed={isHeaderChecked}><LuListChecks size={20} /></button></div>,
             render: (student) => <TableCellCheckbox isChecked={selectedIds.has(student.id)} onToggle={() => onToggleRow(student.id)} ariaLabel={`학생 ${student.student_name} 선택`}/>,
@@ -492,11 +464,57 @@ const StudentDisplayTable = forwardRef<HTMLDivElement, StudentDisplayTableProps>
         {
             key: 'actions',
             header: '관리',
-            render: (student) => <StudentActionButtons studentId={student.id} studentName={student.student_name} isEditing={props.editingStatusRowId === student.id} onEdit={props.onEdit} onNavigate={props.onNavigate} onToggleStatusEditor={props.onToggleStatusEditor} onStatusUpdate={props.onStatusUpdate} onCancel={props.onCancel}/>,
+            render: (student) => (
+                <StudentActionButtons 
+                    studentId={student.id} 
+                    studentName={student.student_name} 
+                    isEditing={props.editingStatusRowId === student.id} 
+                    onEdit={() => props.onEdit(student)}
+                    onNavigate={() => props.onNavigate(student.id)}
+                    onToggleStatusEditor={() => props.onToggleStatusEditor(student.id)}
+                    onStatusUpdate={props.onStatusUpdate} 
+                    onCancel={props.onCancel}
+                />
+            ),
             className: 'sticky-col last-sticky-col',
         },
     ];
 
+    const columns = useMemo(() => {
+        return allColumns.filter(col => {
+            return !columnVisibility.hasOwnProperty(col.key) || columnVisibility[col.key as string];
+        });
+    }, [columnVisibility, allColumns]);
+
+
+    if (currentBreakpoint === 'mobile') {
+        if (isLoading) {
+            return <div className="mobile-loading-state">로딩 중...</div>;
+        }
+        if (students.length === 0) {
+            return <div className="mobile-loading-state">표시할 학생 정보가 없습니다.</div>;
+        }
+        return (
+            <div className="mobile-student-list-container">
+                {students.map(student => (
+                    <MobileStudentCard 
+                        key={student.id} 
+                        student={student}
+                        activeCardId={rest.activeCardId}
+                        onCardClick={rest.onCardClick}
+                        editingStatusRowId={rest.editingStatusRowId}
+                        onEdit={rest.onEdit}
+                        onNavigate={rest.onNavigate}
+                        onToggleStatusEditor={rest.onToggleStatusEditor}
+                        onStatusUpdate={rest.onStatusUpdate}
+                        onCancel={rest.onCancel}
+                        closeActiveCard={rest.closeActiveCard}
+                    />
+                ))}
+            </div>
+        );
+    }
+    
     return (
         <GlassTable<Student>
             ref={ref} 
@@ -1197,9 +1215,9 @@ interface StudentActionButtonsProps {
     studentId: string;
     studentName: string;
     isEditing: boolean;
-    onEdit: (id: string) => void;
-    onNavigate: (id: string) => void;
-    onToggleStatusEditor: (id: string) => void;
+    onEdit: () => void;
+    onNavigate: () => void;
+    onToggleStatusEditor: () => void;
     onStatusUpdate: (id: string, status: StatusValue | 'delete') => void;
     onCancel: () => void;
 }
@@ -1223,7 +1241,7 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
             {/* 1. 수정 아이콘 */}
             <Tippy content="수정" theme="custom-glass" placement="top">
                 <button type="button" className="action-icon-button"
-                    onClick={(e) => { e.stopPropagation(); onEdit(studentId); }}
+                    onClick={(e) => { e.stopPropagation(); onEdit(); }}
                     aria-label={`${studentName} 학생 정보 수정`}>
                     <LuPencil size={16} color="#3498db" />
                 </button>
@@ -1231,7 +1249,7 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
             {/* 2. 상세보기 아이콘 */}
             <Tippy content="상세 보기" theme="custom-glass" placement="top">
                  <button type="button" className="action-icon-button"
-                    onClick={(e) => { e.stopPropagation(); onNavigate(studentId); }}
+                    onClick={(e) => { e.stopPropagation(); onNavigate(); }}
                     aria-label={`${studentName} 학생 상세 정보 보기`}>
                     <LuBookUser size={16} color="#3498db" />
                 </button>
@@ -1239,7 +1257,7 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
             {/* 3. 상태 변경(퇴원 처리 등) 아이콘 */}
             <Tippy content="상태 변경" theme="custom-glass" placement="top">
                 <button type="button" className="action-icon-button"
-                    onClick={(e) => { e.stopPropagation(); onToggleStatusEditor(studentId); }}
+                    onClick={(e) => { e.stopPropagation(); onToggleStatusEditor(); }}
                     aria-label={`${studentName} 학생 상태 변경`}>
                     <LuCircleArrowOutDownRight size={16} color="#3498db" />
                 </button>
@@ -1679,6 +1697,57 @@ const StudentStatusChanger: React.FC<StudentStatusChangerProps> = ({ studentId, 
 };
 
 export default StudentStatusChanger;
+----- ./react/features/table-column-toggler/ui/TableColumnToggler.tsx -----
+import React from 'react';
+import { useUIStore } from '../../../shared/store/uiStore';
+import { LuEye, LuEyeOff } from 'react-icons/lu';
+import './TableColumnToggler.css';
+
+const TOGGLEABLE_COLUMNS: { key: string; label: string }[] = [
+  { key: 'grade', label: '학년' },
+  { key: 'subject', label: '과목' },
+  { key: 'status', label: '상태' },
+  { key: 'teacher', label: '담당 강사' },
+  { key: 'student_phone', label: '학생 연락처' },
+  { key: 'guardian_phone', label: '학부모 연락처' },
+  { key: 'school_name', label: '학교명' },
+  { key: 'tuition', label: '수강료' },
+  { key: 'admission_date', label: '입원일' },
+  { key: 'discharge_date', label: '퇴원일' },
+];
+
+const TableColumnToggler: React.FC = () => {
+  const { columnVisibility, toggleColumnVisibility } = useUIStore();
+
+  return (
+    <div className="column-toggler-panel">
+      <h4 className="toggler-title">테이블 컬럼 설정</h4>
+      <div className="toggler-list">
+        {TOGGLEABLE_COLUMNS.map((col) => {
+          const isVisible = columnVisibility[col.key] ?? true;
+          return (
+            <button
+              key={col.key}
+              type="button"
+              className={`toggler-button ${isVisible ? 'active' : ''}`}
+              onClick={() => toggleColumnVisibility(col.key)}
+              aria-pressed={isVisible}
+            >
+              <span className="button-label">{col.label}</span>
+              {isVisible ? (
+                <LuEye size={16} className="button-icon" />
+              ) : (
+                <LuEyeOff size={16} className="button-icon" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default TableColumnToggler;
 ----- ./react/features/table-search/model/useTableSearch.ts -----
 
 import { useMemo } from 'react';
@@ -1735,7 +1804,7 @@ export function useTableSearch({
 }
 ----- ./react/features/table-search/ui/TableSearch.tsx -----
 import React from 'react';
-import { LuSearch, LuX } from 'react-icons/lu';
+import { LuSearch, LuX, LuRotateCcw } from 'react-icons/lu';
 import './TableSearch.css';
 
 export interface SuggestionGroup {
@@ -1749,6 +1818,7 @@ export interface TableSearchProps {
     suggestionGroups: SuggestionGroup[];
     activeFilters: Record<string, string>;
     onFilterChange: (key: string, value: string) => void;
+    onResetFilters: () => void;
 }
 
 const TableSearch: React.FC<TableSearchProps> = ({
@@ -1757,7 +1827,10 @@ const TableSearch: React.FC<TableSearchProps> = ({
     suggestionGroups,
     activeFilters,
     onFilterChange,
+    onResetFilters,
 }) => {
+    const hasActiveFilters = Object.keys(activeFilters).length > 0;
+
     return (
         <div className="table-search-panel">
             <div className="search-input-wrapper">
@@ -1770,9 +1843,9 @@ const TableSearch: React.FC<TableSearchProps> = ({
                     onChange={(e) => onSearchTermChange(e.target.value)}
                 />
             </div>
-            {suggestionGroups.map((group) => (
+            {suggestionGroups.map((group, index) => (
                 group.suggestions.length > 0 && (
-                    <div key={group.key} className="suggestion-group">
+                    <div key={group.key} className={`suggestion-group ${index === 2 ? 'with-reset' : ''}`}>
                         <div className="suggestion-buttons-wrapper">
                             {group.suggestions.map((suggestion) => {
                                 const isActive = activeFilters[group.key] === suggestion;
@@ -1789,6 +1862,19 @@ const TableSearch: React.FC<TableSearchProps> = ({
                                 );
                             })}
                         </div>
+                        {/* [추가] 세 번째 줄(index 2)에 초기화 버튼 추가 */}
+                        {index === 2 && (
+                             <button 
+                                type="button" 
+                                className="reset-filters-button"
+                                onClick={onResetFilters}
+                                disabled={!hasActiveFilters}
+                                title="필터 초기화"
+                            >
+                                <LuRotateCcw size={16} />
+                                <span>초기화</span>
+                            </button>
+                        )}
                     </div>
                 )
             ))}
@@ -1817,21 +1903,49 @@ createRoot(rootElement).render(
 
 ----- ./react/pages/DashBoard.tsx -----
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import Tippy from '@tippyjs/react';
-import { LuCirclePlus, LuCircleX } from 'react-icons/lu';
-
 import { useLayoutStore } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../entities/student/model/useStudentDataWithRQ';
 
 import StudentRegistrationForm from '../features/student-registration/ui/StudentRegistrationForm';
 import StudentEditForm from '../features/student-editing/ui/StudentEditForm';
+import TableColumnToggler from '../features/table-column-toggler/ui/TableColumnToggler';
 import StudentTableWidget from '../widgets/student-table/StudentTableWidget';
 import { useTableSearch } from '../features/table-search/model/useTableSearch';
 import type { SuggestionGroup } from '../features/table-search/ui/TableSearch';
+import { LuInfo } from 'react-icons/lu';
 
-const PlusIcon = () => <LuCirclePlus size={22} />;
-const CloseIcon = () => <LuCircleX size={22} />;
+const MobileSettingsPlaceholder: React.FC = () => {
+    const placeholderStyle: React.CSSProperties = {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        padding: '20px',
+        textAlign: 'center',
+        color: 'var(--text-secondary)',
+        boxSizing: 'border-box'
+    };
+    const iconStyle: React.CSSProperties = {
+        marginBottom: '16px',
+        color: 'var(--accent-color)'
+    };
+    const titleStyle: React.CSSProperties = {
+        margin: '0 0 8px 0',
+        fontWeight: 600,
+        fontSize: '1rem',
+        color: 'var(--text-primary)'
+    };
+    return (
+        <div style={placeholderStyle}>
+            <LuInfo size={32} style={iconStyle} />
+            <h4 style={titleStyle}>알림</h4>
+            <p>테이블 컬럼 설정은 데스크탑 환경에서만 지원됩니다.</p>
+        </div>
+    );
+};
+
 
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T | undefined>(undefined);
@@ -1861,17 +1975,17 @@ const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] =
 };
 
 const DashBoard: React.FC = () => {
-    const { setRightSidebarContent, setRightSidebarTrigger, setStudentSearchProps } = useLayoutStore();
-    const { isRightSidebarExpanded, setRightSidebarExpanded } = useUIStore();
+    const { setRightSidebarContent, setSidebarTriggers, setStudentSearchProps } = useLayoutStore();
+    const { setRightSidebarExpanded, currentBreakpoint } = useUIStore();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
     
-    const [sidebarMode, setSidebarMode] = useState<'register' | 'edit'>('register');
+    const [activeSidebarView, setActiveSidebarView] = useState<'register' | 'edit' | 'settings' | null>(null);
     const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
 
-    const prevIsRightSidebarExpanded = usePrevious(isRightSidebarExpanded);
+    const prevActiveSidebarView = usePrevious(activeSidebarView);
 
     const currentStudents = students || [];
 
@@ -1880,7 +1994,6 @@ const DashBoard: React.FC = () => {
             { key: 'grade', suggestions: getUniqueSortedValues(currentStudents, 'grade') },
             { key: 'subject', suggestions: getUniqueSortedValues(currentStudents, 'subject') },
             { key: 'class_name', suggestions: getUniqueSortedValues(currentStudents, 'class_name') },
-            { key: 'teacher', suggestions: getUniqueSortedValues(currentStudents, 'teacher') },
         ];
     }, [currentStudents]);
     
@@ -1905,72 +2018,79 @@ const DashBoard: React.FC = () => {
         });
     }, []);
 
-    const handleFormSuccess = useCallback(() => {
-        setRightSidebarExpanded(false);
-    }, [setRightSidebarExpanded]);
+    const handleResetFilters = useCallback(() => {
+        setActiveFilters({});
+    }, []);
+
+    const handleCloseSidebar = useCallback(() => {
+        setActiveSidebarView(null);
+    }, []);
     
     const handleRequestEdit = useCallback((student: Student) => {
-        setSidebarMode('edit');
         setStudentToEdit(student);
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarExpanded]);
+        setActiveSidebarView('edit');
+    }, []);
 
     const handleOpenRegisterSidebar = useCallback(() => {
-        setSidebarMode('register');
         setStudentToEdit(null);
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarExpanded]);
+        setActiveSidebarView('register');
+    }, []);
+    
+    const handleOpenSettingsSidebar = useCallback(() => {
+        setStudentToEdit(null);
+        setActiveSidebarView('settings');
+    }, []);
 
     useEffect(() => {
-        const content = sidebarMode === 'edit' && studentToEdit
-            ? <StudentEditForm student={studentToEdit} onSuccess={handleFormSuccess} />
-            : <StudentRegistrationForm onSuccess={handleFormSuccess} />;
-        setRightSidebarContent(content);
+        setRightSidebarExpanded(activeSidebarView !== null);
 
-        const triggerComponent = isRightSidebarExpanded ? (
-            <Tippy content="닫기" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
-                <button onClick={() => setRightSidebarExpanded(false)} className="settings-toggle-button active" aria-label="사이드바 닫기">
-                    <CloseIcon />
-                </button>
-            </Tippy>
-        ) : (
-            <Tippy content="신입생 등록" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
-                <button onClick={handleOpenRegisterSidebar} className="settings-toggle-button" aria-label="신입생 등록">
-                    <PlusIcon />
-                </button>
-            </Tippy>
-        );
-        setRightSidebarTrigger(triggerComponent);
+        if (activeSidebarView === 'register') {
+            setRightSidebarContent(<StudentRegistrationForm onSuccess={handleCloseSidebar} />);
+        } else if (activeSidebarView === 'edit' && studentToEdit) {
+            setRightSidebarContent(<StudentEditForm student={studentToEdit} onSuccess={handleCloseSidebar} />);
+        } else if (activeSidebarView === 'settings') {
+            if (currentBreakpoint === 'mobile') {
+                setRightSidebarContent(<MobileSettingsPlaceholder />);
+            } else {
+                setRightSidebarContent(<TableColumnToggler />);
+            }
+        }
 
-    }, [sidebarMode, studentToEdit, isRightSidebarExpanded, handleFormSuccess, handleOpenRegisterSidebar, setRightSidebarContent, setRightSidebarTrigger, setRightSidebarExpanded]);
+        if (prevActiveSidebarView !== null && activeSidebarView === null) {
+            const timer = setTimeout(() => {
+                setRightSidebarContent(null);
+                setStudentToEdit(null);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [activeSidebarView, studentToEdit, handleCloseSidebar, setRightSidebarExpanded, setRightSidebarContent, prevActiveSidebarView, currentBreakpoint]);
 
+    useEffect(() => {
+        setSidebarTriggers({
+            onRegisterClick: handleOpenRegisterSidebar,
+            onSettingsClick: handleOpenSettingsSidebar,
+            onClose: handleCloseSidebar,
+        });
+
+        return () => {
+            setRightSidebarContent(null);
+            setStudentSearchProps(null);
+            setSidebarTriggers({});
+        };
+    }, [handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar, setRightSidebarContent, setStudentSearchProps, setSidebarTriggers]);
+    
+    
     useEffect(() => {
         setStudentSearchProps({
             searchTerm,
             onSearchTermChange: setSearchTerm,
             activeFilters,
             onFilterChange: handleFilterChange,
+            onResetFilters: handleResetFilters,
             suggestionGroups: suggestionGroupsJSON,
         });
-    }, [searchTerm, activeFilters, suggestionGroupsJSON, handleFilterChange, setStudentSearchProps]);
-
-    useEffect(() => {
-        if (prevIsRightSidebarExpanded && !isRightSidebarExpanded) {
-            const timer = setTimeout(() => {
-                setSidebarMode('register');
-                setStudentToEdit(null);
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [isRightSidebarExpanded, prevIsRightSidebarExpanded]);
+    }, [searchTerm, activeFilters, suggestionGroupsJSON, handleFilterChange, handleResetFilters, setStudentSearchProps]);
     
-    useEffect(() => {
-        return () => {
-            setRightSidebarContent(null);
-            setRightSidebarTrigger(null);
-            setStudentSearchProps(null);
-        };
-    }, [setRightSidebarContent, setRightSidebarTrigger, setStudentSearchProps]);
     
     if (isStudentsError) {
         return (
@@ -1988,10 +2108,6 @@ const DashBoard: React.FC = () => {
                 isLoading={isLoadingStudents}
                 onRequestEdit={handleRequestEdit} 
             />
-            {/* 
-                [핵심 수정] 
-                모바일 화면에서 보이던 플로팅 액션 버튼(FAB) 렌더링 로직을 완전히 삭제합니다.
-            */}
         </div>
     );
 };
@@ -2807,16 +2923,9 @@ export default GlassPopover;
 ----- ./react/shared/hooks/useDragToScroll.ts -----
 import { useRef, useState, useCallback, useEffect } from 'react';
 
-/**
- * 클릭-앤-드래그로 요소를 스크롤하는 기능을 제공하는 커스텀 훅.
- * @returns ref: 스크롤 대상 요소에 부착할 ref.
- * @returns onMouseDown: 요소의 onMouseDown 이벤트에 연결할 핸들러.
- * @returns isDragging: 현재 드래그 중인지 여부를 나타내는 boolean 값.
- */
 export function useDragToScroll<T extends HTMLElement>() {
     const ref = useRef<T>(null);
     const [isDragging, setIsDragging] = useState(false);
-
     const isDraggingRef = useRef(false);
 
     const dragStartInfo = useRef({
@@ -2825,17 +2934,18 @@ export function useDragToScroll<T extends HTMLElement>() {
     });
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (!ref.current || e.button !== 0) return;
-        
-        const target = e.target as HTMLElement;
-        if (target.closest('button, a, input, [role="button"], [role="checkbox"]')) {
+        if (!(e.target instanceof HTMLElement)) return;
+
+        if (e.target.closest('button, a, input, [role="button"], [role="checkbox"]')) {
             return;
         }
 
-        e.preventDefault(); // 텍스트 선택 등 기본 동작 방지
+        if (!ref.current || e.button !== 0) return;
+        
+        e.preventDefault(); 
 
-        isDraggingRef.current = true; // ref 상태 업데이트
-        setIsDragging(true);          // state 업데이트 (CSS 클래스 적용용)
+        isDraggingRef.current = true;
+        setIsDragging(true);
 
         dragStartInfo.current = {
             startX: e.pageX - ref.current.offsetLeft,
@@ -2859,18 +2969,15 @@ export function useDragToScroll<T extends HTMLElement>() {
     }, []);
 
     useEffect(() => {
-        const currentRef = ref.current;
-        if (currentRef) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
-            window.addEventListener('mouseleave', handleMouseUp); // [추가] 창 밖으로 나가도 드래그 종료
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+        window.addEventListener('mouseleave', handleMouseUp);
 
-            return () => {
-                window.removeEventListener('mousemove', handleMouseMove);
-                window.removeEventListener('mouseup', handleMouseUp);
-                window.removeEventListener('mouseleave', handleMouseUp);
-            };
-        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('mouseleave', handleMouseUp);
+        };
     }, [handleMouseMove, handleMouseUp]);
 
     return { ref, onMouseDown: handleMouseDown, isDragging };
@@ -3094,33 +3201,41 @@ interface StoredSearchProps {
     onSearchTermChange: (value: string) => void;
     activeFilters: Record<string, string>;
     onFilterChange: (key: string, value: string) => void;
+    onResetFilters: () => void; // [추가]
     suggestionGroups: string; // JSON 문자열로 저장
+}
+
+interface SidebarTriggers {
+  onRegisterClick?: () => void;
+  onSettingsClick?: () => void;
+  onClose?: () => void;
 }
 
 interface LayoutState {
   rightSidebarContent: ReactNode | null;
-  rightSidebarTrigger: ReactNode | null;
-  studentSearchProps: StoredSearchProps | null; // props 객체 또는 null
+  sidebarTriggers: SidebarTriggers;
+  studentSearchProps: StoredSearchProps | null;
 }
 
 interface LayoutActions {
   setRightSidebarContent: (content: ReactNode | null) => void;
-  setRightSidebarTrigger: (trigger: ReactNode | null) => void;
+  setSidebarTriggers: (triggers: SidebarTriggers) => void;
   setStudentSearchProps: (props: StoredSearchProps | null) => void;
 }
 
 export const useLayoutStore = create<LayoutState & LayoutActions>((set) => ({
   rightSidebarContent: null,
-  rightSidebarTrigger: null, 
+  sidebarTriggers: {},
   studentSearchProps: null,
   
   setRightSidebarContent: (content) => set({ rightSidebarContent: content }),
-  setRightSidebarTrigger: (trigger) => set({ rightSidebarTrigger: trigger }),
+  setSidebarTriggers: (triggers) => set({ sidebarTriggers: triggers }),
   setStudentSearchProps: (props) => set({ studentSearchProps: props }),
 }));
 
 export const selectRightSidebarContent = (state: LayoutState) => state.rightSidebarContent;
 export const selectStudentSearchProps = (state: LayoutState) => state.studentSearchProps;
+export const selectSidebarTriggers = (state: LayoutState) => state.sidebarTriggers;
 ----- ./react/shared/store/uiStore.ts -----
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
@@ -3131,6 +3246,17 @@ const breakpoints = {
 };
 
 type Breakpoint = 'mobile' | 'tablet' | 'desktop';
+
+const allStudentTableColumns: string[] = [
+    'grade', 'subject', 'status', 'teacher', 'student_phone', 
+    'guardian_phone', 'school_name', 'tuition', 'admission_date', 'discharge_date'
+];
+
+const initialColumnVisibility = allStudentTableColumns.reduce((acc, key) => {
+    acc[key] = true;
+    return acc;
+}, {} as Record<string, boolean>);
+
 
 const getCurrentBreakpoint = (): Breakpoint => {
     if (typeof window === 'undefined') return 'desktop';
@@ -3152,6 +3278,8 @@ export interface UIState {
     closeMobileSidebar: () => void;
     currentBreakpoint: Breakpoint;
     updateBreakpoint: () => void;
+    columnVisibility: Record<string, boolean>;
+    toggleColumnVisibility: (key: string) => void;
 }
 
 const log = (action: string, payload?: any) => {
@@ -3235,6 +3363,17 @@ export const useUIStore = create(
                     get().setLeftSidebarExpanded(false);
                 }
             }
+        },
+
+        columnVisibility: initialColumnVisibility,
+        toggleColumnVisibility: (key: string) => {
+            log('toggleColumnVisibility', key);
+            set((state) => ({
+                columnVisibility: {
+                    ...state.columnVisibility,
+                    [key]: !state.columnVisibility[key],
+                }
+            }));
         },
     }))
 );
@@ -7635,10 +7774,10 @@ export interface TableColumn<T> {
   width?: string;
   isSortable?: boolean;
   className?: string;
-  dataLabel?: string; // [추가] 모바일 뷰에서 사용할 데이터 레이블
+  dataLabel?: string;
 }
 
-interface GlassTableProps<T> {
+interface GlassTableProps<T extends { id: string | number }> {
   columns: TableColumn<T>[];
   data: T[];
   caption?: string;
@@ -7649,7 +7788,7 @@ interface GlassTableProps<T> {
   scrollContainerProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
-function GlassTableInner<T extends object>(
+function GlassTableInner<T extends { id: string | number }>(
   {
     columns,
     data,
@@ -7707,11 +7846,11 @@ function GlassTableInner<T extends object>(
             ) : data.length === 0 ? (
               <tr><td colSpan={columns.length} className="empty-cell">{emptyMessage}</td></tr>
             ) : (
-              data.map((item, rowIndex) => (
-                <tr key={`row-${rowIndex}`}>
-                  {columns.map((col) => (
+              data.map((item) => (
+                <tr key={item.id}>
+                  {columns.map((col, colIndex) => (
                     <td 
-                      key={`cell-${rowIndex}-${String(col.key)}`} 
+                      key={`${item.id}-${String(col.key)}-${colIndex}`} 
                       className={col.className || ''}
                       data-label={col.dataLabel} 
                     >
@@ -7730,10 +7869,9 @@ function GlassTableInner<T extends object>(
   );
 }
 
-const GlassTable = forwardRef(GlassTableInner) as <T extends object>(
+const GlassTable = forwardRef(GlassTableInner) as <T extends { id: string | number }>(
   props: GlassTableProps<T> & { ref?: React.ForwardedRef<HTMLDivElement> }
 ) => React.ReactElement;
-
 
 export default GlassTable;
 ----- ./react/shared/ui/MathpixRenderer.tsx -----
@@ -7952,11 +8090,11 @@ const BackgroundBlobs = () => {
 export default BackgroundBlobs;
 ----- ./react/widgets/rootlayout/GlassNavbar.tsx -----
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router'; // useLocation import
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore } from '../../shared/store/layoutStore';
-import { LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus } from 'react-icons/lu';
+import { useLayoutStore, selectSidebarTriggers } from '../../shared/store/layoutStore';
+import { LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, LuSettings2 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
 import GlassPopover from '../../shared/components/GlassPopover';
@@ -7965,9 +8103,11 @@ import ProfileMenuContent from '../../features/popovermenu/ProfileMenuContent';
 const LogoIcon = () => <LuLayoutDashboard size={26} className="navbar-logo-icon" />;
 const HamburgerIcon = () => <LuMenu size={22} />;
 const ProfileIcon = () => <LuCircleUserRound size={22} />;
-const DefaultSettingsIcon = () => <LuCirclePlus size={22} />;
+const RegisterIcon = () => <LuCirclePlus size={22} />;
+const SettingsIcon = () => <LuSettings2 size={22} />;
 
 const GlassNavbar: React.FC = () => {
+    const location = useLocation(); // [추가]
     const {
         currentBreakpoint,
         toggleLeftSidebar,
@@ -7975,10 +8115,12 @@ const GlassNavbar: React.FC = () => {
         closeMobileSidebar,
     } = useUIStore();
     
-    const rightSidebarTrigger = useLayoutStore((state) => state.rightSidebarTrigger) as React.ReactElement<{ className?: string; disabled?: boolean; }> | null;
+    const { onRegisterClick, onSettingsClick } = useLayoutStore(selectSidebarTriggers);
 
     const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
     const profileButtonRef = useRef<HTMLButtonElement>(null);
+    
+    const isDashboardPage = location.pathname.startsWith('/dashboard');
 
     const handleProfileButtonClick = () => {
         if (currentBreakpoint === 'mobile' && mobileSidebarType && !isProfilePopoverOpen) {
@@ -8020,15 +8162,18 @@ const GlassNavbar: React.FC = () => {
             <div className="navbar-right">
                 {currentBreakpoint === 'mobile' && (
                     <div className="mobile-right-actions">
-                        {React.isValidElement(rightSidebarTrigger) ? (
-                            React.cloneElement(rightSidebarTrigger, {
-                                className: `${rightSidebarTrigger.props.className || ''} mobile-nav-trigger`,
-                                disabled: true, // 모바일에서 툴팁 비활성화
-                            })
-                        ) : (
-                            <Tippy content="설정" placement="bottom-end" theme="custom-glass" delay={[300, 0]}>
-                                <button className="navbar-icon-button" aria-label="설정">
-                                    <DefaultSettingsIcon />
+                        {onRegisterClick && (
+                            <Tippy content="신입생 등록" placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={onRegisterClick} className="navbar-icon-button" aria-label="신입생 등록">
+                                    <RegisterIcon />
+                                </button>
+                            </Tippy>
+                        )}
+                        {/* [수정] 대시보드 페이지이고, onSettingsClick 함수가 있을 때만 버튼 렌더링 */}
+                        {isDashboardPage && onSettingsClick && (
+                             <Tippy content="테이블 설정" placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={onSettingsClick} className="navbar-icon-button" aria-label="테이블 설정">
+                                    <SettingsIcon />
                                 </button>
                             </Tippy>
                         )}
@@ -8231,47 +8376,60 @@ const GlassSidebar: React.FC = () => {
 export default GlassSidebar;
 ----- ./react/widgets/rootlayout/GlassSidebarRight.tsx -----
 import React from 'react';
+import { useLocation } from 'react-router';
 import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectRightSidebarContent } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight } from 'react-icons/lu';
+import { useLayoutStore, selectRightSidebarContent, selectSidebarTriggers } from '../../shared/store/layoutStore';
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus } from 'react-icons/lu';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
+const CloseIcon = () => <LuCircleX size={22} />;
+const PlusIcon = () => <LuCirclePlus size={22} />;
 
 const GlassSidebarRight: React.FC = () => {
+    const location = useLocation();
     const rightSidebarContent = useLayoutStore(selectRightSidebarContent);
-    const rightSidebarTrigger = useLayoutStore((state) => state.rightSidebarTrigger);
+    const { onRegisterClick, onSettingsClick, onClose } = useLayoutStore(selectSidebarTriggers);
     
-    const { isRightSidebarExpanded, mobileSidebarType, currentBreakpoint, toggleRightSidebar, closeMobileSidebar } = useUIStore();
+    const { isRightSidebarExpanded, closeMobileSidebar, mobileSidebarType, currentBreakpoint } = useUIStore();
+    
+    const isDashboardPage = location.pathname.startsWith('/dashboard');
 
-    const hasContent = rightSidebarContent !== null;
-    const isActuallyExpanded = (currentBreakpoint !== 'mobile' && isRightSidebarExpanded && hasContent) || (currentBreakpoint === 'mobile' && mobileSidebarType === 'right' && hasContent);
-    const isOpen = currentBreakpoint === 'mobile' ? (mobileSidebarType === 'right' && hasContent) : isActuallyExpanded;
-    const tooltipContent = isActuallyExpanded ? "패널 축소" : "추가 옵션";
+    const isOpen = currentBreakpoint === 'mobile' ? mobileSidebarType === 'right' : isRightSidebarExpanded;
 
     return (
-        <aside className={`glass-sidebar-right ${isActuallyExpanded ? 'expanded' : ''} ${currentBreakpoint === 'mobile' ? 'mobile-sidebar right-mobile-sidebar' : ''} ${isOpen ? 'open' : ''}`}>
+        <aside className={`glass-sidebar-right ${isOpen ? 'expanded' : ''} ${currentBreakpoint === 'mobile' ? 'mobile-sidebar right-mobile-sidebar' : ''} ${isOpen ? 'open' : ''}`}>
             {currentBreakpoint !== 'mobile' && (
                 <div className="rgs-header-desktop">
-                    {/* ▼▼▼▼▼ [핵심] 조건부 렌더링 로직 ▼▼▼▼▼ */}
-                    {rightSidebarTrigger ? (
-                        rightSidebarTrigger
-                    ) : (
-                        <Tippy content={tooltipContent} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
-                            <button
-                                onClick={toggleRightSidebar}
-                                className="settings-toggle-button"
-                                aria-label={tooltipContent}
-                                aria-expanded={isActuallyExpanded}
-                                disabled={!hasContent} 
-                            >
-                                <SettingsIcon />
+                    {isRightSidebarExpanded ? (
+                        <Tippy content="닫기" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                            <button onClick={onClose} className="settings-toggle-button active" aria-label="사이드바 닫기">
+                                <CloseIcon />
                             </button>
                         </Tippy>
+                    ) : (
+                        <>
+                            <Tippy content="신입생 등록" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                                <button onClick={onRegisterClick} className="settings-toggle-button" aria-label="신입생 등록">
+                                    <PlusIcon />
+                                </button>
+                            </Tippy>
+                            
+                            {isDashboardPage && (
+                                <Tippy content="테이블 설정" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                                    <button
+                                        onClick={onSettingsClick}
+                                        className="settings-toggle-button"
+                                        aria-label="테이블 컬럼 설정"
+                                    >
+                                        <SettingsIcon />
+                                    </button>
+                                </Tippy>
+                            )}
+                        </>
                     )}
-                    {/* ▲▲▲▲▲ [핵심] 로직 끝 ▲▲▲▲▲ */}
                 </div>
             )}
             
@@ -8286,6 +8444,7 @@ const GlassSidebarRight: React.FC = () => {
                             </Tippy>
                         </div>
                      )}
+                    
                     {rightSidebarContent}
                 </div>
             )}
@@ -8295,7 +8454,7 @@ const GlassSidebarRight: React.FC = () => {
 
 export default GlassSidebarRight;
 ----- ./react/widgets/rootlayout/RootLayout.tsx -----
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectStudentSearchProps } from '../../shared/store/layoutStore';
@@ -8452,15 +8611,6 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], 
             direction: (current && current.key === key && current.direction === 'asc') ? 'desc' : 'asc'
         }));
     };
-
-    const handleEdit = (studentId: string) => {
-        const student = students.find(s => s.id === studentId);
-        if (student) {
-            onRequestEdit(student); 
-        } else {
-            console.error("수정할 학생을 찾을 수 없습니다:", studentId);
-        }
-    };
     
     const handleNavigate = (studentId: string) => {
         setEditingStatusRowId(null);
@@ -8519,7 +8669,7 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ students = [], 
             onToggleHeader={toggleSelectAll}
             isHeaderDisabled={students.length === 0}
             editingStatusRowId={editingStatusRowId}
-            onEdit={handleEdit} // [수정] 공통 핸들러 전달
+            onEdit={onRequestEdit} 
             onNavigate={handleNavigate}
             onToggleStatusEditor={handleToggleStatusEditor}
             onStatusUpdate={handleStatusUpdate}

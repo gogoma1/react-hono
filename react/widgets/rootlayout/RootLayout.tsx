@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectStudentSearchProps } from '../../shared/store/layoutStore';

@@ -37,6 +37,8 @@
 }
 .glass-sidebar-right.expanded .rgs-header-desktop {
     justify-content: flex-start;
+    /* [핵심 수정] flex-direction: column 이므로, align-items로 수평 정렬. flex-start는 왼쪽 정렬을 의미합니다. */
+    align-items: flex-start;
 }
 
 .settings-toggle-button {

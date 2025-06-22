@@ -25,11 +25,9 @@
     overflow-x: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
-    /* [추가] 기본 커서를 grab으로 설정 */
     cursor: grab;
 }
 
-/* [추가] 드래그 중일 때 커서 모양 변경 및 텍스트 선택 방지 */
 .glass-table-scroll-container.dragging {
     cursor: grabbing;
     user-select: none;
@@ -37,7 +35,6 @@
     -moz-user-select: none;
     -ms-user-select: none;
 }
-
 
 .glass-table-scroll-container::-webkit-scrollbar {
     height: 8px;
@@ -147,9 +144,8 @@
   transition: opacity 0.2s;
 }
 
-/* ===== 고정 컬럼(Sticky Column)을 위한 스타일 ===== */
+/* ===== 고정 컬럼(Sticky Column)을 위한 스타일 (최종 수정) ===== */
 
-/* 1. 고정될 셀(th, td) 자체의 스타일 */
 .glass-table th.sticky-col,
 .glass-table td.sticky-col {
   position: -webkit-sticky;
@@ -157,11 +153,9 @@
   z-index: 2;
   background: none;
   padding: 0;
-  /* [수정] 고정 컬럼은 기본 커서로 설정하여 grab/grabbing을 덮어씌움 */
   cursor: default;
 }
 
-/* 2. 셀 내부의 새로운 div 래퍼(.cell-content)에 스타일 적용 */
 .glass-table td.sticky-col .cell-content,
 .glass-table th.sticky-col .cell-content {
   background: rgba(var(--glass-base-bg-rgb), 0.85);
@@ -171,15 +165,16 @@
   height: 100%; 
   display: flex;
   align-items: center;
+  justify-content: center;
+  /* [핵심 1] 배경 요소가 클릭 이벤트를 무시하고 '통과'시키도록 설정합니다. */
+  pointer-events: none;
 }
 
-/* [추가] 고정 컬럼 내의 상호작용 가능한 요소(버튼, 링크 등)는 다시 포인터 커서로 변경 */
-.glass-table .sticky-col button,
-.glass-table .sticky-col a {
-    cursor: pointer;
+/* [핵심 2] 자식 선택자(>) 대신 후손 선택자(공백)를 사용하여 모든 하위 요소에 적용합니다. */
+.glass-table .sticky-col .cell-content * {
+    pointer-events: auto;
 }
 
-/* 3. 호버 효과도 내부 div에 적용 */
 .glass-table tbody tr:hover td.sticky-col .cell-content {
     background: linear-gradient(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.04)),
                 rgba(var(--glass-base-bg-rgb), 0.85);
@@ -187,10 +182,10 @@
     -webkit-backdrop-filter: var(--glass-blur-effect);
 }
 
-/* 4. 헤더의 고정 컬럼 스타일 */
 .glass-table th.sticky-col {
   z-index: 3; 
 }
+
 .glass-table th.sticky-col .cell-content {
     background: linear-gradient(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05)),
                 rgba(var(--glass-base-bg-rgb), 0.85);
@@ -198,7 +193,6 @@
     -webkit-backdrop-filter: var(--glass-blur-effect);
 }
 
-/* 5. 고정 컬럼의 좌/우 경계 스타일 (border 대신 box-shadow 사용) */
 .glass-table .first-sticky-col {
   left: 0;
   box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.15);
@@ -209,18 +203,20 @@
   box-shadow: -4px 0 8px -4px rgba(0, 0, 0, 0.15);
 }
 
-/* 첫 번째 컬럼과 마지막 컬럼이 겹칠 경우(컬럼이 적을 때)를 대비하여 z-index 조정 */
 .glass-table .last-sticky-col {
-    z-index: 4; /* 첫 번째 고정 컬럼보다 위에 오도록 */
+    z-index: 4;
 }
 .glass-table th.last-sticky-col {
     z-index: 5;
 }
 
-/* 정렬 버튼이 있는 헤더 셀의 경우, 버튼이 div를 꽉 채우도록 */
 .glass-table th.sortable .cell-content {
     padding: 0;
 }
 .glass-table th.sortable .cell-content .sort-header-button {
     padding: 12px 15px;
+}
+
+.glass-table .last-sticky-col .cell-content {
+    justify-content: flex-start;
 }

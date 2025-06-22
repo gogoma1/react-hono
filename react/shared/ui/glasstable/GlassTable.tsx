@@ -14,10 +14,11 @@ export interface TableColumn<T> {
   width?: string;
   isSortable?: boolean;
   className?: string;
-  dataLabel?: string; // [추가] 모바일 뷰에서 사용할 데이터 레이블
+  dataLabel?: string;
 }
 
-interface GlassTableProps<T> {
+// [핵심 수정 1] 제네릭 타입 T가 항상 id를 가지도록 제약을 추가합니다.
+interface GlassTableProps<T extends { id: string | number }> {
   columns: TableColumn<T>[];
   data: T[];
   caption?: string;
@@ -28,7 +29,8 @@ interface GlassTableProps<T> {
   scrollContainerProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
-function GlassTableInner<T extends object>(
+// [핵심 수정 2] 제네릭 타입에 제약을 동일하게 적용합니다.
+function GlassTableInner<T extends { id: string | number }>(
   {
     columns,
     data,
@@ -86,12 +88,13 @@ function GlassTableInner<T extends object>(
             ) : data.length === 0 ? (
               <tr><td colSpan={columns.length} className="empty-cell">{emptyMessage}</td></tr>
             ) : (
-              data.map((item, rowIndex) => (
-                <tr key={`row-${rowIndex}`}>
-                  {columns.map((col) => (
-                    // [수정] data-label 속성을 td에 추가합니다.
+              // [핵심 수정 3] key를 rowIndex 대신 item.id로 변경합니다.
+              data.map((item) => (
+                <tr key={item.id}>
+                  {columns.map((col, colIndex) => (
                     <td 
-                      key={`cell-${rowIndex}-${String(col.key)}`} 
+                      // 셀의 key는 이제 item.id와 col.key 조합으로 더 안정적으로 만듭니다.
+                      key={`${item.id}-${String(col.key)}-${colIndex}`} 
                       className={col.className || ''}
                       data-label={col.dataLabel} 
                     >
@@ -110,9 +113,9 @@ function GlassTableInner<T extends object>(
   );
 }
 
-const GlassTable = forwardRef(GlassTableInner) as <T extends object>(
+// [핵심 수정 4] export하는 컴포넌트의 타입에도 제네릭 제약을 적용합니다.
+const GlassTable = forwardRef(GlassTableInner) as <T extends { id: string | number }>(
   props: GlassTableProps<T> & { ref?: React.ForwardedRef<HTMLDivElement> }
 ) => React.ReactElement;
-
 
 export default GlassTable;
