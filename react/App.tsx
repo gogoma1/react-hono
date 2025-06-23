@@ -13,6 +13,7 @@ import StudentDetailPage from './pages/StudentDetailPage';
 import AuthInitializer from './shared/lib/AuthInitializer';
 import { useAuthStore, selectIsLoadingAuth } from './shared/store/authStore';
 import ProblemWorkbenchPage from './pages/ProblemWorkbenchPage';
+import JsonRendererPage from './pages/JsonRendererPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +48,7 @@ function App() {
                                 <Route path="/dashboard" element={<DashBoard />} />
                                 <Route path="/exampleget" element={<ExamplePage />} />
                                 <Route path="/problem-workbench" element={<ProblemWorkbenchPage />} />
+                                <Route path="/json-renderer" element={<JsonRendererPage />} /> 
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
                             </Route>
                         </Route>

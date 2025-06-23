@@ -1,52 +1,55 @@
 /* react/shared/ui/actionbutton/ActionButton.css */
+
+/* [복원] 가장 기본적인 버튼 스타일로 되돌립니다. */
 .action-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: none;
+    padding: 8px 16px; /* 기본 패딩 */
+    border-radius: 8px; /* 기본 둥근 모서리 */
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
-
-    /* 원형 버튼 크기 및 모양 */
-    width: 56px;
-    height: 56px;
-    border-radius: 50%; /* 요청하신 원형 스타일 */
-
-    /* 주조색(Accent Color)을 사용한 배경 */
-    background: linear-gradient(145deg, var(--accent-color), var(--accent-color-darker));
-    color: var(--text-on-accent); /* 배경색 위의 텍스트/아이콘 색상 */
-    
-    /* 입체감을 위한 그림자 */
-    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3), 
-                0 1px 3px rgba(0, 0, 0, 0.1);
-
-    /* 부드러운 전환 효과 */
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+    transition: all 0.2s ease-in-out;
+    white-space: nowrap;
+    background-color: var(--menu-item-hover-bg, rgba(0, 0, 0, 0.05));
+    color: var(--text-secondary);
 }
 
-.action-button svg {
-    /* 내부 아이콘 크기는 버튼 크기에 맞춰 조정 */
-    width: 24px;
-    height: 24px;
-}
-
-/* 호버 시 인터랙션 효과 */
 .action-button:hover:not(:disabled) {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 8px 20px rgba(var(--accent-color-rgb), 0.35),
-                0 2px 6px rgba(0, 0, 0, 0.1);
+    background-color: rgba(0, 0, 0, 0.1);
+    color: var(--text-primary);
 }
 
-/* 클릭 시 인터랙션 효과 */
-.action-button:active:not(:disabled) {
-    transform: translateY(0) scale(1);
-    box-shadow: 0 2px 6px rgba(var(--accent-color-rgb), 0.3);
+/* [복원] Primary 버튼 스타일 (강조) */
+.action-button.primary {
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
+    border-color: transparent;
 }
 
-/* 비활성화 상태 */
+.action-button.primary:hover:not(:disabled) {
+    background-color: var(--accent-color-darker);
+}
+
+/* [복원] Secondary (또는 outline) 버튼 스타일 */
+.action-button.secondary {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border-color: var(--text-placeholder);
+}
+
+.action-button.secondary:hover:not(:disabled) {
+    background-color: var(--menu-item-hover-bg);
+    border-color: var(--accent-color);
+    color: var(--accent-color-darker);
+}
+
 .action-button:disabled {
-    background: var(--text-placeholder); /* 비활성화 색상 */
-    color: rgba(255, 255, 255, 0.7);
-    box-shadow: none;
+    opacity: 0.6;
     cursor: not-allowed;
-    transform: none;
+    background-color: var(--text-placeholder);
+    color: var(--text-on-accent);
+    border-color: transparent;
 }

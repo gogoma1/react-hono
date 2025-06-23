@@ -273,13 +273,26 @@
     padding: 1rem;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     cursor: pointer;
-    transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out, background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
     -webkit-tap-highlight-color: transparent;
 }
-.mobile-student-card:hover,
-.mobile-student-card.active {
+
+.mobile-student-card:hover:not(.active) {
     border-color: rgba(var(--accent-color-rgb), 0.5);
     box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.15);
+}
+
+/* [추가됨] 선택된 카드에 대한 강조 스타일 */
+.mobile-student-card.selected {
+    border-color: var(--accent-color);
+    background-color: rgba(var(--accent-color-rgb), 0.05); /* 은은한 배경색 추가 */
+}
+
+/* 활성화(클릭)된 카드는 선택된 카드보다 더 강한 강조 효과를 줌 */
+.mobile-student-card.active {
+    border-color: var(--accent-color-darker);
+    box-shadow: 0 5px 15px rgba(var(--accent-color-rgb), 0.25);
+    transform: scale(1.01); /* 클릭 시 약간 커지는 효과 */
 }
 
 .card-content-wrapper {
@@ -358,109 +371,97 @@
     gap: 8px;
 }
 ----- ./react/features/image-upload/ui/ImageManager.css -----
-/* ===== [수정됨] 패널 전체 레이아웃 ===== */
+/* ===== 패널 전체 레이아웃 ===== */
 .image-manager-panel {
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%; /* 부모(.workbench-panel)의 높이를 100% 채움 */
-    background-color: transparent; /* 배경은 부모 패널이 담당 */
-    border: none; /* 테두리도 부모 패널이 담당 */
-    box-shadow: none; /* 그림자도 부모 패널이 담당 */
-    border-radius: 0; /* 둥근 모서리도 부모 패널이 담당 */
+    height: 100%;
+    background-color: transparent;
 }
 
-.panel-title {
+/* 1. 회색 제목 바 (외부 ProblemWorkbenchPage.css에서 스타일 정의) */
+.image-manager-panel .panel-title {
     padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color-light, #e0e0e0);
+    margin: 0;
     font-size: 15px;
     font-weight: 600;
-    margin: 0;
     color: var(--text-primary);
-    flex-shrink: 0; /* 높이가 줄어들지 않도록 고정 */
+    flex-shrink: 0;
+    background-color: none;
 }
 
-/* ===== [수정됨] 스크롤 및 테이블 레이아웃 ===== */
-.panel-content {
-    flex-grow: 1; /* 제목을 제외한 나머지 공간을 모두 차지 */
-    overflow: auto; /* 내용이 넘칠 경우 세로/가로 스크롤 자동 생성 */
-    padding: 0; /* 테이블이 꽉 차도록 패딩 제거 */
+/* 2. 버튼 행 */
+.button-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color-light, #e0e0e0);
+    flex-shrink: 0;
+}
+
+/* 스크롤 가능한 테이블 영역 */
+.table-content-area {
+    flex-grow: 1;
+    overflow: auto;
     scrollbar-gutter: stable;
 }
 
+/* ===== 테이블 스타일 ===== */
 .image-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 14px;
-    table-layout: fixed; /* [핵심] 셀 너비를 고정하여 가로 스크롤 문제 방지 */
 }
-
 .image-table thead {
-    position: sticky; /* [핵심] 테이블 헤더 고정 */
+    position: sticky;
     top: 0;
     z-index: 1;
-    /* 헤더 배경은 부모 패널의 유리 효과가 비치도록 약간의 투명도 추가 */
-    background-color: rgba(var(--glass-base-bg-rgb), 0.85);
-    backdrop-filter: blur(4px);
+    background-color: var(--main-content-bg-color);
 }
-
-.image-table th, .image-table td {
-    padding: 10px 12px; /* 패딩 살짝 조정 */
+/* 3. 테이블 헤더 행 */
+.image-table th {
+    padding: 10px 16px;
     text-align: left;
-    vertical-align: middle; /* 수직 정렬을 중앙으로 */
+    font-weight: 500;
+    color: var(--text-secondary);
     border-bottom: 1px solid var(--border-color-light, #e0e0e0);
-    /* [핵심] 긴 내용이 셀을 벗어나지 않도록 설정 */
-    word-break: break-all; 
-    overflow-wrap: break-word;
 }
-
-/* ===== [수정됨] 각 컬럼 너비 지정 ===== */
-.image-table .tag-name { width: 25%; }
-.image-table .preview-cell { width: 88px; } /* 미리보기는 고정 너비 */
-/* 나머지 공간은 Actions 컬럼이 차지하도록 남겨둠 */
-
-
-/* ... 나머지 스타일은 거의 동일 ... */
-
-.empty-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    padding: 16px;
-    color: var(--text-color-secondary, #777);
-    font-size: 14px;
+/* 4. 테이블 바디 행 */
+.image-table td {
+    padding: 10px 16px;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color-light, #e0e0e0);
 }
-.empty-content code {
-    background-color: rgba(0,0,0,0.05);
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin: 0 4px;
-}
-
-.image-table-row:last-child td {
+.image-table tbody tr:last-child td {
     border-bottom: none;
 }
-.image-table-row.drag-over {
-    outline: 2px dashed var(--accent-color, #3498db);
-    outline-offset: -2px;
-    background-color: rgba(52, 152, 219, 0.1);
-}
 
-.tag-name {
+/* 컬럼 너비 및 스타일 */
+.image-table .tag-name {
     font-weight: 500;
 }
-
-.preview-cell.draggable {
-    cursor: grab;
+.tag-content {
+    padding: 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
 }
-.preview-cell.dragging {
-    opacity: 0.4;
+.tag-content.drag-over {
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    outline: 1px dashed var(--accent-color);
 }
+.image-table th.actions-header { text-align: right; }
+.image-table td.preview-cell { width: 80px; text-align: center; }
+.image-table td.actions-cell { width: 100px; text-align: right; }
 
+/* 드래그 앤 드롭 스타일 */
+.preview-cell.draggable { cursor: grab; }
+.preview-cell.dragging { opacity: 0.4; }
 .preview-box {
-    width: 64px;
-    height: 64px;
+    width: 56px;
+    height: 56px;
     border: 1px solid #ccc;
     border-radius: 4px;
     display: flex;
@@ -470,60 +471,314 @@
     color: #888;
     background-color: #f7f7f7;
     overflow: hidden;
-    margin: 0 auto; /* 셀 안에서 중앙 정렬 */
+    margin: 0 auto;
+    flex-shrink: 0;
 }
-.preview-box img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
+.preview-box img { width: 100%; height: 100%; object-fit: cover; }
 
-.actions-header { text-align: right !important; }
-.actions-cell { text-align: right !important; }
-
-.header-buttons, .actions-cell {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
-}
-.header-buttons {
-    flex-direction: row;
-    justify-content: flex-end;
-}
-
+/* 버튼 디자인 */
 .action-button {
-    padding: 6px 12px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid transparent;
     font-size: 13px;
-    border: 1px solid #ccc;
-    background-color: white;
-    border-radius: 6px;
+    font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s;
-    white-space: nowrap; /* 버튼 텍스트 줄바꿈 방지 */
+    transition: all 0.2s ease-in-out;
+    white-space: nowrap;
 }
-.action-button:hover:not(:disabled) {
-    background-color: #f0f0f0;
+.action-button.primary {
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
 }
-.action-button:disabled {
-    opacity: 0.5;
+.action-button.primary:hover:not(:disabled) {
+    background-color: var(--accent-color-darker);
+}
+.action-button.secondary {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border-color: var(--text-placeholder);
+}
+.action-button.secondary:hover:not(:disabled) {
+    background-color: var(--menu-item-hover-bg);
+    border-color: var(--accent-color);
+    color: var(--accent-color-darker);
+}
+.action-button:disabled, .action-button.disabled-style {
+    opacity: 0.6;
     cursor: not-allowed;
+    background-color: var(--text-placeholder);
+    color: var(--text-on-accent);
+    border-color: transparent;
 }
-
-.url-display a {
+.button-row .action-button {
     font-size: 12px;
-    color: #3498db;
-    text-decoration: none;
-}
-.url-display a:hover {
-    text-decoration: underline;
+    padding: 5px 10px;
 }
 
 .error-display {
-    font-size: 12px;
+    margin-top: 6px;
+    font-size: 11px;
+    text-align: right;
     color: #e74c3c;
-    margin-top: 4px;
 }
+.empty-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 16px;
+    color: var(--text-color-secondary, #777);
+    font-size: 14px;
+}
+.empty-content code { background-color: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; margin: 0 4px; }
+
+/* ===== 드래그앤드롭 UI 피드백 강화 ===== */
+.image-table .tag-content { /* 이 클래스는 현재 사용되지 않으므로 삭제해도 무방 */
+    padding: 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.image-table-row {
+    transition: background-color 0.2s ease-in-out;
+}
+
+.image-table-row.drag-over-row {
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+}
+
+.preview-cell.draggable { cursor: grab; }
+.preview-cell.draggable:active { cursor: grabbing; }
+
+.image-table-row.dragging-row {
+    opacity: 0.4;
+    background-color: #e0e0e0;
+}
+.preview-box {
+    width: 56px;
+    height: 56px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #888;
+    background-color: #f7f7f7;
+    overflow: hidden;
+    margin: 0 auto;
+    flex-shrink: 0;
+}
+----- ./react/features/prompt-collection/ui/PromptCollection.css -----
+.prompt-collection-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: var(--text-secondary);
+    padding: 0 15px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.prompt-collection-header, .add-prompt-section {
+    flex-shrink: 0;
+}
+
+.prompt-collection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(129, 127, 127, 0.1);
+}
+
+.prompt-collection-title {
+    color: var(--text-primary);
+    margin: 0;
+    font-size: 1.05em;
+    font-weight: 600;
+}
+
+.add-prompt-section {
+    padding-top: 16px;
+}
+
+.add-prompt-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    background-color: transparent;
+    color: var(--accent-color);
+    border: 1px solid var(--accent-color);
+    transition: all 0.2s;
+}
+
+.add-prompt-button:hover {
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
+}
+
+.prompt-list {
+    padding-top: 20px;
+    padding-right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    flex-grow: 1;
+    min-height: 0;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+}
+.prompt-list::-webkit-scrollbar { width: 6px; }
+.prompt-list::-webkit-scrollbar-track { background: transparent; }
+.prompt-list::-webkit-scrollbar-thumb { background-color: rgba(0, 0, 0, 0.15); border-radius: 3px; }
+
+.prompt-memo-card {
+    background-color: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    overflow: hidden;
+}
+
+.prompt-memo-card.editing {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);
+}
+
+.prompt-memo-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px;
+    background-color: rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    gap: 8px;
+}
+.prompt-memo-header.non-clickable {
+    cursor: default;
+}
+
+.header-top-row, .header-bottom-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+.header-top-row {
+    gap: 4px;
+}
+.header-bottom-row {
+    justify-content: flex-start;
+}
+
+.expand-toggle-button {
+    background: none; border: none; padding: 4px; border-radius: 50%; display: flex;
+    cursor: pointer;
+}
+.expand-toggle-button .chevron-icon {
+    transition: transform 0.25s ease-in-out;
+    color: var(--text-placeholder);
+}
+.prompt-memo-card.expanded .chevron-icon {
+    transform: rotate(180deg);
+}
+
+.prompt-memo-title {
+    margin: 0;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 4px 0;
+}
+
+.button-group {
+    display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+}
+
+/* [수정] 클래스명 변경 */
+.prompt-action-button {
+    background: none; border: none; cursor: pointer; padding: 6px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary);
+    transition: background-color 0.2s, color 0.2s;
+}
+.prompt-action-button:disabled { color: #dcdcdc; cursor: not-allowed; }
+.prompt-action-button:hover:not(:disabled) { background-color: rgba(0, 0, 0, 0.1); }
+.prompt-action-button.copy:hover, .prompt-action-button.reset:hover { color: var(--accent-color-darker); }
+.prompt-action-button.edit:hover { color: #3498db; }
+.prompt-action-button.delete:hover:not(:disabled) { color: #e74c3c; }
+.prompt-action-button.save { color: #2ecc71; }
+.prompt-action-button.save:hover { color: #27ae60; }
+.prompt-action-button.cancel { color: #95a5a6; }
+.prompt-action-button.cancel:hover { color: #7f8c8d; }
+
+.prompt-memo-content {
+    font-size: 0.85em;
+    line-height: 1.6;
+    overflow: hidden;
+    padding: 0 12px;
+    transition: max-height 0.35s ease-in-out, padding 0.35s ease-in-out;
+}
+.prompt-memo-card:not(.expanded) .prompt-memo-content {
+    max-height: calc(1.6em * 2 + 24px);
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+.prompt-memo-card.expanded .prompt-memo-content {
+    max-height: 800px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+.prompt-memo-card.editing .prompt-memo-content {
+    padding: 12px;
+    max-height: none;
+    height: 300px;
+    resize: vertical;
+}
+
+.prompt-memo-content pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: inherit;
+    transition: -webkit-line-clamp 0.2s ease-in-out, line-clamp 0.2s ease-in-out;
+}
+.prompt-memo-card:not(.expanded) .prompt-memo-content pre {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
+.title-input {
+    width: 100%; font-size: 0.9em; font-weight: 600; color: var(--text-primary);
+    border: none; background: transparent; outline: none; padding: 6px 4px; border-radius: 4px;
+}
+.title-input:focus { background-color: rgba(255,255,255,0.7); }
+
+.content-textarea {
+    width: 100%; height: 100%; resize: none; border: none; background: transparent;
+    outline: none; font-size: 1em; font-family: inherit; line-height: 1.6; color: var(--text-secondary);
+}
+
+.empty-prompt-list {
+    text-align: center; padding: 3rem 1rem; color: var(--text-placeholder); font-size: 0.9em;
+}
+.empty-prompt-list p { margin: 0.5em 0; }
 ----- ./react/features/student-actions/ui/StudentActionButtons.css -----
 .action-cell-buttons {
     display: flex;
@@ -990,7 +1245,7 @@
 /* 오른쪽 액션 컨트롤 영역 */
 .action-controls-area {
     display: flex;
-    flex-direction: column; /* 버튼을 세로로 정렬 */
+    flex-direction: column; /* [핵심] 버튼을 항상 세로로 정렬 */
     gap: 8px;
     flex-shrink: 0; /* 너비가 줄어들지 않도록 고정 */
 }
@@ -1037,21 +1292,27 @@
     .table-search-panel { padding: 12px; gap: 10px; }
     .search-input { padding: 12px 16px 12px 45px; font-size: 1rem; }
     
-    /* 모바일에서는 필터와 액션 영역을 세로로 배치 */
     .filter-actions-container {
-        flex-direction: column;
-        align-items: stretch; /* 아이템들을 꽉 채우도록 */
+        flex-direction: row;
+        align-items: flex-start; /* 세로 정렬을 start로 유지 */
         gap: 12px;
     }
+    
+    /* [수정] 모바일에서도 세로로 쌓이도록 별도의 flex-direction 변경을 하지 않습니다. */
     .action-controls-area {
-        flex-direction: row; /* 모바일에서는 액션 버튼을 가로로 배치 */
+        gap: 6px; /* 모바일에서 버튼 간격을 살짝 줄임 */
     }
+    
+    /* [수정] 버튼 스타일을 모바일에 맞게 조정하되, 가로/세로 길이는 유지 */
     .control-button {
-        flex-grow: 1; /* 버튼들이 가로 공간을 균등하게 차지 */
-        justify-content: center; /* 아이콘과 텍스트 중앙 정렬 */
-    }
-    .control-button span {
+        min-width: 120px; /* 모바일에서 버튼의 최소 너비를 살짝 줄임 */
+        padding: 8px 10px;
         font-size: 13px;
+        justify-content: center; /* 모바일에선 아이콘/텍스트 중앙 정렬 */
+    }
+
+    .control-button span {
+        display: inline;
     }
 }
 ----- ./react/index.css -----
@@ -1208,6 +1469,368 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.18) rgba(0, 0, 0, 0.03);
+}
+----- ./react/pages/JsonRendererPage.css -----
+/* react/pages/JsonRendererPage.css */
+
+/* ==========================================================================
+   1. 페이지 및 위젯 레이아웃
+   ========================================================================== */
+
+.json-renderer-page {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.json-importer-widget {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    width: 100%;
+    height: 100%;
+}
+
+/* ==========================================================================
+   2. 패널 공통 스타일 (헤더, 콘텐츠 영역)
+   ========================================================================== */
+
+.json-importer-widget .panel {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--glass-base-bg, rgba(255, 255, 255, 0.8));
+    border: 1px solid var(--border-color-light, rgba(255, 255, 255, 0.2));
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.json-importer-widget .panel-header {
+    padding: 12px 16px;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid #e0e0e0; 
+    flex-shrink: 0;
+    background-color: rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.json-importer-widget .panel-content {
+    padding: 1rem;
+    flex-grow: 1;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==========================================================================
+   3. 왼쪽/오른쪽 패널 구조
+   ========================================================================== */
+
+.json-importer-widget .left-panel {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.json-importer-widget .right-panel {
+    flex: 3;
+}
+
+/* ==========================================================================
+   4. 왼쪽 패널 내부 요소 (JSON 입력, 공통 정보)
+   ========================================================================== */
+
+.json-input-panel {
+    flex-grow: 1;
+}
+.json-input-panel .panel-content {
+    padding: 0.5rem;
+}
+
+.common-data-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+}
+.common-data-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.common-data-form label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+.common-data-form .action-button {
+    margin-top: auto;
+}
+
+/* ==========================================================================
+   5. 공통 Input / Textarea 스타일
+   ========================================================================== */
+
+.json-input-textarea,
+.common-data-form input,
+.popover-input {
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.07); 
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    font-family: var(--base-font-family);
+    box-sizing: border-box;
+}
+
+.json-input-textarea {
+    font-family: monospace;
+    resize: none;
+    height: 100%;
+}
+
+.common-data-form input:focus,
+.json-input-textarea:focus,
+.popover-input:focus {
+    background-color: transparent; 
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+
+.error-display {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid #e53e3e;
+    background-color: rgba(229, 62, 62, 0.1);
+    color: #e53e3e;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+.error-display pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ==========================================================================
+   6. 오른쪽 패널 테이블 스타일
+   ========================================================================== */
+
+.table-wrapper {
+    overflow: auto;
+    height: 100%;
+}
+.problem-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+.problem-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--glass-base-bg, rgba(255, 255, 255, 0.8));
+    backdrop-filter: blur(5px);
+}
+
+.problem-table th, .problem-table td {
+    padding: 0.4rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+    vertical-align: middle;
+}
+.problem-table th {
+    font-weight: 600;
+}
+
+.cell-edit-trigger {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 1.8rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    font-size: inherit;
+    color: inherit;
+}
+.cell-edit-trigger:not(:disabled):hover {
+    background-color: var(--menu-item-hover-bg, rgba(0, 0, 0, 0.05));
+}
+.cell-edit-trigger[disabled] {
+    cursor: default;
+    color: var(--text-placeholder);
+}
+.cell-edit-trigger-content {
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+.cell-edit-trigger .chevron-icon {
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+    opacity: 0.5;
+}
+
+/* ==========================================================================
+   7. Popover 및 내부 요소 스타일
+   ========================================================================== */
+
+.edit-popover-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: auto; 
+    min-width: 320px;
+    max-height: 80vh;
+    overflow-y: auto;
+    resize: none; 
+}
+
+/* Textarea가 포함된 Popover (large) */
+.glass-popover.large .edit-popover-content {
+    width: 600px;
+    height: 400px;
+    resize: both;
+    overflow: hidden;
+    padding-bottom: 0;
+    /* [핵심 수정] 사용자가 조절할 수 있는 최소 크기를 지정합니다. */
+    min-width: 600px;
+    min-height: 300px;
+}
+
+/* Textarea와 버튼을 감싸는 컨테이너 */
+.textarea-container {
+    flex-grow: 1;
+    position: relative;
+    display: flex;
+    min-height: 0;
+    background-color: rgba(0, 0, 0, 0.07);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+.textarea-container:focus-within {
+    background-color: transparent; 
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+
+/* Textarea 자체 */
+.popover-textarea {
+    resize: none; 
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    padding-bottom: 50px;
+    box-sizing: border-box;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: var(--base-font-family);
+    outline: none;
+    border: none;
+    background-color: transparent;
+    min-width: 0; /* 부모 너비에 맞춰 줄어들 수 있도록 함 */
+}
+
+.edit-popover-content label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+.edit-popover-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    flex-shrink: 0;
+}
+
+.edit-popover-actions.on-textarea {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    margin-top: 0;
+    z-index: 10;
+}
+
+.edit-popover-content.combobox-content {
+    padding: 0.5rem;
+    gap: 0.25rem;
+    width: auto;
+    min-width: 180px;
+}
+.combobox-label {
+    padding: 0.5rem 0.5rem 0.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.combobox-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    background-color: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+.combobox-option:hover {
+    background-color: var(--menu-item-hover-bg);
+    color: var(--text-primary);
+}
+.combobox-option[aria-selected="true"] {
+    background-color: var(--menu-item-active-bg);
+    color: var(--menu-item-active-text);
+    font-weight: 500;
+}
+.combobox-option .check-icon {
+    color: var(--menu-item-active-text);
+    flex-shrink: 0;
+}
+.combobox-option .option-label {
+    flex-grow: 1;
+}
+
+/* ==========================================================================
+   8. 반응형 레이아웃
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+    .json-importer-widget {
+        flex-direction: column;
+        height: auto;
+    }
+    .json-importer-widget .left-panel,
+    .json-importer-widget .right-panel {
+        flex: none;
+        width: 100%;
+        min-height: 50vh;
+    }
 }
 ----- ./react/pages/LoginPage.css -----
 /* filepath: react/pages/LoginPage.css */
@@ -1418,45 +2041,44 @@ body {
 ----- ./react/pages/ProblemWorkbenchPage.css -----
 /* 페이지 전체를 감싸는 루트 컨테이너 */
 .problem-workbench-page {
-    height: 100%; /* RootLayout의 .main-content 높이를 채움 */
-    display: flex; /* 내부 레이아웃 컨테이너를 정렬하기 위해 */
+    height: 100%;
+    display: flex;
 }
 
 /* 3개의 패널을 정렬하는 flex 레이아웃 컨테이너 */
 .problem-workbench-layout {
     display: flex;
-    flex-direction: row;
+    flex-direction: row; /* 기본은 가로 배치 */
     gap: 16px;
     width: 100%;
     height: 100%;
 }
 
-/* 모든 패널에 적용되는 공통 스타일 (카드/패널 UI) */
+/* 모든 패널에 적용되는 공통 스타일 */
 .workbench-panel {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    /* 앱의 디자인 시스템 변수를 사용하여 스타일 통일 */
     background-color: var(--glass-base-bg, rgba(255, 255, 255, 0.8));
     border: 1px solid var(--border-color-light, #e0e0e0);
-    border-radius: 12px; /* 다른 패널들과 유사한 값으로 조정 */
+    border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    overflow: hidden; /* 내부 콘텐츠가 둥근 모서리를 넘지 않도록 */
+    overflow: hidden; /* [중요] 이 속성이 패널의 둥근 모서리를 지켜줌 */
 }
 
-.panel-title {
+/* 에디터/미리보기 패널의 제목 스타일 */
+.editor-panel .panel-title,
+.preview-panel .panel-title {
     padding: 12px 16px;
     margin: 0;
     font-size: 15px;
     font-weight: 600;
     color: var(--text-primary);
-    border-bottom: 1px solid var(--border-color-light, #e0e0e0);
     flex-shrink: 0;
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: none;
 }
 
-/* 패널 내부의 스크롤 가능한 콘텐츠 영역 */
 .panel-content {
     flex-grow: 1;
     overflow-y: auto;
@@ -1464,202 +2086,151 @@ body {
     scrollbar-gutter: stable;
 }
 
+/* 개별 패널 특화 스타일 */
+.editor-panel .panel-content { padding: 0; overflow: hidden; }
+.editor-panel .cm-scroller { overflow-y: auto !important; }
+.image-manager-wrapper-panel { padding: 0; } /* ImageManager가 자체 패딩을 관리하므로 제거 */
 
-/* === 개별 패널 특화 스타일 === */
+/* Mathpix 렌더러 내부 스타일 */
+.prose img:not([src*="#left"]):not([src*="#right"]):not([src*="#align"]) { display: block; margin-left: auto; margin-right: auto; max-width: 90%; border-radius: 8px; clear: both; }
+.prose img[src*="#left"] { float: left; width: 45%; max-width: 350px; margin: 0.5em 1.5em 1em 0; border-radius: 8px; }
+.prose img[src*="#right"] { float: right; width: 45%; max-width: 350px; margin: 0.5em 0 1em 1.5em; border-radius: 8px; }
 
-/* 에디터 패널: CodeMirror가 자체 스크롤을 가지므로 패딩/스크롤 조정 */
-.editor-panel .panel-content {
-    padding: 0;
-    overflow: hidden;
+/* 모바일 반응형 스타일 */
+@media (max-width: 768px) {
+    .problem-workbench-layout {
+        flex-direction: column;
+    }
+    .workbench-panel {
+        min-height: 300px;
+    }
+}
+.panel-title-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color-light, #e0e0e0);
+    flex-shrink: 0;
+    background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* CodeMirror의 실제 스크롤러를 타겟팅 */
-.editor-panel .cm-scroller {
-    overflow-y: auto !important;
+.panel-title {
+    padding: 0; /* 컨테이너에서 패딩을 관리하므로 제거 */
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: none; /* 컨테이너에서 테두리를 관리하므로 제거 */
+    background-color: transparent; /* 컨테이너에서 배경색을 관리하므로 제거 */
 }
 
-/* 이미지 관리 패널: ImageManager 컴포넌트가 자체 패딩을 가지므로 조정 */
-.image-manager-wrapper-panel {
-    /* ImageManager 컴포넌트가 자체 패널 UI를 가지므로, 래퍼의 패딩은 제거 */
-    padding: 0;
+/* [새로운 스타일] 패널 헤더의 아이콘 버튼 */
+.panel-header-button {
+    background: none;
+    border: none;
+    padding: 4px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: background-color 0.2s, color 0.2s;
 }
 
-
-/* === 미리보기(MathpixRenderer) 내부 스타일 (기존 코드 유지) === */
-
-/* .prose 클래스 내부의 모든 img 태그에 적용됩니다. */
-/* --- 1. 기본/가운데 정렬 (수정: #align 제외) --- */
-.prose img:not([src*="#left"]):not([src*="#right"]):not([src*="#align"]) {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  max-width: 90%;
-  border-radius: 8px;
-  clear: both; 
-}
-
-/* --- 2. 왼쪽/오른쪽 Float (기존과 동일) --- */
-.prose img[src*="#left"] {
-  float: left;
-  width: 45%;
-  max-width: 350px;
-  margin: 0.5em 1.5em 1em 0;
-  border-radius: 8px;
-}
-.prose img[src*="#right"] {
-  float: right;
-  width: 45%;
-  max-width: 350px;
-  margin: 0.5em 0 1em 1.5em;
-  border-radius: 8px;
-}
-
-/* --- ✅ 3. #align 을 위한 새로운 "나란히 놓기" 스타일 --- */
-.prose div:has(+ div > img[src*="#align"]) {
-  float: left;
-  width: 55%;
-  padding-right: 20px;
-  box-sizing: border-box;
-}
-
-.prose div:has(> img[src*="#align"]) {
-  float: right;
-  width: 45%;
-}
-
-.prose div:has(> img[src*="#align"]) img {
-  width: 100%;
-  margin: 0;
-}
-
-/* --- 4. Float 효과 정리 (Clearfix) --- */
-.prose div:has(> img[src*="#align"]) + * {
-  clear: both;
-}
-
-.prose h1, .prose h2, .prose h3, .prose hr {
-  clear: both;
+.panel-header-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: var(--text-primary);
 }
 ----- ./react/pages/ProfileSetupPage.css -----
-/* filepath: client/src/pages/ProfileSetupPage.css */
+/* filepath: react-hono\react\pages\ProfileSetupPage.css */
 
 .profile-setup-page-wrapper {
-    display: flex;
-    min-height: 100vh;
-    /* 전체 화면 높이 */
-    align-items: center;
-    /* 수직 중앙 정렬 */
-    justify-content: center;
-    /* 수평 중앙 정렬 */
-    background-color: var(--app-bg-color, #fdfcfa);
-    /* index.css의 앱 배경색 */
-    padding: 20px;
-    /* 화면 가장자리 여백 */
-    box-sizing: border-box;
     position: relative;
-    /* 블롭 배경을 위한 기준점 */
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     overflow: hidden;
-    /* 블롭이 넘치지 않도록 */
+    padding: 20px;
+    box-sizing: border-box;
 }
 
-/* LoginPage와 동일한 블롭 배경 래퍼 스타일 재활용 */
-/* LoginPage.css에 이미 정의되어 있다면, 이 부분은 중복될 수 있습니다. 
-   App.css 같은 곳에 공통으로 정의하는 것이 더 좋을 수 있습니다. */
 .login-background-blobs-wrapper {
-    /* ProfileSetupPage.tsx 에서 이 클래스명 사용 가정 */
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     z-index: 0;
-    /* 콘텐츠 뒤에 위치 */
 }
 
-
 .profile-setup-container {
-    background-color: var(--main-content-bg-color, #fefefe);
-    /* 메인 콘텐츠 배경색 */
-    padding: 35px 45px;
-    /* 내부 패딩 (Svelte의 p-10과 유사하게) */
+    /* [통일감] LoginPage와 동일한 glassmorphism 스타일 적용 */
+    background: var(--sidebar-glass-bg);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+    border: 1px solid rgba(var(--glass-base-bg-rgb), 0.2);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.03);
+
+    padding: 40px 50px;
     border-radius: var(--main-content-border-radius, 18px);
-    /* 메인 콘텐츠와 동일한 둥근 모서리 */
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05), 0 1px 4px rgba(0, 0, 0, 0.03);
-    /* 부드러운 그림자 */
     width: 100%;
-    max-width: 550px;
-    /* Svelte 코드와 유사한 최대 너비 (sm:w-[550px]) */
+    max-width: 480px; /* [수정] 너비를 다른 카드와 유사하게 조정 */
     text-align: center;
-    /* 내부 텍스트 기본 중앙 정렬 */
     position: relative;
-    /* 블롭 배경 위에 오도록 */
     z-index: 1;
+    color: var(--text-primary);
 }
 
 .profile-setup-title {
     font-size: 2rem;
-    /* Svelte의 text-3xl과 유사하게 조정 */
-    font-weight: 700;
-    /* font-bold */
+    font-weight: 600; /* [수정] 폰트 두께 조정 */
     color: var(--text-primary);
     margin-bottom: 12px;
-    /* Svelte의 gap-2 와 유사 */
 }
 
 .profile-setup-subtitle {
-    font-size: 1rem;
-    /* Svelte의 text-lg 와 유사하게 조정 */
+    font-size: 0.95rem; /* [수정] 폰트 크기 조정 */
     color: var(--text-secondary);
-    /* Svelte의 text-muted-foreground 와 유사 */
-    margin-bottom: 30px;
-    /* Svelte의 gap-6 중 일부 */
+    margin-bottom: 35px; /* [수정] 하단 마진 조정 */
     line-height: 1.6;
 }
 
 .profile-setup-form {
     display: grid;
-    /* Svelte의 grid */
-    gap: 24px;
-    /* Svelte의 gap-4 와 유사 */
+    gap: 20px; /* [수정] 그룹 간 간격 조정 */
     text-align: left;
-    /* 폼 내부 요소는 왼쪽 정렬 */
 }
 
 .form-group {
     display: grid;
-    gap: 8px;
-    /* Svelte의 gap-2 (라벨과 입력 요소 사이) */
+    gap: 10px; /* [수정] 라벨과 요소 간 간격 조정 */
 }
 
 .form-label {
     font-weight: 500;
     font-size: 0.9rem;
     color: var(--text-secondary);
-    /* Label 컴포넌트의 기본 색상과 유사하게 */
 }
 
 .position-buttons-group {
     display: flex;
     flex-wrap: wrap;
-    /* 버튼이 많을 경우 줄바꿈 */
     gap: 10px;
-    /* Svelte의 gap-2 */
 }
 
 .position-button {
     flex: 1 1 auto;
-    /* 버튼이 유연하게 너비 차지 (Svelte의 flex-1) */
     min-width: 90px;
-    /* 버튼 최소 너비 */
     padding: 10px 12px;
-    /* 버튼 패딩 */
-    border: 1px solid var(--text-placeholder, #d1d5db);
-    /* 기본 테두리 (Input과 유사하게) */
-    background-color: var(--main-content-bg-color, #fff);
-    /* 기본 배경 */
+    /* [디자인 개선] 버튼을 더 부드러운 형태로 변경 */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.05);
     color: var(--text-secondary);
-    border-radius: 8px;
-    /* 둥근 모서리 */
+    border-radius: 10px; /* [수정] border-radius 통일 */
     cursor: pointer;
     transition: all 0.2s ease-in-out;
     font-weight: 500;
@@ -1668,30 +2239,28 @@ body {
 }
 
 .position-button.active {
-    background-color: var(--accent-color, #e67e22);
-    color: var(--text-on-accent, #fff);
-    border-color: var(--accent-color, #e67e22);
-    box-shadow: 0 2px 4px rgba(var(--accent-color-rgb), 0.2);
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
+    border-color: var(--accent-color);
+    box-shadow: 0 2px 8px rgba(var(--accent-color-rgb), 0.3);
 }
 
 .position-button:not(.active):hover {
-    border-color: var(--accent-color-darker, #d35400);
-    color: var(--accent-color-darker, #d35400);
-    /* background-color: rgba(var(--accent-color-rgb), 0.05); */
+    border-color: rgba(255, 255, 255, 0.4);
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .form-input {
     width: 100%;
-    padding: 12px 14px;
-    border: 1px solid var(--text-placeholder, #d1d5db);
-    /* Input 컴포넌트 테두리 */
-    border-radius: 8px;
-    /* Input 컴포넌트 둥근 모서리 */
+    padding: 12px 16px; /* [수정] 패딩 통일 */
+    /* [통일감] 다른 입력 필드와 일관성을 위해 배경색 및 테두리 수정 */
+    background-color: rgba(0, 0, 0, 0.07);
+    border: 1px solid transparent;
+    border-radius: 12px; /* [수정] border-radius 통일 */
     font-size: 0.95rem;
     color: var(--text-primary);
-    background-color: var(--app-bg-color);
-    /* 입력 필드 배경 약간 다르게 */
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
 .form-input::placeholder {
@@ -1699,60 +2268,57 @@ body {
 }
 
 .form-input:focus {
-    outline: none;
-    border-color: var(--accent-color, #e67e22);
-    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);
-    /* 포커스 시 강조 */
+    background-color: transparent;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
 }
 
 .submit-button {
     width: 100%;
     padding: 12px 20px;
-    background-color: var(--accent-color, #e67e22);
-    color: var(--text-on-accent, #fff);
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
     border: none;
-    border-radius: 8px;
+    border-radius: 12px; /* [수정] border-radius 통일 */
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s ease, opacity 0.2s ease;
     margin-top: 10px;
-    /* 위 요소와의 간격 */
 }
 
 .submit-button:hover:not(:disabled) {
-    background-color: var(--accent-color-darker, #d35400);
+    background-color: var(--accent-color-darker);
 }
 
 .submit-button:disabled {
-    background-color: var(--text-placeholder, #a5b1c2);
+    background-color: var(--text-placeholder);
     opacity: 0.7;
     cursor: not-allowed;
 }
 
 .error-message {
-    margin-top: 15px;
-    /* Svelte의 mt-4 */
-    color: var(--notification-badge-bg, #e74c3c);
-    /* index.css의 알림 색상 또는 직접 지정 */
-    font-size: 0.875rem;
+    margin-top: 4px; /* [수정] 에러 메시지는 폼 그룹 아래에 바로 붙도록 */
+    color: var(--notification-badge-bg);
+    font-size: 0.8rem; /* [수정] 폰트 크기 조정 */
     font-weight: 500;
+    text-align: left; /* [수정] 왼쪽 정렬 */
+}
+
+.error-message.api-error {
     text-align: center;
-    /* Svelte의 text-center */
+    margin-top: 15px;
+    font-size: 0.875rem;
 }
 
 
 @media (max-width: 480px) {
-
-    /* 더 작은 화면을 위한 추가 조정 */
     .profile-setup-container {
-        padding: 25px 20px;
-        /* 모바일에서 패딩 축소 */
+        padding: 30px 25px;
     }
 
     .profile-setup-title {
-        font-size: 1.75rem;
-        /* 모바일에서 타이틀 크기 축소 */
+        font-size: 1.8rem;
     }
 
     .profile-setup-subtitle {
@@ -1760,17 +2326,12 @@ body {
         margin-bottom: 25px;
     }
 
-    .position-buttons-group {
-        flex-direction: column;
-        /* 필요시 세로 정렬 */
-    }
-
     .position-button {
         font-size: 0.85rem;
     }
 
     .form-input {
-        padding: 10px 12px;
+        padding: 10px 14px;
         font-size: 0.9rem;
     }
 
@@ -1782,53 +2343,39 @@ body {
 ----- ./react/shared/components/GlassPopover.css -----
 /* client/src/components/common/popover/GlassPopover.css */
 .glass-popover {
-    /* ... (기존 배경, 그림자, 패딩, z-index, 너비 등 스타일 유지) ... */
     background: var(--sidebar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
     -webkit-backdrop-filter: var(--glass-blur-effect);
-    border-radius: 8px;
+    border-radius: 12px; /* [수정] 패딩에 맞춰 12px로 변경 */
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
-    padding: 12px;
+    padding: 0; /* [수정] 내부 콘텐츠에서 패딩을 관리하도록 제거 */
     z-index: 1100;
     min-width: 180px;
     max-width: 300px;
     box-sizing: border-box;
+    overflow: hidden; /* [추가] 내부 콘텐츠가 둥근 모서리를 넘지 않도록 */
 
-    /* 초기 상태 (나타날 때 애니메이션 기준) */
     opacity: 0;
     visibility: hidden;
     transform: translateY(0) scale(1);
-    /* ★★★ 사라질 때 이 위치/크기를 기준으로 opacity만 변경 ★★★ */
-
-    /* 트랜지션 정의 */
     transition-property: opacity, visibility;
-    /* transform 애니메이션은 열릴 때만 */
     transition-duration: 0.22s, 0s;
-    /* visibility는 duration 0 */
     transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1), linear;
-    /* 사라질 때: opacity 애니메이션(0.22s) 후 visibility 변경 */
     transition-delay: 0s, 0.22s;
 }
 
 .glass-popover.open {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0) scale(1);
-    /* 열렸을 때 최종 위치/크기 */
-
-    /* 열릴 때의 transform 애니메이션 (선택적) */
-    /* 만약 열릴 때도 transform 애니메이션을 주고 싶다면 아래 주석 해제 */
-    /* transform: translateY(0) scale(1); */
-    /* transition-property: opacity, transform, visibility; */
-    /* transition-duration: 0.25s, 0.25s, 0s; */
-    /* transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1), cubic-bezier(0.32, 0.72, 0, 1), linear; */
-
-    /* 열릴 때: 모든 애니메이션 지연 0s (visibility는 즉시) */
     transition-delay: 0s, 0s;
-    /* transform 애니메이션 없다면 visibility 지연도 0s */
 }
 
-/* Popover 내부 콘텐츠 스타일링 (예시) */
+/* [추가] Textarea 등 넓은 콘텐츠를 위한 Popover 크기 확장 */
+.glass-popover.large {
+    min-width: 600px;
+    max-width: calc(100vw - 40px);
+}
+
 .glass-popover .popover-content {
     color: var(--text-primary);
 }
@@ -1842,12 +2389,9 @@ body {
 .glass-popover li a,
 .glass-popover li button {
     display: flex;
-    /* 아이콘과 텍스트 정렬 위해 flex 사용 */
     align-items: center;
-    /* 수직 중앙 정렬 */
     width: 100%;
     padding: 9px 12px;
-    /* 패딩 약간 조정 */
     text-decoration: none;
     color: var(--text-secondary);
     border-radius: 6px;
@@ -1858,9 +2402,7 @@ body {
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
-    /* 메뉴 아이템 폰트 두께 */
     line-height: 1.4;
-    /* 줄 간격 */
 }
 
 .glass-popover li a:hover,
@@ -1869,74 +2411,71 @@ body {
     color: var(--text-primary);
 }
 
-/* Popover 내부 아이콘 스타일 (ProfileMenuContent.tsx 에서 사용 시) */
 .glass-popover li svg {
-    /* 아이콘의 일반적인 스타일 */
     margin-right: 10px;
-    /* vertical-align: bottom; /* flex 사용 시 불필요 */
     color: var(--icon-color);
-    /* 아이콘 색상 변수 사용 */
     flex-shrink: 0;
-    /* 아이콘 크기 유지 */
 }
 
 .glass-popover li a:hover svg,
 .glass-popover li button:hover svg {
     color: var(--icon-active-color);
-    /* 호버 시 아이콘 색상 */
 }
 ----- ./react/shared/ui/actionbutton/ActionButton.css -----
 /* react/shared/ui/actionbutton/ActionButton.css */
+
+/* [복원] 가장 기본적인 버튼 스타일로 되돌립니다. */
 .action-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: none;
+    padding: 8px 16px; /* 기본 패딩 */
+    border-radius: 8px; /* 기본 둥근 모서리 */
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
-
-    /* 원형 버튼 크기 및 모양 */
-    width: 56px;
-    height: 56px;
-    border-radius: 50%; /* 요청하신 원형 스타일 */
-
-    /* 주조색(Accent Color)을 사용한 배경 */
-    background: linear-gradient(145deg, var(--accent-color), var(--accent-color-darker));
-    color: var(--text-on-accent); /* 배경색 위의 텍스트/아이콘 색상 */
-    
-    /* 입체감을 위한 그림자 */
-    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3), 
-                0 1px 3px rgba(0, 0, 0, 0.1);
-
-    /* 부드러운 전환 효과 */
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+    transition: all 0.2s ease-in-out;
+    white-space: nowrap;
+    background-color: var(--menu-item-hover-bg, rgba(0, 0, 0, 0.05));
+    color: var(--text-secondary);
 }
 
-.action-button svg {
-    /* 내부 아이콘 크기는 버튼 크기에 맞춰 조정 */
-    width: 24px;
-    height: 24px;
-}
-
-/* 호버 시 인터랙션 효과 */
 .action-button:hover:not(:disabled) {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 8px 20px rgba(var(--accent-color-rgb), 0.35),
-                0 2px 6px rgba(0, 0, 0, 0.1);
+    background-color: rgba(0, 0, 0, 0.1);
+    color: var(--text-primary);
 }
 
-/* 클릭 시 인터랙션 효과 */
-.action-button:active:not(:disabled) {
-    transform: translateY(0) scale(1);
-    box-shadow: 0 2px 6px rgba(var(--accent-color-rgb), 0.3);
+/* [복원] Primary 버튼 스타일 (강조) */
+.action-button.primary {
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
+    border-color: transparent;
 }
 
-/* 비활성화 상태 */
+.action-button.primary:hover:not(:disabled) {
+    background-color: var(--accent-color-darker);
+}
+
+/* [복원] Secondary (또는 outline) 버튼 스타일 */
+.action-button.secondary {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border-color: var(--text-placeholder);
+}
+
+.action-button.secondary:hover:not(:disabled) {
+    background-color: var(--menu-item-hover-bg);
+    border-color: var(--accent-color);
+    color: var(--accent-color-darker);
+}
+
 .action-button:disabled {
-    background: var(--text-placeholder); /* 비활성화 색상 */
-    color: rgba(255, 255, 255, 0.7);
-    box-shadow: none;
+    opacity: 0.6;
     cursor: not-allowed;
-    transform: none;
+    background-color: var(--text-placeholder);
+    color: var(--text-on-accent);
+    border-color: transparent;
 }
 ----- ./react/shared/ui/Badge/Badge.css -----
 /* shared/ui/Badge/Badge.css */

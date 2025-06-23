@@ -39,7 +39,8 @@ const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] =
 };
 
 const DashBoard: React.FC = () => {
-    const { setRightSidebarContent, setSidebarTriggers } = useLayoutStore.getState();
+    // [핵심 수정] 훅 대신 getState()를 사용하여 구독을 생성하지 않고 액션만 가져옵니다.
+    const { setRightSidebarContent, registerPageActions } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
@@ -54,7 +55,6 @@ const DashBoard: React.FC = () => {
     const currentStudents = students || [];
     const studentIds = useMemo(() => currentStudents.map(s => s.id), [currentStudents]);
 
-    // [핵심 수정 1] `useRowSelection`에서 toggleSelectAll 대신 toggleItems를 가져옵니다.
     const { selectedIds, toggleRow, toggleItems } = useRowSelection<string>({ allItems: studentIds });
 
     const filteredStudents = useTableSearch({
@@ -65,13 +65,11 @@ const DashBoard: React.FC = () => {
     }) as Student[];
     const filteredStudentIds = useMemo(() => filteredStudents.map(s => s.id), [filteredStudents]);
     
-    // [핵심 수정 2] 헤더 체크박스의 체크 여부를 계산합니다.
     const isFilteredAllSelected = useMemo(() => {
         if (filteredStudentIds.length === 0) return false;
         return filteredStudentIds.every(id => selectedIds.has(id));
     }, [filteredStudentIds, selectedIds]);
     
-    // [핵심 수정 3] 헤더 체크박스를 토글하는 새로운 핸들러입니다.
     const handleToggleFilteredAll = useCallback(() => {
         toggleItems(filteredStudentIds);
     }, [toggleItems, filteredStudentIds]);
@@ -156,12 +154,20 @@ const DashBoard: React.FC = () => {
     }, [activeSidebarView, studentToEdit, handleCloseSidebar, setRightSidebarExpanded, setRightSidebarContent, prevActiveSidebarView]);
 
     useEffect(() => {
-        setSidebarTriggers({
-            onRegisterClick: handleOpenRegisterSidebar,
-            onSettingsClick: handleOpenSettingsSidebar,
+        registerPageActions({
+            openRegisterSidebar: handleOpenRegisterSidebar,
+            openSettingsSidebar: handleOpenSettingsSidebar,
             onClose: handleCloseSidebar,
         });
-    }, [handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar, setSidebarTriggers]);
+
+        return () => {
+            registerPageActions({
+                openRegisterSidebar: undefined,
+                openSettingsSidebar: undefined,
+                onClose: undefined,
+            });
+        };
+    }, [registerPageActions, handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
     
     useEffect(() => {
         useLayoutStore.getState().setStudentSearchProps({
@@ -207,7 +213,6 @@ const DashBoard: React.FC = () => {
                 onRequestEdit={handleRequestEdit}
                 selectedIds={selectedIds}
                 toggleRow={toggleRow}
-                // [핵심 수정 4] isAllSelected와 toggleSelectAll에 새로 만든 변수와 함수를 전달합니다.
                 isAllSelected={isFilteredAllSelected}
                 toggleSelectAll={handleToggleFilteredAll}
             />

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router'; // useLocation import
+import { Link } from 'react-router';
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectSidebarTriggers } from '../../shared/store/layoutStore';
+// [수정] useSidebarTriggers 커스텀 훅을 import 합니다.
+import { useSidebarTriggers } from '../../shared/store/layoutStore';
 import { LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, LuSettings2 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
@@ -16,7 +17,6 @@ const RegisterIcon = () => <LuCirclePlus size={22} />;
 const SettingsIcon = () => <LuSettings2 size={22} />;
 
 const GlassNavbar: React.FC = () => {
-    const location = useLocation(); // [추가]
     const {
         currentBreakpoint,
         toggleLeftSidebar,
@@ -24,13 +24,11 @@ const GlassNavbar: React.FC = () => {
         closeMobileSidebar,
     } = useUIStore();
     
-    const { onRegisterClick, onSettingsClick } = useLayoutStore(selectSidebarTriggers);
+    // [수정] 커스텀 훅을 사용하여 최종 트리거 정보를 가져옵니다.
+    const { registerTrigger, settingsTrigger } = useSidebarTriggers();
 
     const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
     const profileButtonRef = useRef<HTMLButtonElement>(null);
-    
-    // [추가] 대시보드 페이지인지 확인
-    const isDashboardPage = location.pathname.startsWith('/dashboard');
 
     const handleProfileButtonClick = () => {
         if (currentBreakpoint === 'mobile' && mobileSidebarType && !isProfilePopoverOpen) {
@@ -72,17 +70,16 @@ const GlassNavbar: React.FC = () => {
             <div className="navbar-right">
                 {currentBreakpoint === 'mobile' && (
                     <div className="mobile-right-actions">
-                        {onRegisterClick && (
-                            <Tippy content="신입생 등록" placement="bottom" theme="custom-glass" delay={[300, 0]}>
-                                <button onClick={onRegisterClick} className="navbar-icon-button" aria-label="신입생 등록">
+                        {registerTrigger && (
+                            <Tippy content={registerTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={registerTrigger.onClick} className="navbar-icon-button" aria-label={registerTrigger.tooltip}>
                                     <RegisterIcon />
                                 </button>
                             </Tippy>
                         )}
-                        {/* [수정] 대시보드 페이지이고, onSettingsClick 함수가 있을 때만 버튼 렌더링 */}
-                        {isDashboardPage && onSettingsClick && (
-                             <Tippy content="테이블 설정" placement="bottom" theme="custom-glass" delay={[300, 0]}>
-                                <button onClick={onSettingsClick} className="navbar-icon-button" aria-label="테이블 설정">
+                        {settingsTrigger && (
+                             <Tippy content={settingsTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={settingsTrigger.onClick} className="navbar-icon-button" aria-label={settingsTrigger.tooltip}>
                                     <SettingsIcon />
                                 </button>
                             </Tippy>

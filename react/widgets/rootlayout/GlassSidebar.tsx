@@ -40,6 +40,7 @@ const SavedIcon = () => <LuHeart size={18} />;
 const CloseLeftSidebarIcon = () => <LuChevronLeft size={22} />;
 const TabletToggleChevronLeftIcon = () => <LuChevronLeft size={20} />;
 const TabletToggleChevronRightIcon = () => <LuChevronRight size={20} />;
+const JsonIcon = () => <LuFile size={18} />; 
 
 // [수정 2] 현재 App.tsx 의 RootLayout 내부에 정의된 Route path 기준으로 메뉴 구성
 // 경로는 /dashboard, /exampleget, /move 입니다. 
@@ -54,6 +55,11 @@ export const allMenuItems: MenuItemData[] = [
         path: '/problem-workbench', // 새 페이지의 URL 경로
         name: '문제 작업',
         icon: <ProblemIcon />
+    },
+    {
+        path: '/json-renderer',
+        name: 'JSON 렌더러',
+        icon: <JsonIcon />
     },
    
      { 

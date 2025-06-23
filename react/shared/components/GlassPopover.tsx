@@ -10,6 +10,7 @@ interface GlassPopoverProps {
     placement?: 'bottom-end' | 'bottom-start' | 'top-end' | 'top-start'; // 위치 (간단하게 몇 가지만)
     offsetY?: number; // 세로 간격
     offsetX?: number; // 가로 간격
+    className?: string; // [추가] 커스텀 클래스를 위한 prop
 }
 
 const GlassPopover: React.FC<GlassPopoverProps> = ({
@@ -20,10 +21,10 @@ const GlassPopover: React.FC<GlassPopoverProps> = ({
     placement = 'bottom-end',
     offsetY = 8,
     offsetX = 0,
+    className = '', // [추가]
 }) => {
     const popoverRef = useRef<HTMLDivElement>(null);
 
-    // 외부 클릭 시 Popover 닫기
     useEffect(() => {
         if (!isOpen) return;
 
@@ -44,7 +45,6 @@ const GlassPopover: React.FC<GlassPopoverProps> = ({
         };
     }, [isOpen, onClose, anchorEl]);
 
-    // Popover 위치 계산 (간단한 버전)
     const getPopoverStyle = (): React.CSSProperties => {
         if (!anchorEl || !popoverRef.current) {
             return { visibility: 'hidden', opacity: 0 };
@@ -77,7 +77,6 @@ const GlassPopover: React.FC<GlassPopoverProps> = ({
                 left = anchorRect.right - popoverRect.width + offsetX;
         }
 
-        // 화면 경계를 벗어나는 경우 간단히 조정 (더 정교한 로직 필요)
         if (left + popoverRect.width > window.innerWidth - 10) { // 오른쪽 경계
             left = window.innerWidth - popoverRect.width - 10;
         }
@@ -101,15 +100,17 @@ const GlassPopover: React.FC<GlassPopoverProps> = ({
         };
     };
 
-    // Portal을 사용하여 body에 렌더링
     if (typeof document === 'undefined') {
         return null; // SSR 환경에서는 렌더링하지 않음
     }
+    
+    // [수정] 전달받은 className을 적용
+    const popoverClassName = `glass-popover ${isOpen ? 'open' : ''} ${className}`.trim();
 
     return ReactDOM.createPortal(
         <div
             ref={popoverRef}
-            className={`glass-popover ${isOpen ? 'open' : ''}`}
+            className={popoverClassName} // 수정된 클래스명 사용
             style={getPopoverStyle()}
             role="dialog" // 접근성을 위해 역할 명시
             aria-modal="false" // 모달이 아님을 명시

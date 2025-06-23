@@ -113,7 +113,8 @@ export const problemTable = pgTable("problem", {
     question_number: real("question_number"), // 문제 번호 (소수점 가능, 예: 3.1)
     answer: text("answer"), // 정답
     problem_type: text("problem_type"), // 문제 유형 (예: 객관식, 주관식)
-    // creator_id는 profilesTable의 id (즉, auth.users.id)를 참조. 문제 출제자.
+    grade: text("grade"), // grade_level -> grade 로 이름 변경 (studentsTable과 통일)
+    semester: text("semester"),
     creator_id: uuid("creator_id").notNull().references(() => profilesTable.id, { onDelete: 'restrict' }), // restrict: 출제자 프로필 삭제 시 문제 삭제 방지 (정책에 따라 cascade, set null 등)
     major_chapter_id: uuid("major_chapter_id").references(() => majorChaptersTable.id, { onDelete: 'set null' }), // 대단원 ID 참조
     middle_chapter_id: uuid("middle_chapter_id").references(() => middleChaptersTable.id, { onDelete: 'set null' }), // 중단원 ID 참조
@@ -122,7 +123,6 @@ export const problemTable = pgTable("problem", {
     difficulty: text("difficulty"), // 난이도 (텍스트 또는 numeric/real 타입 고려)
     score: text("score"),           // 배점 (텍스트 또는 numeric/real 타입 고려)
     question_text: text("question_text"), // 문제 본문 (긴 텍스트)
-    option_text: text("option_text"),   // 객관식 선택지 (JSONB 타입 고려 가능)
     solution_text: text("solution_text"), // 해설 (긴 텍스트)
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
     updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),

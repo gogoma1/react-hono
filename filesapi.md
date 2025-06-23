@@ -96,6 +96,8 @@ export const problemTable = pgTable("problem", {
     question_number: real("question_number"), // 문제 번호 (소수점 가능, 예: 3.1)
     answer: text("answer"), // 정답
     problem_type: text("problem_type"), // 문제 유형 (예: 객관식, 주관식)
+    grade: text("grade"), // grade_level -> grade 로 이름 변경 (studentsTable과 통일)
+    semester: text("semester"),
     creator_id: uuid("creator_id").notNull().references(() => profilesTable.id, { onDelete: 'restrict' }), // restrict: 출제자 프로필 삭제 시 문제 삭제 방지 (정책에 따라 cascade, set null 등)
     major_chapter_id: uuid("major_chapter_id").references(() => majorChaptersTable.id, { onDelete: 'set null' }), // 대단원 ID 참조
     middle_chapter_id: uuid("middle_chapter_id").references(() => middleChaptersTable.id, { onDelete: 'set null' }), // 중단원 ID 참조
@@ -104,7 +106,6 @@ export const problemTable = pgTable("problem", {
     difficulty: text("difficulty"), // 난이도 (텍스트 또는 numeric/real 타입 고려)
     score: text("score"),           // 배점 (텍스트 또는 numeric/real 타입 고려)
     question_text: text("question_text"), // 문제 본문 (긴 텍스트)
-    option_text: text("option_text"),   // 객관식 선택지 (JSONB 타입 고려 가능)
     solution_text: text("solution_text"), // 해설 (긴 텍스트)
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
     updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
@@ -192,6 +193,7 @@ import profileRoutes from './routes/profiles/profiles';
 import exampleRoute from './routes/example/selectpg_tables';
 import studentRoutes from './routes/manage/student';
 import { supabaseMiddleware } from './routes/middleware/auth.middleware';
+import problemRoutes from './routes/manage/problems';
 import r2ImageRoutes from './routes/r2/image';
 
 export type AppEnv = {
@@ -221,6 +223,7 @@ app.use(supabaseMiddleware());
 app.route('/example', exampleRoute); 
 app.route('/profiles', profileRoutes); 
 app.route('/manage/student', studentRoutes);
+app.route('/manage/problems', problemRoutes); 
 app.route('/r2', r2ImageRoutes);
 
 
@@ -259,6 +262,130 @@ exampleRoutes.get('/pgtables', async (c) => {
 });
 
 export default exampleRoutes;
+----- ./api/routes/manage/problems.ts -----
+import { Hono } from 'hono';
+import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { eq } from 'drizzle-orm';
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
+
+import type { AppEnv } from '../../index';
+import * as schema from '../../db/schema.pg';
+
+
+const problemSchema = z.object({
+  question_number: z.number(),
+  question_text: z.string(),
+  answer: z.string().nullable(), // JSON에서 null이 올 수 있으므로 nullable() 추가
+  solution_text: z.string().nullable(), // 이름 변경 (detailed_solution -> solution_text), nullable() 추가
+  page: z.number().nullable(), // 이름 변경 (page_number -> page)
+  problem_type: z.string(),
+  grade: z.string(), // 이름 변경 (grade_level -> grade)
+  semester: z.string(),
+  source: z.string(),
+
+  major_chapter_id: z.string(),
+  middle_chapter_id: z.string(),
+  core_concept_id: z.string(),
+  problem_category: z.string(), // 이름 변경 (problemCategories -> problem_category)
+
+  difficulty: z.string(),
+  score: z.string(),
+  
+  concept_keywords: z.array(z.string()).optional(), 
+  calculation_keywords: z.array(z.string()).optional(),
+});
+
+const uploadProblemsBodySchema = z.object({
+  problems: z.array(problemSchema),
+});
+
+
+type UploadProblemsInput = z.infer<typeof uploadProblemsBodySchema>;
+
+const problemRoutes = new Hono<AppEnv>();
+
+problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), async (c) => {
+    const user = c.get('user')!;
+    const { problems } = c.req.valid('json') as UploadProblemsInput;
+
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+        const result = await db.transaction(async (tx) => {
+            let insertedCount = 0;
+
+            for (const problem of problems) {
+                const [majorChapter] = await tx.insert(schema.majorChaptersTable)
+                    .values({ name: problem.major_chapter_id })
+                    .onConflictDoUpdate({ target: schema.majorChaptersTable.name, set: { name: problem.major_chapter_id } })
+                    .returning();
+
+                const [middleChapter] = await tx.insert(schema.middleChaptersTable)
+                    .values({ name: problem.middle_chapter_id, major_chapter_id: majorChapter.id })
+                    .onConflictDoNothing() 
+                    .returning();
+
+                const [coreConcept] = await tx.insert(schema.coreConceptsTable)
+                    .values({ name: problem.core_concept_id })
+                    .onConflictDoUpdate({ target: schema.coreConceptsTable.name, set: { name: problem.core_concept_id } })
+                    .returning();
+                
+                const [insertedProblem] = await tx.insert(schema.problemTable).values({
+                    question_number: problem.question_number,
+                    question_text: problem.question_text,
+                    answer: problem.answer,
+                    solution_text: problem.solution_text,
+                    page: problem.page,
+                    problem_type: problem.problem_type,
+                    grade: problem.grade,
+                    semester: problem.semester,
+                    source: problem.source,
+                    problem_category: problem.problem_category,
+                    difficulty: problem.difficulty,
+                    score: problem.score,
+                    creator_id: user.id,
+                    major_chapter_id: majorChapter?.id,
+                    middle_chapter_id: middleChapter?.id,
+                    core_concept_id: coreConcept?.id,
+                }).returning({ id: schema.problemTable.problem_id });
+                
+                insertedCount++;
+
+                const allKeywords = [
+                    ...(problem.concept_keywords?.map(kw => ({ name: kw, type: 'concept' })) || []),
+                    ...(problem.calculation_keywords?.map(kw => ({ name: kw, type: 'calculation' })) || []),
+                ];
+
+                for (const keyword of allKeywords) {
+                    const [tag] = await tx.insert(schema.tagTable)
+                        .values({ name: keyword.name, tag_type: keyword.type })
+                        .onConflictDoUpdate({ target: schema.tagTable.name, set: { name: keyword.name } })
+                        .returning();
+
+                    if (insertedProblem && tag) {
+                        await tx.insert(schema.problemTagTable)
+                           .values({ problem_id: insertedProblem.id, tag_id: tag.tag_id })
+                           .onConflictDoNothing();
+                    }
+                }
+            }
+            return { count: insertedCount };
+        });
+
+        return c.json({ success: true, count: result.count }, 201);
+
+    } catch (error: any) {
+        console.error('Failed to upload problems:', error.message);
+        return c.json({ error: 'Database query failed', details: error.message }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
+export default problemRoutes;
 ----- ./api/routes/manage/student.ts -----
 import { Hono } from 'hono';
 import postgres from 'postgres';

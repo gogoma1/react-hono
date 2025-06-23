@@ -14,6 +14,7 @@ import StudentDetailPage from './pages/StudentDetailPage';
 import AuthInitializer from './shared/lib/AuthInitializer';
 import { useAuthStore, selectIsLoadingAuth } from './shared/store/authStore';
 import ProblemWorkbenchPage from './pages/ProblemWorkbenchPage';
+import JsonRendererPage from './pages/JsonRendererPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,7 @@ function App() {
                                 <Route path="/dashboard" element={<DashBoard />} />
                                 <Route path="/exampleget" element={<ExamplePage />} />
                                 <Route path="/problem-workbench" element={<ProblemWorkbenchPage />} />
+                                <Route path="/json-renderer" element={<JsonRendererPage />} /> 
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
                             </Route>
                         </Route>
@@ -60,6 +62,87 @@ function App() {
 }
 
 export default App;
+----- ./react/entities/problem/api/problemApi.ts -----
+
+import { handleApiResponse } from '../../../shared/api/api.utils';
+import type { Problem } from '../model/types';
+
+const API_BASE = '/api/manage/problems/upload'; 
+
+interface UploadPayload {
+    problems: Problem[];
+}
+
+interface UploadResponse {
+    success: boolean;
+    count: number;
+}
+
+/**
+ * 문제 목록을 서버에 업로드합니다.
+ * @param problems - 업로드할 문제 객체 배열
+ * @returns 업로드 결과
+ */
+export const uploadProblemsAPI = async (problems: Problem[]): Promise<UploadResponse> => {
+    const payload: UploadPayload = { problems };
+    const res = await fetch(API_BASE, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+    });
+    return handleApiResponse<UploadResponse>(res);
+};
+----- ./react/entities/problem/model/types.ts -----
+export interface Problem {
+    source: string;
+    page: number | null;
+    question_number: number;
+    answer: string;
+    problem_type: string;
+    grade: string;
+    semester: string;
+    major_chapter_id: string;
+    middle_chapter_id: string;
+    core_concept_id: string;
+    problem_category: string;
+    difficulty: string;
+    score: string;
+    question_text: string;
+    solution_text: string;
+}
+
+export interface Column {
+	key: keyof Problem;
+	label: string;
+	readonly?: boolean;
+	editType?: 'combobox' | 'textarea' | 'number' | 'text';
+}
+
+export type ComboboxOption = {
+    value: string;
+    label: string;
+};
+----- ./react/entities/problem/model/useProblemMutations.ts -----
+
+import { useMutation } from '@tanstack/react-query';
+import { uploadProblemsAPI } from '../api/problemApi';
+import type { Problem } from './types';
+
+export function useUploadProblemsMutation() {
+    return useMutation<unknown, Error, Problem[]>({
+        mutationFn: (problems) => uploadProblemsAPI(problems),
+        onSuccess: () => {
+            alert('문제가 성공적으로 업로드되었습니다.');
+        },
+        onError: (error) => {
+            alert(`문제 업로드 실패: ${error.message}`);
+            console.error('Upload failed:', error);
+        },
+    });
+}
 ----- ./react/entities/student/api/studentApi.ts -----
 
 import type {
@@ -484,16 +567,19 @@ interface MobileStudentCardProps {
     onStatusUpdate: (studentId: string, status: StatusValue | 'delete') => void;
     onCancel: () => void;
     closeActiveCard: () => void;
+    selectedIds: Set<string>; // [핵심] 선택된 ID Set을 props로 받습니다.
 }
 
 const MobileStudentCard: React.FC<MobileStudentCardProps> = ({
     student, activeCardId, onCardClick, editingStatusRowId, onEdit,
     onNavigate, onToggleStatusEditor, onStatusUpdate, onCancel, closeActiveCard,
+    selectedIds, // [핵심] props에서 selectedIds를 받습니다.
 }) => {
     const isActive = activeCardId === student.id;
     const isEditingStatus = editingStatusRowId === student.id;
     const visibleColumns = useVisibleColumns();
-    
+    const isSelected = selectedIds.has(student.id); // [핵심] 현재 카드가 선택되었는지 확인합니다.
+
     const onEditRequest = () => {
         onEdit(student);
         closeActiveCard();
@@ -502,13 +588,16 @@ const MobileStudentCard: React.FC<MobileStudentCardProps> = ({
     const onNavigateRequest = () => onNavigate(student.id);
     const onToggleStatusEditorRequest = () => onToggleStatusEditor(student.id);
 
+    const cardClassName = `mobile-student-card ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''}`.trim();
+
     return (
         <div 
-            className={`mobile-student-card ${isActive ? 'active' : ''}`} 
+            className={cardClassName}
             onClick={() => onCardClick(student.id)}
             role="button"
             tabIndex={0}
             aria-expanded={isActive}
+            aria-selected={isSelected} // [핵심] 접근성을 위해 aria-selected 속성을 추가합니다.
         >
             <div className="card-content-wrapper">
                 <div className="card-main-info">
@@ -563,10 +652,11 @@ type StudentDisplayProps = {
     activeCardId: string | null;
     onCardClick: (studentId: string) => void;
     closeActiveCard: () => void;
+    selectedIds: Set<string>; // 이 prop이 MobileStudentCard로 전달됩니다.
 };
 
 const StudentDisplayMobile: React.FC<StudentDisplayProps> = (props) => {
-    const { students, isLoading, ...rest } = props;
+    const { students, isLoading, selectedIds, ...rest } = props;
 
     if (isLoading) {
         return <div className="mobile-loading-state">로딩 중...</div>;
@@ -580,6 +670,7 @@ const StudentDisplayMobile: React.FC<StudentDisplayProps> = (props) => {
                 <MobileStudentCard 
                     key={student.id} 
                     student={student}
+                    selectedIds={selectedIds} // [핵심] selectedIds를 MobileStudentCard로 전달합니다.
                     {...rest}
                 />
             ))}
@@ -630,6 +721,7 @@ export const deleteImageAPI = async (key: string): Promise<void> => {
     await handleApiResponse<void>(res);
 };
 ----- ./react/features/image-upload/model/useImageUploadManager.ts -----
+
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useUploadImageMutation, useDeleteImageMutation } from './useImageUploadWithRQ';
 
@@ -695,27 +787,31 @@ export function useImageUploadManager(markdownInput: string) {
 
     const uploadImage = useCallback(async (file: File, imageTag: string): Promise<void> => {
         const oldUrl = localUrls[imageTag];
-        setCurrentUploadingTag(imageTag); // 현재 어떤 태그가 업로드 중인지 표시
+        setCurrentUploadingTag(imageTag);
 
         try {
             const { url: newUrl, key: newKey } = await uploadMutation.mutateAsync(file);
+
+            setLocalUrls(prev => ({ ...prev, [imageTag]: newUrl }));
 
             if (oldUrl) {
                 const oldKey = extractKeyFromUrl(oldUrl);
                 if (oldKey && oldKey !== newKey) {
                     deleteMutation.mutate(oldKey, {
+                        onSuccess: () => {
+                            console.log(`Successfully deleted old image (key: ${oldKey})`);
+                        },
                         onError: (deleteError) => {
                             console.error(`Failed to delete old image (key: ${oldKey}):`, deleteError);
                         }
                     });
                 }
             }
-            setLocalUrls(prev => ({ ...prev, [imageTag]: newUrl }));
-        } catch (error) {
-            console.error(`Upload failed for tag ${imageTag}:`, error);
-            throw error;
+        } catch (uploadError) {
+            console.error(`Upload failed for tag ${imageTag}:`, uploadError);
+            throw uploadError;
         } finally {
-            setCurrentUploadingTag(null); // 업로드 프로세스(성공/실패) 종료
+            setCurrentUploadingTag(null);
         }
     }, [localUrls, uploadMutation, deleteMutation]);
 
@@ -734,27 +830,28 @@ export function useImageUploadManager(markdownInput: string) {
             return;
         }
 
-        if (isUploadingAll) {
-            const pendingTags = extractedImages.filter(tag => !localUrls[tag]);
-            const filesToUpload = Array.from(files).slice(0, pendingTags.length);
-            
-            const uploadPromises = filesToUpload.map((file, i) => uploadImage(file, pendingTags[i]));
-            
-            try {
+        try {
+            if (isUploadingAll) {
+                const pendingTags = extractedImages.filter(tag => !localUrls[tag]);
+                const filesToUpload = Array.from(files).slice(0, pendingTags.length);
+                
+                const uploadPromises = filesToUpload.map((file, i) => uploadImage(file, pendingTags[i]));
                 await Promise.all(uploadPromises);
-            } catch (error) {
-                console.error('One or more uploads failed during bulk upload.', error);
-                alert('일부 파일 업로드에 실패했습니다. 확인해주세요.');
+
+            } else if (currentUploadingTag) {
+                await uploadImage(files[0], currentUploadingTag);
             }
-        } else if (currentUploadingTag) {
-            await uploadImage(files[0], currentUploadingTag);
+        } catch (error) {
+            console.error('An error occurred during file upload process:', error);
+            alert('파일 업로드 중 오류가 발생했습니다. 다시 시도해주세요.');
+        } finally {
+            cleanupAfterSelection();
         }
-        cleanupAfterSelection();
     }, [isUploadingAll, currentUploadingTag, extractedImages, localUrls, uploadImage, cleanupAfterSelection]);
     
     const handleUploadSingleClick = useCallback((imageTag: string) => {
         setIsUploadingAll(false);
-        setCurrentUploadingTag(imageTag);
+        setCurrentUploadingTag(imageTag); // 어떤 태그에 대한 업로드인지 먼저 설정
         fileInputRef.current?.click();
     }, []);
 
@@ -797,13 +894,14 @@ export function useImageUploadManager(markdownInput: string) {
     }, []);
 
     const handleDragOver = useCallback((e: React.DragEvent<HTMLElement>, tag: string) => {
-        e.preventDefault();
+        e.preventDefault(); // 드롭을 허용하기 위해 필수
         if (tag !== draggingTag) {
             setDragOverTag(tag);
         }
     }, [draggingTag]);
     
     const handleDragLeave = useCallback(() => setDragOverTag(null), []);
+
     const handleDragEnd = useCallback(() => {
         setDraggingTag(null);
         setDragOverTag(null);
@@ -814,7 +912,7 @@ export function useImageUploadManager(markdownInput: string) {
         const errors: Record<string, string | null> = {};
 
         extractedImages.forEach(tag => {
-            if (currentUploadingTag === tag && uploadMutation.isPending) {
+            if (currentUploadingTag === tag || (isUploadingAll && !localUrls[tag] && uploadMutation.isPending)) {
                 statuses[tag] = 'loading';
             } else if (localUrls[tag]) {
                 statuses[tag] = 'success';
@@ -827,7 +925,7 @@ export function useImageUploadManager(markdownInput: string) {
         });
 
         return { uploadStatuses: statuses, uploadedUrls: localUrls, uploadErrors: errors };
-    }, [extractedImages, localUrls, currentUploadingTag, uploadMutation.isPending, uploadMutation.isError, uploadMutation.error]);
+    }, [extractedImages, localUrls, currentUploadingTag, isUploadingAll, uploadMutation.isPending, uploadMutation.isError, uploadMutation.error]);
 
     const pendingUploadCount = useMemo(() => extractedImages.filter(tag => !localUrls[tag]).length, [extractedImages, localUrls]);
     const canApply = useMemo(() => extractedImages.length > 0 && extractedImages.every(tag => !!localUrls[tag]), [extractedImages, localUrls]);
@@ -875,7 +973,8 @@ export function useDeleteImageMutation() {
 }
 ----- ./react/features/image-upload/ui/ImageManager.tsx -----
 import React from 'react';
-import './ImageManager.css'; 
+import './ImageManager.css';
+import { LuUndo2 } from 'react-icons/lu'; // '적용 취소' 아이콘 import
 
 type UploadStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -896,6 +995,8 @@ interface ImageManagerProps {
     onDragOver: (e: React.DragEvent<HTMLElement>, tag: string) => void;
     onDragLeave: (e: React.DragEvent<HTMLElement>) => void;
     onDragEnd: (e: React.DragEvent<HTMLElement>) => void;
+    isApplied: boolean;
+    onRevertUrls: () => void;
 }
 
 const ImageManager: React.FC<ImageManagerProps> = ({
@@ -903,38 +1004,53 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     pendingUploadCount, canApply, draggingTag, dragOverTag,
     onUploadSingle, onUploadAll, onApplyUrls,
     onDragStart, onDrop, onDragOver, onDragLeave, onDragEnd,
+    isApplied,
+    onRevertUrls,
 }) => {
 
     if (extractedImages.length === 0) {
         return (
             <div className="image-manager-panel">
-                <h2 className="panel-title">이미지 관리</h2>
+                <div className="panel-title-container">
+                    <h2 className="panel-title">이미지 관리</h2>
+                </div>
                 <div className="panel-content empty-content">
                     <code>***이미지n***</code> 형식의 참조를 찾을 수 없습니다.
                 </div>
             </div>
         );
     }
-    
+
     return (
         <div className="image-manager-panel">
-            <h2 className="panel-title">이미지 관리</h2>
-            <div className="panel-content">
+            <div className="panel-title-container">
+                    <h2 className="panel-title">이미지 관리</h2>
+                </div>
+
+            <div className="button-row">
+                <button onClick={onUploadAll} disabled={pendingUploadCount === 0} className="action-button secondary">
+                    전체 업로드 ({pendingUploadCount})
+                </button>
+                
+                {isApplied ? (
+                    <button onClick={onRevertUrls} className="action-button secondary">
+                        <LuUndo2 size={14} style={{ marginRight: '4px' }}/>
+                        적용 취소
+                    </button>
+                ) : (
+                    <button onClick={onApplyUrls} disabled={!canApply} className={`action-button primary ${!canApply ? 'disabled-style' : ''}`.trim()}>
+                        에디터에 적용
+                    </button>
+                )}
+            </div>
+
+            <div className="table-content-area">
                 <table className="image-table">
                     <thead>
                         <tr>
                             <th>이름</th>
                             <th>미리보기</th>
-                            <th className="actions-header">
-                                <div className="header-buttons">
-                                    <button onClick={onUploadAll} disabled={pendingUploadCount === 0} className="action-button">
-                                        전체 업로드 ({pendingUploadCount})
-                                    </button>
-                                    <button onClick={onApplyUrls} disabled={!canApply} className="action-button">
-                                        에디터에 적용
-                                    </button>
-                                </div>
-                            </th>
+                            <th className="actions-header">액션</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -942,55 +1058,44 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                             const status = uploadStatuses[tag] || 'idle';
                             const url = uploadedUrls[tag];
                             const error = uploadErrors[tag];
-                            const isDraggable = !!url || status === 'loading';
-
-                            const getRowClassName = () => {
-                                let className = 'image-table-row';
-                                if (dragOverTag === tag) className += ' drag-over';
-                                return className;
-                            };
+                            const isDraggable = !!url;
+                            
+                            const rowClassName = `
+                                image-table-row
+                                ${draggingTag === tag ? 'dragging-row' : ''}
+                                ${dragOverTag === tag ? 'drag-over-row' : ''}
+                            `.trim();
 
                             return (
-                                <tr
-                                    key={tag}
-                                    className={getRowClassName()}
+                                <tr 
+                                    key={tag} 
+                                    className={rowClassName}
                                     onDragOver={(e) => onDragOver(e, tag)}
                                     onDragLeave={onDragLeave}
                                     onDrop={(e) => onDrop(e, tag)}
                                     onDragEnd={onDragEnd}
                                 >
-                                    <td className="tag-name">{tag.slice(3, -3)}</td>
+                                    <td className="tag-name">
+                                        {tag.slice(3, -3)}
+                                    </td>
                                     <td
                                         draggable={isDraggable}
                                         onDragStart={(e) => onDragStart(e, tag)}
-                                        className={`preview-cell ${isDraggable ? 'draggable' : ''} ${draggingTag === tag ? 'dragging' : ''}`}
+                                        className={`preview-cell ${isDraggable ? 'draggable' : ''}`}
                                     >
                                         <div className="preview-box">
-                                            {url ? (
-                                                <img src={url} alt={`Preview for ${tag}`} />
-                                            ) : status === 'loading' ? (
-                                                <span>로딩중...</span>
-                                            ) : (
-                                                <span>(대기)</span>
-                                            )}
+                                            {url ? <img src={url} alt={`Preview for ${tag}`} /> : (status === 'loading' ? <span>로딩중...</span> : <span>(대기)</span>)}
                                         </div>
                                     </td>
                                     <td className="actions-cell">
                                         {status !== 'success' ? (
-                                            <button onClick={() => onUploadSingle(tag)} disabled={status === 'loading'} className="action-button">
+                                            <button onClick={() => onUploadSingle(tag)} disabled={status === 'loading'} className="action-button primary">
                                                 {status === 'loading' ? '업로드 중...' : '업로드'}
                                             </button>
                                         ) : (
-                                            <button onClick={() => onUploadSingle(tag)} className="action-button">
+                                            <button onClick={() => onUploadSingle(tag)} className="action-button secondary">
                                                 변경
                                             </button>
-                                        )}
-                                        {url && (
-                                            <div className="url-display">
-                                                <a href={url} target="_blank" rel="noopener noreferrer" title={url}>
-                                                    {url.length > 25 ? `${url.slice(0, 25)}...` : url}
-                                                </a>
-                                            </div>
                                         )}
                                         {error && <div className="error-display" title={error}>{error}</div>}
                                     </td>
@@ -1005,6 +1110,378 @@ const ImageManager: React.FC<ImageManagerProps> = ({
 };
 
 export default ImageManager;
+----- ./react/features/json-problem-importer/model/useJsonProblemImporter.ts -----
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import type { Problem, Column, ComboboxOption } from '../../../entities/problem/model/types';
+import { useUploadProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
+import { produce } from 'immer';
+
+const initialJsonInput = `{
+  "problems": [
+    {
+      "question_number": "서답형 1",
+      "question_text": "다음 함수의 최댓값을 구하시오: $f(x) = -x^2 + 4x - 1$",
+      "answer": "$3$",
+      "solution_text": "[해설] 완전제곱식으로 변환하면 $f(x) = -(x-2)^2 + 3$ 이므로 최댓값은 $3$이다.",
+      "page": 15,
+      "grade": "고1",
+      "semester": "1학기",
+      "source": "개념원리 수학(상)",
+      "major_chapter_id": "이차방정식과 이차함수",
+      "middle_chapter_id": "이차함수의 최대, 최소",
+      "core_concept_id": "이차함수 표준형 변환",
+      "problem_category": "이차함수 최댓값 구하기",
+      "difficulty": "하",
+      "score": "5점"
+    },
+    {
+      "question_number": 5.2,
+      "problem_type": "객관식",
+      "question_text": "두 함수 $f(x)=3x-1$, $g(x) = \\\\sqrt{4x+1}$에 대하여 $(f \\\\circ g^{-1})(5)$의 값은?\\n① $14$ ② $15$ ③ $16$\\n④ $17$ ⑤ $18$",
+      "answer": "④",
+      "solution_text": null,
+      "page": null,
+      "grade": "고3",
+      "semester": "1학기",
+      "source": "2023년 고3 3월 모의고사",
+      "major_chapter_id": "미적분",
+      "middle_chapter_id": "함수",
+      "core_concept_id": "합성함수와 역함수",
+      "problem_category": "합성/역함수 값 계산",
+      "difficulty": "하",
+      "score": "3점"
+    }
+  ]
+}`;
+
+const columns: Column[] = [
+    { key: 'question_number', label: '번호', editType: 'number' },
+    { key: 'problem_type', label: '유형(객/주)', editType: 'combobox' },
+    { key: 'grade', label: '학년', editType: 'text' },
+    { key: 'semester', label: '학기', editType: 'text' },
+    { key: 'source', label: '출처', editType: 'text' },
+    { key: 'major_chapter_id', label: '대단원', editType: 'text' },
+    { key: 'middle_chapter_id', label: '중단원', editType: 'text' },
+    { key: 'core_concept_id', label: '핵심개념', editType: 'text' },
+    { key: 'problem_category', label: '문제 유형', editType: 'text' },
+    { key: 'difficulty', label: '난이도', editType: 'combobox' },
+    { key: 'score', label: '배점', editType: 'text' },
+    { key: 'question_text', label: '문제 본문/보기', editType: 'textarea' },
+    { key: 'answer', label: '정답', editType: 'text' },
+    { key: 'page', label: '페이지', editType: 'number' },
+    { key: 'solution_text', label: '해설', editType: 'textarea' },
+];
+
+
+export function useJsonProblemImporter() {
+    const [jsonInput, setJsonInput] = useState(initialJsonInput);
+    const [problems, setProblems] = useState<Problem[]>([]);
+    const [parseError, setParseError] = useState<Error | null>(null);
+    
+    const [editingCell, setEditingCell] = useState<{ rowIndex: number; colKey: keyof Problem } | null>(null);
+    const [editingValue, setEditingValue] = useState<string | number | null | undefined>('');
+    const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
+
+    const [commonSource, setCommonSource] = useState('');
+    const [commonGradeLevel, setCommonGradeLevel] = useState('');
+    const [commonSemester, setCommonSemester] = useState('');
+
+    const uploadMutation = useUploadProblemsMutation();
+    const isUploading = uploadMutation.isPending;
+
+    const previousJsonInputRef = useRef('');
+
+    useEffect(() => {
+        if (editingCell) return;
+        if (jsonInput === previousJsonInputRef.current) return;
+
+        previousJsonInputRef.current = jsonInput;
+        
+        try {
+            const parsedData = JSON.parse(jsonInput);
+            
+            if (typeof parsedData !== 'object' || parsedData === null) throw new Error("JSON 데이터가 올바른 객체 형식이 아닙니다.");
+            if (!('problems' in parsedData)) throw new Error("JSON 데이터에 'problems' 키가 없습니다.");
+            if (!Array.isArray(parsedData.problems)) throw new Error("'problems' 키의 값은 배열(Array)이어야 합니다.");
+
+            const validationErrors: string[] = [];
+            
+            const transformedProblems = parsedData.problems
+                .map((p: any, index: number): Problem | null => {
+                    const problemIndex = index + 1;
+
+                    if (typeof p !== 'object' || p === null) {
+                        validationErrors.push(`${problemIndex}번째 항목이 올바른 문제 객체(Object)가 아닙니다.`);
+                        return null;
+                    }
+                    if (!('question_number' in p)) {
+                        validationErrors.push(`${problemIndex}번째 문제에 필수 필드인 'question_number'가 없습니다.`);
+                        return null;
+                    }
+                     if (!('question_text' in p)) {
+                        validationErrors.push(`${problemIndex}번째 문제에 필수 필드인 'question_text'가 없습니다.`);
+                        return null;
+                    }
+
+                    const problemNumRaw = p.question_number;
+                    let finalProblemNum: number;
+                    let parsedProblemType: string | null = null;
+
+                    if (typeof problemNumRaw === 'string') {
+                        const numericMatch = problemNumRaw.match(/[\d.]+/);
+                        if (numericMatch) {
+                            finalProblemNum = parseFloat(numericMatch[0]);
+                            const textPart = problemNumRaw.replace(/[\d.]+/, '').trim();
+                            if (textPart) parsedProblemType = textPart;
+                        } else {
+                            validationErrors.push(`${problemIndex}번째 문제의 'question_number' ("${problemNumRaw}")에서 숫자를 찾을 수 없습니다.`);
+                            return null;
+                        }
+                    } else if (typeof problemNumRaw === 'number') {
+                        finalProblemNum = problemNumRaw;
+                    } else {
+                        validationErrors.push(`${problemIndex}번째 문제의 'question_number'가 숫자나 문자열이 아닙니다.`);
+                        return null;
+                    }
+
+                    const finalProblemType = p.problem_type || parsedProblemType || '주관식';
+
+                    const pageNumRaw = p.page;
+                    let pageNum: number | null = null;
+                    if (pageNumRaw !== null && pageNumRaw !== undefined && String(pageNumRaw).trim() !== '') {
+                         const pageNumParsed = parseFloat(pageNumRaw);
+                         if (!isNaN(pageNumParsed)) pageNum = pageNumParsed;
+                    }
+                    
+                    return {
+                        question_number: finalProblemNum,
+                        problem_type: finalProblemType,
+                        question_text: String(p.question_text ?? ''),
+                        answer: p.answer ?? null,
+                        solution_text: p.solution_text ?? null,
+                        page: pageNum,
+                        grade: String(p.grade ?? ''),
+                        semester: String(p.semester ?? ''),
+                        source: String(p.source ?? ''),
+                        major_chapter_id: String(p.major_chapter_id ?? ''),
+                        middle_chapter_id: String(p.middle_chapter_id ?? ''),
+                        core_concept_id: String(p.core_concept_id ?? ''),
+                        problem_category: String(p.problem_category ?? ''),
+                        difficulty: String(p.difficulty ?? '중'),
+                        score: String(p.score ?? ''),
+                    };
+                })
+                .filter((p: Problem | null): p is Problem => p !== null);
+            
+            setProblems(transformedProblems);
+
+            if (validationErrors.length > 0) {
+                setParseError(new Error(validationErrors.join('\n')));
+            } else {
+                setParseError(null);
+            }
+
+        } catch (e) {
+            setProblems([]);
+            setParseError(e instanceof Error ? e : new Error('알 수 없는 파싱 오류'));
+        }
+    }, [jsonInput, editingCell]);
+
+    const formatValue = useCallback((value: Problem[keyof Problem] | null | undefined): string => {
+        if (value === null || value === undefined) return '-';
+        if (Array.isArray(value)) return value.join(', ');
+        return String(value);
+    }, []);
+
+    const startEdit = useCallback((rowIndex: number, colKey: keyof Problem, currentValue: any, anchorEl: HTMLElement, isReadonly?: boolean) => {
+        if (isReadonly) return;
+        if (editingCell?.rowIndex === rowIndex && editingCell?.colKey === colKey) return;
+
+        setEditingCell({ rowIndex, colKey });
+        setPopoverAnchor(anchorEl);
+        setEditingValue(currentValue ?? '');
+    }, [editingCell]);
+
+    const cancelEdit = useCallback(() => {
+        setEditingCell(null);
+        setPopoverAnchor(null);
+        setEditingValue('');
+    }, []);
+
+    const saveEdit = useCallback((valueToSave?: any) => {
+        if (!editingCell) return;
+        const { rowIndex, colKey } = editingCell;
+        
+        const finalValue = valueToSave !== undefined ? valueToSave : editingValue;
+
+        const nextProblems = produce(problems, draft => {
+            const targetProblem = draft[rowIndex];
+            if (!targetProblem) return;
+
+            if (colKey === 'question_number' || colKey === 'page') {
+                const numValue = parseFloat(String(finalValue));
+                (targetProblem as any)[colKey] = isNaN(numValue) ? (finalValue === '' || finalValue === null ? null : (targetProblem as any)[colKey]) : numValue;
+            } else {
+                (targetProblem as any)[colKey] = finalValue;
+            }
+        });
+        
+        setProblems(nextProblems);
+        setJsonInput(JSON.stringify({ problems: nextProblems }, null, 2));
+        
+        cancelEdit();
+    }, [editingCell, editingValue, problems, cancelEdit]);
+
+    const handleInputKeyDown = useCallback((event: React.KeyboardEvent) => {
+        if (event.key === 'Enter' && !(event.target instanceof HTMLTextAreaElement && event.shiftKey)) {
+            event.preventDefault();
+            saveEdit();
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            cancelEdit();
+        }
+    }, [saveEdit, cancelEdit]);
+
+    const applyCommonData = useCallback(() => {
+        if (problems.length === 0) return;
+        
+        const nextProblems = produce(problems, draft => {
+            draft.forEach(problem => {
+                if (commonSource.trim()) problem.source = commonSource;
+                if (commonGradeLevel.trim()) problem.grade = commonGradeLevel;
+                if (commonSemester.trim()) problem.semester = commonSemester;
+            });
+        });
+
+        setProblems(nextProblems);
+        setJsonInput(JSON.stringify({ problems: nextProblems }, null, 2));
+        alert('공통 정보가 적용되었습니다.');
+    }, [problems, commonSource, commonGradeLevel, commonSemester]);
+
+    const uploadProblems = useCallback(() => {
+        if (problems.length === 0 || parseError) {
+            alert('업로드할 문제가 없거나 데이터에 오류가 있습니다. 오류 메시지를 확인해주세요.');
+            return;
+        }
+        uploadMutation.mutate(problems);
+    }, [problems, parseError, uploadMutation]);
+    
+    const problemTypeOptions: ComboboxOption[] = [
+        { value: '객관식', label: '객관식' },
+        { value: '주관식', label: '주관식' },
+        { value: '서답형', label: '서답형' },
+        { value: '논술형', label: '논술형' }
+    ];
+    const difficultyOptions: ComboboxOption[] = [
+        { value: '최상', label: '최상' },
+        { value: '상', label: '상' },
+        { value: '중', label: '중' },
+        { value: '하', label: '하' },
+        { value: '최하', label: '최하' }
+    ];
+    const answerOptions: ComboboxOption[] = [
+        { value: '①', label: '①' }, { value: '②', label: '②' }, { value: '③', label: '③' },
+        { value: '④', label: '④' }, { value: '⑤', label: '⑤' }, { value: '⑥', label: '⑥' }
+    ];
+
+
+    return {
+        jsonInput, setJsonInput,
+        problems,
+        parseError,
+        editingCell, startEdit, cancelEdit, saveEdit,
+        editingValue, setEditingValue,
+        popoverAnchor,
+        handleInputKeyDown,
+        commonSource, setCommonSource,
+        commonGradeLevel, setCommonGradeLevel,
+        commonSemester, setCommonSemester,
+        applyCommonData,
+        uploadProblems, isUploading,
+        columns, formatValue,
+        problemTypeOptions, difficultyOptions, answerOptions,
+    };
+}
+----- ./react/features/json-problem-importer/ui/EditPopoverContent.tsx -----
+import React from 'react';
+import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
+import type { ComboboxOption } from '../../../entities/problem/model/types';
+import { LuCheck, LuUndo2 } from 'react-icons/lu';
+
+interface PopoverContentProps {
+    label: string;
+    onSave: () => void;
+    onCancel: () => void;
+}
+interface PopoverInputProps extends PopoverContentProps, React.InputHTMLAttributes<HTMLInputElement> {}
+interface PopoverTextareaProps extends PopoverContentProps, React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+
+interface PopoverComboboxProps {
+    label: string;
+    value: string;
+    onValueChange: (value: string) => void;
+    options: ComboboxOption[];
+}
+
+export const PopoverInput: React.FC<PopoverInputProps> = ({ label, onSave, onCancel, ...inputProps }) => (
+    <div className="edit-popover-content">
+        <label htmlFor={`edit-${label}`}>{label} 수정</label>
+        <input id={`edit-${label}`} {...inputProps} className="popover-input" autoFocus />
+        <div className="edit-popover-actions">
+            <ActionButton onClick={onCancel} aria-label="취소">
+                <LuUndo2 size={14} style={{ marginRight: '4px' }} />
+                취소
+            </ActionButton>
+            <ActionButton onClick={onSave} className="primary" aria-label="저장">
+                <LuCheck size={14} style={{ marginRight: '4px' }} />
+                저장
+            </ActionButton>
+        </div>
+    </div>
+);
+
+
+export const PopoverTextarea: React.FC<PopoverTextareaProps> = ({ label, onSave, onCancel, ...textareaProps }) => (
+    <div className="edit-popover-content">
+        <label htmlFor={`edit-${label}`}>{label} 수정</label>
+        
+        {/* [핵심] textarea와 버튼을 함께 담는 새로운 컨테이너 */}
+        <div className="textarea-container">
+            <textarea id={`edit-${label}`} {...textareaProps} className="popover-textarea" autoFocus />
+            
+            {/* [핵심] 버튼 그룹을 textarea와 같은 컨테이너 안으로 이동 */}
+            <div className="edit-popover-actions on-textarea">
+                <ActionButton onClick={onCancel} aria-label="취소">
+                    <LuUndo2 size={14} style={{ marginRight: '4px' }} />
+                    취소
+                </ActionButton>
+                <ActionButton onClick={onSave} className="primary" aria-label="저장">
+                    <LuCheck size={14} style={{ marginRight: '4px' }} />
+                    저장
+                </ActionButton>
+            </div>
+        </div>
+    </div>
+);
+
+export const PopoverCombobox: React.FC<PopoverComboboxProps> = ({ label, value, onValueChange, options }) => {
+    return (
+        <div className="edit-popover-content combobox-content">
+            <div className="combobox-label">{label}</div>
+            {options.map(option => (
+                <button
+                    key={option.value}
+                    onClick={() => onValueChange(option.value)}
+                    className="combobox-option"
+                    aria-selected={value === option.value}
+                >
+                    {value === option.value && <LuCheck size={16} className="check-icon" />}
+                    <span className="option-label">{option.label}</span>
+                </button>
+            ))}
+        </div>
+    );
+};
 ----- ./react/features/kakaologin/ui/SignInPanel.tsx -----
 import React from 'react';
 import { useAuthStore } from '../../../shared/store/authStore'; // authStore import
@@ -1187,6 +1664,518 @@ const ProfileMenuContent: React.FC<ProfileMenuContentProps> = ({ onClose }) => {
 };
 
 export default ProfileMenuContent;
+----- ./react/features/prompt-collection/model/usePromptManager.ts -----
+import { useState, useEffect, useCallback } from 'react';
+import { produce } from 'immer';
+
+export interface Prompt {
+    id: string;
+    title: string;
+    content: string;
+}
+
+const defaultPrompts: Prompt[] = [
+    {
+        id: 'default-1',
+        title: '문제 작업',
+        content: `**당신은 수학 시험지 스캔본(이미지 또는 PDF)을 보고 내용을 정확하게 타이핑하는 전문가입니다.**
+
+**지시사항:**
+
+1.  **입력:** 처리할 수학 문제의 스캔 이미지 또는 PDF 페이지를 받습니다.
+2.  **작업:**
+    *   문제 번호(**사이에 번호작성), 문제 본문, 보기(객관식), 배점 등 문제와 직접 관련된 텍스트만 'code block'에
+ 타이핑합니다. (정답, 해설은 이 단계에서 제외)
+    *   **수학 기호, 숫자, 변수는 즉시 LaTeX 문법으로 변환하여 '$' 기호 사이에 작성합니다. 분수는 윗첨자나 아랫 첨자가 아닌 경우에는 /dfrac으로 표현합니다.** (예: 3x + 5 -> '$3x+5$', 분수 1/2 -> '$\\dfrac{1}{2}$')
+    *   LaTeX 변환 규칙:
+        *   모든 수학적 표현 (숫자, 변수, 기호)은 '$...$' 안에 넣습니다.
+        *   분수는 기본적으로 '\\dfrac' 사용 (예: '$\\dfrac{a+b}{c}$'). 지수/첨자 등 작은 분수는 '\\frac' 사용 (예: '$e^{\\frac{1}{2}}$').
+        *   모든 수식은 displaystyle로 작성합니다. 기호 앞에 '\\displaystyle'를 붙이거나 \\dfrac사용. (예: '$\\displaystyle\\lim_{n \\to \\infty}$', '$\\displaystyle\\int_{a}^{b}$')
+        *   작은 네모 박스 안 텍스트는 '\$\fbox{텍스트}$' 형식으로 작성합니다. (예: '\$\fbox{가}$')
+    *   **이미지가 들어가야 할 위치에는 '***이미지N***' (N은 숫자) 형식으로 표시합니다.**
+    *   개념 설명 등 문제 자체가 아닌 부분은 타이핑하지 않습니다.
+3.  **출력:** LaTeX 가 적용된 문제 텍스트 문자열을 반환합니다. (JSON 형식이 아님)
+
+**예시 작업:**
+
+*   **입력 (스캔 이미지 내용):**
+    > 1 \\ lim (3n²+4)/(n²+3n+5) 의 값은? [3.5점]
+    > ① 1 ② 2 ③ 3 ④ 4 ⑤ 5
+
+*   **출력 (타이핑 결과):**
+    > **2** $\\displaystyle\\lim_{n \\to \\infty} \\dfrac{3n^2+4}{n^2+3n+5}$의 값은?***이미지1*** [$3.5$점]
+① $1$ ② $2$ ③ $3$ ④ $4$ ⑤ $5$`
+    },
+    {
+        id: 'default-2',
+        title: '해설 작업',
+        content: `**당신은 수학 문제 풀이 전문가입니다.**
+
+**지시사항:**
+
+1.  **입력:** 1단계에서 LaTeX로 변환된 문제 텍스트 문자열을 받습니다. 2.  **작업:**
+    *   입력된 문제의 **정답**을 찾거나 생성합니다.
+        *   객관식: 보기 번호 (예: '③') 또는 기호.
+        *   주관식: 숫자, 식, 단어 등 문제에서 요구하는 형태의 답.
+    *   문제에 대한 **상세하고 단계적인 해설**을 작성합니다.
+        *   해설 내의 모든 수학 기호, 숫자, 변수는 입력값과 동일한 LaTeX 규칙('$', '\dfrac', '\displaystyle' 등)을 사용하여 작성합니다.
+        *   **수학 기호, 숫자, 변수는 즉시 LaTeX 문법으로 변환하여 '$' 기호 사이에 작성합니다. 분수는 윗첨자나 아랫 첨자가 아닌 경우에는 /dfrac으로 표현합니다.** (예: 3x + 5 -> '$3x+5$', 분수 1/2 -> '$\\dfrac{1}{2}$')
+    *   LaTeX 변환 규칙:
+        *   모든 수학적 표현 (숫자, 변수, 기호)은 '$...$' 안에 넣습니다.
+        *   분수는 기본적으로 '\\dfrac' 사용 (예: '$\\dfrac{a+b}{c}$'). 지수/첨자 등 작은 분수는 '\\frac' 사용 (예: '$e^{\\frac{1}{2}}$').
+        *   모든 수식은 displaystyle로 작성합니다. 기호 앞에 '\\displaystyle'를 붙이거나 \\dfrac사용. (예: '$\\displaystyle\\lim_{n \\to \\infty}$', '$\\displaystyle\\int_{a}^{b}$')
+        *   작은 네모 박스 안 텍스트는 '\$\fbox{텍스트}$' 형식으로 작성합니다. (예: '\$\fbox{가}$')
+    *   만약 정답이나 해설 생성이 불가능하거나 원본에 없다면, '정답 없음' 또는 '해설 생성 불가' 와 같이 명확히 표시하거나 'null'에 해당하는 값을 준비합니다.
+    * 코드블럭에 결과물을 작성합니다.
+
+**예시 작업:**
+
+*   **입력 :**
+    > '{
+  "problems": [
+    {
+      "question_number": 1,
+      "problem_type": "객관식",
+      "question_text": "수열 \\{a_n\\}이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? [$3.8$점]\\n① $16$ \\t② $32$ \\t③ $64$ \\t④ $128$ \\t⑤ $256$",
+      "answer": null,
+      "solution_text": null,
+      "page": null,
+      "grade": null,
+      "semester": null,
+      "source": null,
+      "major_chapter_id": "수열",
+      "middle_chapter_id": "등비수열",
+      "core_concept_id": "등비수열의 일반항",
+      "problem_category": "등비수열의 특정 항 구하기",
+      "difficulty": null,
+      "score": "3.8점"
+    }]
+   
+
+*   **출력:**
+    \`{
+  "problems": [
+    {
+      "question_number": 1,
+      "problem_type": "객관식",
+      "question_text": "수열 \\{a_n\\}이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? [$3.8$점]\\n① $16$ \\t② $32$ \\t③ $64$ \\t④ $128$ \\t⑤ $256$",
+      "answer": "⑤",
+      "solution_text": "수열 \\{a_n\\}은 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시키므로, 이 수열은 공비가 $2$인 등비수열입니다.\\n주어진 조건은 $a_2 = 4$이고, 구하고자 하는 값은 $a_8$입니다.\\n등비수열의 일반항 관계에 따라 $a_m = a_n \\cdot r^{m-n}$이 성립합니다.\\n따라서 $a_8 = a_2 \\cdot 2^{8-2}$ 입니다.\\n$a_8 = 4 \\cdot 2^6 = 4 \\cdot 64 = 256$ 입니다.\\n\\n(다른 풀이)\\n첫째항 $a_1$을 먼저 구할 수도 있습니다.\\n$a_2 = a_1 \\cdot 2^1 = 4$ 이므로, $a_1 = 2$ 입니다.\\n등비수열의 일반항 $a_n = a_1 \\cdot r^{n-1}$을 이용하여 $a_8$을 구하면,\\n$a_8 = 2 \\cdot 2^{8-1} = 2 \\cdot 2^7 = 2 \\cdot 128 = 256$ 입니다.\\n\\n따라서 정답은 ⑤입니다.",
+      "page": null,
+      "grade": "고등학교 2학년",
+      "semester": "1학기",
+      "source": "자체 제작",
+      "major_chapter_id": "수열",
+      "middle_chapter_id": "등비수열",
+      "core_concept_id": "등비수열의 일반항",
+      "problem_category": "등비수열의 특정 항 구하기",
+      "difficulty": "하",
+      "score": "3.8점"
+    }
+   ]
+}\`
+    `
+    },
+    {
+        id: 'default-3',
+        title: '문제 개별화 작업',
+        content: `**당신은 텍스트 데이터를 분석하여 아래 제공된 JSON 스키마 구조에 맞게 정리하는 데이터 구조화 전문가입니다.**
+
+**지시사항:**
+
+1.  **입력:**
+    *   'problem_text_latex': 1단계에서 생성된 LaTeX 형식의 문제 텍스트.
+    *   'answer_string': 2단계에서 생성된 정답 문자열 (또는 null).
+    *   'solution_string_latex': 2단계에서 생성된 LaTeX 형식의 해설 문자열 (또는 null).
+    *   (선택) 'page', 'grade', 'source' 등 파악 가능한 추가 정보.
+    *   **참조:** 아래 'edit code'로 제공되는 JSON 스키마.
+
+2.  **작업:**
+    *   **[중요] \`question_number\` 및 \`problem_type\` 처리:**
+        *   원본 문제 번호가 "서답형 1"과 같이 텍스트와 숫자가 섞여 있으면, **JSON의 \`question_number\`에는 숫자 \`1\`만, \`problem_type\`에는 "서답형"을 입력**합니다.
+        *   원본 문제 번호가 그냥 숫자 "5.1"이면, \`question_number\`에 \`5.1\`을 입력하고, 문제에 선택지가 있으면 \`problem_type\`을 "객관식", 없으면 "주관식"으로 설정합니다.
+    *   **[중요] \`question_text\` 필드 처리:**
+        *   **\`question_text\` 필드에는 문제의 질문 본문과 객관식 선택지를 모두 포함**시켜야 합니다.
+    *   **[중요] Null 값 처리:**
+        *   만약 정답이나 해설이 없다면, \`answer\`와 \`solution_text\` 필드 값은 반드시 **null**로 설정해주세요. (빈 문자열 ""이 아님)
+    *   **메타데이터 추론:** \`major_chapter_id\`, \`middle_chapter_id\`, \`core_concept_id\`, \`problem_category\` 필드는 문제 내용과 해설을 분석하여 가장 관련성 높은 **단일 문자열 값**을 추론하여 채웁니다. (예: "미적분", "이차함수")
+
+3.  **출력:** 아래 'edit code'의 JSON 스키마 **구조**를 준수하는 JSON 객체 문자열.
+
+**예시 (스키마 반영):**
+\`\`\`json
+{
+  "problems": [
+    {
+      "question_number": 1,
+      "problem_type": "객관식",
+      "question_text": "수열 \\\\{a_n\\\\}이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? [$3.8$점]\\\\n① $16$ \\\\t② $32$ \\\\t③ $64$ \\\\t④ $128$ \\\\t⑤ $256$",
+      "answer": null,
+      "solution_text": null,
+      "page": null,
+      "grade": null,
+      "semester": null,
+      "source": null,
+      "major_chapter_id": "수열",
+      "middle_chapter_id": "등비수열",
+      "core_concept_id": "등비수열의 일반항",
+      "problem_category": "등비수열의 특정 항 구하기",
+      "difficulty": null,
+      "score": "3.8점"
+    },
+    {
+      "question_number": 8,
+      "problem_type": "객관식",
+      "question_text": "다음은 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 부등식 $2^n > n^2 \\\\cdots (\\\\star)$이 성립함을 수학적 귀납법으로 증명한 것이다.\\\\n\\\\begin{tabular}{|l|}\\\\hline\\\\n(i) $n=$ $\\\\fbox{  A  }$ 이면 (좌변)= $\\\\fbox{ B }$  >  $\\\\fbox{ C }$ $=$(우변)이므로 $(\\\\star)$이 성립한다.<br><br>\\\\n (ii) $n=k(k \\\\ge 5)$일 때 $(\\\\star)$는 성립한다고 가정하면 $2^k > k^2$이다.\\\\n 양변에 $\\\\fbox{ D }$ 를 곱하면 $2^{k+1} >  \\\\fbox{ D } k^2$이다.\\\\n<br>이때, $f(k) =  \\\\fbox{ D } k^2 - (k+1)^2$이라 하면 $f(k)$의 최솟값은 $\\\\fbox{ E }$ 이므로 $f(k) > 0$이다.\\\\n즉, $2^{k+1} > (k+1)^2$이다.\\\\n따라서 $n=k+1$일 때도 $(\\\\star)$는 성립한다.<br><br>\\\\n (i), (ii)에 의하여 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 $(\\\\star)$은 성립한다.\\\\\\\\n \\\\hline\\\\n\\\\end{tabular}\\\\n\\\\n위의 $A, B, C, D, E$ 에 알맞은 수를 각각 $a, b, c, d, e$라 할 때, $a+b+c+d+e$의 값은? [$4.6$점]\\\\n<br>\\\\n① $64$ \\\\t② $71$ \\\\t③ $78$ \\\\t④ $82$ \\\\t⑤ $86$",
+      "answer": null,
+      "solution_text": null,
+      "page": null,
+      "grade": null,
+      "semester": null,
+      "source": null,
+      "major_chapter_id": "수학적 귀납법",
+      "middle_chapter_id": "부등식의 증명",
+      "core_concept_id": "수학적 귀납법을 이용한 부등식 증명",
+      "problem_category": "수학적 귀납법 빈칸 채우기",
+      "difficulty": null,
+      "score": "4.6점"
+    }
+  ]
+}
+\`\`\`
+    
+  ##실제 작업할 문제는 아래에\`
+    `
+    }
+];
+
+const STORAGE_KEY = 'promptCollection';
+
+export function usePromptManager() {
+    const [prompts, setPrompts] = useState<Prompt[]>([]);
+    const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState('');
+    const [editingContent, setEditingContent] = useState('');
+    const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
+
+    useEffect(() => {
+        let initialPrompts: Prompt[] = [];
+        try {
+            const storedData = localStorage.getItem(STORAGE_KEY);
+            if (storedData) {
+                initialPrompts = JSON.parse(storedData);
+                defaultPrompts.forEach(defaultPrompt => {
+                    if (!initialPrompts.some((p: Prompt) => p.id === defaultPrompt.id)) {
+                        initialPrompts.unshift(defaultPrompt);
+                    }
+                });
+            } else {
+                initialPrompts = [...defaultPrompts];
+            }
+        } catch (error) {
+            console.error("Failed to load prompts from localStorage", error);
+            initialPrompts = [...defaultPrompts];
+        }
+        
+        setPrompts(initialPrompts);
+        setExpandedPromptId(null);
+    }, []);
+
+    useEffect(() => {
+        if (prompts.length > 0) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(prompts));
+            } catch (error) {
+                console.error("Failed to save prompts to localStorage", error);
+            }
+        } else {
+             localStorage.removeItem(STORAGE_KEY);
+        }
+    }, [prompts]);
+
+    const addPrompt = useCallback(() => {
+        const newPrompt: Prompt = {
+            id: `prompt-${Date.now()}`,
+            title: '새 프롬프트',
+            content: '여기에 프롬프트 내용을 작성하세요.'
+        };
+        const nextPrompts = produce(prompts, draft => {
+            draft.push(newPrompt);
+        });
+        setPrompts(nextPrompts);
+        setEditingPromptId(newPrompt.id);
+        setEditingTitle(newPrompt.title);
+        setEditingContent(newPrompt.content);
+        setExpandedPromptId(newPrompt.id);
+    }, [prompts]);
+
+    const deletePrompt = useCallback((idToDelete: string) => {
+        if (idToDelete.startsWith('default-')) {
+            alert('기본 프롬프트는 삭제할 수 없습니다.');
+            return;
+        }
+        if (window.confirm("정말로 이 프롬프트를 삭제하시겠습니까?")) {
+            setPrompts(prev => prev.filter(p => p.id !== idToDelete));
+        }
+    }, []);
+    
+    const resetDefaultPrompt = useCallback((idToReset: string) => {
+        const originalPrompt = defaultPrompts.find(p => p.id === idToReset);
+        if (!originalPrompt || !window.confirm('이 프롬프트를 기본값으로 되돌리시겠습니까? 변경사항은 사라집니다.')) {
+            return;
+        }
+        
+        const nextPrompts = produce(prompts, draft => {
+            const promptToReset = draft.find(p => p.id === idToReset);
+            if (promptToReset) {
+                promptToReset.title = originalPrompt.title;
+                promptToReset.content = originalPrompt.content;
+            }
+        });
+        setPrompts(nextPrompts);
+    }, [prompts]);
+    
+    const startEditing = useCallback((prompt: Prompt) => {
+        setEditingPromptId(prompt.id);
+        setEditingTitle(prompt.title);
+        setEditingContent(prompt.content);
+        setExpandedPromptId(prompt.id);
+    }, []);
+
+    const cancelEditing = useCallback(() => {
+        setEditingPromptId(null);
+        setEditingTitle('');
+        setEditingContent('');
+    }, []);
+
+    const saveEditing = useCallback(() => {
+        if (!editingPromptId) return;
+        
+        const nextPrompts = produce(prompts, draft => {
+            const promptToUpdate = draft.find(p => p.id === editingPromptId);
+            if (promptToUpdate) {
+                promptToUpdate.title = editingTitle.trim() || '제목 없음';
+                promptToUpdate.content = editingContent;
+            }
+        });
+        setPrompts(nextPrompts);
+        cancelEditing();
+    }, [editingPromptId, editingTitle, editingContent, prompts, cancelEditing]);
+
+    const toggleExpand = useCallback((id: string) => {
+        if (editingPromptId && editingPromptId !== id) return;
+        setExpandedPromptId(prevId => (prevId === id ? null : id));
+    }, [editingPromptId]);
+
+    return {
+        prompts,
+        editingPromptId,
+        editingTitle,
+        setEditingTitle,
+        editingContent,
+        setEditingContent,
+        expandedPromptId,
+        toggleExpand,
+        addPrompt,
+        deletePrompt,
+        resetDefaultPrompt,
+        startEditing,
+        cancelEditing,
+        saveEditing,
+    };
+}
+----- ./react/features/prompt-collection/ui/PromptCollection.tsx -----
+import React from 'react';
+import { LuCirclePlus } from 'react-icons/lu';
+import { usePromptManager } from '../model/usePromptManager';
+import PromptMemo from './PromptMemo';
+import './PromptCollection.css';
+
+const PromptCollection: React.FC = () => {
+    const {
+        prompts,
+        editingPromptId,
+        editingTitle,
+        setEditingTitle,
+        editingContent,
+        setEditingContent,
+        expandedPromptId, // [추가]
+        toggleExpand, // [추가]
+        addPrompt,
+        deletePrompt,
+        resetDefaultPrompt,
+        startEditing,
+        cancelEditing,
+        saveEditing
+    } = usePromptManager();
+
+    return (
+        <div className="prompt-collection-container">
+            <div className="prompt-collection-header">
+                <h4 className="prompt-collection-title">프롬프트 모음</h4>
+            </div>
+            <div className="add-prompt-section">
+                <button onClick={addPrompt} className="add-prompt-button">
+                    <LuCirclePlus size={16} />
+                    <span>새 프롬프트 추가</span>
+                </button>
+            </div>
+
+            <div className="prompt-list">
+                {prompts.map(prompt => (
+                    <PromptMemo
+                        key={prompt.id}
+                        prompt={prompt}
+                        isEditing={editingPromptId === prompt.id}
+                        isExpanded={expandedPromptId === prompt.id} // [추가]
+                        editingTitle={editingTitle}
+                        onSetEditingTitle={setEditingTitle}
+                        editingContent={editingContent}
+                        onSetEditingContent={setEditingContent}
+                        onStartEditing={startEditing}
+                        onSave={saveEditing}
+                        onCancel={cancelEditing}
+                        onDelete={deletePrompt}
+                        onReset={resetDefaultPrompt}
+                        onToggleExpand={toggleExpand} // [추가]
+                    />
+                ))}
+                {prompts.length === 0 && (
+                    <div className="empty-prompt-list">
+                        <p>저장된 프롬프트가 없습니다.</p>
+                        <p>'새 프롬프트 추가' 버튼을 눌러 시작하세요.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default PromptCollection;
+----- ./react/features/prompt-collection/ui/PromptMemo.tsx -----
+import React, { useState } from 'react';
+import { LuCopy, LuCopyCheck, LuPencil, LuTrash2, LuSave, LuCircleX, LuRotateCcw, LuChevronDown } from 'react-icons/lu';
+import Tippy from '@tippyjs/react';
+import type { Prompt } from '../model/usePromptManager';
+import './PromptCollection.css';
+
+interface PromptMemoProps {
+    prompt: Prompt;
+    isEditing: boolean;
+    isExpanded: boolean;
+    editingTitle: string;
+    onSetEditingTitle: (title: string) => void;
+    editingContent: string;
+    onSetEditingContent: (content: string) => void;
+    onStartEditing: (prompt: Prompt) => void;
+    onSave: () => void;
+    onCancel: () => void;
+    onDelete: (id: string) => void;
+    onReset: (id: string) => void;
+    onToggleExpand: (id: string) => void;
+}
+
+const PromptMemo: React.FC<PromptMemoProps> = ({
+    prompt, isEditing, isExpanded, editingTitle, onSetEditingTitle, editingContent, onSetEditingContent,
+    onStartEditing, onSave, onCancel, onDelete, onReset, onToggleExpand
+}) => {
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleCopy = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(prompt.content).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+            alert('클립보드 복사에 실패했습니다.');
+        });
+    };
+
+    const handleEditClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onStartEditing(prompt);
+    };
+
+    const handleDeleteClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onDelete(prompt.id);
+    };
+
+    const handleResetClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onReset(prompt.id);
+    };
+    
+    const editModeHeader = (
+        <div className="prompt-memo-header non-clickable">
+            <input 
+                type="text" 
+                value={editingTitle} 
+                onChange={(e) => onSetEditingTitle(e.target.value)} 
+                className="title-input"
+                placeholder="프롬프트 제목"
+            />
+            <div className="button-group">
+                <Tippy content="저장" theme="custom-glass"><button onClick={onSave} className="prompt-action-button save"><LuSave size={16} /></button></Tippy>
+                <Tippy content="취소" theme="custom-glass"><button onClick={onCancel} className="prompt-action-button cancel"><LuCircleX size={16} /></button></Tippy>
+            </div>
+        </div>
+    );
+    
+    const viewModeHeader = (
+        <div className="prompt-memo-header" onClick={() => onToggleExpand(prompt.id)}>
+            <div className="header-top-row">
+                <button className="expand-toggle-button" aria-expanded={isExpanded}>
+                    <LuChevronDown size={18} className="chevron-icon" />
+                </button>
+                <h5 className="prompt-memo-title">{prompt.title}</h5>
+            </div>
+            <div className="header-bottom-row">
+                <div className="button-group">
+                    <Tippy content={isCopied ? "복사 완료!" : "프롬프트 복사"} theme="custom-glass"><button onClick={handleCopy} className="prompt-action-button copy">{isCopied ? <LuCopyCheck size={16} /> : <LuCopy size={16} />}</button></Tippy>
+                    <Tippy content="수정" theme="custom-glass"><button onClick={handleEditClick} className="prompt-action-button edit"><LuPencil size={16} /></button></Tippy>
+                    
+                    {/* [수정] ID가 'default-'로 시작하는 모든 프롬프트에 초기화 버튼 표시 */}
+                    {prompt.id.startsWith('default-') && (
+                         <Tippy content="기본값으로 초기화" theme="custom-glass"><button onClick={handleResetClick} className="prompt-action-button reset"><LuRotateCcw size={16} /></button></Tippy>
+                    )}
+                    
+                    {/* [수정] ID가 'default-'로 시작하는 모든 프롬프트의 삭제 버튼 비활성화 */}
+                    <Tippy content="삭제" theme="custom-glass"><button onClick={handleDeleteClick} disabled={prompt.id.startsWith('default-')} className="prompt-action-button delete"><LuTrash2 size={16} /></button></Tippy>
+                </div>
+            </div>
+        </div>
+    );
+
+
+    if (isEditing) {
+        return (
+            <div className="prompt-memo-card editing expanded"> 
+                {editModeHeader}
+                <div className="prompt-memo-content">
+                    <textarea 
+                        value={editingContent} 
+                        onChange={(e) => onSetEditingContent(e.target.value)} 
+                        className="content-textarea"
+                        placeholder="프롬프트 내용"
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className={`prompt-memo-card ${isExpanded ? 'expanded' : ''}`}>
+            {viewModeHeader}
+            <div className="prompt-memo-content">
+                <pre>{prompt.content}</pre>
+            </div>
+        </div>
+    );
+};
+
+export default PromptMemo;
 ----- ./react/features/row-selection/model/useRowSelection.ts -----
 import { useState, useCallback, useMemo } from 'react';
 
@@ -2040,7 +3029,7 @@ const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] =
 };
 
 const DashBoard: React.FC = () => {
-    const { setRightSidebarContent, setSidebarTriggers } = useLayoutStore.getState();
+    const { setRightSidebarContent, registerPageActions } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
@@ -2154,12 +3143,20 @@ const DashBoard: React.FC = () => {
     }, [activeSidebarView, studentToEdit, handleCloseSidebar, setRightSidebarExpanded, setRightSidebarContent, prevActiveSidebarView]);
 
     useEffect(() => {
-        setSidebarTriggers({
-            onRegisterClick: handleOpenRegisterSidebar,
-            onSettingsClick: handleOpenSettingsSidebar,
+        registerPageActions({
+            openRegisterSidebar: handleOpenRegisterSidebar,
+            openSettingsSidebar: handleOpenSettingsSidebar,
             onClose: handleCloseSidebar,
         });
-    }, [handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar, setSidebarTriggers]);
+
+        return () => {
+            registerPageActions({
+                openRegisterSidebar: undefined,
+                openSettingsSidebar: undefined,
+                onClose: undefined,
+            });
+        };
+    }, [registerPageActions, handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
     
     useEffect(() => {
         useLayoutStore.getState().setStudentSearchProps({
@@ -2372,6 +3369,62 @@ const HomePage: React.FC = () => {
 };
 
 export default HomePage;
+----- ./react/pages/JsonRendererPage.tsx -----
+import React, { useCallback, useEffect } from 'react';
+import JsonProblemImporterWidget from '../widgets/json-problem-importer/JsonProblemImporterWidget';
+import './JsonRendererPage.css';
+import { useLayoutStore } from '../shared/store/layoutStore';
+import { useUIStore } from '../shared/store/uiStore';
+import PromptCollection from '../features/prompt-collection/ui/PromptCollection';
+
+const JsonRendererPage: React.FC = () => {
+    const { registerPageActions, setRightSidebarContent } = useLayoutStore.getState();
+    const { setRightSidebarExpanded } = useUIStore();
+
+    const handleOpenPromptSidebar = useCallback(() => {
+        setRightSidebarContent(<PromptCollection />);
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
+
+    const handleOpenSettingsSidebar = useCallback(() => {
+        setRightSidebarContent(
+            <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
+                <h4>JSON 렌더러 설정</h4>
+                <p>이곳에 JSON 렌더러 관련 설정 UI가 표시될 예정입니다.</p>
+            </div>
+        );
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
+
+    const handleCloseSidebar = useCallback(() => {
+        setRightSidebarExpanded(false);
+        setTimeout(() => setRightSidebarContent(null), 300);
+    }, [setRightSidebarExpanded, setRightSidebarContent]);
+
+    useEffect(() => {
+        registerPageActions({
+            openPromptSidebar: handleOpenPromptSidebar,
+            openSettingsSidebar: handleOpenSettingsSidebar,
+            onClose: handleCloseSidebar,
+        });
+
+        return () => {
+            registerPageActions({
+                openPromptSidebar: undefined,
+                openSettingsSidebar: undefined,
+                onClose: undefined,
+            });
+        };
+    }, [registerPageActions, handleOpenPromptSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
+
+    return (
+        <div className="json-renderer-page">
+            <JsonProblemImporterWidget />
+        </div>
+    );
+};
+
+export default JsonRendererPage;
 ----- ./react/pages/LoginPage.tsx -----
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router';
@@ -2588,15 +3641,25 @@ const LoginPageWithErrorDisplay: React.FC = () => {
 
 export default LoginPageWithErrorDisplay;
 ----- ./react/pages/ProblemWorkbenchPage.tsx -----
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Editor from '../shared/ui/codemirror-editor/Editor';
 import MathpixRenderer from '../shared/ui/MathpixRenderer';
 import { useImageUploadManager } from '../features/image-upload/model/useImageUploadManager';
 import ImageManager from '../features/image-upload/ui/ImageManager';
 import './ProblemWorkbenchPage.css';
+import { useLayoutStore } from '../shared/store/layoutStore';
+import { useUIStore } from '../shared/store/uiStore';
+import PromptCollection from '../features/prompt-collection/ui/PromptCollection';
+import { LuCopy, LuCopyCheck, LuFilePlus } from 'react-icons/lu';
+import Tippy from '@tippyjs/react';
+
+const LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH = 'problem-workbench-draft';
 
 const ProblemWorkbenchPage: React.FC = () => {
-    const initialContent = `# Mathpix Markdown 에디터에 오신 것을 환영합니다! 👋
+    const { registerPageActions, setRightSidebarContent } = useLayoutStore.getState();
+    const { setRightSidebarExpanded } = useUIStore.getState();
+
+    const initialContent = useMemo(() => `# Mathpix Markdown 에디터에 오신 것을 환영합니다! 👋
 
 이곳에서 Markdown 문법과 함께 LaTeX 수식을 실시간으로 편집하고 미리 볼 수 있습니다.
 
@@ -2607,20 +3670,97 @@ const ProblemWorkbenchPage: React.FC = () => {
 
 ***이미지1***
 ***이미지2***
-`;
+`, []);
 
-    const [markdownContent, setMarkdownContent] = useState(initialContent);
+    const [markdownContent, setMarkdownContent] = useState(() => {
+        const savedContent = localStorage.getItem(LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH);
+        return savedContent !== null ? savedContent : initialContent;
+    });
+
+    const [previousMarkdownContent, setPreviousMarkdownContent] = useState<string | null>(null);
+    
     const imageManager = useImageUploadManager(markdownContent);
+    const [isCopied, setIsCopied] = useState(false);
 
     const handleContentChange = useCallback((content: string) => {
         setMarkdownContent(content);
-    }, []);
+        if (previousMarkdownContent !== null) {
+            setPreviousMarkdownContent(null);
+        }
+    }, [previousMarkdownContent]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            try {
+                if (markdownContent !== initialContent) {
+                    localStorage.setItem(LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH, markdownContent);
+                    console.log(`[ProblemWorkbench] ✅ 임시 작업 내용이 로컬에 성공적으로 저장되었습니다. (${new Date().toLocaleTimeString()})`);
+                } else {
+                    localStorage.removeItem(LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH);
+                    console.log(`[ProblemWorkbench] 📝 임시 저장 내용이 삭제되었습니다 (초기 상태). (${new Date().toLocaleTimeString()})`);
+                }
+            } catch (error) {
+                console.error(`[ProblemWorkbench] ❌ 로컬 저장소에 내용 저장 실패:`, error);
+            }
+        }, 5000);
+
+        return () => clearTimeout(handler);
+    }, [markdownContent, initialContent]);
+
+    useEffect(() => {
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            if (markdownContent && markdownContent !== initialContent) {
+                event.preventDefault();
+                event.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [markdownContent, initialContent]);
+
+    const handleOpenSettingsSidebar = useCallback(() => {
+        setRightSidebarContent(
+            <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
+                <h4>문제 작업 설정</h4>
+                <p>이곳에 문제 작업 관련 설정 UI가 표시됩니다.</p>
+            </div>
+        );
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
+
+    const handleOpenPromptSidebar = useCallback(() => {
+        setRightSidebarContent(<PromptCollection />);
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
+
+    const handleCloseSidebar = useCallback(() => {
+        setRightSidebarExpanded(false);
+        setTimeout(() => setRightSidebarContent(null), 300);
+    }, [setRightSidebarExpanded, setRightSidebarContent]);
+
+    useEffect(() => {
+        registerPageActions({
+            openSettingsSidebar: handleOpenSettingsSidebar,
+            openPromptSidebar: handleOpenPromptSidebar,
+            onClose: handleCloseSidebar,
+        });
+        return () => {
+            registerPageActions({
+                openSettingsSidebar: undefined,
+                openPromptSidebar: undefined,
+                onClose: undefined,
+            });
+        };
+    }, [registerPageActions, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleCloseSidebar]);
 
     const handleApplyUrls = useCallback(() => {
-        const { extractedImages, uploadedUrls } = imageManager;
+        const { extractedImages, uploadedUrls, canApply } = imageManager;
+        if (!canApply) return;
+
+        setPreviousMarkdownContent(markdownContent);
+
         let newMarkdown = markdownContent;
         let changesMade = false;
-
         extractedImages.forEach(tag => {
             const url = uploadedUrls[tag];
             if (url) {
@@ -2632,15 +3772,35 @@ const ProblemWorkbenchPage: React.FC = () => {
 
         if (changesMade) {
             setMarkdownContent(newMarkdown);
-            alert('이미지 URL을 에디터에 적용했습니다.');
-        } else {
-            alert('적용할 변경사항이 없거나, 모든 URL이 준비되지 않았습니다.');
         }
     }, [markdownContent, imageManager]);
+    
+    const handleRevertUrls = useCallback(() => {
+        if (previousMarkdownContent !== null) {
+            setMarkdownContent(previousMarkdownContent);
+            setPreviousMarkdownContent(null);
+        }
+    }, [previousMarkdownContent]);
+
+    const handleCopyContent = useCallback(() => {
+        navigator.clipboard.writeText(markdownContent).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+            alert('클립보드 복사에 실패했습니다.');
+        });
+    }, [markdownContent]);
+
+    const handleNewDocument = useCallback(() => {
+        if (window.confirm('현재 작업 내용을 지우고 새로 시작하시겠습니까? 저장된 임시 내용도 사라집니다.')) {
+            setMarkdownContent(initialContent);
+            localStorage.removeItem(LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH);
+        }
+    }, [initialContent]);
 
     return (
         <div className="problem-workbench-page">
-            {/* 파일 입력을 위한 숨겨진 input 요소 */}
             <input
                 type="file"
                 ref={imageManager.fileInputRef}
@@ -2648,11 +3808,23 @@ const ProblemWorkbenchPage: React.FC = () => {
                 accept="image/*"
                 style={{ display: 'none' }}
             />
-
             <div className="problem-workbench-layout">
-                {/* 패널 1: 에디터 */}
                 <div className="workbench-panel editor-panel">
-                    <h2 className="panel-title">Markdown & LaTeX 입력</h2>
+                    <div className="panel-title-container">
+                        <h2 className="panel-title">Markdown & LaTeX 입력</h2>
+                        <div className="panel-header-actions">
+                            <Tippy content="새 작업 (초기화)" placement="top" theme="custom-glass">
+                                <button onClick={handleNewDocument} className="panel-header-button" aria-label="새 작업 시작">
+                                    <LuFilePlus size={18} />
+                                </button>
+                            </Tippy>
+                            <Tippy content={isCopied ? "복사 완료!" : "전체 내용 복사"} placement="top" theme="custom-glass">
+                                <button onClick={handleCopyContent} className="panel-header-button" aria-label="에디터 내용 복사">
+                                    {isCopied ? <LuCopyCheck size={18} color="var(--accent-color)" /> : <LuCopy size={18} />}
+                                </button>
+                            </Tippy>
+                        </div>
+                    </div>
                     <div className="panel-content editor-content-wrapper">
                         <Editor
                             initialContent={markdownContent}
@@ -2660,16 +3832,14 @@ const ProblemWorkbenchPage: React.FC = () => {
                         />
                     </div>
                 </div>
-
-                {/* 패널 2: 미리보기 */}
                 <div className="workbench-panel preview-panel">
-                    <h2 className="panel-title">실시간 미리보기 (Mathpix)</h2>
+                     <div className="panel-title-container">
+                        <h2 className="panel-title">실시간 미리보기 (Mathpix)</h2>
+                    </div>
                     <div className="panel-content preview-content-wrapper prose">
                         <MathpixRenderer text={markdownContent} />
                     </div>
                 </div>
-
-                {/* 패널 3: 이미지 관리 */}
                 <div className="workbench-panel image-manager-wrapper-panel">
                     <ImageManager
                         extractedImages={imageManager.extractedImages}
@@ -2681,8 +3851,10 @@ const ProblemWorkbenchPage: React.FC = () => {
                         draggingTag={imageManager.draggingTag}
                         dragOverTag={imageManager.dragOverTag}
                         onUploadSingle={imageManager.onUploadSingle}
-                        onUploadAll={imageManager.onUploadAll}
+                        onUploadAll={imageManager.onUploadAll} 
                         onApplyUrls={handleApplyUrls}
+                        onRevertUrls={handleRevertUrls}
+                        isApplied={previousMarkdownContent !== null}
                         onDragStart={imageManager.onDragStart}
                         onDrop={imageManager.onDrop}
                         onDragOver={imageManager.onDragOver}
@@ -2912,6 +4084,7 @@ interface GlassPopoverProps {
     placement?: 'bottom-end' | 'bottom-start' | 'top-end' | 'top-start'; // 위치 (간단하게 몇 가지만)
     offsetY?: number; // 세로 간격
     offsetX?: number; // 가로 간격
+    className?: string; // [추가] 커스텀 클래스를 위한 prop
 }
 
 const GlassPopover: React.FC<GlassPopoverProps> = ({
@@ -2922,6 +4095,7 @@ const GlassPopover: React.FC<GlassPopoverProps> = ({
     placement = 'bottom-end',
     offsetY = 8,
     offsetX = 0,
+    className = '', // [추가]
 }) => {
     const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -3003,11 +4177,13 @@ const GlassPopover: React.FC<GlassPopoverProps> = ({
     if (typeof document === 'undefined') {
         return null; // SSR 환경에서는 렌더링하지 않음
     }
+    
+    const popoverClassName = `glass-popover ${isOpen ? 'open' : ''} ${className}`.trim();
 
     return ReactDOM.createPortal(
         <div
             ref={popoverRef}
-            className={`glass-popover ${isOpen ? 'open' : ''}`}
+            className={popoverClassName} // 수정된 클래스명 사용
             style={getPopoverStyle()}
             role="dialog" // 접근성을 위해 역할 명시
             aria-modal="false" // 모달이 아님을 명시
@@ -3368,9 +4544,52 @@ export const selectSession = (state: AuthState): Session | null => state.session
  * 현재 인증 관련 에러 메시지를 반환합니다. 에러가 없으면 null입니다.
  */
 export const selectAuthError = (state: AuthState): string | null => state.authError;
+----- ./react/shared/store/layout.config.ts -----
+/**
+ * 각 페이지별로 우측 사이드바에 표시될 버튼의 종류를 정의합니다.
+ */
+export type SidebarButtonType = 'register' | 'settings' | 'prompt';
+
+/**
+ * 각 페이지의 레이아웃 설정을 정의하는 인터페이스입니다.
+ */
+export interface PageLayoutConfig {
+  sidebarButtons?: {
+    [key in SidebarButtonType]?: {
+      tooltip: string; // 버튼에 표시될 툴팁 텍스트
+    };
+  };
+}
+
+/**
+ * 경로(path)를 키로, 해당 경로의 레이아웃 설정을 값으로 갖는 맵(map)입니다.
+ * 이 파일이 "어떤 페이지에 어떤 사이드바 버튼이 필요한가"에 대한 유일한 정보 소스(Single Source of Truth)가 됩니다.
+ */
+export const layoutConfigMap: Record<string, PageLayoutConfig> = {
+  '/dashboard': {
+    sidebarButtons: {
+      register: { tooltip: '신입생 등록' },
+      settings: { tooltip: '테이블 설정' },
+    },
+  },
+  '/problem-workbench': {
+    sidebarButtons: {
+      prompt: { tooltip: '프롬프트 모음' },
+      settings: { tooltip: '문제 작업 설정' },
+    },
+  },
+  '/json-renderer': {
+    sidebarButtons: {
+      prompt: { tooltip: '프롬프트 모음' },
+      settings: { tooltip: 'JSON 렌더러 설정' },
+    },
+  },
+};
 ----- ./react/shared/store/layoutStore.ts -----
 import { create } from 'zustand';
 import type { ReactNode } from 'react';
+import { useMemo } from 'react'; // React의 useMemo를 import합니다.
+import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
 
 interface StoredSearchProps {
     searchTerm: string;
@@ -3384,37 +4603,93 @@ interface StoredSearchProps {
     selectedCount: number;
 }
 
-interface SidebarTriggers {
-  onRegisterClick?: () => void;
-  onSettingsClick?: () => void;
-  onClose?: () => void;
+interface RegisteredPageActions {
+  openRegisterSidebar: () => void;
+  openSettingsSidebar: () => void;
+  openPromptSidebar: () => void;
+  onClose: () => void;
 }
 
 interface LayoutState {
   rightSidebarContent: ReactNode | null;
-  sidebarTriggers: SidebarTriggers;
+  currentPageConfig: PageLayoutConfig;
+  pageActions: Partial<RegisteredPageActions>;
   studentSearchProps: StoredSearchProps | null;
 }
 
 interface LayoutActions {
   setRightSidebarContent: (content: ReactNode | null) => void;
-  setSidebarTriggers: (triggers: SidebarTriggers) => void;
+  updateLayoutForPath: (path: string) => void;
+  registerPageActions: (actions: Partial<RegisteredPageActions>) => void;
   setStudentSearchProps: (props: StoredSearchProps | null) => void;
 }
 
+const initialPageActions: Partial<RegisteredPageActions> = {
+    openRegisterSidebar: () => console.warn('openRegisterSidebar action not registered.'),
+    openSettingsSidebar: () => console.warn('openSettingsSidebar action not registered.'),
+    openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
+    onClose: () => console.warn('onClose action not registered.'),
+};
+
 export const useLayoutStore = create<LayoutState & LayoutActions>((set) => ({
   rightSidebarContent: null,
-  sidebarTriggers: {},
+  currentPageConfig: {},
+  pageActions: initialPageActions,
   studentSearchProps: null,
   
   setRightSidebarContent: (content) => set({ rightSidebarContent: content }),
-  setSidebarTriggers: (triggers) => set({ sidebarTriggers: triggers }),
+
+  updateLayoutForPath: (path) => {
+    const newConfig = Object.entries(layoutConfigMap)
+        .find(([key]) => path.startsWith(key))?.[1] || {};
+    
+    set({ currentPageConfig: newConfig });
+  },
+
+  registerPageActions: (actions) => {
+    set(state => ({
+        pageActions: { ...state.pageActions, ...actions }
+    }));
+  },
+  
   setStudentSearchProps: (props) => set({ studentSearchProps: props }),
 }));
 
+
+export const useSidebarTriggers = () => {
+    const currentPageConfig = useLayoutStore(state => state.currentPageConfig);
+    const pageActions = useLayoutStore(state => state.pageActions);
+
+    const triggers = useMemo(() => {
+        const result: any = { onClose: pageActions.onClose };
+
+        if (currentPageConfig.sidebarButtons?.register) {
+            result.registerTrigger = {
+                onClick: pageActions.openRegisterSidebar,
+                tooltip: currentPageConfig.sidebarButtons.register.tooltip,
+            };
+        }
+        if (currentPageConfig.sidebarButtons?.settings) {
+            result.settingsTrigger = {
+                onClick: pageActions.openSettingsSidebar,
+                tooltip: currentPageConfig.sidebarButtons.settings.tooltip,
+            };
+        }
+        if (currentPageConfig.sidebarButtons?.prompt) {
+            result.promptTrigger = {
+                onClick: pageActions.openPromptSidebar,
+                tooltip: currentPageConfig.sidebarButtons.prompt.tooltip,
+            };
+        }
+        return result;
+    }, [currentPageConfig, pageActions]); // 의존성 배열에 상태들을 넣어줍니다.
+
+    return triggers;
+};
+
+
 export const selectRightSidebarContent = (state: LayoutState) => state.rightSidebarContent;
 export const selectStudentSearchProps = (state: LayoutState) => state.studentSearchProps;
-export const selectSidebarTriggers = (state: LayoutState) => state.sidebarTriggers;
 ----- ./react/shared/store/uiStore.ts -----
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
@@ -3571,27 +4846,29 @@ if (typeof window !== 'undefined') {
     useUIStore.getState().updateBreakpoint();
 }
 ----- ./react/shared/ui/actionbutton/ActionButton.tsx -----
-import React from 'react';
+import React, { forwardRef } from 'react'; // React.forwardRef import
 import './ActionButton.css';
 
 interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     children: React.ReactNode;
-    'aria-label': string; // 아이콘 버튼의 접근성을 위해 필수 항목으로 지정
+    'aria-label'?: string;
 }
 
-const ActionButton: React.FC<ActionButtonProps> = ({ 
+const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(({ 
     children, 
     className, 
     ...props 
-}) => {
+}, ref) => { // 두 번째 인자로 ref를 받습니다.
     const combinedClassName = `action-button ${className || ''}`.trim();
 
     return (
-        <button className={combinedClassName} {...props}>
+        <button ref={ref} className={combinedClassName} {...props}>
             {children}
         </button>
     );
-};
+});
+
+ActionButton.displayName = 'ActionButton';
 
 export default ActionButton;
 ----- ./react/shared/ui/Badge/Badge.tsx -----
@@ -7866,6 +9143,7 @@ export const defaultThemeOption = (
   ] as const;
 };
 ----- ./react/shared/ui/codemirror-editor/Editor.tsx -----
+
 import React, { useRef, useEffect } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -7887,12 +9165,9 @@ const Editor: React.FC<EditorProps> = ({ initialContent = '', onContentChange })
     onContentChangeRef.current = onContentChange;
   }, [onContentChange]);
 
-
   useEffect(() => {
-    if (!editorRef.current) return;
+    if (!editorRef.current || viewRef.current) return;
 
-    if (viewRef.current) return;
-    
     const extensions = [
       basicSetup({
         lineNumbers: true,
@@ -7900,7 +9175,6 @@ const Editor: React.FC<EditorProps> = ({ initialContent = '', onContentChange })
         lineWrapping: true,
         darkMode: window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches,
         onSave: () => {
-          alert('Content saved!');
           console.log(viewRef.current?.state.doc.toString());
         },
       }),
@@ -7914,7 +9188,7 @@ const Editor: React.FC<EditorProps> = ({ initialContent = '', onContentChange })
     configureMmdAutoCompleteForCodeMirror(extensions);
 
     const startState = EditorState.create({
-      doc: initialContent, // 초기값으로만 사용
+      doc: initialContent,
       extensions: extensions,
     });
 
@@ -7930,7 +9204,16 @@ const Editor: React.FC<EditorProps> = ({ initialContent = '', onContentChange })
       viewRef.current = null;
     };
     
-  }, []); 
+  }, []); // 이 useEffect는 마운트 시 한 번만 실행되어야 합니다.
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view && initialContent !== view.state.doc.toString()) {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: initialContent }
+      });
+    }
+  }, [initialContent]); // initialContent가 변경될 때마다 이 효과를 실행합니다.
 
   return <div ref={editorRef} className="editor-wrapper" />;
 };
@@ -8255,6 +9538,219 @@ const Checkbox: React.FC<CheckboxProps> = ({
 };
 
 export default Checkbox;
+----- ./react/widgets/json-problem-importer/JsonProblemImporterWidget.tsx -----
+import React from 'react';
+import { LuUpload, LuCheck, LuChevronsUpDown } from 'react-icons/lu';
+import { useJsonProblemImporter } from '../../features/json-problem-importer/model/useJsonProblemImporter';
+import ActionButton from '../../shared/ui/actionbutton/ActionButton';
+import GlassPopover from '../../shared/components/GlassPopover';
+import type { Column } from '../../entities/problem/model/types';
+import { PopoverCombobox, PopoverInput, PopoverTextarea } from '../../features/json-problem-importer/ui/EditPopoverContent';
+
+const JsonProblemImporterWidget: React.FC = () => {
+    const {
+        jsonInput,
+        setJsonInput,
+        problems,
+        parseError,
+        editingCell,
+        startEdit,
+        cancelEdit,
+        saveEdit,
+        editingValue,
+        setEditingValue,
+        handleInputKeyDown,
+        commonSource,
+        setCommonSource,
+        commonGradeLevel,
+        setCommonGradeLevel,
+        commonSemester,
+        setCommonSemester,
+        applyCommonData,
+        uploadProblems,
+        isUploading,
+        columns,
+        formatValue,
+        popoverAnchor,
+        problemTypeOptions,
+        difficultyOptions,
+        answerOptions
+    } = useJsonProblemImporter();
+
+    const isEditing = !!editingCell;
+
+    return (
+        <div className="json-importer-widget">
+            <div className="left-panel">
+                <div className="panel json-input-panel">
+                    <div className="panel-header">JSON 데이터 입력</div>
+                    <div className="panel-content">
+                        <textarea
+                            value={jsonInput}
+                            onChange={(e) => setJsonInput(e.target.value)}
+                            className="json-input-textarea"
+                            placeholder="여기에 JSON 데이터를 붙여넣으세요..."
+                            spellCheck="false"
+                            readOnly={isEditing}
+                            aria-label="JSON Input Area"
+                        />
+                        {parseError && !isEditing && (
+                            <div className="error-display" role="alert">
+                                <h4>JSON 처리/업로드 오류:</h4>
+                                <pre>{parseError.message}</pre>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div className="panel common-data-panel">
+                    <div className="panel-header">공통 정보 일괄 적용</div>
+                    <div className="panel-content common-data-form">
+                        <div className="form-group">
+                            <label htmlFor="commonSource">공통 출처</label>
+                            <input id="commonSource" value={commonSource} onChange={e => setCommonSource(e.target.value)} placeholder="예: 2024 수능특강" />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="commonGradeLevel">공통 학년</label>
+                            <input id="commonGradeLevel" value={commonGradeLevel} onChange={e => setCommonGradeLevel(e.target.value)} placeholder="예: 고3" />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="commonSemester">공통 학기</label>
+                            <input id="commonSemester" value={commonSemester} onChange={e => setCommonSemester(e.target.value)} placeholder="예: 1학기" />
+                        </div>
+                        <ActionButton 
+                            onClick={applyCommonData} 
+                            disabled={problems.length === 0}
+                            className="primary"
+                        >
+                            <LuCheck style={{ marginRight: '4px' }}/>
+                            모든 문제에 적용
+                        </ActionButton>
+                    </div>
+                </div>
+            </div>
+
+            <div className="panel right-panel">
+                <div className="panel-header">
+                    <h2>표 미리보기 (클릭하여 수정)</h2>
+                    <ActionButton
+                        onClick={uploadProblems}
+                        disabled={problems.length === 0 || parseError !== null || isUploading}
+                        className="primary"
+                    >
+                        <LuUpload style={{ marginRight: '8px' }} />
+                        {isUploading ? "저장 중..." : "DB에 업로드"}
+                    </ActionButton>
+                </div>
+                <div className="table-wrapper">
+                    <table className="problem-table">
+                        <thead>
+                            <tr>
+                                {columns.map(col => (
+                                    <th key={col.key}>
+                                        {col.label}
+                                        {col.readonly && <span style={{fontSize: '0.7rem', marginLeft: '4px'}}>(읽기전용)</span>}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {problems.length > 0 ? (
+                                problems.map((problem, i) => (
+                                    <tr key={`${problem.question_number}-${i}`}>
+                                        {columns.map(col => {
+                                            const currentValue = problem[col.key];
+                                            const isReadonly = col.readonly || Array.isArray(currentValue);
+                                            
+                                            const isCombobox = col.editType === 'combobox' || (col.key === 'answer' && problem.problem_type === '객관식');
+                                            
+                                            return (
+                                                <td key={col.key}>
+                                                    <button
+                                                        type="button"
+                                                        id={`trigger-${i}-${col.key}`}
+                                                        className="cell-edit-trigger"
+                                                        onClick={(e) => startEdit(i, col.key, currentValue, e.currentTarget, isReadonly)}
+                                                        disabled={isReadonly}
+                                                        aria-label={`Edit ${col.label}`}
+                                                    >
+                                                        <span className="cell-edit-trigger-content">{formatValue(currentValue)}</span>
+                                                        {isCombobox && !isReadonly && <LuChevronsUpDown className="chevron-icon" />}
+                                                    </button>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={columns.length} style={{ textAlign: 'center', padding: '2rem' }}>
+                                        {jsonInput.trim() === '' ? "왼쪽 텍스트 영역에 JSON 데이터를 붙여넣으세요." :
+                                         parseError ? "JSON 데이터 로딩 중 오류가 발생했습니다. 왼쪽 영역의 오류 메시지를 확인하세요." :
+                                         "유효한 'problems' 배열이 없거나 데이터가 비어있습니다."}
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <GlassPopover 
+                isOpen={isEditing} 
+                onClose={cancelEdit} 
+                anchorEl={popoverAnchor}
+                placement="bottom-start"
+                className={editingCell && columns.find(c => c.key === editingCell.colKey)?.editType === 'textarea' ? 'large' : ''}
+            >
+                {editingCell && (() => {
+                    const col = columns.find(c => c.key === editingCell.colKey) as Column;
+                    const isAnswerCombobox = col.key === 'answer' && problems[editingCell.rowIndex]?.problem_type === '객관식';
+                    const isNormalCombobox = col.editType === 'combobox' && !isAnswerCombobox;
+                    const options = col.key === 'problem_type' ? problemTypeOptions 
+                                  : col.key === 'difficulty' ? difficultyOptions 
+                                  : isAnswerCombobox ? answerOptions 
+                                  : [];
+
+                    if (isNormalCombobox || isAnswerCombobox) {
+                        return (
+                           <PopoverCombobox
+                             label={col.label}
+                             value={String(editingValue ?? '')}
+                             onValueChange={(val) => { setEditingValue(val); saveEdit(val); }}
+                             options={options}
+                           />
+                        )
+                    }
+                    if (col.editType === 'textarea'){
+                        return (
+                            <PopoverTextarea
+                                label={col.label}
+                                value={String(editingValue ?? '')}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onKeyDown={handleInputKeyDown}
+                                onSave={() => saveEdit()}
+                                onCancel={cancelEdit}
+                            />
+                        )
+                    }
+                    return (
+                        <PopoverInput
+                            label={col.label}
+                            value={String(editingValue ?? '')}
+                            type={col.editType === 'number' ? 'number' : 'text'}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onKeyDown={handleInputKeyDown}
+                            onSave={() => saveEdit()}
+                            onCancel={cancelEdit}
+                        />
+                    )
+                })()}
+            </GlassPopover>
+        </div>
+    );
+};
+
+export default JsonProblemImporterWidget;
 ----- ./react/widgets/rootlayout/BackgroundBlobs.tsx -----
 import './BackgroundBlobs.css'; // 오타 수정: BackgroundBolbs.css -> BackgroundBlobs.css
 
@@ -8272,10 +9768,10 @@ const BackgroundBlobs = () => {
 export default BackgroundBlobs;
 ----- ./react/widgets/rootlayout/GlassNavbar.tsx -----
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router'; // useLocation import
+import { Link } from 'react-router';
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectSidebarTriggers } from '../../shared/store/layoutStore';
+import { useSidebarTriggers } from '../../shared/store/layoutStore';
 import { LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, LuSettings2 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
@@ -8289,7 +9785,6 @@ const RegisterIcon = () => <LuCirclePlus size={22} />;
 const SettingsIcon = () => <LuSettings2 size={22} />;
 
 const GlassNavbar: React.FC = () => {
-    const location = useLocation(); // [추가]
     const {
         currentBreakpoint,
         toggleLeftSidebar,
@@ -8297,12 +9792,10 @@ const GlassNavbar: React.FC = () => {
         closeMobileSidebar,
     } = useUIStore();
     
-    const { onRegisterClick, onSettingsClick } = useLayoutStore(selectSidebarTriggers);
+    const { registerTrigger, settingsTrigger } = useSidebarTriggers();
 
     const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
     const profileButtonRef = useRef<HTMLButtonElement>(null);
-    
-    const isDashboardPage = location.pathname.startsWith('/dashboard');
 
     const handleProfileButtonClick = () => {
         if (currentBreakpoint === 'mobile' && mobileSidebarType && !isProfilePopoverOpen) {
@@ -8344,17 +9837,16 @@ const GlassNavbar: React.FC = () => {
             <div className="navbar-right">
                 {currentBreakpoint === 'mobile' && (
                     <div className="mobile-right-actions">
-                        {onRegisterClick && (
-                            <Tippy content="신입생 등록" placement="bottom" theme="custom-glass" delay={[300, 0]}>
-                                <button onClick={onRegisterClick} className="navbar-icon-button" aria-label="신입생 등록">
+                        {registerTrigger && (
+                            <Tippy content={registerTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={registerTrigger.onClick} className="navbar-icon-button" aria-label={registerTrigger.tooltip}>
                                     <RegisterIcon />
                                 </button>
                             </Tippy>
                         )}
-                        {/* [수정] 대시보드 페이지이고, onSettingsClick 함수가 있을 때만 버튼 렌더링 */}
-                        {isDashboardPage && onSettingsClick && (
-                             <Tippy content="테이블 설정" placement="bottom" theme="custom-glass" delay={[300, 0]}>
-                                <button onClick={onSettingsClick} className="navbar-icon-button" aria-label="테이블 설정">
+                        {settingsTrigger && (
+                             <Tippy content={settingsTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={settingsTrigger.onClick} className="navbar-icon-button" aria-label={settingsTrigger.tooltip}>
                                     <SettingsIcon />
                                 </button>
                             </Tippy>
@@ -8424,6 +9916,7 @@ const SavedIcon = () => <LuHeart size={18} />;
 const CloseLeftSidebarIcon = () => <LuChevronLeft size={22} />;
 const TabletToggleChevronLeftIcon = () => <LuChevronLeft size={20} />;
 const TabletToggleChevronRightIcon = () => <LuChevronRight size={20} />;
+const JsonIcon = () => <LuFile size={18} />; 
 
 export const allMenuItems: MenuItemData[] = [
      { 
@@ -8435,6 +9928,11 @@ export const allMenuItems: MenuItemData[] = [
         path: '/problem-workbench', // 새 페이지의 URL 경로
         name: '문제 작업',
         icon: <ProblemIcon />
+    },
+    {
+        path: '/json-renderer',
+        name: 'JSON 렌더러',
+        icon: <JsonIcon />
     },
    
      { 
@@ -8558,34 +10056,31 @@ const GlassSidebar: React.FC = () => {
 export default GlassSidebar;
 ----- ./react/widgets/rootlayout/GlassSidebarRight.tsx -----
 import React from 'react';
-import { useLocation } from 'react-router';
 import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectRightSidebarContent, selectSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus } from 'react-icons/lu';
+import { useLayoutStore, selectRightSidebarContent, useSidebarTriggers } from '../../shared/store/layoutStore';
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList } from 'react-icons/lu';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
 const CloseIcon = () => <LuCircleX size={22} />;
 const PlusIcon = () => <LuCirclePlus size={22} />;
+const PromptIcon = () => <LuClipboardList size={20} />;
 
 const GlassSidebarRight: React.FC = () => {
-    const location = useLocation();
     const rightSidebarContent = useLayoutStore(selectRightSidebarContent);
-    const { onRegisterClick, onSettingsClick, onClose } = useLayoutStore(selectSidebarTriggers);
+    const { registerTrigger, settingsTrigger, promptTrigger, onClose } = useSidebarTriggers();
     
     const { isRightSidebarExpanded, mobileSidebarType, currentBreakpoint } = useUIStore();
     
-    const isDashboardPage = location.pathname.startsWith('/dashboard');
-
     const isOpen = currentBreakpoint === 'mobile' ? mobileSidebarType === 'right' : isRightSidebarExpanded;
 
     return (
         <aside className={`glass-sidebar-right ${isOpen ? 'expanded' : ''} ${currentBreakpoint === 'mobile' ? 'mobile-sidebar right-mobile-sidebar' : ''} ${isOpen ? 'open' : ''}`}>
             {currentBreakpoint !== 'mobile' && (
                 <div className="rgs-header-desktop">
-                    {isRightSidebarExpanded ? (
+                    {isOpen ? ( // [수정] isRightSidebarExpanded -> isOpen
                         <Tippy content="닫기" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
                             <button onClick={onClose} className="settings-toggle-button active" aria-label="사이드바 닫기">
                                 <CloseIcon />
@@ -8593,18 +10088,32 @@ const GlassSidebarRight: React.FC = () => {
                         </Tippy>
                     ) : (
                         <>
-                            <Tippy content="신입생 등록" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
-                                <button onClick={onRegisterClick} className="settings-toggle-button" aria-label="신입생 등록">
-                                    <PlusIcon />
-                                </button>
-                            </Tippy>
+                            {registerTrigger && (
+                                <Tippy content={registerTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                                    <button onClick={registerTrigger.onClick} className="settings-toggle-button" aria-label={registerTrigger.tooltip}>
+                                        <PlusIcon />
+                                    </button>
+                                </Tippy>
+                            )}
                             
-                            {isDashboardPage && (
-                                <Tippy content="테이블 설정" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                            {promptTrigger && (
+                                <Tippy content={promptTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
                                     <button
-                                        onClick={onSettingsClick}
+                                        onClick={promptTrigger.onClick}
                                         className="settings-toggle-button"
-                                        aria-label="테이블 컬럼 설정"
+                                        aria-label={promptTrigger.tooltip}
+                                    >
+                                        <PromptIcon />
+                                    </button>
+                                </Tippy>
+                            )}
+
+                            {settingsTrigger && (
+                                <Tippy content={settingsTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                                    <button
+                                        onClick={settingsTrigger.onClick}
+                                        className="settings-toggle-button"
+                                        aria-label={settingsTrigger.tooltip}
                                     >
                                         <SettingsIcon />
                                     </button>
@@ -8620,7 +10129,6 @@ const GlassSidebarRight: React.FC = () => {
                      {currentBreakpoint === 'mobile' && (
                         <div className="sidebar-header rgs-mobile-header">
                             <Tippy content="닫기" placement="bottom" theme="custom-glass" animation="perspective" delay={[200, 0]}>
-                                {/* [수정] onClick 핸들러를 uiStore의 closeMobileSidebar 직접 호출에서 layoutStore의 onClose 트리거로 변경 */}
                                 <button onClick={onClose} className="sidebar-close-button mobile-only rgs-close-btn" aria-label="닫기">
                                     <CloseRightSidebarIcon />
                                 </button>
@@ -8637,7 +10145,7 @@ const GlassSidebarRight: React.FC = () => {
 
 export default GlassSidebarRight;
 ----- ./react/widgets/rootlayout/RootLayout.tsx -----
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react'; // useEffect 추가
 import { Outlet, useLocation } from 'react-router';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectStudentSearchProps } from '../../shared/store/layoutStore';
@@ -8650,6 +10158,12 @@ import './RootLayout.css';
 
 const RootLayout = () => {
     const location = useLocation();
+    const updateLayoutForPath = useLayoutStore(state => state.updateLayoutForPath);
+    
+    useEffect(() => {
+        updateLayoutForPath(location.pathname);
+    }, [location.pathname, updateLayoutForPath]);
+
     const { 
         currentBreakpoint, 
         mobileSidebarType, 
@@ -8684,13 +10198,6 @@ const RootLayout = () => {
     return (
         <div className={`app-container ${sidebarStateClass} ${showOverlay ? 'mobile-sidebar-active' : ''}`}>
             <div className="background-blobs-wrapper"><BackgroundBlobs /></div>
-            
-            {/* 
-              [핵심 수정] 
-              오버레이를 layout-main-wrapper 안으로 이동시킵니다.
-              이렇게 하면 오버레이가 사이드바(z-index: 110) 아래, 메인 콘텐츠(z-index: 5) 위에 위치하게 되어
-              사이드바는 블러 처리되지 않고 메인 콘텐츠만 블러 처리됩니다.
-            */}
             
             {currentBreakpoint === 'mobile' && <GlassSidebar />}
             {currentBreakpoint === 'mobile' && <GlassSidebarRight />}

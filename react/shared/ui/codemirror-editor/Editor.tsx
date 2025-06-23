@@ -1,3 +1,5 @@
+// ./react/shared/ui/codemirror-editor/Editor.tsx
+
 import React, { useRef, useEffect } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -14,20 +16,16 @@ const Editor: React.FC<EditorProps> = ({ initialContent = '', onContentChange })
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   
-  // onContentChange 함수가 재렌더링으로 인해 바뀌더라도 최신 함수를 참조하기 위한 ref
+  // onContentChange 함수가 리렌더링되어도 useEffect가 다시 실행되지 않도록 ref에 저장
   const onContentChangeRef = useRef(onContentChange);
   useEffect(() => {
     onContentChangeRef.current = onContentChange;
   }, [onContentChange]);
 
-
+  // [핵심 수정 1] CodeMirror 인스턴스 생성 로직
   useEffect(() => {
-    if (!editorRef.current) return;
+    if (!editorRef.current || viewRef.current) return;
 
-    // 이미 인스턴스가 생성되어 있다면, 아무것도 하지 않고 종료.
-    // 이렇게 하면 실수로 여러 번 실행되는 것을 완벽히 방지합니다.
-    if (viewRef.current) return;
-    
     const extensions = [
       basicSetup({
         lineNumbers: true,
@@ -35,13 +33,12 @@ const Editor: React.FC<EditorProps> = ({ initialContent = '', onContentChange })
         lineWrapping: true,
         darkMode: window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches,
         onSave: () => {
-          alert('Content saved!');
           console.log(viewRef.current?.state.doc.toString());
         },
       }),
       EditorView.updateListener.of((update) => {
+        // 사용자가 직접 에디터를 수정했을 때만 부모 컴포넌트에 알림
         if (update.docChanged) {
-          // ref에 저장된 최신 콜백 함수를 호출합니다.
           onContentChangeRef.current?.(update.state.doc.toString());
         }
       })
@@ -50,7 +47,7 @@ const Editor: React.FC<EditorProps> = ({ initialContent = '', onContentChange })
     configureMmdAutoCompleteForCodeMirror(extensions);
 
     const startState = EditorState.create({
-      doc: initialContent, // 초기값으로만 사용
+      doc: initialContent,
       extensions: extensions,
     });
 
@@ -66,11 +63,19 @@ const Editor: React.FC<EditorProps> = ({ initialContent = '', onContentChange })
       viewRef.current = null;
     };
     
-    // ✅ [핵심 수정] 의존성 배열을 비워서 컴포넌트가 처음 마운트될 때 "단 한 번만" 실행되도록 합니다.
-  }, []); 
+  }, []); // 이 useEffect는 마운트 시 한 번만 실행되어야 합니다.
+
+  // [핵심 수정 2] 외부에서 initialContent prop이 변경되었을 때 에디터 내용을 업데이트하는 로직 추가
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view && initialContent !== view.state.doc.toString()) {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: initialContent }
+      });
+    }
+  }, [initialContent]); // initialContent가 변경될 때마다 이 효과를 실행합니다.
 
   return <div ref={editorRef} className="editor-wrapper" />;
 };
 
-// React.memo로 감싸서 불필요한 렌더링을 한 번 더 방지합니다.
 export default React.memo(Editor);

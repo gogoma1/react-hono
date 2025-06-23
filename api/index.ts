@@ -8,6 +8,7 @@ import profileRoutes from './routes/profiles/profiles';
 import exampleRoute from './routes/example/selectpg_tables';
 import studentRoutes from './routes/manage/student';
 import { supabaseMiddleware } from './routes/middleware/auth.middleware';
+import problemRoutes from './routes/manage/problems';
 import r2ImageRoutes from './routes/r2/image';
 
 // --- Hono 앱 타입 정의 (AppEnv) ---
@@ -41,6 +42,7 @@ app.use(supabaseMiddleware());
 app.route('/example', exampleRoute); 
 app.route('/profiles', profileRoutes); 
 app.route('/manage/student', studentRoutes);
+app.route('/manage/problems', problemRoutes); 
 app.route('/r2', r2ImageRoutes);
 
 
