@@ -13,7 +13,10 @@ export type ProcessedProblem = Problem & { display_question_number: string; uniq
 
 export function useProblemPublishing() {
     const { data: rawProblems = [], isLoading: isLoadingProblems } = useProblemsQuery();
-    const { mutate: updateProblem } = useUpdateProblemMutation();
+    const { mutateAsync: updateProblem } = useUpdateProblemMutation(); // [수정] mutateAsync 사용
+
+    // [추가] 서버에서 온 원본 데이터와 별도로, UI에서 수정 중인 '초안' 상태를 관리합니다.
+    const [liveProblems, setLiveProblems] = useState<ProcessedProblem[] | null>(null);
 
     const allProblems = useMemo((): ProcessedProblem[] => {
         if (!rawProblems || rawProblems.length === 0) return [];
@@ -28,17 +31,16 @@ export function useProblemPublishing() {
                 if (typeCompare !== 0) return typeCompare;
                 return a.question_number - b.question_number;
             })
-            .map((p, index): ProcessedProblem => ({
+            .map((p): ProcessedProblem => ({
                 ...p,
-                uniqueId: `${p.question_number}-${index}`,
+                uniqueId: p.problem_id, // [수정] 고유 ID를 problem_id로 사용
                 display_question_number: p.problem_type === '서답형'
                     ? `서답형 ${p.question_number}`
                     : String(p.question_number)
             }));
     }, [rawProblems]);
 
-    const [liveProblems, setLiveProblems] = useState<ProcessedProblem[] | null>(null);
-
+    // [수정] UI에 표시될 문제는 '초안(liveProblems)'이 있으면 그것을, 없으면 원본(allProblems)을 사용합니다.
     const displayProblems = useMemo(() => liveProblems ?? allProblems, [liveProblems, allProblems]);
 
     const problemUniqueIds = useMemo(() => displayProblems.map(p => p.uniqueId), [displayProblems]);
@@ -74,14 +76,16 @@ export function useProblemPublishing() {
         });
     }, []);
 
-    const handleProblemDBSave = useCallback((id: string | number, updatedFields: Partial<Problem>) => {
-        updateProblem({ id: id, fields: updatedFields });
+    // [수정] '저장' 버튼 클릭 시 호출될 함수
+    const handleSaveProblem = useCallback(async (updatedProblem: Problem) => {
+        await updateProblem({ id: updatedProblem.problem_id, fields: updatedProblem });
+        // 성공적으로 저장되면, 초안 상태를 null로 만들어 원본 데이터를 다시 사용하게 함
+        setLiveProblems(null);
     }, [updateProblem]);
     
-    // [최종 수정] useCallback의 의존성 배열을 비워 함수의 참조 안정성을 보장합니다.
+    // [수정] 사이드바 에디터에서 내용이 변경될 때마다 호출될 함수
     const handleLiveProblemChange = useCallback((updatedProblem: ProcessedProblem) => {
         setLiveProblems(currentProblems => {
-            // 현재 liveProblems가 없으면 allProblems를 기반으로 시작합니다.
             const base = currentProblems ?? allProblems;
             return produce(base, draft => {
                 const index = draft.findIndex(p => p.uniqueId === updatedProblem.uniqueId);
@@ -90,8 +94,26 @@ export function useProblemPublishing() {
                 }
             });
         });
-    }, [allProblems]); // allProblems가 바뀌면 이 함수도 최신 데이터를 참조해야 하므로 의존성 유지. 하지만 함수 자체의 참조는 안정적.
+    }, [allProblems]);
 
+    // [추가] 사이드바 '취소' 버튼 클릭 시 호출될 함수
+    const handleRevertProblem = useCallback((problemId: string) => {
+        setLiveProblems(currentProblems => {
+            if (!currentProblems) return null; // 초안이 없으면 아무것도 안함
+            
+            return produce(currentProblems, draft => {
+                const originalProblem = allProblems.find(p => p.uniqueId === problemId);
+                if (originalProblem) {
+                    const indexToRevert = draft.findIndex(p => p.uniqueId === problemId);
+                    if (indexToRevert !== -1) {
+                        draft[indexToRevert] = originalProblem;
+                    }
+                }
+            });
+        });
+    }, [allProblems]);
+
+    // [추가] 문제 수정을 시작할 때 호출될 함수 (초안 상태 생성)
     const startEditingProblem = useCallback(() => {
         if (liveProblems === null) {
             setLiveProblems(allProblems);
@@ -123,6 +145,7 @@ export function useProblemPublishing() {
                 setIsCalculating(false);
                 return;
             }
+            // ... (이하 배치 로직은 동일)
             const problemGroups: ProblemGroup[] = [];
             let currentGroupProblems: ProcessedProblem[] = [];
             let currentGroupHeight = 0;
@@ -177,7 +200,7 @@ export function useProblemPublishing() {
     }, [selectedProblems, problemHeightsMap]);
 
     return {
-        allProblems: displayProblems,
+        allProblems: displayProblems, // [수정] displayProblems를 외부에 노출
         isLoadingProblems,
         selectedIds,
         isAllSelected,
@@ -197,8 +220,10 @@ export function useProblemPublishing() {
         setProblemBoxMinHeight,
         setUseSequentialNumbering,
         handleHeaderUpdate,
-        handleProblemDBSave,
+        // [수정] 새 핸들러들 export
+        handleSaveProblem,
         handleLiveProblemChange,
+        handleRevertProblem,
         startEditingProblem,
     };
 }

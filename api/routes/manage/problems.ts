@@ -1,9 +1,7 @@
-// api/routes/manage/problems.ts
-
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
@@ -12,6 +10,7 @@ import * as schema from '../../db/schema.pg';
 
 
 const problemSchema = z.object({
+  problem_id: z.string().uuid().optional(),
   question_number: z.number(),
   question_text: z.string(),
   answer: z.string().nullable(),
@@ -35,12 +34,16 @@ const uploadProblemsBodySchema = z.object({
   problems: z.array(problemSchema),
 });
 
+const updateProblemBodySchema = problemSchema.omit({ problem_id: true }).partial();
 
 type UploadProblemsInput = z.infer<typeof uploadProblemsBodySchema>;
+type UpdateProblemInput = z.infer<typeof updateProblemBodySchema>;
 
 const problemRoutes = new Hono<AppEnv>();
 
+// ... (GET, POST /upload 라우트는 그대로 둡니다)
 problemRoutes.get('/', async (c) => {
+    // ... 이전과 동일
     const user = c.get('user');
     if (!user) {
         return c.json({ error: '인증이 필요합니다.' }, 401);
@@ -53,7 +56,6 @@ problemRoutes.get('/', async (c) => {
         const problemsData = await db.query.problemTable.findMany({
             where: eq(schema.problemTable.creator_id, user.id),
             orderBy: (problem, { asc }) => [asc(problem.created_at)],
-            // [수정] with를 사용하여 관계형 데이터(JOIN)를 가져옵니다.
             with: {
                 majorChapter: { columns: { name: true } },
                 middleChapter: { columns: { name: true } },
@@ -61,7 +63,6 @@ problemRoutes.get('/', async (c) => {
             }
         });
 
-        // [수정] 프론트엔드 타입에 맞게 데이터 구조를 변환합니다.
         const transformedProblems = problemsData.map(p => ({
             ...p,
             major_chapter_id: p.majorChapter?.name ?? 'N/A',
@@ -78,10 +79,8 @@ problemRoutes.get('/', async (c) => {
         c.executionCtx.waitUntil(sql.end());
     }
 });
-
-
 problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), async (c) => {
-    // ... (이하 코드는 변경 없음)
+    // ... 이전과 동일
     const user = c.get('user')!;
     const { problems } = c.req.valid('json') as UploadProblemsInput;
 
@@ -159,5 +158,77 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
         c.executionCtx.waitUntil(sql.end());
     }
 });
+
+
+// [수정] 문제 업데이트 라우트 로직 전체 수정
+problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) => {
+    const user = c.get('user')!;
+    const problemId = c.req.param('id');
+    const problemData = c.req.valid('json') as UpdateProblemInput;
+
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+        const [updatedProblem] = await db.transaction(async (tx) => {
+            // 업데이트할 데이터를 담을 객체
+            const dataToUpdate: Partial<typeof schema.problemTable.$inferInsert> = {
+                ...problemData,
+                updated_at: new Date()
+            };
+
+            // major_chapter_id가 있으면 ID를 찾아서 교체
+            if (problemData.major_chapter_id) {
+                const [majorChapter] = await tx.insert(schema.majorChaptersTable)
+                    .values({ name: problemData.major_chapter_id })
+                    .onConflictDoUpdate({ target: schema.majorChaptersTable.name, set: { name: problemData.major_chapter_id } })
+                    .returning();
+                dataToUpdate.major_chapter_id = majorChapter.id;
+            }
+
+            // middle_chapter_id가 있으면 ID를 찾아서 교체 (major_chapter_id가 필요함)
+            if (problemData.middle_chapter_id && dataToUpdate.major_chapter_id) {
+                 const [middleChapter] = await tx.insert(schema.middleChaptersTable)
+                    .values({ name: problemData.middle_chapter_id, major_chapter_id: dataToUpdate.major_chapter_id })
+                    .onConflictDoNothing()
+                    .returning();
+                if (middleChapter) {
+                    dataToUpdate.middle_chapter_id = middleChapter.id;
+                }
+            }
+
+            // core_concept_id가 있으면 ID를 찾아서 교체
+            if (problemData.core_concept_id) {
+                const [coreConcept] = await tx.insert(schema.coreConceptsTable)
+                    .values({ name: problemData.core_concept_id })
+                    .onConflictDoUpdate({ target: schema.coreConceptsTable.name, set: { name: problemData.core_concept_id } })
+                    .returning();
+                dataToUpdate.core_concept_id = coreConcept.id;
+            }
+
+            // 최종적으로 problemTable 업데이트
+            return tx.update(schema.problemTable)
+                .set(dataToUpdate)
+                .where(and(
+                    eq(schema.problemTable.problem_id, problemId),
+                    eq(schema.problemTable.creator_id, user.id)
+                ))
+                .returning();
+        });
+        
+        if (!updatedProblem) {
+            return c.json({ error: '문제를 찾을 수 없거나 업데이트할 권한이 없습니다.' }, 404);
+        }
+
+        return c.json(updatedProblem);
+
+    } catch (error: any) {
+        console.error(`Failed to update problem ${problemId}:`, error.message);
+        return c.json({ error: '데이터베이스 업데이트에 실패했습니다.', details: error.message }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
 
 export default problemRoutes;

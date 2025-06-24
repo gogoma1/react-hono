@@ -282,11 +282,10 @@ exampleRoutes.get('/pgtables', async (c) => {
 
 export default exampleRoutes;
 ----- ./api/routes/manage/problems.ts -----
-
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
@@ -295,6 +294,7 @@ import * as schema from '../../db/schema.pg';
 
 
 const problemSchema = z.object({
+  problem_id: z.string().uuid().optional(),
   question_number: z.number(),
   question_text: z.string(),
   answer: z.string().nullable(),
@@ -318,8 +318,10 @@ const uploadProblemsBodySchema = z.object({
   problems: z.array(problemSchema),
 });
 
+const updateProblemBodySchema = problemSchema.omit({ problem_id: true }).partial();
 
 type UploadProblemsInput = z.infer<typeof uploadProblemsBodySchema>;
+type UpdateProblemInput = z.infer<typeof updateProblemBodySchema>;
 
 const problemRoutes = new Hono<AppEnv>();
 
@@ -359,8 +361,6 @@ problemRoutes.get('/', async (c) => {
         c.executionCtx.waitUntil(sql.end());
     }
 });
-
-
 problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), async (c) => {
     const user = c.get('user')!;
     const { problems } = c.req.valid('json') as UploadProblemsInput;
@@ -439,6 +439,72 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
         c.executionCtx.waitUntil(sql.end());
     }
 });
+
+
+problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) => {
+    const user = c.get('user')!;
+    const problemId = c.req.param('id');
+    const problemData = c.req.valid('json') as UpdateProblemInput;
+
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+        const [updatedProblem] = await db.transaction(async (tx) => {
+            const dataToUpdate: Partial<typeof schema.problemTable.$inferInsert> = {
+                ...problemData,
+                updated_at: new Date()
+            };
+
+            if (problemData.major_chapter_id) {
+                const [majorChapter] = await tx.insert(schema.majorChaptersTable)
+                    .values({ name: problemData.major_chapter_id })
+                    .onConflictDoUpdate({ target: schema.majorChaptersTable.name, set: { name: problemData.major_chapter_id } })
+                    .returning();
+                dataToUpdate.major_chapter_id = majorChapter.id;
+            }
+
+            if (problemData.middle_chapter_id && dataToUpdate.major_chapter_id) {
+                 const [middleChapter] = await tx.insert(schema.middleChaptersTable)
+                    .values({ name: problemData.middle_chapter_id, major_chapter_id: dataToUpdate.major_chapter_id })
+                    .onConflictDoNothing()
+                    .returning();
+                if (middleChapter) {
+                    dataToUpdate.middle_chapter_id = middleChapter.id;
+                }
+            }
+
+            if (problemData.core_concept_id) {
+                const [coreConcept] = await tx.insert(schema.coreConceptsTable)
+                    .values({ name: problemData.core_concept_id })
+                    .onConflictDoUpdate({ target: schema.coreConceptsTable.name, set: { name: problemData.core_concept_id } })
+                    .returning();
+                dataToUpdate.core_concept_id = coreConcept.id;
+            }
+
+            return tx.update(schema.problemTable)
+                .set(dataToUpdate)
+                .where(and(
+                    eq(schema.problemTable.problem_id, problemId),
+                    eq(schema.problemTable.creator_id, user.id)
+                ))
+                .returning();
+        });
+        
+        if (!updatedProblem) {
+            return c.json({ error: '문제를 찾을 수 없거나 업데이트할 권한이 없습니다.' }, 404);
+        }
+
+        return c.json(updatedProblem);
+
+    } catch (error: any) {
+        console.error(`Failed to update problem ${problemId}:`, error.message);
+        return c.json({ error: '데이터베이스 업데이트에 실패했습니다.', details: error.message }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
 
 export default problemRoutes;
 ----- ./api/routes/manage/student.ts -----

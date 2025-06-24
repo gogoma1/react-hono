@@ -510,20 +510,21 @@ export const fetchProblemsAPI = async (): Promise<Problem[]> => {
 };
 
 /**
- * [추가] 특정 문제를 업데이트하는 API 함수입니다.
- * 이 함수를 추가하고 export 해야 합니다.
- * @param id - 업데이트할 문제의 question_number
+ * [수정] 특정 문제를 업데이트하는 API 함수입니다.
+ * @param problemId - 업데이트할 문제의 problem_id (UUID)
  * @param updatedFields - 업데이트할 필드들
  * @returns 업데이트된 문제 객체
  */
-export const updateProblemAPI = async (id: string | number, updatedFields: Partial<Problem>): Promise<Problem> => {
-    const res = await fetch(`${API_BASE_FETCH}/${id}`, {
-        method: 'PUT', // 또는 'PATCH'
+export const updateProblemAPI = async (problemId: string, updatedFields: Partial<Problem>): Promise<Problem> => {
+    const { problem_id, ...payload } = updatedFields;
+
+    const res = await fetch(`${API_BASE_FETCH}/${problemId}`, {
+        method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify(updatedFields)
+        body: JSON.stringify(payload)
     });
     return handleApiResponse<Problem>(res);
 };
@@ -547,6 +548,7 @@ export const uploadProblemsAPI = async (problems: Problem[]): Promise<UploadResp
 };
 ----- ./react/entities/problem/model/types.ts -----
 export interface Problem {
+    problem_id: string; // [추가] DB의 UUID 기본 키
     source: string;
     page: number | null;
     question_number: number;
@@ -582,13 +584,12 @@ import type { Problem } from './types';
 import { PROBLEMS_QUERY_KEY } from './useProblemsQuery';
 
 interface UpdateProblemVariables {
-  id: string | number;
+  id: string; // [수정] ID는 항상 string (UUID)
   fields: Partial<Problem>;
 }
 
 /**
- * [추가] 문제 수정을 위한 React Query Mutation
- * 이 훅을 새로 추가하고 export 합니다.
+ * [수정] 문제 수정을 위한 React Query Mutation
  */
 export function useUpdateProblemMutation() {
     const queryClient = useQueryClient();
@@ -597,7 +598,8 @@ export function useUpdateProblemMutation() {
         
         onSuccess: (updatedProblem) => {
             queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
-            
+
+            alert('문제가 성공적으로 저장되었습니다.');
         },
         
         onError: (error) => {
@@ -2235,16 +2237,19 @@ import { useProblemsQuery } from '../../../entities/problem/model/useProblemsQue
 import { useUpdateProblemMutation } from '../../../entities/problem/model/useProblemMutations';
 import { useRowSelection } from '../../row-selection/model/useRowSelection';
 import type { Problem } from '../../../entities/problem/model/types';
+import { produce } from 'immer';
 
 const SINGLE_COLUMN_MAX_HEIGHT = 920;
 const DEFAULT_ESTIMATED_HEIGHT = 150;
 type ProblemPlacementInfo = { page: number; column: number };
 type ProblemGroup = { problems: ProcessedProblem[]; totalHeight: number };
-type ProcessedProblem = Problem & { display_question_number: string; uniqueId: string; };
+export type ProcessedProblem = Problem & { display_question_number: string; uniqueId: string; };
 
 export function useProblemPublishing() {
     const { data: rawProblems = [], isLoading: isLoadingProblems } = useProblemsQuery();
-    const { mutate: updateProblem } = useUpdateProblemMutation();
+    const { mutateAsync: updateProblem } = useUpdateProblemMutation(); // [수정] mutateAsync 사용
+
+    const [liveProblems, setLiveProblems] = useState<ProcessedProblem[] | null>(null);
 
     const allProblems = useMemo((): ProcessedProblem[] => {
         if (!rawProblems || rawProblems.length === 0) return [];
@@ -2259,21 +2264,20 @@ export function useProblemPublishing() {
                 if (typeCompare !== 0) return typeCompare;
                 return a.question_number - b.question_number;
             })
-            .map((p, index): ProcessedProblem => ({
+            .map((p): ProcessedProblem => ({
                 ...p,
-                uniqueId: `${p.question_number}-${index}`,
+                uniqueId: p.problem_id, // [수정] 고유 ID를 problem_id로 사용
                 display_question_number: p.problem_type === '서답형'
                     ? `서답형 ${p.question_number}`
                     : String(p.question_number)
             }));
     }, [rawProblems]);
 
-    const problemUniqueIds = useMemo(() => allProblems.map(p => p.uniqueId), [allProblems]);
-    const { selectedIds, toggleRow, toggleSelectAll, isAllSelected } = useRowSelection<string>({ allItems: problemUniqueIds });
+    const displayProblems = useMemo(() => liveProblems ?? allProblems, [liveProblems, allProblems]);
 
-    const selectedProblems = useMemo(() => {
-        return allProblems.filter(p => selectedIds.has(p.uniqueId));
-    }, [allProblems, selectedIds]);
+    const problemUniqueIds = useMemo(() => displayProblems.map(p => p.uniqueId), [displayProblems]);
+    const { selectedIds, toggleRow, toggleSelectAll, isAllSelected } = useRowSelection<string>({ allItems: problemUniqueIds });
+    const selectedProblems = useMemo(() => displayProblems.filter(p => selectedIds.has(p.uniqueId)), [displayProblems, selectedIds]);
     
     const [problemHeightsMap, setProblemHeightsMap] = useState<Map<string, number>>(new Map());
     const [distributedPages, setDistributedPages] = useState<ProcessedProblem[][]>([]);
@@ -2304,9 +2308,44 @@ export function useProblemPublishing() {
         });
     }, []);
 
-    const handleProblemUpdate = useCallback((id: string | number, updatedFields: Partial<Problem>) => {
-        updateProblem({ id: id, fields: updatedFields });
+    const handleSaveProblem = useCallback(async (updatedProblem: Problem) => {
+        await updateProblem({ id: updatedProblem.problem_id, fields: updatedProblem });
+        setLiveProblems(null);
     }, [updateProblem]);
+    
+    const handleLiveProblemChange = useCallback((updatedProblem: ProcessedProblem) => {
+        setLiveProblems(currentProblems => {
+            const base = currentProblems ?? allProblems;
+            return produce(base, draft => {
+                const index = draft.findIndex(p => p.uniqueId === updatedProblem.uniqueId);
+                if (index !== -1) {
+                    draft[index] = updatedProblem;
+                }
+            });
+        });
+    }, [allProblems]);
+
+    const handleRevertProblem = useCallback((problemId: string) => {
+        setLiveProblems(currentProblems => {
+            if (!currentProblems) return null; // 초안이 없으면 아무것도 안함
+            
+            return produce(currentProblems, draft => {
+                const originalProblem = allProblems.find(p => p.uniqueId === problemId);
+                if (originalProblem) {
+                    const indexToRevert = draft.findIndex(p => p.uniqueId === problemId);
+                    if (indexToRevert !== -1) {
+                        draft[indexToRevert] = originalProblem;
+                    }
+                }
+            });
+        });
+    }, [allProblems]);
+
+    const startEditingProblem = useCallback(() => {
+        if (liveProblems === null) {
+            setLiveProblems(allProblems);
+        }
+    }, [liveProblems, allProblems]);
     
     const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: any) => {
         setHeaderInfo(prev => {
@@ -2333,7 +2372,6 @@ export function useProblemPublishing() {
                 setIsCalculating(false);
                 return;
             }
-
             const problemGroups: ProblemGroup[] = [];
             let currentGroupProblems: ProcessedProblem[] = [];
             let currentGroupHeight = 0;
@@ -2388,11 +2426,30 @@ export function useProblemPublishing() {
     }, [selectedProblems, problemHeightsMap]);
 
     return {
-        allProblems, isLoadingProblems, selectedIds, isAllSelected, distributedPages,
-        placementMap, isCalculating, headerInfo, baseFontSize, contentFontSizeEm,
-        problemBoxMinHeight, useSequentialNumbering, setBaseFontSize, setContentFontSizeEm,
-        setProblemBoxMinHeight, setUseSequentialNumbering, toggleRow, toggleSelectAll,
-        handleHeightUpdate, handleProblemUpdate, handleHeaderUpdate,
+        allProblems: displayProblems, // [수정] displayProblems를 외부에 노출
+        isLoadingProblems,
+        selectedIds,
+        isAllSelected,
+        toggleRow,
+        toggleSelectAll,
+        distributedPages,
+        placementMap,
+        isCalculating,
+        handleHeightUpdate,
+        headerInfo,
+        baseFontSize,
+        contentFontSizeEm,
+        problemBoxMinHeight,
+        useSequentialNumbering,
+        setBaseFontSize,
+        setContentFontSizeEm,
+        setProblemBoxMinHeight,
+        setUseSequentialNumbering,
+        handleHeaderUpdate,
+        handleSaveProblem,
+        handleLiveProblemChange,
+        handleRevertProblem,
+        startEditingProblem,
     };
 }
 ----- ./react/features/problem-text-editing/ui/ProblemMetadataEditor.tsx -----
@@ -2526,12 +2583,12 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
 
 export default ProblemMetadataEditor;
 ----- ./react/features/problem-text-editing/ui/ProblemTextEditor.tsx -----
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import type { Problem } from '../../../entities/problem/model/types';
 import Editor from '../../../shared/ui/codemirror-editor/Editor';
 import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
-import { LuCheck, LuX } from 'react-icons/lu';
-import ProblemMetadataEditor from './ProblemMetadataEditor'; // [추가] 신규 컴포넌트 임포트
+import { LuCheck, LuUndo2 } from 'react-icons/lu';
+import ProblemMetadataEditor from './ProblemMetadataEditor';
 import './ProblemTextEditor.css';
 
 const EDITABLE_METADATA_FIELDS: (keyof Problem)[] = [
@@ -2540,48 +2597,56 @@ const EDITABLE_METADATA_FIELDS: (keyof Problem)[] = [
     'difficulty', 'score', 'answer', 'page', 'problem_type'
 ];
 
-const ProblemTextEditor: React.FC<{
-    problem: Problem;
-    onSave: (problemId: number | string, updatedProblem: Partial<Problem>) => void;
-    onClose: () => void;
-}> = ({ problem, onSave, onClose }) => {
-    const [editableProblem, setEditableProblem] = useState<Problem>(problem);
+type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
 
-    const handleContentChange = (field: 'question_text' | 'solution_text', content: string) => {
-        setEditableProblem(prev => ({ ...prev, [field]: content }));
-    };
+interface ProblemTextEditorProps {
+    problem: ProcessedProblem;
+    onSave: (updatedProblem: ProcessedProblem) => void;
+    onCancel: (problemId: string) => void;
+    onClose: () => void; // 이 prop은 GlassSidebarRight의 닫기 버튼과 연결됩니다.
+    onProblemChange: (updatedProblem: ProcessedProblem) => void;
+}
 
-    const handleMetadataChange = (field: keyof Problem, value: string | number) => {
-        setEditableProblem(prev => ({ ...prev, [field]: value }));
-    };
+const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({ 
+    problem, 
+    onSave, 
+    onCancel,
+    onClose, // prop은 받지만 컴포넌트 내에서 직접 사용하지는 않습니다.
+    onProblemChange 
+}) => {
+
+    const handleContentChange = useCallback((field: 'question_text' | 'solution_text', newContent: string) => {
+        onProblemChange({ ...problem, [field]: newContent });
+    }, [problem, onProblemChange]);
+
+    const handleMetadataChange = useCallback((field: keyof Problem, value: string | number) => {
+        onProblemChange({ ...problem, [field]: value });
+    }, [problem, onProblemChange]);
 
     const handleSave = () => {
-        const changedFields: Partial<Problem> = {};
-        (Object.keys(editableProblem) as (keyof Problem)[]).forEach(key => {
-            if (editableProblem[key] !== problem[key]) {
-                (changedFields as any)[key] = editableProblem[key];
-            }
-        });
-        
-        if (Object.keys(changedFields).length > 0) {
-            onSave(problem.question_number, changedFields);
-        }
-        onClose();
+        onSave(problem);
+    };
+
+    const handleCancel = () => {
+        onCancel(problem.uniqueId);
     };
 
     return (
         <div className="problem-text-editor-container">
             <div className="editor-header">
-                <h4 className="editor-title">{problem.question_number}번 문제 수정</h4>
+                <h4 className="editor-title">{problem.display_question_number}번 문제 수정</h4>
                 <div className="editor-actions">
-                    <ActionButton onClick={onClose} aria-label="취소">
-                        <LuX size={14} style={{ marginRight: '4px' }} />
+                    {/* '취소' 버튼: 변경사항을 되돌리고 닫음 */}
+                    <ActionButton onClick={handleCancel} aria-label="변경사항 취소">
+                        <LuUndo2 size={14} style={{ marginRight: '4px' }} />
                         취소
                     </ActionButton>
-                    <ActionButton onClick={handleSave} className="primary" aria-label="저장">
+                    {/* '저장' 버튼: 변경사항을 DB에 저장하고 닫음 */}
+                    <ActionButton onClick={handleSave} className="primary" aria-label="변경사항 저장">
                         <LuCheck size={14} style={{ marginRight: '4px' }} />
                         저장
                     </ActionButton>
+                    {/* [삭제] 컴포넌트 내의 'X' 닫기 버튼을 제거합니다. */}
                 </div>
             </div>
             
@@ -2590,16 +2655,15 @@ const ProblemTextEditor: React.FC<{
                     <h5 className="editor-section-title">문제 본문</h5>
                     <div className="editor-wrapper-body">
                         <Editor 
-                            initialContent={editableProblem.question_text}
+                            initialContent={problem.question_text}
                             onContentChange={(content) => handleContentChange('question_text', content)}
                         />
                     </div>
                 </div>
 
-                {/* [핵심 수정] 재사용 가능한 메타데이터 에디터 컴포넌트 사용 */}
                 <ProblemMetadataEditor
                     fields={EDITABLE_METADATA_FIELDS}
-                    problemData={editableProblem}
+                    problemData={problem}
                     onDataChange={handleMetadataChange}
                 />
 
@@ -2607,7 +2671,7 @@ const ProblemTextEditor: React.FC<{
                     <h5 className="editor-section-title">해설</h5>
                     <div className="editor-wrapper-body">
                         <Editor
-                            initialContent={editableProblem.solution_text ?? ''}
+                            initialContent={problem.solution_text ?? ''}
                             onContentChange={(content) => handleContentChange('solution_text', content)}
                         />
                     </div>
@@ -4596,36 +4660,48 @@ export default LoginPageWithErrorDisplay;
 ----- ./react/pages/ProblemPublishingPage.tsx -----
 import React, { useState, useCallback, useEffect } from 'react';
 import { useLayoutStore } from '../shared/store/layoutStore';
-import { useProblemPublishing } from '../features/problem-publishing/model/useProblemPublishing';
+import { useProblemPublishing, type ProcessedProblem } from '../features/problem-publishing/model/useProblemPublishing';
 import ProblemSelectionWidget from '../widgets/ProblemSelectionWidget';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
 import ExamPreviewWidget from '../widgets/ExamPreviewWidget';
 import ProblemTextEditor from '../features/problem-text-editing/ui/ProblemTextEditor';
-import type { Problem } from '../entities/problem/model/types';
 import './ProblemPublishingPage.css';
-
-type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
 
 const ProblemPublishingPage: React.FC = () => {
     const {
         allProblems, isLoadingProblems, selectedIds, isAllSelected,
         distributedPages, placementMap, isCalculating, headerInfo, baseFontSize,
         contentFontSizeEm, problemBoxMinHeight, useSequentialNumbering,
-        toggleRow, toggleSelectAll, handleHeightUpdate, handleProblemUpdate,
+        toggleRow, toggleSelectAll, handleHeightUpdate,
         handleHeaderUpdate, setBaseFontSize, setContentFontSizeEm,
-        setProblemBoxMinHeight, setUseSequentialNumbering
+        setProblemBoxMinHeight, setUseSequentialNumbering,
+        handleSaveProblem,
+        handleLiveProblemChange,
+        handleRevertProblem,
+        startEditingProblem
     } = useProblemPublishing();
 
     const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
     const { setRightSidebarConfig, registerPageActions } = useLayoutStore.getState();
 
     const handleProblemClick = useCallback((problem: ProcessedProblem) => {
-        setEditingProblemId(problem.uniqueId);
-    }, []);
+        startEditingProblem(); // 편집용 '초안' 상태 생성 또는 유지
+        setEditingProblemId(problem.uniqueId); // 어떤 문제를 편집할지 ID 설정
+    }, [startEditingProblem]);
 
     const handleCloseEditor = useCallback(() => {
         setEditingProblemId(null);
     }, []);
+
+    const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => {
+        await handleSaveProblem(problem);
+        handleCloseEditor();
+    }, [handleSaveProblem, handleCloseEditor]);
+
+    const handleCancelAndClose = useCallback((problemId: string) => {
+        handleRevertProblem(problemId);
+        handleCloseEditor();
+    }, [handleRevertProblem, handleCloseEditor]);
     
     const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
 
@@ -4635,19 +4711,30 @@ const ProblemPublishingPage: React.FC = () => {
             
             if (problemToEdit) {
                 setRightSidebarConfig({
-                    content: <ProblemTextEditor key={problemToEdit.uniqueId} problem={problemToEdit} onSave={handleProblemUpdate} onClose={handleCloseEditor} />,
+                    content: (
+                        <ProblemTextEditor 
+                            key={problemToEdit.uniqueId} 
+                            problem={problemToEdit} 
+                            onSave={handleSaveAndClose}
+                            onCancel={handleCancelAndClose}
+                            onClose={handleCloseEditor}
+                            onProblemChange={handleLiveProblemChange}
+                        />
+                    ),
                     isExtraWide: true 
                 });
+            } else {
+                setEditingProblemId(null);
+                setRightSidebarConfig({ content: null, isExtraWide: false });
             }
         } else {
             const timer = setTimeout(() => setRightSidebarConfig({ content: null, isExtraWide: false }), 300);
             return () => clearTimeout(timer);
         }
-    }, [editingProblemId, allProblems, setRightSidebarConfig, handleProblemUpdate, handleCloseEditor]);
+    }, [editingProblemId, allProblems, setRightSidebarConfig, handleSaveAndClose, handleCancelAndClose, handleCloseEditor, handleLiveProblemChange]);
     
     useEffect(() => {
         registerPageActions({ onClose: handleCloseEditor });
-        
         return () => {
             setRightSidebarConfig({ content: null, isExtraWide: false });
             registerPageActions({ onClose: undefined });
@@ -4656,12 +4743,46 @@ const ProblemPublishingPage: React.FC = () => {
 
     return (
         <div className="problem-publishing-page">
-            <div className="sticky-top-container">{/* ... */}
-                <div className="selection-widget-container"><ProblemSelectionWidget problems={allProblems} isLoading={isLoadingProblems} selectedIds={selectedIds} onToggleRow={toggleRow} onToggleAll={toggleSelectAll} isAllSelected={isAllSelected} /></div>
-                <PublishingToolbarWidget useSequentialNumbering={useSequentialNumbering} onToggleSequentialNumbering={() => setUseSequentialNumbering(p => !p)} baseFontSize={baseFontSize} onBaseFontSizeChange={setBaseFontSize} contentFontSizeEm={contentFontSizeEm} onContentFontSizeEmChange={setContentFontSizeEm} problemBoxMinHeight={problemBoxMinHeight} onProblemBoxMinHeightChange={setProblemBoxMinHeight} onDownloadPdf={handleDownloadPdf} />
+            <div className="sticky-top-container">
+                <div className="selection-widget-container">
+                    <ProblemSelectionWidget 
+                        problems={allProblems} 
+                        isLoading={isLoadingProblems} 
+                        selectedIds={selectedIds} 
+                        onToggleRow={toggleRow} 
+                        onToggleAll={toggleSelectAll} 
+                        isAllSelected={isAllSelected} 
+                    />
+                </div>
+                <PublishingToolbarWidget 
+                    useSequentialNumbering={useSequentialNumbering}
+                    onToggleSequentialNumbering={() => setUseSequentialNumbering(p => !p)}
+                    baseFontSize={baseFontSize}
+                    onBaseFontSizeChange={setBaseFontSize}
+                    contentFontSizeEm={contentFontSizeEm}
+                    onContentFontSizeEmChange={setContentFontSizeEm}
+                    problemBoxMinHeight={problemBoxMinHeight}
+                    onProblemBoxMinHeightChange={setProblemBoxMinHeight}
+                    onDownloadPdf={handleDownloadPdf} 
+                />
             </div>
-            <div className="scrollable-content-area">{/* ... */}
-                <ExamPreviewWidget distributedPages={distributedPages} allProblems={allProblems} placementMap={placementMap} isCalculating={isCalculating} headerInfo={headerInfo} useSequentialNumbering={useSequentialNumbering} baseFontSize={baseFontSize} contentFontSizeEm={contentFontSizeEm} contentFontFamily={headerInfo.titleFontFamily} problemBoxMinHeight={problemBoxMinHeight} onHeightUpdate={handleHeightUpdate} onProblemUpdate={handleProblemUpdate} onProblemClick={handleProblemClick} onHeaderUpdate={handleHeaderUpdate} />
+            <div className="scrollable-content-area">
+                <ExamPreviewWidget 
+                    distributedPages={distributedPages} 
+                    allProblems={allProblems} 
+                    placementMap={placementMap} 
+                    isCalculating={isCalculating} 
+                    headerInfo={headerInfo} 
+                    useSequentialNumbering={useSequentialNumbering} 
+                    baseFontSize={baseFontSize} 
+                    contentFontSizeEm={contentFontSizeEm} 
+                    contentFontFamily={headerInfo.titleFontFamily} 
+                    problemBoxMinHeight={problemBoxMinHeight} 
+                    onHeightUpdate={handleHeightUpdate} 
+                    onProblemUpdate={() => {}} // [수정] 이 위젯에서의 직접 업데이트는 막고 사이드바를 통하게 함
+                    onProblemClick={handleProblemClick} 
+                    onHeaderUpdate={handleHeaderUpdate} 
+                />
             </div>
         </div>
     );
@@ -5645,7 +5766,7 @@ interface RightSidebarState {
 }
 
 interface LayoutState {
-  rightSidebar: RightSidebarState; // [수정] rightSidebarContent -> rightSidebar
+  rightSidebar: RightSidebarState; 
   currentPageConfig: PageLayoutConfig;
   pageActions: Partial<RegisteredPageActions>;
   studentSearchProps: StoredSearchProps | null;
@@ -5677,7 +5798,7 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set) => ({
   setRightSidebarConfig: (config) => set({ 
     rightSidebar: {
       content: config.content,
-      isExtraWide: config.isExtraWide ?? false // isExtraWide가 제공되지 않으면 false로 설정
+      isExtraWide: config.isExtraWide ?? false
     } 
   }),
 

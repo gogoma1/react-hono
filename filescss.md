@@ -2406,23 +2406,23 @@ body {
 /* react/pages/ProblemPublishingPage.css */
 
 /*
- * [핵심] 페이지 전체를 Flexbox 컨테이너로 설정합니다.
- * 이렇게 해야 자식 요소들이 높이를 동적으로 분배할 수 있습니다.
+ * [수정] 페이지 최상위 컨테이너
+ * height: 100%를 제거하여 내용만큼 높이가 늘어나도록 합니다.
+ * 이제 이 컨테이너는 부모인 main-content의 스크롤에 따라 움직입니다.
  */
 .problem-publishing-page {
     display: flex;
-    flex-direction: column; /* 자식 요소(top-container, scrollable-content-area)를 세로로 쌓음 */
-    height: 100%; /* 부모(.main-content)의 높이를 100% 채웁니다. */
+    flex-direction: column;
     width: 100%;
-    gap: 1.5rem; /* 상단 컨테이너와 하단 스크롤 영역 사이의 간격 */
+    gap: 1.5rem;
 }
 
 /*
  * 상단 영역 (문제 선택 위젯 + 툴바).
- * 이 영역은 내용만큼의 높이만 차지하고, 스크롤되지 않습니다.
+ * 이 영역은 이제 페이지 스크롤과 함께 자연스럽게 움직입니다.
  */
 .sticky-top-container {
-    flex-shrink: 0; /* 내용이 많아져도 이 컨테이너의 높이는 줄어들지 않습니다. */
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -2430,25 +2430,26 @@ body {
 
 /*
  * [스크롤 영역 1: 테이블]
- * 문제 선택 테이블을 감싸는 컨테이너입니다.
- * 높이를 'vh' 단위로 제한하여, 이 안에서 테이블이 자체적으로 스크롤되도록 만듭니다.
+ * 테이블 컨테이너는 기존과 동일하게 높이를 제한하여
+ * 테이블 내용이 많을 때 자체 스크롤이 생기도록 합니다.
  */
 .selection-widget-container {
     flex-shrink: 0;
-    max-height: 40vh; /* 화면 높이의 최대 40%까지만 차지하도록 제한 */
-    min-height: 250px; /* 최소 높이를 보장하여 너무 작아지는 것을 방지 */
+    max-height: 40vh;
+    min-height: 250px;
     display: flex;
     flex-direction: column;
+    
 }
 
-/* 컨트롤 패널 스타일 (이전과 동일) */
+/* 컨트롤 패널 스타일 (변경 없음) */
 .publishing-controls-panel {
     flex-shrink: 0;
     padding: 1rem;
     background: var(--glass-base-bg);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--border-color-light);
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -2487,17 +2488,11 @@ body {
 
 
 /*
- * [스크롤 영역 2: 메인 콘텐츠]
- * 시험지 미리보기가 표시되는 메인 스크롤 영역입니다.
- * flex-grow: 1을 통해 상단 영역을 제외한 "모든 남는 수직 공간"을 차지합니다.
+ * [수정] 시험지 미리보기 영역.
+ * flex-grow, overflow-y, min-height 속성을 모두 제거합니다.
+ * 이제 이 영역은 스크롤을 가지지 않고, 내용만큼의 높이를 차지합니다.
  */
-.scrollable-content-area {
-    flex-grow: 1; /* 이 속성이 마법을 부립니다. */
-    overflow-y: auto; /* 내용(시험지 페이지들)이 이 영역을 넘어서면 세로 스크롤이 생깁니다. */
-    min-height: 0; /* Flexbox 아이템이 부모보다 작아질 수 있도록 허용하는 필수 속성 */
-    padding-right: 8px; /* 스크롤바와 콘텐츠가 겹치지 않도록 여백 확보 */
-    scrollbar-gutter: stable; /* 스크롤바 유무에 따른 레이아웃 변경 방지 */
-}
+
 
 .status-message {
     padding: 3rem 1rem;
@@ -3350,12 +3345,17 @@ body {
 /* react/widgets/ProblemSelectionWidget.css */
 
 .problem-selection-widget {
-    display: flex; /* [핵심] Flexbox 레이아웃으로 변경 */
+    /* [핵심] 위젯 자체를 Flexbox 컨테이너로 설정 */
+    display: flex;
     flex-direction: column; /* 자식 요소(헤더, 테이블)를 세로로 쌓음 */
-    height: 100%; /* 부모(selection-widget-container)의 높이를 100% 채움 */
+    
+    /* [핵심] 부모(.selection-widget-container)의 높이를 100% 채움 */
+    height: 100%;
+    
+    /* 나머지 디자인 스타일 */
     overflow: hidden; /* 위젯 자체의 스크롤은 방지 */
     background-color: var(--glass-base-bg);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--border-color-light);
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
@@ -3365,45 +3365,44 @@ body {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid var(--border-color-light);
     flex-shrink: 0; /* 헤더는 높이가 줄어들지 않도록 고정 */
 }
 
-/* [핵심 수정] 테이블 컨테이너가 flex 공간을 채우고, 내부 스크롤을 허용하도록 설정 */
+/* 
+ * [핵심] 테이블을 감싸는 컨테이너
+ * 이 컨테이너가 헤더를 제외한 모든 남는 공간을 차지하고,
+ * 내부에서 GlassTable이 스크롤되도록 만듭니다.
+ */
 .selection-table-container {
-    flex-grow: 1; /* 부모의 남는 공간을 모두 차지 */
-    min-height: 0; /* flex-item이 축소될 수 있도록 보장 */
-    position: relative; /* 자식 요소의 기준점 (필요 시) */
-    display: flex; /* 자식 요소가 높이를 채울 수 있도록 flex 컨테이너로 설정 */
+    flex-grow: 1;  /* 부모(.problem-selection-widget)의 남는 공간을 모두 차지 */
+    min-height: 0; /* flex item이 부모보다 작아질 수 있도록 하는 필수 속성 */
+    overflow: auto; /* 이 컨테이너 자체는 스크롤되지 않음 */
+    display: flex; /* 자식인 GlassTable이 높이를 100% 채울 수 있도록 */
 }
 
-/* [핵심 수정] GlassTable의 스크롤 컨테이너가 항상 100% 높이를 가지도록 설정 */
+/* 
+ * [핵심] GlassTable 컴포넌트를 직접 감싸는 래퍼
+ * (GlassTable.tsx 내부의 .glass-table-wrapper)
+ * 이 래퍼가 높이를 100% 채우고, 내부의 스크롤 컨테이너를 제어합니다.
+ */
 .selection-table-container .glass-table-wrapper {
-    width: 100%;
     height: 100%;
+    width: 100%;
     display: flex;
     flex-direction: column;
 }
 
-.selection-table-container .glass-table-scroll-container {
-    flex-grow: 1; /* 테이블 래퍼의 남는 공간을 모두 차지 */
-    overflow: auto; /* [중요] 이제 가로/세로 스크롤이 모두 가능해짐 */
-}
-
-/* [핵심 수정] GlassTable의 스크롤 컨테이너가 항상 100% 높이를 가지도록 설정 */
-.selection-table-container .glass-table-wrapper {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
+/* 
+ * [핵심] GlassTable의 실제 스크롤 영역
+ * (GlassTable.tsx 내부의 .glass-table-scroll-container)
+ * 이 영역이 남는 공간을 채우고, 가로/세로 스크롤을 모두 담당합니다.
+ */
 .selection-table-container .glass-table-scroll-container {
     flex-grow: 1;
-    overflow-y: auto; /* 세로 스크롤 활성화! */
 }
 
-
+/* --- 기존 기타 스타일 (유지) --- */
 .keyword-badge {
     display: inline-block;
     background-color: rgba(var(--accent-color-rgb), 0.1);

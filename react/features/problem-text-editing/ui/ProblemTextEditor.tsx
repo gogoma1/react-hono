@@ -2,7 +2,8 @@ import React, { useCallback } from 'react';
 import type { Problem } from '../../../entities/problem/model/types';
 import Editor from '../../../shared/ui/codemirror-editor/Editor';
 import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
-import { LuCheck, LuX } from 'react-icons/lu';
+// [수정] LuX 아이콘 import 제거, LuUndo2는 유지
+import { LuCheck, LuUndo2 } from 'react-icons/lu';
 import ProblemMetadataEditor from './ProblemMetadataEditor';
 import './ProblemTextEditor.css';
 
@@ -14,14 +15,22 @@ const EDITABLE_METADATA_FIELDS: (keyof Problem)[] = [
 
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
 
-const ProblemTextEditor: React.FC<{
+interface ProblemTextEditorProps {
     problem: ProcessedProblem;
-    onSave: (problemId: number | string, updatedProblem: Partial<Problem>) => void;
-    onClose: () => void;
+    onSave: (updatedProblem: ProcessedProblem) => void;
+    onCancel: (problemId: string) => void;
+    onClose: () => void; // 이 prop은 GlassSidebarRight의 닫기 버튼과 연결됩니다.
     onProblemChange: (updatedProblem: ProcessedProblem) => void;
-}> = ({ problem, onSave, onClose, onProblemChange }) => {
+}
 
-    // [수정] 이 콜백은 이제 필드 이름을 인자로 받지 않습니다.
+const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({ 
+    problem, 
+    onSave, 
+    onCancel,
+    onClose, // prop은 받지만 컴포넌트 내에서 직접 사용하지는 않습니다.
+    onProblemChange 
+}) => {
+
     const handleContentChange = useCallback((field: 'question_text' | 'solution_text', newContent: string) => {
         onProblemChange({ ...problem, [field]: newContent });
     }, [problem, onProblemChange]);
@@ -31,8 +40,11 @@ const ProblemTextEditor: React.FC<{
     }, [problem, onProblemChange]);
 
     const handleSave = () => {
-        onSave(problem.question_number, problem);
-        onClose();
+        onSave(problem);
+    };
+
+    const handleCancel = () => {
+        onCancel(problem.uniqueId);
     };
 
     return (
@@ -40,14 +52,17 @@ const ProblemTextEditor: React.FC<{
             <div className="editor-header">
                 <h4 className="editor-title">{problem.display_question_number}번 문제 수정</h4>
                 <div className="editor-actions">
-                    <ActionButton onClick={onClose} aria-label="취소">
-                        <LuX size={14} style={{ marginRight: '4px' }} />
+                    {/* '취소' 버튼: 변경사항을 되돌리고 닫음 */}
+                    <ActionButton onClick={handleCancel} aria-label="변경사항 취소">
+                        <LuUndo2 size={14} style={{ marginRight: '4px' }} />
                         취소
                     </ActionButton>
-                    <ActionButton onClick={handleSave} className="primary" aria-label="저장">
+                    {/* '저장' 버튼: 변경사항을 DB에 저장하고 닫음 */}
+                    <ActionButton onClick={handleSave} className="primary" aria-label="변경사항 저장">
                         <LuCheck size={14} style={{ marginRight: '4px' }} />
                         저장
                     </ActionButton>
+                    {/* [삭제] 컴포넌트 내의 'X' 닫기 버튼을 제거합니다. */}
                 </div>
             </div>
             
@@ -57,7 +72,6 @@ const ProblemTextEditor: React.FC<{
                     <div className="editor-wrapper-body">
                         <Editor 
                             initialContent={problem.question_text}
-                            // [최종 수정] Editor가 요구하는 (content: string) => void 시그니처에 맞게 함수를 전달합니다.
                             onContentChange={(content) => handleContentChange('question_text', content)}
                         />
                     </div>
@@ -74,7 +88,6 @@ const ProblemTextEditor: React.FC<{
                     <div className="editor-wrapper-body">
                         <Editor
                             initialContent={problem.solution_text ?? ''}
-                            // [최종 수정] 여기도 마찬가지로 시그니처에 맞게 함수를 전달합니다.
                             onContentChange={(content) => handleContentChange('solution_text', content)}
                         />
                     </div>
