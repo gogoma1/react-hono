@@ -12,7 +12,7 @@ import {
     primaryKey, // problem_tag_table 복합 PK 예시용 (현재는 단일 uuid id 사용)
     // foreignKey, // 명시적 FK 정의가 필요하다면 (Drizzle은 references()로 처리)
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm"; // raw SQL 사용 및 default 값 설정용
+import { sql, relations } from "drizzle-orm"; // raw SQL 사용 및 default 값 설정용
 
 // --- Enum 타입 정의 ---
 // 데이터베이스에 'student_status_enum'이라는 이름으로 enum 타입 생성됨
@@ -127,6 +127,26 @@ export const problemTable = pgTable("problem", {
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
     updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
+
+// [신규 추가] 문제 테이블과 다른 테이블 간의 관계 정의
+export const problemRelations = relations(problemTable, ({ one }) => ({
+    majorChapter: one(majorChaptersTable, {
+        fields: [problemTable.major_chapter_id],
+        references: [majorChaptersTable.id],
+    }),
+    middleChapter: one(middleChaptersTable, {
+        fields: [problemTable.middle_chapter_id],
+        references: [middleChaptersTable.id],
+    }),
+    coreConcept: one(coreConceptsTable, {
+        fields: [problemTable.core_concept_id],
+        references: [coreConceptsTable.id],
+    }),
+    creator: one(profilesTable, {
+        fields: [problemTable.creator_id],
+        references: [profilesTable.id],
+    }),
+}));
 
 export const tagTable = pgTable("tag", {
     tag_id: uuid("tag_id").primaryKey().default(sql`gen_random_uuid()`),

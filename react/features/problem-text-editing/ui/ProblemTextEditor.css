@@ -1,0 +1,155 @@
+/* ./react/features/problem-text-editing/ui/ProblemTextEditor.css */
+
+.problem-text-editor-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: var(--text-secondary);
+    padding: 0 15px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.editor-header {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(129, 127, 127, 0.1);
+}
+
+.editor-title {
+    color: var(--text-primary);
+    margin: 0;
+    font-size: 1.05em;
+    font-weight: 600;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.editor-body-wrapper {
+    flex-grow: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding-right: 10px;
+    scrollbar-gutter: stable;
+}
+
+/* [재활용] 이 클래스는 이제 문제 본문, 해설 모두에 사용됩니다. */
+.editor-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 250px; /* 최소 높이 살짝 줄임 */
+    max-height: 45vh; /* 화면 높이의 45% */
+}
+
+.editor-section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.editor-wrapper-body {
+    flex-grow: 1;
+    min-height: 0;
+    position: relative;
+    border: 1px solid var(--border-color-light, #e0e0e0);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.editor-wrapper-body .editor-wrapper,
+.editor-wrapper-body .cm-editor {
+    height: 100%;
+}
+
+.metadata-fields-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.metadata-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.metadata-field-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.metadata-field-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background-color: var(--app-bg-color);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metadata-field-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);
+}
+
+.metadata-field-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background-color: var(--app-bg-color);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* [추가] 콤보박스 트리거 버튼 스타일 */
+.metadata-field-combobox-trigger {
+    /* .metadata-field-input 과 유사한 디자인으로 설정 */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background-color: var(--app-bg-color);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.metadata-field-combobox-trigger:hover {
+    border-color: var(--accent-color);
+}
+
+.metadata-field-combobox-trigger .chevron-icon {
+    color: var(--text-placeholder);
+    flex-shrink: 0;
+}
+
+
+.metadata-field-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);
+}

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLayoutStore } from '../shared/store/layoutStore';
-import { useUIStore } from '../shared/store/uiStore';
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../entities/student/model/useStudentDataWithRQ';
 import { useRowSelection } from '../features/row-selection/model/useRowSelection';
 
@@ -39,9 +38,7 @@ const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] =
 };
 
 const DashBoard: React.FC = () => {
-    // [핵심 수정] 훅 대신 getState()를 사용하여 구독을 생성하지 않고 액션만 가져옵니다.
-    const { setRightSidebarContent, registerPageActions } = useLayoutStore.getState();
-    const { setRightSidebarExpanded } = useUIStore();
+    const { setRightSidebarConfig, registerPageActions } = useLayoutStore.getState();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
     
@@ -134,24 +131,25 @@ const DashBoard: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        setRightSidebarExpanded(activeSidebarView !== null);
-
-        if (activeSidebarView === 'register') {
-            setRightSidebarContent(<StudentRegistrationForm onSuccess={handleCloseSidebar} />);
-        } else if (activeSidebarView === 'edit' && studentToEdit) {
-            setRightSidebarContent(<StudentEditForm student={studentToEdit} onSuccess={handleCloseSidebar} />);
-        } else if (activeSidebarView === 'settings') {
-            setRightSidebarContent(<TableColumnToggler />);
+        if (activeSidebarView === null) {
+            if (prevActiveSidebarView !== null) {
+                const timer = setTimeout(() => {
+                    setRightSidebarConfig({ content: null, isExtraWide: false });
+                }, 300);
+                return () => clearTimeout(timer);
+            }
+        } else {
+            let content: React.ReactNode = null;
+            if (activeSidebarView === 'register') {
+                content = <StudentRegistrationForm onSuccess={handleCloseSidebar} />;
+            } else if (activeSidebarView === 'edit' && studentToEdit) {
+                content = <StudentEditForm student={studentToEdit} onSuccess={handleCloseSidebar} />;
+            } else if (activeSidebarView === 'settings') {
+                content = <TableColumnToggler />;
+            }
+            setRightSidebarConfig({ content, isExtraWide: false });
         }
-
-        if (prevActiveSidebarView !== null && activeSidebarView === null) {
-            const timer = setTimeout(() => {
-                setRightSidebarContent(null);
-                setStudentToEdit(null);
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [activeSidebarView, studentToEdit, handleCloseSidebar, setRightSidebarExpanded, setRightSidebarContent, prevActiveSidebarView]);
+    }, [activeSidebarView, prevActiveSidebarView, studentToEdit, handleCloseSidebar, setRightSidebarConfig]);
 
     useEffect(() => {
         registerPageActions({

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { ReactNode } from 'react';
-import { useMemo } from 'react'; // React의 useMemo를 import합니다.
+import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
 
 interface StoredSearchProps {
@@ -22,15 +22,21 @@ interface RegisteredPageActions {
   onClose: () => void;
 }
 
+
+interface RightSidebarState {
+    content: ReactNode | null;
+    isExtraWide: boolean;
+}
+
 interface LayoutState {
-  rightSidebarContent: ReactNode | null;
+  rightSidebar: RightSidebarState; 
   currentPageConfig: PageLayoutConfig;
   pageActions: Partial<RegisteredPageActions>;
   studentSearchProps: StoredSearchProps | null;
 }
 
 interface LayoutActions {
-  setRightSidebarContent: (content: ReactNode | null) => void;
+  setRightSidebarConfig: (config: { content: ReactNode | null, isExtraWide?: boolean }) => void;
   updateLayoutForPath: (path: string) => void;
   registerPageActions: (actions: Partial<RegisteredPageActions>) => void;
   setStudentSearchProps: (props: StoredSearchProps | null) => void;
@@ -44,12 +50,20 @@ const initialPageActions: Partial<RegisteredPageActions> = {
 };
 
 export const useLayoutStore = create<LayoutState & LayoutActions>((set) => ({
-  rightSidebarContent: null,
+  rightSidebar: {
+    content: null,
+    isExtraWide: false,
+  },
   currentPageConfig: {},
   pageActions: initialPageActions,
   studentSearchProps: null,
   
-  setRightSidebarContent: (content) => set({ rightSidebarContent: content }),
+  setRightSidebarConfig: (config) => set({ 
+    rightSidebar: {
+      content: config.content,
+      isExtraWide: config.isExtraWide ?? false
+    } 
+  }),
 
   updateLayoutForPath: (path) => {
     const newConfig = Object.entries(layoutConfigMap)
@@ -66,6 +80,10 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set) => ({
   
   setStudentSearchProps: (props) => set({ studentSearchProps: props }),
 }));
+
+
+export const selectRightSidebarConfig = (state: LayoutState) => state.rightSidebar;
+export const selectStudentSearchProps = (state: LayoutState) => state.studentSearchProps;
 
 
 export const useSidebarTriggers = () => {
@@ -94,11 +112,7 @@ export const useSidebarTriggers = () => {
             };
         }
         return result;
-    }, [currentPageConfig, pageActions]); // 의존성 배열에 상태들을 넣어줍니다.
+    }, [currentPageConfig, pageActions]);
 
     return triggers;
 };
-
-
-export const selectRightSidebarContent = (state: LayoutState) => state.rightSidebarContent;
-export const selectStudentSearchProps = (state: LayoutState) => state.studentSearchProps;

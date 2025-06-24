@@ -179,6 +179,215 @@
     pointer-events: auto;
   }
 }
+----- ./react/entities/exam/ui/ExamPage.css -----
+/* react/entities/exam/ui/ExamPage.css */
+
+/* ==========================================================================
+   1. 시험지 페이지 기본 레이아웃 (ExamPage)
+   ========================================================================== */
+.exam-page-component {
+    position: relative;
+    margin: 0 auto;
+    box-sizing: border-box;
+    aspect-ratio: 210 / 297;
+    height: 1123px;
+    width: 794px;
+    overflow: hidden;
+    border: 2px solid black;
+    background-color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.exam-paper {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    height: 100%;
+    width: 100%;
+    flex-direction: column;
+    padding: 1.8em;
+    color: #374151;
+}
+
+/* ==========================================================================
+   2. 시험지 헤더 레이아웃 (ExamHeader)
+   ========================================================================== */
+
+/* --- 공통 및 1페이지 헤더 --- */
+.exam-header-container, .exam-header-simplified-container { flex-shrink: 0; }
+.exam-header-title-section { position: relative; margin-bottom: 1.8em; display: flex; align-items: center; justify-content: center; }
+.exam-header-page-number { position: absolute; right: 0; top: 50%; transform: translateY(-50%); padding: 0.45em 0.9em; font-size: 3em; font-weight: 700; }
+.exam-header-info-section { margin-bottom: 1.4em; display: flex; align-items: center; gap: 1.4em; }
+.exam-header-subject-wrapper { display: flex; flex-grow: 1; align-items: center; gap: 1.4em; }
+.exam-header-subject-wrapper-inner { flex-grow: 1; }
+.exam-header-additional-box { box-sizing: border-box; display: flex; min-height: 3.6em; width: 11em; flex-shrink: 0; align-items: center; justify-content: center; border: 0.1em solid transparent; padding: 0.4em; text-align: center; font-size: 1em; }
+.exam-header-divider-container { margin-bottom: 1.4em; width: 100%; flex-shrink: 0; }
+.exam-header-divider { height: 0.1em; min-height: 1px; width: 100%; background-color: black; }
+
+/* --- 2페이지 이상 헤더 --- */
+.exam-header-simplified-container { margin-bottom: 1.4em; display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 0.1em solid black; padding-bottom: 0.5em; padding-top: 0.25em; font-size: 1em; }
+.simplified-item-wrapper { display: flex; width: 6rem; flex-shrink: 0; align-items: flex-end; justify-content: center; }
+.simplified-subject-wrapper { order: 2; margin-bottom: 0.25em; display: flex; flex-grow: 1; align-items: flex-end; justify-content: center; padding: 0 1rem; text-align: center; }
+.simplified-page-number { display: inline-block; padding: 0em 0.9em; font-size: 3em; font-weight: 700; line-height: 1.2em; }
+/* flex-order를 위한 클래스 */
+.order-1 { order: 1; }
+.order-2 { order: 2; }
+.order-3 { order: 3; }
+
+/* ==========================================================================
+   3. 헤더 수정 기능 관련 스타일 (EditableArea)
+   ========================================================================== */
+
+/* Svelte의 group 클래스를 모방하기 위한 wrapper */
+.editable-wrapper-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.editable-trigger-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    transition: background-color 0.2s;
+    border-radius: 6px;
+}
+.editable-trigger-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+.editable-trigger-button:focus-visible {
+    outline: 2px solid var(--accent-color);
+    box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+.editable-trigger-button .edit-icon-overlay {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    top: 50%;
+    right: 0.5em;
+    transform: translateY(-50%);
+    color: #9ca3af; /* text-muted-foreground */
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+/* Svelte의 group-hover 효과 재현 */
+.editable-wrapper-group:hover .edit-icon-overlay {
+    opacity: 0.7;
+}
+
+.edit-icon-svg {
+    width: 0.8em;
+    height: 0.8em;
+    vertical-align: middle;
+}
+
+/* --- 개별 헤더 요소의 wrapper 및 button 스타일 --- */
+.exam-header-title-wrapper { min-width: 27em; }
+.exam-header-title-button { padding: 0.7em 1.4em; font-weight: 700; }
+
+.exam-header-school-wrapper { min-height: 2.7em; width: 11em; flex-shrink: 0; overflow: hidden; white-space: nowrap; border-radius: 1.8em; border: 0.1em solid black; }
+.exam-header-school-button { padding: 0.5em 1em; }
+
+.exam-header-subject-wrapper-inner { min-height: 2.7em; }
+.exam-header-subject-button { font-weight: 700; padding: 0.5em 1em; }
+
+.simplified-grade-button { border: 0.1em solid black; border-radius: 9999px; font-weight: 600; line-height: 1.2em; padding: 0.25rem 0.75rem; margin-bottom: 0.25rem; }
+.simplified-subject-button { padding-bottom: 0.1em; line-height: 1.2em; font-weight: 600; }
+.simplified-subject-button .edit-icon-svg { font-size: 0.7em; }
+
+/* ==========================================================================
+   4. 문제 배치 및 개별 문제 스타일 (이전과 동일)
+   ========================================================================== */
+.exam-columns-container { position: relative; box-sizing: border-box; display: flex; min-height: 0; width: 100%; flex-grow: 1; gap: 1.8em; overflow: hidden; padding-bottom: 2.5em; }
+.exam-column { min-width: 0; flex: 1 1 0%; }
+.column-divider { pointer-events: none; position: absolute; top: 0; bottom: 2.5em; left: 50%; z-index: 1; width: 1px; transform: translateX(-50%); background-color: black; }
+.problem-container { position: relative; margin-bottom: 1.8em; box-sizing: border-box; display: flex; width: 100%; flex-direction: column; overflow: hidden; border: 0.1em dashed #d1d5db; background-color: white; padding: 0.9em 1.1em; font-size: 1em; transition: min-height 0.2s ease-in-out; }
+.problem-header { margin-bottom: 0.7em; display: flex; flex-shrink: 0; align-items: baseline; justify-content: flex-start; white-space: nowrap; font-size: 1em; font-weight: 700; line-height: 1; }
+.problem-header .header-inner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3em; }
+.problem-number { font-size: 2em; font-weight: 700; line-height: 1; }
+.global-index { margin-left: 0.1em; font-size: 1em; font-weight: 400; line-height: 1; color: #6b7280; }
+.problem-score { margin-left: 0.2em; font-size: 1em; font-weight: 700; line-height: 1; }
+.problem-content-wrapper { position: relative; min-height: 0; width: 100%; flex-grow: 1; overflow: hidden; line-height: 1.75; }
+.text-trigger { display: block; width: 100%; height: 100%; cursor: pointer; border-radius: 4px; padding: 0; text-align: left; color: inherit; background: none; border: none; font: inherit; }
+.text-trigger:hover { background-color: rgba(0,0,0,0.05); }
+.text-trigger:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+.mathpix-wrapper { display: block; width: 100%; overflow-x: hidden; word-wrap: break-word; }
+.problem-container .edit-icon-overlay { right: 4px; top: 4px; }
+.problem-container:hover .edit-icon-overlay { opacity: 0.5; }
+.page-footer { position: absolute; bottom: 0.9em; left: 50%; z-index: 10; transform: translateX(-50%); background-color: white; }
+.page-counter-box { display: inline-block; border: 0.1em solid black; background-color: white; padding: 0.3em 1.4em; font-size: 1.2em; }
+
+.problem-container {
+    position: relative;
+    /* [수정] 문제 컨테이너 내부 패딩을 제거합니다. text-trigger가 패딩을 갖도록 변경. */
+    padding: 0;
+    margin-bottom: 1.8em;
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    overflow: hidden;
+    border: 0.1em dashed #d1d5db;
+    background-color: white;
+    transition: min-height 0.2s ease-in-out;
+}
+
+/* [추가] 문제 전체를 감싸는 클릭 가능한 버튼 */
+.text-trigger {
+    display: flex; /* 내부 요소(header, content)를 정렬하기 위해 flex로 변경 */
+    flex-direction: column; /* 세로 정렬 */
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 0.9em 1.1em; /* 기존 .problem-container의 패딩을 이쪽으로 이동 */
+    text-align: left;
+    color: inherit;
+    background: none;
+    border: none;
+    font: inherit;
+}
+
+.text-trigger:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+.text-trigger:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+.problem-header { margin-bottom: 0.7em; display: flex; flex-shrink: 0; align-items: baseline; justify-content: flex-start; white-space: nowrap; font-size: 1em; font-weight: 700; line-height: 1; }
+.problem-header .header-inner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3em; }
+.problem-number { font-size: 2em; font-weight: 700; line-height: 1; }
+.global-index { margin-left: 0.1em; font-size: 1em; font-weight: 400; line-height: 1; color: #6b7280; }
+.problem-score { margin-left: 0.2em; font-size: 1em; font-weight: 700; line-height: 1; }
+.problem-content-wrapper {
+    position: relative;
+    min-height: 0;
+    width: 100%;
+    flex-grow: 1;
+    overflow: hidden;
+    line-height: 1.75;
+}
+
+.mathpix-wrapper { display: block; width: 100%; overflow-x: hidden; word-wrap: break-word; }
+.problem-container .edit-icon-overlay { right: 4px; top: 4px; }
+.problem-container:hover .edit-icon-overlay { opacity: 0.5; }
+.page-footer { position: absolute; bottom: 0.9em; left: 50%; z-index: 10; transform: translateX(-50%); background-color: white; }
+.page-counter-box { display: inline-block; border: 0.1em solid black; background-color: white; padding: 0.3em 1.4em; font-size: 1.2em; }
 ----- ./react/entities/student/ui/StudentDisplayDesktop.css -----
 /* ./react/entities/student/ui/StudentDisplayDesktop.css */
 /* 재원 상태 */
@@ -569,6 +778,162 @@
     overflow: hidden;
     margin: 0 auto;
     flex-shrink: 0;
+}
+----- ./react/features/problem-text-editing/ui/ProblemTextEditor.css -----
+/* ./react/features/problem-text-editing/ui/ProblemTextEditor.css */
+
+.problem-text-editor-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: var(--text-secondary);
+    padding: 0 15px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.editor-header {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(129, 127, 127, 0.1);
+}
+
+.editor-title {
+    color: var(--text-primary);
+    margin: 0;
+    font-size: 1.05em;
+    font-weight: 600;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.editor-body-wrapper {
+    flex-grow: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding-right: 10px;
+    scrollbar-gutter: stable;
+}
+
+/* [재활용] 이 클래스는 이제 문제 본문, 해설 모두에 사용됩니다. */
+.editor-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 250px; /* 최소 높이 살짝 줄임 */
+    max-height: 45vh; /* 화면 높이의 45% */
+}
+
+.editor-section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.editor-wrapper-body {
+    flex-grow: 1;
+    min-height: 0;
+    position: relative;
+    border: 1px solid var(--border-color-light, #e0e0e0);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.editor-wrapper-body .editor-wrapper,
+.editor-wrapper-body .cm-editor {
+    height: 100%;
+}
+
+.metadata-fields-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.metadata-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.metadata-field-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.metadata-field-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background-color: var(--app-bg-color);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metadata-field-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);
+}
+
+.metadata-field-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background-color: var(--app-bg-color);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* [추가] 콤보박스 트리거 버튼 스타일 */
+.metadata-field-combobox-trigger {
+    /* .metadata-field-input 과 유사한 디자인으로 설정 */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background-color: var(--app-bg-color);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.metadata-field-combobox-trigger:hover {
+    border-color: var(--accent-color);
+}
+
+.metadata-field-combobox-trigger .chevron-icon {
+    color: var(--text-placeholder);
+    flex-shrink: 0;
+}
+
+
+.metadata-field-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);
 }
 ----- ./react/features/prompt-collection/ui/PromptCollection.css -----
 .prompt-collection-container {
@@ -1357,7 +1722,8 @@
   --sidebar-width: 210px;
   --sidebar-collapsed-width: 65px;
   --sidebar-right-width: 60px;
-  --sidebar-right-expanded-width: 250px;
+  --sidebar-right-expanded-width: 280px;
+   --sidebar-right-extra-expanded-width: 450px;
   --mobile-sidebar-width-ratio: 78vw;
   /* 화면 너비의 78% (약간 넓힘) */
   --mobile-sidebar-max-width: 330px;
@@ -1579,8 +1945,7 @@ body {
    ========================================================================== */
 
 .json-input-textarea,
-.common-data-form input,
-.popover-input {
+.common-data-form input {
     width: 100%;
     background-color: rgba(0, 0, 0, 0.07); 
     border: 1px solid transparent;
@@ -1601,8 +1966,7 @@ body {
 }
 
 .common-data-form input:focus,
-.json-input-textarea:focus,
-.popover-input:focus {
+.json-input-textarea:focus {
     background-color: transparent; 
     border-color: var(--accent-color);
     box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
@@ -2038,6 +2402,113 @@ body {
         /* 모바일에서 구글 버튼 패딩 축소 */
     }
 }
+----- ./react/pages/ProblemPublishingPage.css -----
+/* react/pages/ProblemPublishingPage.css */
+
+/*
+ * [핵심] 페이지 전체를 Flexbox 컨테이너로 설정합니다.
+ * 이렇게 해야 자식 요소들이 높이를 동적으로 분배할 수 있습니다.
+ */
+.problem-publishing-page {
+    display: flex;
+    flex-direction: column; /* 자식 요소(top-container, scrollable-content-area)를 세로로 쌓음 */
+    height: 100%; /* 부모(.main-content)의 높이를 100% 채웁니다. */
+    width: 100%;
+    gap: 1.5rem; /* 상단 컨테이너와 하단 스크롤 영역 사이의 간격 */
+}
+
+/*
+ * 상단 영역 (문제 선택 위젯 + 툴바).
+ * 이 영역은 내용만큼의 높이만 차지하고, 스크롤되지 않습니다.
+ */
+.sticky-top-container {
+    flex-shrink: 0; /* 내용이 많아져도 이 컨테이너의 높이는 줄어들지 않습니다. */
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/*
+ * [스크롤 영역 1: 테이블]
+ * 문제 선택 테이블을 감싸는 컨테이너입니다.
+ * 높이를 'vh' 단위로 제한하여, 이 안에서 테이블이 자체적으로 스크롤되도록 만듭니다.
+ */
+.selection-widget-container {
+    flex-shrink: 0;
+    max-height: 40vh; /* 화면 높이의 최대 40%까지만 차지하도록 제한 */
+    min-height: 250px; /* 최소 높이를 보장하여 너무 작아지는 것을 방지 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 컨트롤 패널 스타일 (이전과 동일) */
+.publishing-controls-panel {
+    flex-shrink: 0;
+    padding: 1rem;
+    background: var(--glass-base-bg);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.control-group label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.control-group input[type="text"],
+.control-group input[type="number"] {
+    width: 70px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--text-placeholder);
+    background-color: var(--main-content-bg-color);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.control-group input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.1);
+}
+
+
+/*
+ * [스크롤 영역 2: 메인 콘텐츠]
+ * 시험지 미리보기가 표시되는 메인 스크롤 영역입니다.
+ * flex-grow: 1을 통해 상단 영역을 제외한 "모든 남는 수직 공간"을 차지합니다.
+ */
+.scrollable-content-area {
+    flex-grow: 1; /* 이 속성이 마법을 부립니다. */
+    overflow-y: auto; /* 내용(시험지 페이지들)이 이 영역을 넘어서면 세로 스크롤이 생깁니다. */
+    min-height: 0; /* Flexbox 아이템이 부모보다 작아질 수 있도록 허용하는 필수 속성 */
+    padding-right: 8px; /* 스크롤바와 콘텐츠가 겹치지 않도록 여백 확보 */
+    scrollbar-gutter: stable; /* 스크롤바 유무에 따른 레이아웃 변경 방지 */
+}
+
+.status-message {
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--text-placeholder);
+    font-size: 1.1rem;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 ----- ./react/pages/ProblemWorkbenchPage.css -----
 /* 페이지 전체를 감싸는 루트 컨테이너 */
 .problem-workbench-page {
@@ -2346,31 +2817,29 @@ body {
     background: var(--sidebar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
     -webkit-backdrop-filter: var(--glass-blur-effect);
-    border-radius: 12px; /* [수정] 패딩에 맞춰 12px로 변경 */
+    border-radius: 12px;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
-    padding: 0; /* [수정] 내부 콘텐츠에서 패딩을 관리하도록 제거 */
+    padding: 0;
     z-index: 1100;
     min-width: 180px;
-    max-width: 300px;
+    max-width: 320px;
     box-sizing: border-box;
-    overflow: hidden; /* [추가] 내부 콘텐츠가 둥근 모서리를 넘지 않도록 */
+    overflow: hidden;
 
+    /* [핵심 수정] 애니메이션 방식을 visibility 대신 opacity, transform, pointer-events로 변경 */
     opacity: 0;
-    visibility: hidden;
-    transform: translateY(0) scale(1);
-    transition-property: opacity, visibility;
-    transition-duration: 0.22s, 0s;
-    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1), linear;
-    transition-delay: 0s, 0.22s;
+    transform: scale(0.95) translateY(-5px); /* 작아졌다가 나타나는 효과 */
+    pointer-events: none; /* 숨겨져 있을 때 클릭 이벤트 통과 */
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-popover.open {
     opacity: 1;
-    visibility: visible;
-    transition-delay: 0s, 0s;
+    transform: scale(1) translateY(0); /* 원래 크기로 복귀 */
+    pointer-events: auto; /* 보이면서 클릭 가능하도록 변경 */
 }
 
-/* [추가] Textarea 등 넓은 콘텐츠를 위한 Popover 크기 확장 */
+/* Textarea 등 넓은 콘텐츠를 위한 Popover 크기 확장 */
 .glass-popover.large {
     min-width: 600px;
     max-width: calc(100vw - 40px);
@@ -2505,6 +2974,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     overflow: hidden;
+    display: flex;
 }
 
 .glass-table-caption {
@@ -2694,6 +3164,254 @@ body {
 .glass-table .last-sticky-col {
   right: 0;
   box-shadow: -4px 0 8px -4px rgba(0, 0, 0, 0.15);
+}
+----- ./react/shared/ui/popover-content/PopoverContent.css -----
+/* react-hono\react\shared\ui\popover-content\PopoverContent.css */
+
+/* Popover 내용물의 기본 컨테이너 스타일 */
+.edit-popover-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: auto; 
+    min-width: 320px; /* 기본 최소 너비 */
+    max-height: 80vh; /* 화면을 넘지 않도록 최대 높이 제한 */
+    overflow-y: auto; /* 내용이 많아지면 스크롤 */
+    resize: none; 
+}
+
+/* Popover 내부의 폼 그룹 (라벨 + 입력 필드) */
+.edit-popover-content .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Popover 내부 라벨 */
+.edit-popover-content label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+/* Popover 내부 입력 필드 공통 스타일 */
+.popover-input {
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.07); 
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 12px 16px; /* [핵심 수정] input 자체의 내부 좌우 패딩을 다시 적용합니다. */
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    font-family: var(--base-font-family);
+    box-sizing: border-box;
+}
+
+.popover-input:focus {
+    background-color: transparent; 
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+
+/* Popover 하단 액션 버튼 그룹 */
+.edit-popover-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* --- Textarea 전용 스타일 --- */
+
+/* Textarea가 포함된 큰 Popover를 위한 스타일 */
+.glass-popover.large .edit-popover-content {
+    width: 600px;
+    height: 400px;
+    resize: both; /* 사용자가 크기 조절 가능하게 */
+    overflow: hidden; /* 내부에서 스크롤을 관리하므로 popover 자체는 숨김 */
+    padding-bottom: 0;
+    min-width: 450px; /* 사용자가 조절할 수 있는 최소 크기 */
+    min-height: 300px;
+}
+
+/* Textarea와 버튼을 감싸는 컨테이너 */
+.textarea-container {
+    flex-grow: 1;
+    position: relative;
+    display: flex;
+    min-height: 0;
+    background-color: rgba(0, 0, 0, 0.07);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.textarea-container:focus-within {
+    background-color: transparent; 
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+
+/* Textarea 자체 스타일 */
+.popover-textarea {
+    resize: none; 
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    padding-bottom: 50px; /* 하단 버튼 공간 확보 */
+    box-sizing: border-box;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: var(--base-font-family);
+    line-height: 1.6;
+    outline: none;
+    border: none;
+    background-color: transparent;
+    min-width: 0;
+}
+
+/* Textarea 위의 액션 버튼 위치 조정 */
+.edit-popover-actions.on-textarea {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    margin-top: 0;
+    z-index: 10;
+}
+
+/* --- Combobox(선택) 전용 스타일 --- */
+.edit-popover-content.combobox-content {
+    padding: 0.5rem;
+    gap: 0.25rem;
+    width: auto;
+    min-width: 180px;
+}
+
+.combobox-label {
+    padding: 0.5rem 0.5rem 0.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.combobox-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    background-color: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.combobox-option:hover {
+    background-color: var(--menu-item-hover-bg);
+    color: var(--text-primary);
+}
+
+.combobox-option[aria-selected="true"] {
+    background-color: var(--menu-item-active-bg);
+    color: var(--menu-item-active-text);
+    font-weight: 500;
+}
+
+.combobox-option .check-icon {
+    color: var(--menu-item-active-text);
+    flex-shrink: 0;
+}
+
+.combobox-option .option-label {
+    flex-grow: 1;
+}
+----- ./react/widgets/ExamPreviewWidget.css -----
+/* react/widgets/ExamPreviewWidget.css */
+
+.exam-preview-widget {
+    width: 100%;
+}
+
+.exam-preview-widget .page-container {
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 1.5rem;
+}
+.exam-preview-widget .page-container:last-child {
+    margin-bottom: 0;
+}
+----- ./react/widgets/ProblemSelectionWidget.css -----
+/* react/widgets/ProblemSelectionWidget.css */
+
+.problem-selection-widget {
+    display: flex; /* [핵심] Flexbox 레이아웃으로 변경 */
+    flex-direction: column; /* 자식 요소(헤더, 테이블)를 세로로 쌓음 */
+    height: 100%; /* 부모(selection-widget-container)의 높이를 100% 채움 */
+    overflow: hidden; /* 위젯 자체의 스크롤은 방지 */
+    background-color: var(--glass-base-bg);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.selection-header {
+    padding: 12px 16px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    flex-shrink: 0; /* 헤더는 높이가 줄어들지 않도록 고정 */
+}
+
+/* [핵심 수정] 테이블 컨테이너가 flex 공간을 채우고, 내부 스크롤을 허용하도록 설정 */
+.selection-table-container {
+    flex-grow: 1; /* 부모의 남는 공간을 모두 차지 */
+    min-height: 0; /* flex-item이 축소될 수 있도록 보장 */
+    position: relative; /* 자식 요소의 기준점 (필요 시) */
+    display: flex; /* 자식 요소가 높이를 채울 수 있도록 flex 컨테이너로 설정 */
+}
+
+/* [핵심 수정] GlassTable의 스크롤 컨테이너가 항상 100% 높이를 가지도록 설정 */
+.selection-table-container .glass-table-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.selection-table-container .glass-table-scroll-container {
+    flex-grow: 1; /* 테이블 래퍼의 남는 공간을 모두 차지 */
+    overflow: auto; /* [중요] 이제 가로/세로 스크롤이 모두 가능해짐 */
+}
+
+/* [핵심 수정] GlassTable의 스크롤 컨테이너가 항상 100% 높이를 가지도록 설정 */
+.selection-table-container .glass-table-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.selection-table-container .glass-table-scroll-container {
+    flex-grow: 1;
+    overflow-y: auto; /* 세로 스크롤 활성화! */
+}
+
+
+.keyword-badge {
+    display: inline-block;
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    color: var(--accent-color-darker);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin: 2px;
 }
 ----- ./react/widgets/rootlayout/BackgroundBlobs.css -----
 .blobs-container {
@@ -3244,11 +3962,11 @@ body {
     }
 }
 ----- ./react/widgets/rootlayout/GlassSidebarRight.css -----
-/* filepath: c:\Users\nicew\Desktop\fullstack\monorepo\client\src\components\rootlayout\GlassSidebarRight.css */
+/* filepath: ./react/widgets/rootlayout/GlassSidebarRight.css */
 .glass-sidebar-right {
     width: var(--sidebar-right-width);
     height: 100%;
-    padding: 15px 0; /* 🌟 좌우 패딩 제거, 상하 패딩 유지 */
+    padding: 15px 0;
     box-sizing: border-box;
     background: var(--sidebar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
@@ -3258,32 +3976,37 @@ body {
     position: relative;
     z-index: 90;
     flex-shrink: 0;
-    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1); /* padding 전환 제거 */
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
 }
 
 .glass-sidebar-right.expanded {
     width: var(--sidebar-right-expanded-width);
     align-items: flex-start;
-    /* 🌟 padding: 15px; 제거됨. 각 내부 요소가 패딩을 관리. */
 }
+
+/* 
+  [핵심 수정]
+  부모인 .app-container에 .right-sidebar-extra-wide 클래스가 있을 때,
+  자식인 .glass-sidebar-right.expanded의 너비를 재정의하도록 선택자를 수정합니다.
+*/
+.app-container.right-sidebar-extra-wide .glass-sidebar-right.expanded {
+    width: var(--sidebar-right-extra-expanded-width); /* 450px 변수가 적용됨 */
+}
+
 
 /* --- 데스크탑 헤더 (토글 버튼) --- */
 .rgs-header-desktop {
     width: 100%;
-    padding: 0 10px; /* 🌟 좌우 패딩 유지 */
+    padding: 0 10px;
     box-sizing: border-box;
     display: flex;
-    /* [수정] flex 방향을 세로로 변경 */
     flex-direction: column;
-    /* [수정] 아이콘들을 가운데 정렬 (축소 상태) */
     align-items: center;
-    /* [신규] 아이콘 사이의 간격 추가 */
     gap: 10px;
 }
 .glass-sidebar-right.expanded .rgs-header-desktop {
     justify-content: flex-start;
-    /* [핵심 수정] flex-direction: column 이므로, align-items로 수평 정렬. flex-start는 왼쪽 정렬을 의미합니다. */
     align-items: flex-start;
 }
 
@@ -3325,7 +4048,7 @@ body {
 .expanded-content-area.rgs-content {
     flex-grow: 1;
     width: 100%;
-    overflow: hidden; /* 🌟 이 컨테이너 자체는 스크롤하지 않음 */
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 
@@ -3347,15 +4070,6 @@ body {
 }
 
 
-/* 
-  🌟🌟🌟 [핵심 수정] 🌟🌟🌟
-  내부 스크롤이 필요한 컴포넌트(예: StudentRegistrationForm의 최상위 div)가
-  이 클래스를 가지도록 하여 스크롤과 패딩을 제어합니다.
-  하지만 이미 StudentRegistrationForm.css에서 .registration-form 이 이 역할을 하고 있으므로
-  해당 파일에서 직접 수정하는 것이 더 좋습니다.
-*/
-
-
 /* --- 모바일 관련 스타일 --- */
 .sidebar-header.rgs-mobile-header {
     width: 100%;
@@ -3364,7 +4078,7 @@ body {
     justify-content: flex-start;
     align-items: center;
     min-height: 40px;
-    padding: 0 5px; /* 모바일 헤더 패딩 */
+    padding: 0 5px;
     box-sizing: border-box;
 }
 
@@ -3391,7 +4105,7 @@ body {
         -webkit-backdrop-filter: var(--glass-blur-effect);
         border-top-left-radius: 16px;
         border-bottom-left-radius: 16px;
-        padding: 15px 0; /* 🌟 좌우 패딩 제거 */
+        padding: 15px 0;
 
         right: 0;
         left: auto;
@@ -3426,7 +4140,7 @@ body {
   background-color: var(--main-content-bg-color);
   padding: 25px;
   /* [핵심] 검색바가 fixed이므로, 스크롤을 맨 아래로 내렸을 때 콘텐츠가 가려지지 않도록 하단 패딩 확보 */
-  padding-bottom: 150px; 
+  padding-bottom: 25px; 
   overflow-y: auto;
   position: relative;
   z-index: 5;
@@ -3483,7 +4197,7 @@ body {
   height: auto;
 }
 
-/* --- 사이드바 상태에 따른 4가지 케이스의 위치/너비 계산 --- */
+/* --- 사이드바 상태에 따른 너비 계산 --- */
 /* 1. 왼쪽 확장 / 오른쪽 축소 */
 .app-container.left-sidebar-expanded.right-sidebar-collapsed .bottom-content-area {
   left: var(--sidebar-width);
@@ -3505,11 +4219,23 @@ body {
   width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-expanded-width));
 }
 
+/* 5. 왼쪽 확장 / 오른쪽 추가 확장 */
+.app-container.left-sidebar-expanded.right-sidebar-expanded.right-sidebar-extra-wide .bottom-content-area {
+    left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width) - var(--sidebar-right-extra-expanded-width));
+}
+/* 6. 왼쪽 축소 / 오른쪽 추가 확장 */
+.app-container.left-sidebar-collapsed.right-sidebar-expanded.right-sidebar-extra-wide .bottom-content-area {
+    left: var(--sidebar-collapsed-width);
+    width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-extra-expanded-width));
+}
+
+
 /* ... 반응형 스타일 ... */
 @media (max-width: 1024px) and (min-width: 769px) {
   .main-content {
     padding: 20px;
-    padding-bottom: 150px;
+    padding-bottom: 20px;
   }
 }
 @media (max-width: 768px) {

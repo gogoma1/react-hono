@@ -3,31 +3,29 @@
     background: var(--sidebar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
     -webkit-backdrop-filter: var(--glass-blur-effect);
-    border-radius: 12px; /* [수정] 패딩에 맞춰 12px로 변경 */
+    border-radius: 12px;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
-    padding: 0; /* [수정] 내부 콘텐츠에서 패딩을 관리하도록 제거 */
+    padding: 0;
     z-index: 1100;
     min-width: 180px;
-    max-width: 300px;
+    max-width: 320px;
     box-sizing: border-box;
-    overflow: hidden; /* [추가] 내부 콘텐츠가 둥근 모서리를 넘지 않도록 */
+    overflow: hidden;
 
+    /* [핵심 수정] 애니메이션 방식을 visibility 대신 opacity, transform, pointer-events로 변경 */
     opacity: 0;
-    visibility: hidden;
-    transform: translateY(0) scale(1);
-    transition-property: opacity, visibility;
-    transition-duration: 0.22s, 0s;
-    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1), linear;
-    transition-delay: 0s, 0.22s;
+    transform: scale(0.95) translateY(-5px); /* 작아졌다가 나타나는 효과 */
+    pointer-events: none; /* 숨겨져 있을 때 클릭 이벤트 통과 */
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-popover.open {
     opacity: 1;
-    visibility: visible;
-    transition-delay: 0s, 0s;
+    transform: scale(1) translateY(0); /* 원래 크기로 복귀 */
+    pointer-events: auto; /* 보이면서 클릭 가능하도록 변경 */
 }
 
-/* [추가] Textarea 등 넓은 콘텐츠를 위한 Popover 크기 확장 */
+/* Textarea 등 넓은 콘텐츠를 위한 Popover 크기 확장 */
 .glass-popover.large {
     min-width: 600px;
     max-width: calc(100vw - 40px);

@@ -258,7 +258,6 @@ export function useJsonProblemImporter() {
     
     const problemTypeOptions: ComboboxOption[] = [
         { value: '객관식', label: '객관식' },
-        { value: '주관식', label: '주관식' },
         { value: '서답형', label: '서답형' },
         { value: '논술형', label: '논술형' }
     ];
@@ -273,6 +272,8 @@ export function useJsonProblemImporter() {
         { value: '①', label: '①' }, { value: '②', label: '②' }, { value: '③', label: '③' },
         { value: '④', label: '④' }, { value: '⑤', label: '⑤' }, { value: '⑥', label: '⑥' }
     ];
+    const gradeOptions: ComboboxOption[] = ['초1', '초2', '초3', '초4', '초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'].map(g => ({ value: g, label: g }));
+    const semesterOptions: ComboboxOption[] = ['1학기', '2학기', '공통'].map(s => ({ value: s, label: s }));
 
 
     return {
@@ -289,6 +290,6 @@ export function useJsonProblemImporter() {
         applyCommonData,
         uploadProblems, isUploading,
         columns, formatValue,
-        problemTypeOptions, difficultyOptions, answerOptions,
+        problemTypeOptions, difficultyOptions, answerOptions, gradeOptions, semesterOptions,
     };
 }

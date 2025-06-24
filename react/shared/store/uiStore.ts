@@ -8,13 +8,11 @@ const breakpoints = {
 
 type Breakpoint = 'mobile' | 'tablet' | 'desktop';
 
-// [신규] 모든 토글 가능한 학생 테이블 컬럼의 키 목록
 const allStudentTableColumns: string[] = [
     'grade', 'subject', 'status', 'teacher', 'student_phone', 
     'guardian_phone', 'school_name', 'tuition', 'admission_date', 'discharge_date'
 ];
 
-// [신규] 컬럼 가시성의 초기 상태 (모두 보이도록 설정)
 const initialColumnVisibility = allStudentTableColumns.reduce((acc, key) => {
     acc[key] = true;
     return acc;
@@ -33,6 +31,8 @@ export interface UIState {
     isRightSidebarExpanded: boolean;
     toggleRightSidebar: () => void;
     setRightSidebarExpanded: (expanded: boolean) => void;
+    isRightSidebarExtraWide: boolean;
+    setRightSidebarExtraWide: (isWide: boolean) => void;
     isLeftSidebarExpanded: boolean;
     toggleLeftSidebar: () => void;
     setLeftSidebarExpanded: (expanded: boolean) => void;
@@ -41,7 +41,6 @@ export interface UIState {
     closeMobileSidebar: () => void;
     currentBreakpoint: Breakpoint;
     updateBreakpoint: () => void;
-    // [신규] 컬럼 가시성 상태 및 액션 추가
     columnVisibility: Record<string, boolean>;
     toggleColumnVisibility: (key: string) => void;
 }
@@ -79,6 +78,12 @@ export const useUIStore = create(
             } else {
                 set({ isRightSidebarExpanded: expanded });
             }
+        },
+
+        isRightSidebarExtraWide: false,
+        setRightSidebarExtraWide: (isWide) => {
+            log('setRightSidebarExtraWide', isWide);
+            set({ isRightSidebarExtraWide: isWide });
         },
 
         isLeftSidebarExpanded: true,
@@ -129,7 +134,6 @@ export const useUIStore = create(
             }
         },
 
-        // [신규] 컬럼 가시성 상태 및 액션 구현
         columnVisibility: initialColumnVisibility,
         toggleColumnVisibility: (key: string) => {
             log('toggleColumnVisibility', key);

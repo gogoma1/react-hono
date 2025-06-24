@@ -1,0 +1,208 @@
+/* react/entities/exam/ui/ExamPage.css */
+
+/* ==========================================================================
+   1. 시험지 페이지 기본 레이아웃 (ExamPage)
+   ========================================================================== */
+.exam-page-component {
+    position: relative;
+    margin: 0 auto;
+    box-sizing: border-box;
+    aspect-ratio: 210 / 297;
+    height: 1123px;
+    width: 794px;
+    overflow: hidden;
+    border: 2px solid black;
+    background-color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.exam-paper {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    height: 100%;
+    width: 100%;
+    flex-direction: column;
+    padding: 1.8em;
+    color: #374151;
+}
+
+/* ==========================================================================
+   2. 시험지 헤더 레이아웃 (ExamHeader)
+   ========================================================================== */
+
+/* --- 공통 및 1페이지 헤더 --- */
+.exam-header-container, .exam-header-simplified-container { flex-shrink: 0; }
+.exam-header-title-section { position: relative; margin-bottom: 1.8em; display: flex; align-items: center; justify-content: center; }
+.exam-header-page-number { position: absolute; right: 0; top: 50%; transform: translateY(-50%); padding: 0.45em 0.9em; font-size: 3em; font-weight: 700; }
+.exam-header-info-section { margin-bottom: 1.4em; display: flex; align-items: center; gap: 1.4em; }
+.exam-header-subject-wrapper { display: flex; flex-grow: 1; align-items: center; gap: 1.4em; }
+.exam-header-subject-wrapper-inner { flex-grow: 1; }
+.exam-header-additional-box { box-sizing: border-box; display: flex; min-height: 3.6em; width: 11em; flex-shrink: 0; align-items: center; justify-content: center; border: 0.1em solid transparent; padding: 0.4em; text-align: center; font-size: 1em; }
+.exam-header-divider-container { margin-bottom: 1.4em; width: 100%; flex-shrink: 0; }
+.exam-header-divider { height: 0.1em; min-height: 1px; width: 100%; background-color: black; }
+
+/* --- 2페이지 이상 헤더 --- */
+.exam-header-simplified-container { margin-bottom: 1.4em; display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 0.1em solid black; padding-bottom: 0.5em; padding-top: 0.25em; font-size: 1em; }
+.simplified-item-wrapper { display: flex; width: 6rem; flex-shrink: 0; align-items: flex-end; justify-content: center; }
+.simplified-subject-wrapper { order: 2; margin-bottom: 0.25em; display: flex; flex-grow: 1; align-items: flex-end; justify-content: center; padding: 0 1rem; text-align: center; }
+.simplified-page-number { display: inline-block; padding: 0em 0.9em; font-size: 3em; font-weight: 700; line-height: 1.2em; }
+/* flex-order를 위한 클래스 */
+.order-1 { order: 1; }
+.order-2 { order: 2; }
+.order-3 { order: 3; }
+
+/* ==========================================================================
+   3. 헤더 수정 기능 관련 스타일 (EditableArea)
+   ========================================================================== */
+
+/* Svelte의 group 클래스를 모방하기 위한 wrapper */
+.editable-wrapper-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.editable-trigger-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    transition: background-color 0.2s;
+    border-radius: 6px;
+}
+.editable-trigger-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+.editable-trigger-button:focus-visible {
+    outline: 2px solid var(--accent-color);
+    box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+.editable-trigger-button .edit-icon-overlay {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    top: 50%;
+    right: 0.5em;
+    transform: translateY(-50%);
+    color: #9ca3af; /* text-muted-foreground */
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+/* Svelte의 group-hover 효과 재현 */
+.editable-wrapper-group:hover .edit-icon-overlay {
+    opacity: 0.7;
+}
+
+.edit-icon-svg {
+    width: 0.8em;
+    height: 0.8em;
+    vertical-align: middle;
+}
+
+/* --- 개별 헤더 요소의 wrapper 및 button 스타일 --- */
+.exam-header-title-wrapper { min-width: 27em; }
+.exam-header-title-button { padding: 0.7em 1.4em; font-weight: 700; }
+
+.exam-header-school-wrapper { min-height: 2.7em; width: 11em; flex-shrink: 0; overflow: hidden; white-space: nowrap; border-radius: 1.8em; border: 0.1em solid black; }
+.exam-header-school-button { padding: 0.5em 1em; }
+
+.exam-header-subject-wrapper-inner { min-height: 2.7em; }
+.exam-header-subject-button { font-weight: 700; padding: 0.5em 1em; }
+
+.simplified-grade-button { border: 0.1em solid black; border-radius: 9999px; font-weight: 600; line-height: 1.2em; padding: 0.25rem 0.75rem; margin-bottom: 0.25rem; }
+.simplified-subject-button { padding-bottom: 0.1em; line-height: 1.2em; font-weight: 600; }
+.simplified-subject-button .edit-icon-svg { font-size: 0.7em; }
+
+/* ==========================================================================
+   4. 문제 배치 및 개별 문제 스타일 (이전과 동일)
+   ========================================================================== */
+.exam-columns-container { position: relative; box-sizing: border-box; display: flex; min-height: 0; width: 100%; flex-grow: 1; gap: 1.8em; overflow: hidden; padding-bottom: 2.5em; }
+.exam-column { min-width: 0; flex: 1 1 0%; }
+.column-divider { pointer-events: none; position: absolute; top: 0; bottom: 2.5em; left: 50%; z-index: 1; width: 1px; transform: translateX(-50%); background-color: black; }
+.problem-container { position: relative; margin-bottom: 1.8em; box-sizing: border-box; display: flex; width: 100%; flex-direction: column; overflow: hidden; border: 0.1em dashed #d1d5db; background-color: white; padding: 0.9em 1.1em; font-size: 1em; transition: min-height 0.2s ease-in-out; }
+.problem-header { margin-bottom: 0.7em; display: flex; flex-shrink: 0; align-items: baseline; justify-content: flex-start; white-space: nowrap; font-size: 1em; font-weight: 700; line-height: 1; }
+.problem-header .header-inner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3em; }
+.problem-number { font-size: 2em; font-weight: 700; line-height: 1; }
+.global-index { margin-left: 0.1em; font-size: 1em; font-weight: 400; line-height: 1; color: #6b7280; }
+.problem-score { margin-left: 0.2em; font-size: 1em; font-weight: 700; line-height: 1; }
+.problem-content-wrapper { position: relative; min-height: 0; width: 100%; flex-grow: 1; overflow: hidden; line-height: 1.75; }
+.text-trigger { display: block; width: 100%; height: 100%; cursor: pointer; border-radius: 4px; padding: 0; text-align: left; color: inherit; background: none; border: none; font: inherit; }
+.text-trigger:hover { background-color: rgba(0,0,0,0.05); }
+.text-trigger:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+.mathpix-wrapper { display: block; width: 100%; overflow-x: hidden; word-wrap: break-word; }
+.problem-container .edit-icon-overlay { right: 4px; top: 4px; }
+.problem-container:hover .edit-icon-overlay { opacity: 0.5; }
+.page-footer { position: absolute; bottom: 0.9em; left: 50%; z-index: 10; transform: translateX(-50%); background-color: white; }
+.page-counter-box { display: inline-block; border: 0.1em solid black; background-color: white; padding: 0.3em 1.4em; font-size: 1.2em; }
+
+.problem-container {
+    position: relative;
+    /* [수정] 문제 컨테이너 내부 패딩을 제거합니다. text-trigger가 패딩을 갖도록 변경. */
+    padding: 0;
+    margin-bottom: 1.8em;
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    overflow: hidden;
+    border: 0.1em dashed #d1d5db;
+    background-color: white;
+    transition: min-height 0.2s ease-in-out;
+}
+
+/* [추가] 문제 전체를 감싸는 클릭 가능한 버튼 */
+.text-trigger {
+    display: flex; /* 내부 요소(header, content)를 정렬하기 위해 flex로 변경 */
+    flex-direction: column; /* 세로 정렬 */
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 0.9em 1.1em; /* 기존 .problem-container의 패딩을 이쪽으로 이동 */
+    text-align: left;
+    color: inherit;
+    background: none;
+    border: none;
+    font: inherit;
+}
+
+.text-trigger:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+.text-trigger:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+.problem-header { margin-bottom: 0.7em; display: flex; flex-shrink: 0; align-items: baseline; justify-content: flex-start; white-space: nowrap; font-size: 1em; font-weight: 700; line-height: 1; }
+.problem-header .header-inner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3em; }
+.problem-number { font-size: 2em; font-weight: 700; line-height: 1; }
+.global-index { margin-left: 0.1em; font-size: 1em; font-weight: 400; line-height: 1; color: #6b7280; }
+.problem-score { margin-left: 0.2em; font-size: 1em; font-weight: 700; line-height: 1; }
+.problem-content-wrapper {
+    position: relative;
+    min-height: 0;
+    width: 100%;
+    flex-grow: 1;
+    overflow: hidden;
+    line-height: 1.75;
+}
+
+.mathpix-wrapper { display: block; width: 100%; overflow-x: hidden; word-wrap: break-word; }
+.problem-container .edit-icon-overlay { right: 4px; top: 4px; }
+.problem-container:hover .edit-icon-overlay { opacity: 0.5; }
+.page-footer { position: absolute; bottom: 0.9em; left: 50%; z-index: 10; transform: translateX(-50%); background-color: white; }
+.page-counter-box { display: inline-block; border: 0.1em solid black; background-color: white; padding: 0.3em 1.4em; font-size: 1.2em; }

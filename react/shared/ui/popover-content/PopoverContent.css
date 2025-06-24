@@ -1,0 +1,165 @@
+/* react-hono\react\shared\ui\popover-content\PopoverContent.css */
+
+/* Popover 내용물의 기본 컨테이너 스타일 */
+.edit-popover-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: auto; 
+    min-width: 320px; /* 기본 최소 너비 */
+    max-height: 80vh; /* 화면을 넘지 않도록 최대 높이 제한 */
+    overflow-y: auto; /* 내용이 많아지면 스크롤 */
+    resize: none; 
+}
+
+/* Popover 내부의 폼 그룹 (라벨 + 입력 필드) */
+.edit-popover-content .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Popover 내부 라벨 */
+.edit-popover-content label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+/* Popover 내부 입력 필드 공통 스타일 */
+.popover-input {
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.07); 
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 12px 16px; /* [핵심 수정] input 자체의 내부 좌우 패딩을 다시 적용합니다. */
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    font-family: var(--base-font-family);
+    box-sizing: border-box;
+}
+
+.popover-input:focus {
+    background-color: transparent; 
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+
+/* Popover 하단 액션 버튼 그룹 */
+.edit-popover-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* --- Textarea 전용 스타일 --- */
+
+/* Textarea가 포함된 큰 Popover를 위한 스타일 */
+.glass-popover.large .edit-popover-content {
+    width: 600px;
+    height: 400px;
+    resize: both; /* 사용자가 크기 조절 가능하게 */
+    overflow: hidden; /* 내부에서 스크롤을 관리하므로 popover 자체는 숨김 */
+    padding-bottom: 0;
+    min-width: 450px; /* 사용자가 조절할 수 있는 최소 크기 */
+    min-height: 300px;
+}
+
+/* Textarea와 버튼을 감싸는 컨테이너 */
+.textarea-container {
+    flex-grow: 1;
+    position: relative;
+    display: flex;
+    min-height: 0;
+    background-color: rgba(0, 0, 0, 0.07);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.textarea-container:focus-within {
+    background-color: transparent; 
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+
+/* Textarea 자체 스타일 */
+.popover-textarea {
+    resize: none; 
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    padding-bottom: 50px; /* 하단 버튼 공간 확보 */
+    box-sizing: border-box;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: var(--base-font-family);
+    line-height: 1.6;
+    outline: none;
+    border: none;
+    background-color: transparent;
+    min-width: 0;
+}
+
+/* Textarea 위의 액션 버튼 위치 조정 */
+.edit-popover-actions.on-textarea {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    margin-top: 0;
+    z-index: 10;
+}
+
+/* --- Combobox(선택) 전용 스타일 --- */
+.edit-popover-content.combobox-content {
+    padding: 0.5rem;
+    gap: 0.25rem;
+    width: auto;
+    min-width: 180px;
+}
+
+.combobox-label {
+    padding: 0.5rem 0.5rem 0.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.combobox-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    background-color: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.combobox-option:hover {
+    background-color: var(--menu-item-hover-bg);
+    color: var(--text-primary);
+}
+
+.combobox-option[aria-selected="true"] {
+    background-color: var(--menu-item-active-bg);
+    color: var(--menu-item-active-text);
+    font-weight: 500;
+}
+
+.combobox-option .check-icon {
+    color: var(--menu-item-active-text);
+    flex-shrink: 0;
+}
+
+.combobox-option .option-label {
+    flex-grow: 1;
+}

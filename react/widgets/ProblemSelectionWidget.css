@@ -1,0 +1,66 @@
+/* react/widgets/ProblemSelectionWidget.css */
+
+.problem-selection-widget {
+    display: flex; /* [핵심] Flexbox 레이아웃으로 변경 */
+    flex-direction: column; /* 자식 요소(헤더, 테이블)를 세로로 쌓음 */
+    height: 100%; /* 부모(selection-widget-container)의 높이를 100% 채움 */
+    overflow: hidden; /* 위젯 자체의 스크롤은 방지 */
+    background-color: var(--glass-base-bg);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.selection-header {
+    padding: 12px 16px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    flex-shrink: 0; /* 헤더는 높이가 줄어들지 않도록 고정 */
+}
+
+/* [핵심 수정] 테이블 컨테이너가 flex 공간을 채우고, 내부 스크롤을 허용하도록 설정 */
+.selection-table-container {
+    flex-grow: 1; /* 부모의 남는 공간을 모두 차지 */
+    min-height: 0; /* flex-item이 축소될 수 있도록 보장 */
+    position: relative; /* 자식 요소의 기준점 (필요 시) */
+    display: flex; /* 자식 요소가 높이를 채울 수 있도록 flex 컨테이너로 설정 */
+}
+
+/* [핵심 수정] GlassTable의 스크롤 컨테이너가 항상 100% 높이를 가지도록 설정 */
+.selection-table-container .glass-table-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.selection-table-container .glass-table-scroll-container {
+    flex-grow: 1; /* 테이블 래퍼의 남는 공간을 모두 차지 */
+    overflow: auto; /* [중요] 이제 가로/세로 스크롤이 모두 가능해짐 */
+}
+
+/* [핵심 수정] GlassTable의 스크롤 컨테이너가 항상 100% 높이를 가지도록 설정 */
+.selection-table-container .glass-table-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.selection-table-container .glass-table-scroll-container {
+    flex-grow: 1;
+    overflow-y: auto; /* 세로 스크롤 활성화! */
+}
+
+
+.keyword-badge {
+    display: inline-block;
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    color: var(--accent-color-darker);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin: 2px;
+}

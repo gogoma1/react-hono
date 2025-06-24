@@ -2,7 +2,7 @@ import React from 'react';
 import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectRightSidebarContent, useSidebarTriggers } from '../../shared/store/layoutStore';
+import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore'; 
 import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList } from 'react-icons/lu';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
@@ -12,18 +12,28 @@ const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
 
 const GlassSidebarRight: React.FC = () => {
-    const rightSidebarContent = useLayoutStore(selectRightSidebarContent);
+    const { content: rightSidebarContent, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
     const { registerTrigger, settingsTrigger, promptTrigger, onClose } = useSidebarTriggers();
     
-    const { isRightSidebarExpanded, mobileSidebarType, currentBreakpoint } = useUIStore();
+    const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
+    const isRightSidebarExpanded = rightSidebarContent !== null;
+
     const isOpen = currentBreakpoint === 'mobile' ? mobileSidebarType === 'right' : isRightSidebarExpanded;
 
+    const sidebarClassName = `
+        glass-sidebar-right
+        ${isOpen ? 'expanded' : ''}
+        ${currentBreakpoint === 'mobile' ? 'mobile-sidebar right-mobile-sidebar' : ''}
+        ${isOpen && currentBreakpoint === 'mobile' ? 'open' : ''}
+        ${isExtraWide ? 'right-sidebar-extra-wide' : ''}
+    `.trim().replace(/\s+/g, ' ');
+
     return (
-        <aside className={`glass-sidebar-right ${isOpen ? 'expanded' : ''} ${currentBreakpoint === 'mobile' ? 'mobile-sidebar right-mobile-sidebar' : ''} ${isOpen ? 'open' : ''}`}>
+        <aside className={sidebarClassName}>
             {currentBreakpoint !== 'mobile' && (
                 <div className="rgs-header-desktop">
-                    {isOpen ? ( // [수정] isRightSidebarExpanded -> isOpen
+                    {isOpen ? (
                         <Tippy content="닫기" placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
                             <button onClick={onClose} className="settings-toggle-button active" aria-label="사이드바 닫기">
                                 <CloseIcon />

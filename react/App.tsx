@@ -1,3 +1,5 @@
+// react/App.tsx
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './App.css';
@@ -14,6 +16,7 @@ import AuthInitializer from './shared/lib/AuthInitializer';
 import { useAuthStore, selectIsLoadingAuth } from './shared/store/authStore';
 import ProblemWorkbenchPage from './pages/ProblemWorkbenchPage';
 import JsonRendererPage from './pages/JsonRendererPage';
+import ProblemPublishingPage from './pages/ProblemPublishingPage'; // [추가]
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +51,7 @@ function App() {
                                 <Route path="/dashboard" element={<DashBoard />} />
                                 <Route path="/exampleget" element={<ExamplePage />} />
                                 <Route path="/problem-workbench" element={<ProblemWorkbenchPage />} />
+                                <Route path="/problem-publishing" element={<ProblemPublishingPage />} /> {/* [추가] */}
                                 <Route path="/json-renderer" element={<JsonRendererPage />} /> 
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
                             </Route>

@@ -11,7 +11,7 @@ import {
     date,
     primaryKey, // problem_tag_table 복합 PK 예시용 (현재는 단일 uuid id 사용)
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm"; // raw SQL 사용 및 default 값 설정용
+import { sql, relations } from "drizzle-orm"; // raw SQL 사용 및 default 값 설정용
 
 export const studentStatusEnum = pgEnum('student_status_enum', ['재원', '휴원', '퇴원']);
 
@@ -110,6 +110,25 @@ export const problemTable = pgTable("problem", {
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
     updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
+
+export const problemRelations = relations(problemTable, ({ one }) => ({
+    majorChapter: one(majorChaptersTable, {
+        fields: [problemTable.major_chapter_id],
+        references: [majorChaptersTable.id],
+    }),
+    middleChapter: one(middleChaptersTable, {
+        fields: [problemTable.middle_chapter_id],
+        references: [middleChaptersTable.id],
+    }),
+    coreConcept: one(coreConceptsTable, {
+        fields: [problemTable.core_concept_id],
+        references: [coreConceptsTable.id],
+    }),
+    creator: one(profilesTable, {
+        fields: [problemTable.creator_id],
+        references: [profilesTable.id],
+    }),
+}));
 
 export const tagTable = pgTable("tag", {
     tag_id: uuid("tag_id").primaryKey().default(sql`gen_random_uuid()`),
@@ -263,6 +282,7 @@ exampleRoutes.get('/pgtables', async (c) => {
 
 export default exampleRoutes;
 ----- ./api/routes/manage/problems.ts -----
+
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -277,22 +297,19 @@ import * as schema from '../../db/schema.pg';
 const problemSchema = z.object({
   question_number: z.number(),
   question_text: z.string(),
-  answer: z.string().nullable(), // JSON에서 null이 올 수 있으므로 nullable() 추가
-  solution_text: z.string().nullable(), // 이름 변경 (detailed_solution -> solution_text), nullable() 추가
-  page: z.number().nullable(), // 이름 변경 (page_number -> page)
+  answer: z.string().nullable(),
+  solution_text: z.string().nullable(),
+  page: z.number().nullable(),
   problem_type: z.string(),
-  grade: z.string(), // 이름 변경 (grade_level -> grade)
+  grade: z.string(),
   semester: z.string(),
   source: z.string(),
-
   major_chapter_id: z.string(),
   middle_chapter_id: z.string(),
   core_concept_id: z.string(),
-  problem_category: z.string(), // 이름 변경 (problemCategories -> problem_category)
-
+  problem_category: z.string(),
   difficulty: z.string(),
   score: z.string(),
-  
   concept_keywords: z.array(z.string()).optional(), 
   calculation_keywords: z.array(z.string()).optional(),
 });
@@ -305,6 +322,44 @@ const uploadProblemsBodySchema = z.object({
 type UploadProblemsInput = z.infer<typeof uploadProblemsBodySchema>;
 
 const problemRoutes = new Hono<AppEnv>();
+
+problemRoutes.get('/', async (c) => {
+    const user = c.get('user');
+    if (!user) {
+        return c.json({ error: '인증이 필요합니다.' }, 401);
+    }
+    
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+        const problemsData = await db.query.problemTable.findMany({
+            where: eq(schema.problemTable.creator_id, user.id),
+            orderBy: (problem, { asc }) => [asc(problem.created_at)],
+            with: {
+                majorChapter: { columns: { name: true } },
+                middleChapter: { columns: { name: true } },
+                coreConcept: { columns: { name: true } },
+            }
+        });
+
+        const transformedProblems = problemsData.map(p => ({
+            ...p,
+            major_chapter_id: p.majorChapter?.name ?? 'N/A',
+            middle_chapter_id: p.middleChapter?.name ?? 'N/A',
+            core_concept_id: p.coreConcept?.name ?? 'N/A',
+        }));
+
+        return c.json(transformedProblems, 200);
+
+    } catch (error: any) {
+        console.error('Failed to fetch problems:', error.message);
+        return c.json({ error: '데이터베이스 조회에 실패했습니다.', details: error.message }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
 
 problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), async (c) => {
     const user = c.get('user')!;

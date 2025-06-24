@@ -1,0 +1,14 @@
+/* react/widgets/ExamPreviewWidget.css */
+
+.exam-preview-widget {
+    width: 100%;
+}
+
+.exam-preview-widget .page-container {
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 1.5rem;
+}
+.exam-preview-widget .page-container:last-child {
+    margin-bottom: 0;
+}

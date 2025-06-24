@@ -1,3 +1,5 @@
+// api/routes/manage/problems.ts
+
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -8,31 +10,23 @@ import { zValidator } from '@hono/zod-validator';
 import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
 
-// --- 여기부터 수정 ---
 
 const problemSchema = z.object({
-  // 프론트엔드 `useJsonProblemImporter`에서 생성하는 데이터 형식과 일치시킵니다.
   question_number: z.number(),
   question_text: z.string(),
-  answer: z.string().nullable(), // JSON에서 null이 올 수 있으므로 nullable() 추가
-  solution_text: z.string().nullable(), // 이름 변경 (detailed_solution -> solution_text), nullable() 추가
-  page: z.number().nullable(), // 이름 변경 (page_number -> page)
+  answer: z.string().nullable(),
+  solution_text: z.string().nullable(),
+  page: z.number().nullable(),
   problem_type: z.string(),
-  grade: z.string(), // 이름 변경 (grade_level -> grade)
+  grade: z.string(),
   semester: z.string(),
   source: z.string(),
-
-  // 이 필드들도 이름 변경
   major_chapter_id: z.string(),
   middle_chapter_id: z.string(),
   core_concept_id: z.string(),
-  problem_category: z.string(), // 이름 변경 (problemCategories -> problem_category)
-
+  problem_category: z.string(),
   difficulty: z.string(),
   score: z.string(),
-  
-  // 현재 JSON Importer는 이 키워드들을 생성하지 않으므로 optional()로 만들어줍니다.
-  // 나중에 키워드 추출 기능을 추가하면 optional()을 제거할 수 있습니다.
   concept_keywords: z.array(z.string()).optional(), 
   calculation_keywords: z.array(z.string()).optional(),
 });
@@ -41,13 +35,53 @@ const uploadProblemsBodySchema = z.object({
   problems: z.array(problemSchema),
 });
 
-// --- 여기까지 수정 ---
 
 type UploadProblemsInput = z.infer<typeof uploadProblemsBodySchema>;
 
 const problemRoutes = new Hono<AppEnv>();
 
+problemRoutes.get('/', async (c) => {
+    const user = c.get('user');
+    if (!user) {
+        return c.json({ error: '인증이 필요합니다.' }, 401);
+    }
+    
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+        const problemsData = await db.query.problemTable.findMany({
+            where: eq(schema.problemTable.creator_id, user.id),
+            orderBy: (problem, { asc }) => [asc(problem.created_at)],
+            // [수정] with를 사용하여 관계형 데이터(JOIN)를 가져옵니다.
+            with: {
+                majorChapter: { columns: { name: true } },
+                middleChapter: { columns: { name: true } },
+                coreConcept: { columns: { name: true } },
+            }
+        });
+
+        // [수정] 프론트엔드 타입에 맞게 데이터 구조를 변환합니다.
+        const transformedProblems = problemsData.map(p => ({
+            ...p,
+            major_chapter_id: p.majorChapter?.name ?? 'N/A',
+            middle_chapter_id: p.middleChapter?.name ?? 'N/A',
+            core_concept_id: p.coreConcept?.name ?? 'N/A',
+        }));
+
+        return c.json(transformedProblems, 200);
+
+    } catch (error: any) {
+        console.error('Failed to fetch problems:', error.message);
+        return c.json({ error: '데이터베이스 조회에 실패했습니다.', details: error.message }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
+
 problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), async (c) => {
+    // ... (이하 코드는 변경 없음)
     const user = c.get('user')!;
     const { problems } = c.req.valid('json') as UploadProblemsInput;
 
@@ -59,25 +93,21 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
             let insertedCount = 0;
 
             for (const problem of problems) {
-                // majorChapters 대신 major_chapter_id 사용
                 const [majorChapter] = await tx.insert(schema.majorChaptersTable)
                     .values({ name: problem.major_chapter_id })
                     .onConflictDoUpdate({ target: schema.majorChaptersTable.name, set: { name: problem.major_chapter_id } })
                     .returning();
 
-                // middleChapters 대신 middle_chapter_id 사용
                 const [middleChapter] = await tx.insert(schema.middleChaptersTable)
                     .values({ name: problem.middle_chapter_id, major_chapter_id: majorChapter.id })
                     .onConflictDoNothing() 
                     .returning();
 
-                // coreConcepts 대신 core_concept_id 사용
                 const [coreConcept] = await tx.insert(schema.coreConceptsTable)
                     .values({ name: problem.core_concept_id })
                     .onConflictDoUpdate({ target: schema.coreConceptsTable.name, set: { name: problem.core_concept_id } })
                     .returning();
                 
-                // Zod 스키마와 일치된 필드명으로 DB에 삽입
                 const [insertedProblem] = await tx.insert(schema.problemTable).values({
                     question_number: problem.question_number,
                     question_text: problem.question_text,
@@ -99,7 +129,6 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
                 
                 insertedCount++;
 
-                // optional chaining을 사용하여 keywords가 있을 때만 실행
                 const allKeywords = [
                     ...(problem.concept_keywords?.map(kw => ({ name: kw, type: 'concept' })) || []),
                     ...(problem.calculation_keywords?.map(kw => ({ name: kw, type: 'calculation' })) || []),

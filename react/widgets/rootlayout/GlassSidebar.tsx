@@ -13,7 +13,7 @@ import {
      // 아이콘 import 업데이트
     LuLayoutDashboard, LuCheck, LuLibrary, LuHeart, LuActivity,
     LuChartBar, LuFileText, LuChevronLeft, LuChevronRight,
-    LuTestTubes, LuMove, LuFile // 추가 아이콘
+    LuTestTubes, LuMove, LuFile, LuPrinter // 추가 아이콘
 } from 'react-icons/lu';
 
 interface MenuItemData {
@@ -27,7 +27,7 @@ interface MenuItemData {
 // --- 아이콘 컴포넌트 정의 (변경 없음) ---
 const DashboardIcon = () => <LuLayoutDashboard size={18} />;
 const ProblemIcon = () => <LuFile size={18} />;
-// 예제 및 테스트용 아이콘 추가/수정
+const ProblemPublishingIcon = () => <LuPrinter size={18} />;
 const ExampleIcon = () => <LuTestTubes size={18} />; 
 const MoveIcon = () => <LuMove size={18} />; 
 // 기존 아이콘 유지 (향후 사용 대비)
@@ -55,6 +55,11 @@ export const allMenuItems: MenuItemData[] = [
         path: '/problem-workbench', // 새 페이지의 URL 경로
         name: '문제 작업',
         icon: <ProblemIcon />
+    },
+    {
+        path: '/problem-publishing',
+        name: '문제 출제',
+        icon: <ProblemPublishingIcon />
     },
     {
         path: '/json-renderer',

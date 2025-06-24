@@ -1,8 +1,8 @@
-/* filepath: c:\Users\nicew\Desktop\fullstack\monorepo\client\src\components\rootlayout\GlassSidebarRight.css */
+/* filepath: ./react/widgets/rootlayout/GlassSidebarRight.css */
 .glass-sidebar-right {
     width: var(--sidebar-right-width);
     height: 100%;
-    padding: 15px 0; /* 🌟 좌우 패딩 제거, 상하 패딩 유지 */
+    padding: 15px 0;
     box-sizing: border-box;
     background: var(--sidebar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
@@ -12,32 +12,37 @@
     position: relative;
     z-index: 90;
     flex-shrink: 0;
-    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1); /* padding 전환 제거 */
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
 }
 
 .glass-sidebar-right.expanded {
     width: var(--sidebar-right-expanded-width);
     align-items: flex-start;
-    /* 🌟 padding: 15px; 제거됨. 각 내부 요소가 패딩을 관리. */
 }
+
+/* 
+  [핵심 수정]
+  부모인 .app-container에 .right-sidebar-extra-wide 클래스가 있을 때,
+  자식인 .glass-sidebar-right.expanded의 너비를 재정의하도록 선택자를 수정합니다.
+*/
+.app-container.right-sidebar-extra-wide .glass-sidebar-right.expanded {
+    width: var(--sidebar-right-extra-expanded-width); /* 450px 변수가 적용됨 */
+}
+
 
 /* --- 데스크탑 헤더 (토글 버튼) --- */
 .rgs-header-desktop {
     width: 100%;
-    padding: 0 10px; /* 🌟 좌우 패딩 유지 */
+    padding: 0 10px;
     box-sizing: border-box;
     display: flex;
-    /* [수정] flex 방향을 세로로 변경 */
     flex-direction: column;
-    /* [수정] 아이콘들을 가운데 정렬 (축소 상태) */
     align-items: center;
-    /* [신규] 아이콘 사이의 간격 추가 */
     gap: 10px;
 }
 .glass-sidebar-right.expanded .rgs-header-desktop {
     justify-content: flex-start;
-    /* [핵심 수정] flex-direction: column 이므로, align-items로 수평 정렬. flex-start는 왼쪽 정렬을 의미합니다. */
     align-items: flex-start;
 }
 
@@ -79,7 +84,7 @@
 .expanded-content-area.rgs-content {
     flex-grow: 1;
     width: 100%;
-    overflow: hidden; /* 🌟 이 컨테이너 자체는 스크롤하지 않음 */
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 
@@ -101,15 +106,6 @@
 }
 
 
-/* 
-  🌟🌟🌟 [핵심 수정] 🌟🌟🌟
-  내부 스크롤이 필요한 컴포넌트(예: StudentRegistrationForm의 최상위 div)가
-  이 클래스를 가지도록 하여 스크롤과 패딩을 제어합니다.
-  하지만 이미 StudentRegistrationForm.css에서 .registration-form 이 이 역할을 하고 있으므로
-  해당 파일에서 직접 수정하는 것이 더 좋습니다.
-*/
-
-
 /* --- 모바일 관련 스타일 --- */
 .sidebar-header.rgs-mobile-header {
     width: 100%;
@@ -118,7 +114,7 @@
     justify-content: flex-start;
     align-items: center;
     min-height: 40px;
-    padding: 0 5px; /* 모바일 헤더 패딩 */
+    padding: 0 5px;
     box-sizing: border-box;
 }
 
@@ -145,7 +141,7 @@
         -webkit-backdrop-filter: var(--glass-blur-effect);
         border-top-left-radius: 16px;
         border-bottom-left-radius: 16px;
-        padding: 15px 0; /* 🌟 좌우 패딩 제거 */
+        padding: 15px 0;
 
         right: 0;
         left: auto;

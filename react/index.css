@@ -39,7 +39,8 @@
   --sidebar-width: 210px;
   --sidebar-collapsed-width: 65px;
   --sidebar-right-width: 60px;
-  --sidebar-right-expanded-width: 250px;
+  --sidebar-right-expanded-width: 280px;
+   --sidebar-right-extra-expanded-width: 450px;
   --mobile-sidebar-width-ratio: 78vw;
   /* 화면 너비의 78% (약간 넓힘) */
   --mobile-sidebar-max-width: 330px;

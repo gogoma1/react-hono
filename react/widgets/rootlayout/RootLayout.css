@@ -5,7 +5,7 @@
   background-color: var(--main-content-bg-color);
   padding: 25px;
   /* [핵심] 검색바가 fixed이므로, 스크롤을 맨 아래로 내렸을 때 콘텐츠가 가려지지 않도록 하단 패딩 확보 */
-  padding-bottom: 150px; 
+  padding-bottom: 25px; 
   overflow-y: auto;
   position: relative;
   z-index: 5;
@@ -62,7 +62,7 @@
   height: auto;
 }
 
-/* --- 사이드바 상태에 따른 4가지 케이스의 위치/너비 계산 --- */
+/* --- 사이드바 상태에 따른 너비 계산 --- */
 /* 1. 왼쪽 확장 / 오른쪽 축소 */
 .app-container.left-sidebar-expanded.right-sidebar-collapsed .bottom-content-area {
   left: var(--sidebar-width);
@@ -84,11 +84,23 @@
   width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-expanded-width));
 }
 
+/* 5. 왼쪽 확장 / 오른쪽 추가 확장 */
+.app-container.left-sidebar-expanded.right-sidebar-expanded.right-sidebar-extra-wide .bottom-content-area {
+    left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width) - var(--sidebar-right-extra-expanded-width));
+}
+/* 6. 왼쪽 축소 / 오른쪽 추가 확장 */
+.app-container.left-sidebar-collapsed.right-sidebar-expanded.right-sidebar-extra-wide .bottom-content-area {
+    left: var(--sidebar-collapsed-width);
+    width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-extra-expanded-width));
+}
+
+
 /* ... 반응형 스타일 ... */
 @media (max-width: 1024px) and (min-width: 769px) {
   .main-content {
     padding: 20px;
-    padding-bottom: 150px;
+    padding-bottom: 20px;
   }
 }
 @media (max-width: 768px) {

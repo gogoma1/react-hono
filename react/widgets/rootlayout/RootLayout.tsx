@@ -1,7 +1,8 @@
-import { useMemo, useEffect } from 'react'; // useEffect 추가
+import { useMemo, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectStudentSearchProps } from '../../shared/store/layoutStore';
+// [수정] import 경로 변경
+import { useLayoutStore, selectStudentSearchProps, selectRightSidebarConfig } from '../../shared/store/layoutStore'; 
 import BackgroundBlobs from '../rootlayout/BackgroundBlobs';
 import GlassNavbar from '../rootlayout/GlassNavbar';
 import GlassSidebar from '../rootlayout/GlassSidebar';
@@ -13,7 +14,6 @@ const RootLayout = () => {
     const location = useLocation();
     const updateLayoutForPath = useLayoutStore(state => state.updateLayoutForPath);
     
-    // [핵심] location.pathname이 바뀔 때마다 스토어에 알려서 레이아웃 설정을 업데이트합니다.
     useEffect(() => {
         updateLayoutForPath(location.pathname);
     }, [location.pathname, updateLayoutForPath]);
@@ -23,9 +23,14 @@ const RootLayout = () => {
         mobileSidebarType, 
         closeMobileSidebar, 
         isLeftSidebarExpanded, 
-        isRightSidebarExpanded 
     } = useUIStore();
+    
+    // [수정] rightSidebar 상태를 한번에 가져옴
+    const { content: rightSidebarContent, isExtraWide: isRightSidebarExtraWide } = useLayoutStore(selectRightSidebarConfig);
     const studentSearchProps = useLayoutStore(selectStudentSearchProps);
+    
+    // [수정] isRightSidebarExpanded는 콘텐츠의 존재 여부로 판단
+    const isRightSidebarExpanded = rightSidebarContent !== null;
 
     const parsedSuggestionGroups = useMemo(() => {
         if (studentSearchProps?.suggestionGroups) {
@@ -44,7 +49,8 @@ const RootLayout = () => {
     const sidebarStateClass = `
         ${isLeftSidebarExpanded ? 'left-sidebar-expanded' : 'left-sidebar-collapsed'}
         ${isRightSidebarExpanded ? 'right-sidebar-expanded' : 'right-sidebar-collapsed'}
-    `.trim();
+        ${isRightSidebarExtraWide ? 'right-sidebar-extra-wide' : ''}
+    `.trim().replace(/\s+/g, ' ');
 
     const isWorkbenchPage = location.pathname === '/problem-workbench';
     const mainContentClasses = `main-content ${isWorkbenchPage ? 'main-content--compact-padding' : ''}`;

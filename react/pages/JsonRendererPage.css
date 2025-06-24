@@ -106,8 +106,7 @@
    ========================================================================== */
 
 .json-input-textarea,
-.common-data-form input,
-.popover-input {
+.common-data-form input {
     width: 100%;
     background-color: rgba(0, 0, 0, 0.07); 
     border: 1px solid transparent;
@@ -128,8 +127,7 @@
 }
 
 .common-data-form input:focus,
-.json-input-textarea:focus,
-.popover-input:focus {
+.json-input-textarea:focus {
     background-color: transparent; 
     border-color: var(--accent-color);
     box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
