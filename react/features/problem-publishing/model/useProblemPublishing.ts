@@ -7,9 +7,16 @@ import { useProblemPublishingStore, type ProcessedProblem } from './problemPubli
 
 const SINGLE_COLUMN_MAX_HEIGHT = 920;
 const DEFAULT_ESTIMATED_HEIGHT = 150;
+const DEFAULT_SOLUTION_CHUNK_ESTIMATED_HEIGHT = 40;
 
 type ProblemPlacementInfo = { page: number; column: number };
-type ProblemGroup = { problems: ProcessedProblem[]; totalHeight: number };
+// [수정] items 타입을 LayoutItem으로 명시
+type ProblemGroup = { items: LayoutItem[]; totalHeight: number }; 
+
+export type LayoutItem = 
+    | { type: 'problem'; data: ProcessedProblem; uniqueId: string; }
+    | { type: 'solutionChunk'; data: { text: string; parentProblem: ProcessedProblem }; uniqueId: string; };
+
 export type { ProcessedProblem };
 
 export function useProblemPublishing() {
@@ -17,56 +24,29 @@ export function useProblemPublishing() {
     const { mutateAsync: updateProblem } = useUpdateProblemMutation();
 
     const {
-        initialProblems,
-        draftProblems,
-        setInitialData,
-        startEditing,
-        updateDraftProblem,
-        revertSingleProblem,
-        setEditingProblemId,
-        saveProblem,
+        initialProblems, draftProblems, setInitialData, startEditing,
+        updateDraftProblem, revertSingleProblem, setEditingProblemId, saveProblem,
     } = useProblemPublishingStore();
 
     useEffect(() => {
         if (!isLoadingProblems && rawProblems.length > 0) {
             const typeOrder: Record<string, number> = { '객관식': 1, '주관식': 2, '서답형': 3, '논술형': 4 };
-            let shortAnswerCounter = 1;
             const processed = [...rawProblems]
                 .sort((a, b) => {
                     const sourceCompare = a.source.localeCompare(b.source);
                     if (sourceCompare !== 0) return sourceCompare;
-                    
                     const typeA_Rank = typeOrder[a.problem_type] || 99;
                     const typeB_Rank = typeOrder[b.problem_type] || 99;
-                    const typeCompare = typeA_Rank - typeB_Rank;
-                    if (typeCompare !== 0) return typeCompare;
-
-                    // 같은 '서답형' 내에서는 question_number로 정렬
+                    if (typeA_Rank !== typeB_Rank) return typeA_Rank - typeB_Rank;
                     return a.question_number - b.question_number;
                 })
-                .map((p, index, arr): ProcessedProblem => {
-                    let display_question_number;
-                    if (p.problem_type === '서답형') {
-                        // 이전 문제도 서답형이었는지 확인하여 카운터 결정
-                        if (index > 0 && arr[index-1].problem_type === '서답형' && arr[index-1].source === p.source) {
-                            // 이전 문제와 출처가 같으면 카운터 증가
-                        } else {
-                            // 새로운 서답형 그룹 시작
-                            shortAnswerCounter = 1;
-                        }
-                        display_question_number = `서답형 ${p.question_number}`;
-                    } else {
-                        display_question_number = String(p.question_number);
-                    }
-
-                    return {
-                        ...p,
-                        question_text: p.question_text ?? '',
-                        solution_text: p.solution_text ?? '',
-                        uniqueId: p.problem_id,
-                        display_question_number: display_question_number
-                    };
-                });
+                .map((p): ProcessedProblem => ({
+                    ...p,
+                    question_text: p.question_text ?? '',
+                    solution_text: p.solution_text ?? '',
+                    uniqueId: p.problem_id,
+                    display_question_number: p.problem_type === '서답형' ? `서답형 ${p.question_number}` : String(p.question_number),
+                }));
             setInitialData(processed);
         }
     }, [rawProblems, isLoadingProblems, setInitialData]);
@@ -80,9 +60,16 @@ export function useProblemPublishing() {
         return source.filter(p => selectedIds.has(p.uniqueId));
     }, [draftProblems, initialProblems, selectedIds]);
 
-    const [problemHeightsMap, setProblemHeightsMap] = useState<Map<string, number>>(new Map());
-    const [distributedPages, setDistributedPages] = useState<ProcessedProblem[][]>([]);
+    // [수정] 문제와 해설 조각의 높이를 하나의 맵에서 관리
+    const [itemHeightsMap, setItemHeightsMap] = useState<Map<string, number>>(new Map());
+    
+    // [수정] 페이지 데이터 타입을 LayoutItem 배열로 변경
+    const [distributedPages, setDistributedPages] = useState<LayoutItem[][]>([]);
     const [placementMap, setPlacementMap] = useState<Map<string, ProblemPlacementInfo>>(new Map());
+    
+    const [distributedSolutionPages, setDistributedSolutionPages] = useState<LayoutItem[][]>([]);
+    const [solutionPlacementMap, setSolutionPlacementMap] = useState<Map<string, ProblemPlacementInfo>>(new Map());
+    
     const [isCalculating, setIsCalculating] = useState(false);
     const calculationTimeoutRef = useRef<number | null>(null);
 
@@ -98,8 +85,9 @@ export function useProblemPublishing() {
         simplifiedGradeText: '고3',
     });
 
+    // [수정] 높이 업데이트 핸들러를 하나로 통합
     const handleHeightUpdate = useCallback((uniqueId: string, height: number) => {
-        setProblemHeightsMap(prevMap => {
+        setItemHeightsMap(prevMap => {
             if (height > 0 && prevMap.get(uniqueId) !== height) {
                 const newMap = new Map(prevMap);
                 newMap.set(uniqueId, height);
@@ -109,21 +97,110 @@ export function useProblemPublishing() {
         });
     }, []);
 
+    const runLayoutCalculation = useCallback((
+        itemsToLayout: LayoutItem[],
+        defaultHeight: number
+    ): { pages: LayoutItem[][]; placements: Map<string, ProblemPlacementInfo> } => {
+        const problemGroups: ProblemGroup[] = [];
+        let currentGroupItems: LayoutItem[] = [];
+        let currentGroupHeight = 0;
+
+        for (const item of itemsToLayout) {
+            const itemHeight = itemHeightsMap.get(item.uniqueId) || defaultHeight;
+
+            if (itemHeight > SINGLE_COLUMN_MAX_HEIGHT) {
+                if (currentGroupItems.length > 0) problemGroups.push({ items: currentGroupItems, totalHeight: currentGroupHeight });
+                problemGroups.push({ items: [item], totalHeight: itemHeight });
+                currentGroupItems = [];
+                currentGroupHeight = 0;
+            } else if (currentGroupHeight + itemHeight <= SINGLE_COLUMN_MAX_HEIGHT || currentGroupItems.length === 0) {
+                currentGroupItems.push(item);
+                currentGroupHeight += itemHeight;
+            } else {
+                problemGroups.push({ items: currentGroupItems, totalHeight: currentGroupHeight });
+                currentGroupItems = [item];
+                currentGroupHeight = itemHeight;
+            }
+        }
+        if (currentGroupItems.length > 0) problemGroups.push({ items: currentGroupItems, totalHeight: currentGroupHeight });
+
+        const newPages: LayoutItem[][] = [];
+        const newPlacementMap = new Map<string, ProblemPlacementInfo>();
+        let currentPageNumber = 1;
+        let currentColumnIndex = 0;
+        let pageItemBuffer: LayoutItem[] = [];
+
+        for (const group of problemGroups) {
+            const targetColumn = currentColumnIndex + 1;
+            for (const item of group.items) {
+                newPlacementMap.set(item.uniqueId, { page: currentPageNumber, column: targetColumn });
+                pageItemBuffer.push(item);
+            }
+            if (currentColumnIndex === 0) {
+                currentColumnIndex = 1;
+            } else {
+                newPages.push([...pageItemBuffer]);
+                pageItemBuffer = [];
+                currentPageNumber++;
+                currentColumnIndex = 0;
+            }
+        }
+        if (pageItemBuffer.length > 0) newPages.push([...pageItemBuffer]);
+        return { pages: newPages, placements: newPlacementMap };
+    }, [itemHeightsMap]);
+
+    useEffect(() => {
+        if (calculationTimeoutRef.current) clearTimeout(calculationTimeoutRef.current);
+        
+        calculationTimeoutRef.current = window.setTimeout(() => {
+            setIsCalculating(true);
+            
+            if (selectedProblems.length === 0) {
+                setDistributedPages([]);
+                setPlacementMap(new Map());
+                setDistributedSolutionPages([]);
+                setSolutionPlacementMap(new Map());
+            } else {
+                const problemLayoutItems: LayoutItem[] = selectedProblems.map(p => ({
+                    type: 'problem', data: p, uniqueId: p.uniqueId
+                }));
+                const { pages: problemPages, placements: problemPlacements } = runLayoutCalculation(problemLayoutItems, DEFAULT_ESTIMATED_HEIGHT);
+                setDistributedPages(problemPages);
+                setPlacementMap(problemPlacements);
+
+                const solutionLayoutItems: LayoutItem[] = [];
+                selectedProblems.forEach(p => {
+                    if (p.solution_text && p.solution_text.trim()) {
+                        const chunks = p.solution_text.split(/\n\s*\n/).filter(c => c.trim());
+                        chunks.forEach((chunk, index) => {
+                            solutionLayoutItems.push({
+                                type: 'solutionChunk',
+                                data: { text: chunk, parentProblem: p },
+                                uniqueId: `${p.uniqueId}-sol-${index}`
+                            });
+                        });
+                    }
+                });
+
+                const { pages: solutionPages, placements: solutionPlacements } = runLayoutCalculation(solutionLayoutItems, DEFAULT_SOLUTION_CHUNK_ESTIMATED_HEIGHT);
+                setDistributedSolutionPages(solutionPages);
+                setSolutionPlacementMap(solutionPlacements);
+            }
+            setIsCalculating(false);
+        }, 300);
+
+        return () => { if (calculationTimeoutRef.current) clearTimeout(calculationTimeoutRef.current); };
+    }, [selectedProblems, itemHeightsMap, runLayoutCalculation]);
+    
     const handleSaveProblem = useCallback(async (updatedProblem: ProcessedProblem) => {
-        const payload: Partial<Problem> = {
-            ...updatedProblem
-        };
+        const payload: Partial<Problem> = { ...updatedProblem };
         delete (payload as any).uniqueId;
         delete (payload as any).display_question_number;
-
         const savedData = await updateProblem({ id: payload.problem_id!, fields: payload });
-
         const processedSavedData: ProcessedProblem = {
             ...savedData,
             uniqueId: savedData.problem_id,
-            display_question_number: savedData.problem_type === '서답형'
-                ? `서답형 ${savedData.question_number}`
-                : String(savedData.question_number)
+            display_question_number: savedData.problem_type === '서답형' ? `서답형 ${savedData.question_number}` : String(savedData.question_number)
         };
         saveProblem(processedSavedData);
     }, [updateProblem, saveProblem]);
@@ -142,80 +219,6 @@ export function useProblemPublishing() {
         });
     }, []);
 
-    useEffect(() => {
-        if (calculationTimeoutRef.current) { clearTimeout(calculationTimeoutRef.current); }
-        setIsCalculating(true);
-        
-        calculationTimeoutRef.current = window.setTimeout(() => {
-            if (selectedProblems.length === 0) {
-                setDistributedPages([]);
-                setPlacementMap(new Map());
-                setIsCalculating(false);
-                return;
-            }
-
-            const problemGroups: ProblemGroup[] = [];
-            let currentGroupProblems: ProcessedProblem[] = [];
-            let currentGroupHeight = 0;
-            
-            for (const problem of selectedProblems) {
-                const problemHeight = problemHeightsMap.get(problem.uniqueId) || DEFAULT_ESTIMATED_HEIGHT;
-
-                if (problemHeight > SINGLE_COLUMN_MAX_HEIGHT) {
-                    if (currentGroupProblems.length > 0) {
-                        problemGroups.push({ problems: currentGroupProblems, totalHeight: currentGroupHeight });
-                    }
-                    problemGroups.push({ problems: [problem], totalHeight: problemHeight });
-                    currentGroupProblems = [];
-                    currentGroupHeight = 0;
-                } else if (currentGroupHeight + problemHeight <= SINGLE_COLUMN_MAX_HEIGHT || currentGroupProblems.length === 0) {
-                    currentGroupProblems.push(problem);
-                    currentGroupHeight += problemHeight;
-                } else {
-                    problemGroups.push({ problems: currentGroupProblems, totalHeight: currentGroupHeight });
-                    currentGroupProblems = [problem];
-                    currentGroupHeight = problemHeight;
-                }
-            }
-            if (currentGroupProblems.length > 0) {
-                problemGroups.push({ problems: currentGroupProblems, totalHeight: currentGroupHeight });
-            }
-
-            const newPages: ProcessedProblem[][] = [];
-            const newPlacementMap = new Map<string, ProblemPlacementInfo>();
-            let currentPageNumber = 1; 
-            let currentColumnIndex = 0;
-            let pageProblemBuffer: ProcessedProblem[] = [];
-
-            for (const group of problemGroups) {
-                const targetColumn = currentColumnIndex + 1;
-                
-                for (const problem of group.problems) {
-                    newPlacementMap.set(problem.uniqueId, { page: currentPageNumber, column: targetColumn });
-                    pageProblemBuffer.push(problem);
-                }
-
-                if (currentColumnIndex === 0) {
-                    currentColumnIndex = 1;
-                } else {
-                    newPages.push([...pageProblemBuffer]);
-                    pageProblemBuffer = [];
-                    currentPageNumber++;
-                    currentColumnIndex = 0;
-                }
-            }
-            if (pageProblemBuffer.length > 0) {
-                newPages.push([...pageProblemBuffer]);
-            }
-
-            setDistributedPages(newPages);
-            setPlacementMap(newPlacementMap);
-            setIsCalculating(false);
-        }, 350);
-
-        return () => { if (calculationTimeoutRef.current) clearTimeout(calculationTimeoutRef.current); };
-    }, [selectedProblems, problemHeightsMap]);
-
     return {
         allProblems: displayProblems,
         isLoadingProblems,
@@ -225,8 +228,10 @@ export function useProblemPublishing() {
         toggleSelectAll,
         distributedPages,
         placementMap,
+        distributedSolutionPages,
+        solutionPlacementMap,
         isCalculating,
-        handleHeightUpdate,
+        handleHeightUpdate, // handleSolutionHeightUpdate는 이걸로 통합
         headerInfo,
         baseFontSize,
         contentFontSizeEm,
@@ -242,5 +247,6 @@ export function useProblemPublishing() {
         handleRevertProblem: revertSingleProblem,
         startEditingProblem: startEditing,
         setEditingProblemId,
+        selectedProblems,
     };
 }

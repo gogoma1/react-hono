@@ -96,19 +96,7 @@
   transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* [핵심 수정] 오른쪽 사이드바 너비를 계산에 포함 */
-/* 데스크탑/태블릿 - 사이드바 확장 시 */
-.app-container.sidebar-expanded .bottom-content-area {
-  left: var(--sidebar-width);
-  width: calc(100% - var(--sidebar-width) - var(--sidebar-right-width));
-}
 
-/* [핵심 수정] 오른쪽 사이드바 너비를 계산에 포함 */
-/* 데스크탑/태블릿 - 사이드바 축소 시 */
-.app-container.sidebar-collapsed .bottom-content-area {
-  left: var(--sidebar-collapsed-width);
-  width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-width));
-}
 
 
 /* ==========================================================================

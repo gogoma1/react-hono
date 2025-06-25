@@ -3,6 +3,7 @@ import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
 import ExamHeader from './ExamHeader';
 import './ExamPage.css';
+import { LuCircleX } from "react-icons/lu";
 
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
 
@@ -15,31 +16,60 @@ interface ProblemItemProps {
     contentFontSizeEm: number;
     contentFontFamily: string;
     onProblemClick: (problem: ProcessedProblem) => void;
+    onDeselectProblem: (uniqueId: string) => void;
 }
 
-const ProblemItem = forwardRef<HTMLDivElement, ProblemItemProps>(({ problem, allProblems, onRenderComplete, useSequentialNumbering, problemBoxMinHeight, contentFontSizeEm, contentFontFamily, onProblemClick }, ref) => {
+const ProblemItem = forwardRef<HTMLDivElement, ProblemItemProps>(({ problem, allProblems, onRenderComplete, useSequentialNumbering, problemBoxMinHeight, contentFontSizeEm, contentFontFamily, onProblemClick, onDeselectProblem }, ref) => {
     
     const globalProblemIndex = useMemo(() => 
-        allProblems.indexOf(problem) + 1,
+        allProblems.findIndex(p => p.uniqueId === problem.uniqueId) + 1,
         [allProblems, problem]
     );
 
+    // [수정] Enter 또는 Space 키로도 문제 수정을 트리거할 수 있도록 합니다.
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onProblemClick(problem);
+        }
+    };
+
     return (
         <div ref={ref} className="problem-container" data-unique-id={problem.uniqueId}>
-             <button type="button" className="text-trigger" onClick={() => onProblemClick(problem)} aria-label={`${problem.display_question_number}번 문제 수정`}>
+             {/* [수정] <button>을 <div>로 변경하여 HTML 중첩 오류를 해결합니다. */}
+             {/* [수정] 접근성을 위해 role, tabIndex, onKeyDown을 추가합니다. */}
+             <div
+                role="button"
+                tabIndex={0}
+                onKeyDown={handleKeyDown}
+                className="text-trigger" 
+                onClick={() => onProblemClick(problem)} 
+                aria-label={`${problem.display_question_number}번 문제 수정`}
+            >
                 <div className="problem-header">
                     <div className="header-inner">
                         <span className="problem-number">{useSequentialNumbering ? `${globalProblemIndex}.` : `${problem.display_question_number}.`}</span>
                         <span className="global-index">({globalProblemIndex})</span>
                         {problem.score && <span className="problem-score">[{problem.score}]</span>}
                     </div>
+                    <button
+                        type="button"
+                        className="problem-deselect-button"
+                        aria-label="문제 선택 해제"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDeselectProblem(problem.uniqueId);
+                        }}
+                    >
+                        <LuCircleX size={18} />
+                    </button>
                 </div>
                 <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily, minHeight: `${problemBoxMinHeight}em` }}>
                     <div className="mathpix-wrapper prose">
                         <MathpixRenderer text={problem.question_text ?? ''} onRenderComplete={() => onRenderComplete(problem.uniqueId)} />
                     </div>
                 </div>
-             </button>
+             </div>
         </div>
     );
 });
@@ -60,6 +90,7 @@ interface ExamPageProps {
     problemBoxMinHeight: number;
     headerInfo: any;
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
+    onDeselectProblem: (uniqueId: string) => void;
 }
 
 const ExamPage: React.FC<ExamPageProps> = (props) => {
@@ -69,7 +100,8 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
         baseFontSize, contentFontSizeEm, contentFontFamily, problemBoxMinHeight,
         headerInfo,
         onHeaderUpdate,
-        onProblemClick
+        onProblemClick,
+        onDeselectProblem,
     } = props;
 
     const leftColumnProblems = useMemo(() => 
@@ -112,6 +144,7 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
                     contentFontSizeEm={contentFontSizeEm}
                     contentFontFamily={contentFontFamily}
                     onProblemClick={onProblemClick}
+                    onDeselectProblem={onDeselectProblem}
                 />
             );
         });

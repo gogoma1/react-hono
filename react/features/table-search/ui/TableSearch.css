@@ -2,7 +2,8 @@
 
 .table-search-panel {
     width: 100%;
-    max-width: 960px;
+    /* [수정] 최대 너비 제한을 제거하여 컨테이너에 꽉 차도록 합니다. */
+    /* max-width: 960px; */
     background: var(--navbar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
     -webkit-backdrop-filter: var(--glass-blur-effect);

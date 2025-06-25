@@ -337,12 +337,12 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
 
 export default ExamHeader;
 ----- ./react/entities/exam/ui/ExamPage.tsx -----
-
 import React, { useMemo, useCallback, forwardRef } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
 import ExamHeader from './ExamHeader';
 import './ExamPage.css';
+import { LuCircleX } from "react-icons/lu"; // [추가] 아이콘 임포트
 
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
 
@@ -355,24 +355,37 @@ interface ProblemItemProps {
     contentFontSizeEm: number;
     contentFontFamily: string;
     onProblemClick: (problem: ProcessedProblem) => void;
+    onDeselectProblem: (uniqueId: string) => void; // [추가] 문제 선택 해제 핸들러
 }
 
-const ProblemItem = forwardRef<HTMLDivElement, ProblemItemProps>(({ problem, allProblems, onRenderComplete, useSequentialNumbering, problemBoxMinHeight, contentFontSizeEm, contentFontFamily, onProblemClick }, ref) => {
+const ProblemItem = forwardRef<HTMLDivElement, ProblemItemProps>(({ problem, allProblems, onRenderComplete, useSequentialNumbering, problemBoxMinHeight, contentFontSizeEm, contentFontFamily, onProblemClick, onDeselectProblem }, ref) => {
     
     const globalProblemIndex = useMemo(() => 
-        allProblems.indexOf(problem) + 1,
+        allProblems.findIndex(p => p.uniqueId === problem.uniqueId) + 1,
         [allProblems, problem]
     );
 
     return (
         <div ref={ref} className="problem-container" data-unique-id={problem.uniqueId}>
-             <button type="button" className="text-trigger" onClick={() => onProblemClick(problem)} aria-label={`${problem.question_number}번 문제 수정`}>
+             <button type="button" className="text-trigger" onClick={() => onProblemClick(problem)} aria-label={`${problem.display_question_number}번 문제 수정`}>
                 <div className="problem-header">
                     <div className="header-inner">
-                        <span className="problem-number">{useSequentialNumbering ? globalProblemIndex : problem.question_number}.</span>
+                        <span className="problem-number">{useSequentialNumbering ? `${globalProblemIndex}.` : `${problem.display_question_number}.`}</span>
                         <span className="global-index">({globalProblemIndex})</span>
                         {problem.score && <span className="problem-score">[{problem.score}]</span>}
                     </div>
+                    {/* [추가] 문제 선택 해제 아이콘 버튼 */}
+                    <button
+                        type="button"
+                        className="problem-deselect-button"
+                        aria-label="문제 선택 해제"
+                        onClick={(e) => {
+                            e.stopPropagation(); // 부모 버튼의 onClick 이벤트 전파를 막습니다.
+                            onDeselectProblem(problem.uniqueId);
+                        }}
+                    >
+                        <LuCircleX size={18} />
+                    </button>
                 </div>
                 <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily, minHeight: `${problemBoxMinHeight}em` }}>
                     <div className="mathpix-wrapper prose">
@@ -400,6 +413,7 @@ interface ExamPageProps {
     problemBoxMinHeight: number;
     headerInfo: any;
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
+    onDeselectProblem: (uniqueId: string) => void; // [추가]
 }
 
 const ExamPage: React.FC<ExamPageProps> = (props) => {
@@ -409,7 +423,8 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
         baseFontSize, contentFontSizeEm, contentFontFamily, problemBoxMinHeight,
         headerInfo,
         onHeaderUpdate,
-        onProblemClick
+        onProblemClick,
+        onDeselectProblem, // [추가]
     } = props;
 
     const leftColumnProblems = useMemo(() => 
@@ -452,6 +467,7 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
                     contentFontSizeEm={contentFontSizeEm}
                     contentFontFamily={contentFontFamily}
                     onProblemClick={onProblemClick}
+                    onDeselectProblem={onDeselectProblem} // [추가]
                 />
             );
         });
@@ -2123,6 +2139,89 @@ export const SignOutButton: React.FC = () => {
   );
 };
 
+----- ./react/features/latex-help/ui/LatexHelpPanel.tsx -----
+import React from 'react';
+import './LatexHelpPanel.css';
+
+const helpData = [
+    {
+        category: '기본 문법',
+        items: [
+            { syntax: '$...$', description: '인라인 수학 수식' },
+            { syntax: '$$...$$', description: '블록 수학 수식 (가운데 정렬)' },
+            { syntax: '\\\\', description: '줄바꿈' },
+            { syntax: '\\{ \\}', description: '중괄호 { } 표시' },
+        ]
+    },
+    {
+        category: '분수 및 지수/첨자',
+        items: [
+            { syntax: '\\dfrac{a}{b}', description: '분수 (크게 표시)' },
+            { syntax: '\\frac{a}{b}', description: '분수 (작게 표시)' },
+            { syntax: 'x^{...}', description: '윗첨자 (지수)' },
+            { syntax: 'x_{...}', description: '아래첨자' },
+        ]
+    },
+    {
+        category: '기호 및 연산자',
+        items: [
+            { syntax: '\\pm', description: '± 기호' },
+            { syntax: '\\times', description: '× 곱셈 기호' },
+            { syntax: '\\div', description: '÷ 나눗셈 기호' },
+            { syntax: '\\le', description: '≤ (작거나 같다)' },
+            { syntax: '\\ge', description: '≥ (크거나 같다)' },
+            { syntax: '\\neq', description: '≠ (같지 않다)' },
+            { syntax: '\\approx', description: '≈ (근사값)' },
+        ]
+    },
+    {
+        category: '루트, 합/곱, 극한, 적분',
+        items: [
+            { syntax: '\\sqrt{...}', description: '제곱근' },
+            { syntax: '\\sqrt[n]{...}', description: 'n제곱근' },
+            { syntax: '\\sum_{i=1}^{n}', description: '합 (시그마)' },
+            { syntax: '\\prod_{i=1}^{n}', description: '곱 (프로덕트)' },
+            { syntax: '\\lim_{x \\to \\infty}', description: '극한' },
+            { syntax: '\\int_{a}^{b}', description: '적분' },
+        ]
+    },
+    {
+        category: '행렬 (matrix)',
+        items: [
+            { syntax: '\\begin{matrix} a & b \\\\ c & d \\end{matrix}', description: '기본 행렬 (괄호 없음)' },
+            { syntax: '\\begin{pmatrix} ... \\end{pmatrix}', description: '괄호 () 행렬' },
+            { syntax: '\\begin{bmatrix} ... \\end{bmatrix}', description: '대괄호 [] 행렬' },
+            { syntax: '\\begin{vmatrix} ... \\end{vmatrix}', description: '수직선 | | 행렬' },
+        ]
+    }
+];
+
+const LatexHelpPanel: React.FC = () => {
+    return (
+        <div className="latex-help-panel">
+            <h4 className="latex-help-title">LaTeX 문법 도움말</h4>
+            <div className="latex-help-content">
+                {helpData.map(section => (
+                    <div key={section.category} className="help-section">
+                        <h5 className="help-category-title">{section.category}</h5>
+                        <table className="help-table">
+                            <tbody>
+                                {section.items.map(item => (
+                                    <tr key={item.syntax}>
+                                        <td className="syntax-cell"><code>{item.syntax}</code></td>
+                                        <td className="description-cell">{item.description}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+export default LatexHelpPanel;
 ----- ./react/features/popovermenu/ProfileMenuContent.tsx -----
 import React from 'react';
 import { Link, useNavigate } from 'react-router'; // react-router-dom에서 useNavigate 가져오기
@@ -2350,26 +2449,40 @@ export function useProblemPublishing() {
 
     useEffect(() => {
         if (!isLoadingProblems && rawProblems.length > 0) {
-            const typeOrder: Record<string, number> = { '객관식': 1, '서답형': 2 };
+            const typeOrder: Record<string, number> = { '객관식': 1, '주관식': 2, '서답형': 3, '논술형': 4 };
+            let shortAnswerCounter = 1;
             const processed = [...rawProblems]
                 .sort((a, b) => {
                     const sourceCompare = a.source.localeCompare(b.source);
                     if (sourceCompare !== 0) return sourceCompare;
+                    
                     const typeA_Rank = typeOrder[a.problem_type] || 99;
                     const typeB_Rank = typeOrder[b.problem_type] || 99;
                     const typeCompare = typeA_Rank - typeB_Rank;
                     if (typeCompare !== 0) return typeCompare;
+
                     return a.question_number - b.question_number;
                 })
-                .map((p): ProcessedProblem => ({
-                    ...p,
-                    question_text: p.question_text ?? '',
-                    solution_text: p.solution_text ?? '',
-                    uniqueId: p.problem_id,
-                    display_question_number: p.problem_type === '서답형'
-                        ? `서답형 ${p.question_number}`
-                        : String(p.question_number)
-                }));
+                .map((p, index, arr): ProcessedProblem => {
+                    let display_question_number;
+                    if (p.problem_type === '서답형') {
+                        if (index > 0 && arr[index-1].problem_type === '서답형' && arr[index-1].source === p.source) {
+                        } else {
+                            shortAnswerCounter = 1;
+                        }
+                        display_question_number = `서답형 ${p.question_number}`;
+                    } else {
+                        display_question_number = String(p.question_number);
+                    }
+
+                    return {
+                        ...p,
+                        question_text: p.question_text ?? '',
+                        solution_text: p.solution_text ?? '',
+                        uniqueId: p.problem_id,
+                        display_question_number: display_question_number
+                    };
+                });
             setInitialData(processed);
         }
     }, [rawProblems, isLoadingProblems, setInitialData]);
@@ -2390,8 +2503,8 @@ export function useProblemPublishing() {
     const calculationTimeoutRef = useRef<number | null>(null);
 
     const [baseFontSize, setBaseFontSize] = useState('12px');
-    const [contentFontSizeEm, setContentFontSizeEm] = useState(1.1);
-    const [problemBoxMinHeight, setProblemBoxMinHeight] = useState(10);
+    const [contentFontSizeEm, setContentFontSizeEm] = useState(1);
+    const [problemBoxMinHeight, setProblemBoxMinHeight] = useState(28);
     const [useSequentialNumbering, setUseSequentialNumbering] = useState(false);
     const [headerInfo, setHeaderInfo] = useState({
         title: '2025학년도 3월 전국연합학력평가', titleFontSize: 1.64, titleFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
@@ -4752,6 +4865,13 @@ const ProblemPublishingPage: React.FC = () => {
         setEditingProblemId(null);
         setRightSidebarConfig({ contentConfig: { type: null } });
     }, [setEditingProblemId, setRightSidebarConfig]);
+    
+    const handleOpenLatexHelpSidebar = useCallback(() => {
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'latexHelp' },
+            isExtraWide: false
+        });
+    }, [setRightSidebarConfig]);
 
     const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => {
         await handleSaveProblem(problem);
@@ -4791,12 +4911,18 @@ const ProblemPublishingPage: React.FC = () => {
     const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
 
     useEffect(() => {
-        registerPageActions({ onClose: handleCloseEditor });
+        registerPageActions({ 
+            onClose: handleCloseEditor,
+            openLatexHelpSidebar: handleOpenLatexHelpSidebar
+        });
         return () => {
             setRightSidebarConfig({ contentConfig: { type: null } });
-            registerPageActions({ onClose: undefined });
+            registerPageActions({ 
+                onClose: undefined,
+                openLatexHelpSidebar: undefined
+            });
         };
-    }, [registerPageActions, handleCloseEditor, setRightSidebarConfig]);
+    }, [registerPageActions, handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar]);
 
     return (
         <div className="problem-publishing-page">
@@ -4838,6 +4964,7 @@ const ProblemPublishingPage: React.FC = () => {
                     onHeightUpdate={handleHeightUpdate} 
                     onProblemClick={handleProblemClick} 
                     onHeaderUpdate={handleHeaderUpdate} 
+                    onDeselectProblem={toggleRow} 
                 />
             </div>
         </div>
@@ -5815,7 +5942,7 @@ export const selectAuthError = (state: AuthState): string | null => state.authEr
 /**
  * 각 페이지별로 우측 사이드바에 표시될 버튼의 종류를 정의합니다.
  */
-export type SidebarButtonType = 'register' | 'settings' | 'prompt';
+export type SidebarButtonType = 'register' | 'settings' | 'prompt' | 'latexHelp';
 
 /**
  * 각 페이지의 레이아웃 설정을 정의하는 인터페이스입니다.
@@ -5851,6 +5978,11 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
       settings: { tooltip: 'JSON 렌더러 설정' },
     },
   },
+  '/problem-publishing': {
+    sidebarButtons: {
+      latexHelp: { tooltip: 'LaTeX 문법 도움말' }
+    }
+  }
 };
 ----- ./react/shared/store/layoutStore.ts -----
 import { create } from 'zustand';
@@ -5874,12 +6006,13 @@ interface RegisteredPageActions {
   openRegisterSidebar: () => void;
   openSettingsSidebar: () => void;
   openPromptSidebar: () => void;
+  openLatexHelpSidebar: () => void; // [추가]
   openEditSidebar: (student: any) => void;
   onClose: () => void;
 }
 
 interface SidebarContentConfig {
-    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | null;
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | null; // [추가]
     props?: Record<string, any>; // problemId, student 등을 전달하기 위한 props
 }
 
@@ -5906,6 +6039,7 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     openRegisterSidebar: () => console.warn('openRegisterSidebar action not registered.'),
     openSettingsSidebar: () => console.warn('openSettingsSidebar action not registered.'),
     openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
+    openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'), // [추가]
     onClose: () => console.warn('onClose action not registered.'),
 };
 
@@ -5985,6 +6119,12 @@ export const useSidebarTriggers = () => {
             result.promptTrigger = {
                 onClick: pageActions.openPromptSidebar,
                 tooltip: currentPageConfig.sidebarButtons.prompt.tooltip,
+            };
+        }
+        if (currentPageConfig.sidebarButtons?.latexHelp) {
+            result.latexHelpTrigger = {
+                onClick: pageActions.openLatexHelpSidebar,
+                tooltip: currentPageConfig.sidebarButtons.latexHelp.tooltip,
             };
         }
         return result;
@@ -10879,6 +11019,7 @@ interface ExamPreviewWidgetProps {
     onHeightUpdate: (uniqueId: string, height: number) => void;
     onProblemClick: (problem: ProcessedProblem) => void;
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
+    onDeselectProblem: (uniqueId: string) => void; // [추가]
 }
 
 const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
@@ -11478,23 +11619,25 @@ import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList } from 'react-icons/lu';
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked } from 'react-icons/lu'; // LuBookMarked 추가
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
 import PromptCollection from '../../features/prompt-collection/ui/PromptCollection';
 import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
 import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
+import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel'; // [추가]
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
 const CloseIcon = () => <LuCircleX size={22} />;
 const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
+const LatexHelpIcon = () => <LuBookMarked size={20} />; // [추가]
 
 interface ProblemEditorWrapperProps {
     onSave: (problem: ProcessedProblem) => void;
-    onRevert: (problemId: string) => void; // [수정] onCancel -> onRevert
+    onRevert: (problemId: string) => void;
     onClose: () => void;
     onProblemChange: (problem: ProcessedProblem) => void;
 }
@@ -11528,7 +11671,7 @@ const SidebarContentRenderer: React.FC = () => {
             return (
                 <ProblemEditorWrapper
                     onSave={onSave}
-                    onRevert={onRevert} // onCancel 대신 onRevert를 전달
+                    onRevert={onRevert}
                     onClose={onClose}
                     onProblemChange={onProblemChange}
                 />
@@ -11558,6 +11701,9 @@ const SidebarContentRenderer: React.FC = () => {
 
         case 'prompt':
             return <PromptCollection />;
+        
+        case 'latexHelp':
+            return <LatexHelpPanel />;
 
         default:
             return (
@@ -11571,7 +11717,7 @@ const SidebarContentRenderer: React.FC = () => {
 
 const GlassSidebarRight: React.FC = () => {
     const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const { registerTrigger, settingsTrigger, promptTrigger, onClose } = useSidebarTriggers();
+    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, onClose } = useSidebarTriggers(); // latexHelpTrigger 추가
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
     const isRightSidebarExpanded = contentConfig.type !== null;
@@ -11614,6 +11760,19 @@ const GlassSidebarRight: React.FC = () => {
                                         aria-label={promptTrigger.tooltip}
                                     >
                                         <PromptIcon />
+                                    </button>
+                                </Tippy>
+                            )}
+
+                            {/* [추가] LaTeX 도움말 버튼 */}
+                            {latexHelpTrigger && (
+                                <Tippy content={latexHelpTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                                    <button
+                                        onClick={latexHelpTrigger.onClick}
+                                        className="settings-toggle-button"
+                                        aria-label={latexHelpTrigger.tooltip}
+                                    >
+                                        <LatexHelpIcon />
                                     </button>
                                 </Tippy>
                             )}
@@ -11681,10 +11840,10 @@ const RootLayout = () => {
         isLeftSidebarExpanded, 
     } = useUIStore();
     
-    const { content: rightSidebarContent, isExtraWide: isRightSidebarExtraWide } = useLayoutStore(selectRightSidebarConfig);
+    const { contentConfig, isExtraWide: isRightSidebarExtraWide } = useLayoutStore(selectRightSidebarConfig);
     const studentSearchProps = useLayoutStore(selectStudentSearchProps);
     
-    const isRightSidebarExpanded = rightSidebarContent !== null;
+    const isRightSidebarExpanded = contentConfig.type !== null;
 
     const parsedSuggestionGroups = useMemo(() => {
         if (studentSearchProps?.suggestionGroups) {

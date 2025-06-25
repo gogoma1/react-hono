@@ -25,12 +25,10 @@ const RootLayout = () => {
         isLeftSidebarExpanded, 
     } = useUIStore();
     
-    // [수정] rightSidebar 상태를 한번에 가져옴
-    const { content: rightSidebarContent, isExtraWide: isRightSidebarExtraWide } = useLayoutStore(selectRightSidebarConfig);
+    const { contentConfig, isExtraWide: isRightSidebarExtraWide } = useLayoutStore(selectRightSidebarConfig);
     const studentSearchProps = useLayoutStore(selectStudentSearchProps);
     
-    // [수정] isRightSidebarExpanded는 콘텐츠의 존재 여부로 판단
-    const isRightSidebarExpanded = rightSidebarContent !== null;
+    const isRightSidebarExpanded = contentConfig.type !== null;
 
     const parsedSuggestionGroups = useMemo(() => {
         if (studentSearchProps?.suggestionGroups) {

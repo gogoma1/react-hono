@@ -19,6 +19,9 @@ const ProblemPublishingPage: React.FC = () => {
         handleRevertProblem,
         startEditingProblem,
         setEditingProblemId,
+        selectedProblems,
+        distributedSolutionPages,
+        solutionPlacementMap,
     } = useProblemPublishing();
 
     const { setRightSidebarConfig, registerPageActions } = useLayoutStore.getState();
@@ -28,7 +31,6 @@ const ProblemPublishingPage: React.FC = () => {
         setRightSidebarConfig({ contentConfig: { type: null } });
     }, [setEditingProblemId, setRightSidebarConfig]);
     
-    // [추가] LaTeX 도움말 사이드바를 여는 함수
     const handleOpenLatexHelpSidebar = useCallback(() => {
         setRightSidebarConfig({ 
             contentConfig: { type: 'latexHelp' },
@@ -74,14 +76,12 @@ const ProblemPublishingPage: React.FC = () => {
     const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
 
     useEffect(() => {
-        // [수정] openLatexHelpSidebar 액션을 등록
         registerPageActions({ 
             onClose: handleCloseEditor,
             openLatexHelpSidebar: handleOpenLatexHelpSidebar
         });
         return () => {
             setRightSidebarConfig({ contentConfig: { type: null } });
-            // [수정] 액션 등록 해제
             registerPageActions({ 
                 onClose: undefined,
                 openLatexHelpSidebar: undefined
@@ -117,8 +117,11 @@ const ProblemPublishingPage: React.FC = () => {
             <div className="scrollable-content-area">
                 <ExamPreviewWidget 
                     distributedPages={distributedPages} 
+                    distributedSolutionPages={distributedSolutionPages}
                     allProblems={allProblems} 
+                    selectedProblems={selectedProblems}
                     placementMap={placementMap} 
+                    solutionPlacementMap={solutionPlacementMap}
                     isCalculating={isCalculating} 
                     headerInfo={headerInfo} 
                     useSequentialNumbering={useSequentialNumbering} 
@@ -129,6 +132,7 @@ const ProblemPublishingPage: React.FC = () => {
                     onHeightUpdate={handleHeightUpdate} 
                     onProblemClick={handleProblemClick} 
                     onHeaderUpdate={handleHeaderUpdate} 
+                    onDeselectProblem={toggleRow} 
                 />
             </div>
         </div>

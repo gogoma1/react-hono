@@ -97,19 +97,7 @@
   transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* [핵심 수정] 오른쪽 사이드바 너비를 계산에 포함 */
-/* 데스크탑/태블릿 - 사이드바 확장 시 */
-.app-container.sidebar-expanded .bottom-content-area {
-  left: var(--sidebar-width);
-  width: calc(100% - var(--sidebar-width) - var(--sidebar-right-width));
-}
 
-/* [핵심 수정] 오른쪽 사이드바 너비를 계산에 포함 */
-/* 데스크탑/태블릿 - 사이드바 축소 시 */
-.app-container.sidebar-collapsed .bottom-content-area {
-  left: var(--sidebar-collapsed-width);
-  width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-width));
-}
 
 
 /* ==========================================================================
@@ -310,31 +298,15 @@
 .simplified-subject-button .edit-icon-svg { font-size: 0.7em; }
 
 /* ==========================================================================
-   4. 문제 배치 및 개별 문제 스타일 (이전과 동일)
+   4. 문제 배치 및 개별 문제 스타일
    ========================================================================== */
 .exam-columns-container { position: relative; box-sizing: border-box; display: flex; min-height: 0; width: 100%; flex-grow: 1; gap: 1.8em; overflow: hidden; padding-bottom: 2.5em; }
 .exam-column { min-width: 0; flex: 1 1 0%; }
 .column-divider { pointer-events: none; position: absolute; top: 0; bottom: 2.5em; left: 50%; z-index: 1; width: 1px; transform: translateX(-50%); background-color: black; }
-.problem-container { position: relative; margin-bottom: 1.8em; box-sizing: border-box; display: flex; width: 100%; flex-direction: column; overflow: hidden; border: 0.1em dashed #d1d5db; background-color: white; padding: 0.9em 1.1em; font-size: 1em; transition: min-height 0.2s ease-in-out; }
-.problem-header { margin-bottom: 0.7em; display: flex; flex-shrink: 0; align-items: baseline; justify-content: flex-start; white-space: nowrap; font-size: 1em; font-weight: 700; line-height: 1; }
-.problem-header .header-inner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3em; }
-.problem-number { font-size: 2em; font-weight: 700; line-height: 1; }
-.global-index { margin-left: 0.1em; font-size: 1em; font-weight: 400; line-height: 1; color: #6b7280; }
-.problem-score { margin-left: 0.2em; font-size: 1em; font-weight: 700; line-height: 1; }
-.problem-content-wrapper { position: relative; min-height: 0; width: 100%; flex-grow: 1; overflow: hidden; line-height: 1.75; }
-.text-trigger { display: block; width: 100%; height: 100%; cursor: pointer; border-radius: 4px; padding: 0; text-align: left; color: inherit; background: none; border: none; font: inherit; }
-.text-trigger:hover { background-color: rgba(0,0,0,0.05); }
-.text-trigger:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
-.mathpix-wrapper { display: block; width: 100%; overflow-x: hidden; word-wrap: break-word; }
-.problem-container .edit-icon-overlay { right: 4px; top: 4px; }
-.problem-container:hover .edit-icon-overlay { opacity: 0.5; }
-.page-footer { position: absolute; bottom: 0.9em; left: 50%; z-index: 10; transform: translateX(-50%); background-color: white; }
-.page-counter-box { display: inline-block; border: 0.1em solid black; background-color: white; padding: 0.3em 1.4em; font-size: 1.2em; }
 
 .problem-container {
     position: relative;
-    /* [수정] 문제 컨테이너 내부 패딩을 제거합니다. text-trigger가 패딩을 갖도록 변경. */
-    padding: 0;
+    padding: 0.9em 1.1em;
     margin-bottom: 1.8em;
     box-sizing: border-box;
     display: flex;
@@ -346,48 +318,74 @@
     transition: min-height 0.2s ease-in-out;
 }
 
-/* [추가] 문제 전체를 감싸는 클릭 가능한 버튼 */
-.text-trigger {
-    display: flex; /* 내부 요소(header, content)를 정렬하기 위해 flex로 변경 */
-    flex-direction: column; /* 세로 정렬 */
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
-    border-radius: 4px;
-    padding: 0.9em 1.1em; /* 기존 .problem-container의 패딩을 이쪽으로 이동 */
-    text-align: left;
-    color: inherit;
-    background: none;
-    border: none;
-    font: inherit;
+/* [수정] 헤더를 양쪽으로 정렬하기 위해 justify-content 변경 */
+.problem-header {
+    margin-bottom: 0.7em;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center; /* 아이콘과 정렬을 위해 baseline에서 center로 변경 */
+    justify-content: space-between; /* 양쪽 정렬 */
+    white-space: nowrap;
+    font-size: 1em;
+    font-weight: 700;
+    line-height: 1;
 }
-
-.text-trigger:hover {
-    background-color: rgba(0,0,0,0.05);
-}
-.text-trigger:focus-visible {
-    outline: 2px solid var(--accent-color);
-    outline-offset: 2px;
-}
-.problem-header { margin-bottom: 0.7em; display: flex; flex-shrink: 0; align-items: baseline; justify-content: flex-start; white-space: nowrap; font-size: 1em; font-weight: 700; line-height: 1; }
 .problem-header .header-inner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3em; }
+
 .problem-number { font-size: 2em; font-weight: 700; line-height: 1; }
 .global-index { margin-left: 0.1em; font-size: 1em; font-weight: 400; line-height: 1; color: #6b7280; }
 .problem-score { margin-left: 0.2em; font-size: 1em; font-weight: 700; line-height: 1; }
-.problem-content-wrapper {
-    position: relative;
-    min-height: 0;
-    width: 100%;
-    flex-grow: 1;
-    overflow: hidden;
-    line-height: 1.75;
-}
 
+.text-trigger { 
+    display: block; 
+    width: 100%; 
+    height: 100%; 
+    cursor: pointer; 
+    border-radius: 4px; 
+    padding: 0; 
+    text-align: left; 
+    color: inherit; 
+    background: none; 
+    border: none; 
+    font: inherit; 
+    /* 전체 컨테이너에서 패딩을 뺐으므로, 이 버튼이 패딩 역할을 해야 할 수 있습니다. */
+    /* 필요 시 패딩 추가: padding: 0.9em 1.1em; */
+}
+.text-trigger:hover { background-color: rgba(0,0,0,0.05); }
+.text-trigger:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
+.problem-content-wrapper { position: relative; min-height: 0; width: 100%; flex-grow: 1; overflow: hidden; line-height: 1.75; }
 .mathpix-wrapper { display: block; width: 100%; overflow-x: hidden; word-wrap: break-word; }
-.problem-container .edit-icon-overlay { right: 4px; top: 4px; }
-.problem-container:hover .edit-icon-overlay { opacity: 0.5; }
+
 .page-footer { position: absolute; bottom: 0.9em; left: 50%; z-index: 10; transform: translateX(-50%); background-color: white; }
 .page-counter-box { display: inline-block; border: 0.1em solid black; background-color: white; padding: 0.3em 1.4em; font-size: 1.2em; }
+
+/* [추가] 문제 선택 해제 버튼 스타일 */
+.problem-deselect-button {
+    background: none;
+    border: none;
+    padding: 2px;
+    margin-right: 3px;
+    cursor: pointer;
+    color: #9ca3af; /* 회색 계열 */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, transform 0.2s, background-color 0.2s;
+    line-height: 1;
+    border-radius: 50%;
+}
+
+.problem-deselect-button:hover {
+    color: #ef4444; /* 빨간색 계열 */
+    background-color: rgba(239, 68, 68, 0.1); /* 호버 시 옅은 빨간색 배경 */
+    transform: scale(1.1);
+}
+
+.problem-deselect-button:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
 ----- ./react/entities/student/ui/StudentDisplayDesktop.css -----
 /* ./react/entities/student/ui/StudentDisplayDesktop.css */
 /* 재원 상태 */
@@ -778,6 +776,85 @@
     overflow: hidden;
     margin: 0 auto;
     flex-shrink: 0;
+}
+----- ./react/features/latex-help/ui/LatexHelpPanel.css -----
+/* ./react/features/latex-help/ui/LatexHelpPanel.css */
+
+.latex-help-panel {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: var(--text-secondary);
+    padding: 0 15px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.latex-help-title {
+    color: var(--text-primary);
+    margin: 0;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    font-size: 1.05em;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(129, 127, 127, 0.1);
+    flex-shrink: 0;
+}
+
+.latex-help-content {
+    flex-grow: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 10px;
+    scrollbar-gutter: stable;
+}
+
+.help-section {
+    margin-bottom: 24px;
+}
+
+.help-category-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.help-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.help-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    vertical-align: middle;
+}
+
+.help-table tr:last-child td {
+    border-bottom: none;
+}
+
+.syntax-cell {
+    width: 45%;
+}
+
+.syntax-cell code {
+    background-color: rgba(0, 0, 0, 0.07);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-family: 'Courier New', Courier, monospace;
+    color: var(--accent-color-darker);
+    font-weight: 500;
+}
+
+.description-cell {
+    width: 55%;
+    line-height: 1.5;
 }
 ----- ./react/features/problem-text-editing/ui/ProblemTextEditor.css -----
 /* ./react/features/problem-text-editing/ui/ProblemTextEditor.css */
@@ -1492,7 +1569,8 @@
 
 .table-search-panel {
     width: 100%;
-    max-width: 960px;
+    /* [수정] 최대 너비 제한을 제거하여 컨테이너에 꽉 차도록 합니다. */
+    /* max-width: 960px; */
     background: var(--navbar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
     -webkit-backdrop-filter: var(--glass-blur-effect);
@@ -4199,7 +4277,6 @@ body {
   flex-grow: 1;
   background-color: var(--main-content-bg-color);
   padding: 25px;
-  /* [핵심] 검색바가 fixed이므로, 스크롤을 맨 아래로 내렸을 때 콘텐츠가 가려지지 않도록 하단 패딩 확보 */
   padding-bottom: 25px; 
   overflow-y: auto;
   position: relative;
@@ -4210,15 +4287,12 @@ body {
   border-top-right-radius: var(--main-content-border-radius);
   box-shadow: inset 0 6px 12px -6px rgba(0,0,0,.07), inset 5px 0 10px -5px rgba(0,0,0,.05), inset -5px 0 10px -5px rgba(0,0,0,.045);
   scrollbar-gutter: stable;
-  /* flex 관련 속성 제거 */
 }
 
-/* ProblemWorkbenchPage에만 적용되는 특별 스타일 재정의 */
 .main-content.main-content--compact-padding {
-  padding-bottom: 25px; /* ProblemWorkbenchPage에서는 하단 패딩을 기본값으로 줄임 */
+  padding-bottom: 25px; 
 }
 
-/* ... 오버레이 스타일은 동일하게 유지 ... */
 .clickable-overlay {
   position: fixed;
   top: 0;
@@ -4240,20 +4314,18 @@ body {
   transition: opacity 0.3s ease-in-out, visibility 0s 0s linear;
 }
 
-/* [핵심] 화면 하단 고정 오버레이 래퍼 */
 .bottom-content-area {
   position: fixed;
   bottom: 0;
   z-index: 95;
-  padding: 0 20px 20px; /* 패널의 좌우, 하단 간격 */
+  /* [수정] 좌우 패딩을 25px로 변경하여 .main-content와 맞춥니다. */
+  padding: 0 25px 20px 30px;
   box-sizing: border-box;
-  pointer-events: none; /* 래퍼 자체는 클릭되지 않도록 */
+  pointer-events: none;
   transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex; /* 내부 패널 중앙 정렬을 위해 */
-  justify-content: center; /* 내부 패널 중앙 정렬 */
-
-  /* [수정] 이 한 줄이 모든 문제를 해결합니다! */
-  /* 이제 이 div는 내용물의 높이만큼만 차지하여 더 이상 테이블을 덮지 않습니다. */
+  display: flex;
+  /* [수정] 중앙 정렬을 제거합니다. 이제 자식 요소(.table-search-panel)가 width: 100%로 컨테이너를 채웁니다. */
+  /* justify-content: center; */
   height: auto;
 }
 
@@ -4278,7 +4350,6 @@ body {
   left: var(--sidebar-collapsed-width);
   width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-expanded-width));
 }
-
 /* 5. 왼쪽 확장 / 오른쪽 추가 확장 */
 .app-container.left-sidebar-expanded.right-sidebar-expanded.right-sidebar-extra-wide .bottom-content-area {
     left: var(--sidebar-width);
@@ -4290,8 +4361,6 @@ body {
     width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-extra-expanded-width));
 }
 
-
-/* ... 반응형 스타일 ... */
 @media (max-width: 1024px) and (min-width: 769px) {
   .main-content {
     padding: 20px;
