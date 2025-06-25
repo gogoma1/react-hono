@@ -1,7 +1,7 @@
 /**
  * 각 페이지별로 우측 사이드바에 표시될 버튼의 종류를 정의합니다.
  */
-export type SidebarButtonType = 'register' | 'settings' | 'prompt';
+export type SidebarButtonType = 'register' | 'settings' | 'prompt' | 'latexHelp';
 
 /**
  * 각 페이지의 레이아웃 설정을 정의하는 인터페이스입니다.
@@ -37,4 +37,10 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
       settings: { tooltip: 'JSON 렌더러 설정' },
     },
   },
+  // [추가] 문제 출제 페이지에 LaTeX 도움말 버튼 추가
+  '/problem-publishing': {
+    sidebarButtons: {
+      latexHelp: { tooltip: 'LaTeX 문법 도움말' }
+    }
+  }
 };

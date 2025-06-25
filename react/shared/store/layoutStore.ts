@@ -19,14 +19,13 @@ interface RegisteredPageActions {
   openRegisterSidebar: () => void;
   openSettingsSidebar: () => void;
   openPromptSidebar: () => void;
+  openLatexHelpSidebar: () => void; // [추가]
   openEditSidebar: (student: any) => void;
   onClose: () => void;
 }
 
-// 사이드바 콘텐츠 타입을 정의합니다.
 interface SidebarContentConfig {
-    // [수정] 'edit' 타입을 추가합니다.
-    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | null;
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | null; // [추가]
     props?: Record<string, any>; // problemId, student 등을 전달하기 위한 props
 }
 
@@ -53,6 +52,7 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     openRegisterSidebar: () => console.warn('openRegisterSidebar action not registered.'),
     openSettingsSidebar: () => console.warn('openSettingsSidebar action not registered.'),
     openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
+    openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'), // [추가]
     onClose: () => console.warn('onClose action not registered.'),
 };
 
@@ -67,7 +67,6 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
   
   setRightSidebarConfig: (config) => {
     const currentState = get().rightSidebar;
-    // 상태가 실제로 변경되었을 때만 업데이트하여 불필요한 리렌더링을 방지합니다.
     if (!config.contentConfig) {
         if (currentState.contentConfig.type !== null) {
             set({ rightSidebar: { contentConfig: { type: null }, isExtraWide: false } });
@@ -133,6 +132,13 @@ export const useSidebarTriggers = () => {
             result.promptTrigger = {
                 onClick: pageActions.openPromptSidebar,
                 tooltip: currentPageConfig.sidebarButtons.prompt.tooltip,
+            };
+        }
+        // [추가] latexHelpTrigger 생성
+        if (currentPageConfig.sidebarButtons?.latexHelp) {
+            result.latexHelpTrigger = {
+                onClick: pageActions.openLatexHelpSidebar,
+                tooltip: currentPageConfig.sidebarButtons.latexHelp.tooltip,
             };
         }
         return result;

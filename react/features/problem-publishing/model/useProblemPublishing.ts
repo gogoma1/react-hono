@@ -5,11 +5,9 @@ import { useRowSelection } from '../../row-selection/model/useRowSelection';
 import type { Problem } from '../../../entities/problem/model/types';
 import { useProblemPublishingStore, type ProcessedProblem } from './problemPublishingStore';
 
-// 상수 정의
 const SINGLE_COLUMN_MAX_HEIGHT = 920;
 const DEFAULT_ESTIMATED_HEIGHT = 150;
 
-// 타입 정의
 type ProblemPlacementInfo = { page: number; column: number };
 type ProblemGroup = { problems: ProcessedProblem[]; totalHeight: number };
 export type { ProcessedProblem };
@@ -31,26 +29,44 @@ export function useProblemPublishing() {
 
     useEffect(() => {
         if (!isLoadingProblems && rawProblems.length > 0) {
-            const typeOrder: Record<string, number> = { '객관식': 1, '서답형': 2 };
+            const typeOrder: Record<string, number> = { '객관식': 1, '주관식': 2, '서답형': 3, '논술형': 4 };
+            let shortAnswerCounter = 1;
             const processed = [...rawProblems]
                 .sort((a, b) => {
                     const sourceCompare = a.source.localeCompare(b.source);
                     if (sourceCompare !== 0) return sourceCompare;
+                    
                     const typeA_Rank = typeOrder[a.problem_type] || 99;
                     const typeB_Rank = typeOrder[b.problem_type] || 99;
                     const typeCompare = typeA_Rank - typeB_Rank;
                     if (typeCompare !== 0) return typeCompare;
+
+                    // 같은 '서답형' 내에서는 question_number로 정렬
                     return a.question_number - b.question_number;
                 })
-                .map((p): ProcessedProblem => ({
-                    ...p,
-                    question_text: p.question_text ?? '',
-                    solution_text: p.solution_text ?? '',
-                    uniqueId: p.problem_id,
-                    display_question_number: p.problem_type === '서답형'
-                        ? `서답형 ${p.question_number}`
-                        : String(p.question_number)
-                }));
+                .map((p, index, arr): ProcessedProblem => {
+                    let display_question_number;
+                    if (p.problem_type === '서답형') {
+                        // 이전 문제도 서답형이었는지 확인하여 카운터 결정
+                        if (index > 0 && arr[index-1].problem_type === '서답형' && arr[index-1].source === p.source) {
+                            // 이전 문제와 출처가 같으면 카운터 증가
+                        } else {
+                            // 새로운 서답형 그룹 시작
+                            shortAnswerCounter = 1;
+                        }
+                        display_question_number = `서답형 ${p.question_number}`;
+                    } else {
+                        display_question_number = String(p.question_number);
+                    }
+
+                    return {
+                        ...p,
+                        question_text: p.question_text ?? '',
+                        solution_text: p.solution_text ?? '',
+                        uniqueId: p.problem_id,
+                        display_question_number: display_question_number
+                    };
+                });
             setInitialData(processed);
         }
     }, [rawProblems, isLoadingProblems, setInitialData]);
@@ -71,8 +87,8 @@ export function useProblemPublishing() {
     const calculationTimeoutRef = useRef<number | null>(null);
 
     const [baseFontSize, setBaseFontSize] = useState('12px');
-    const [contentFontSizeEm, setContentFontSizeEm] = useState(1.1);
-    const [problemBoxMinHeight, setProblemBoxMinHeight] = useState(10);
+    const [contentFontSizeEm, setContentFontSizeEm] = useState(1);
+    const [problemBoxMinHeight, setProblemBoxMinHeight] = useState(28);
     const [useSequentialNumbering, setUseSequentialNumbering] = useState(false);
     const [headerInfo, setHeaderInfo] = useState({
         title: '2025학년도 3월 전국연합학력평가', titleFontSize: 1.64, titleFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",

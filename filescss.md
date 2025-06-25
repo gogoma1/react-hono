@@ -1836,6 +1836,62 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.18) rgba(0, 0, 0, 0.03);
 }
+
+/* [추가] 콘텐츠 렌더링을 위한 전역 prose 클래스 */
+.prose::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* 1. 기본 이미지 스타일 (가운데 정렬) */
+.prose img:not([src*="#left"]):not([src*="#right"]):not([src*="#align"]) {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 90%;
+    border-radius: 8px;
+    clear: both;
+}
+
+/* 2. 단순 왼쪽 정렬 (float 아님) */
+.prose img[src*="#left"] {
+    display: block;
+    margin-right: auto;
+    margin-left: 0;
+    max-width: 90%;
+    border-radius: 8px;
+    clear: both;
+}
+
+/* 3. 단순 오른쪽 정렬 (float 아님) */
+.prose img[src*="#right"] {
+    display: block;
+    margin-left: auto;
+    margin-right: 0;
+    max-width: 90%;
+    border-radius: 8px;
+    clear: both;
+}
+
+.prose img[src*="#inline-right"] {
+    display: block;
+    margin-left: auto;
+    margin-right: 0;
+    width: 50%;
+    border-radius: 8px;
+    clear: both;
+    float: inline-end;
+}
+.prose img[src*="#inline-left"] {
+    display: block;
+    margin-left: 0;
+    margin-right: auto;
+    width: 50%;
+    border-radius: 8px;
+    clear: both;
+    float: inline-start;
+}
 ----- ./react/pages/JsonRendererPage.css -----
 /* react/pages/JsonRendererPage.css */
 
@@ -2886,31 +2942,6 @@ body {
 
 .preview-content-wrapper {
     padding: 16px;
-}
-
-.prose img:not([src*="#left"]):not([src*="#right"]):not([src*="#align"]) {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    max-width: 90%;
-    border-radius: 8px;
-    clear: both;
-}
-
-.prose img[src*="#left"] {
-    float: left;
-    width: 45%;
-    max-width: 350px;
-    margin: 0.5em 1.5em 1em 0;
-    border-radius: 8px;
-}
-
-.prose img[src*="#right"] {
-    float: right;
-    width: 45%;
-    max-width: 350px;
-    margin: 0.5em 0 1em 1.5em;
-    border-radius: 8px;
 }
 ----- ./react/shared/ui/actionbutton/ActionButton.css -----
 /* react/shared/ui/actionbutton/ActionButton.css */

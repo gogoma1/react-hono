@@ -1,26 +1,27 @@
 import React from 'react';
-import Tippy from '@tippyjs/react'; // 이제 사용됩니다.
+import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList } from 'react-icons/lu';
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked } from 'react-icons/lu'; // LuBookMarked 추가
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
 import PromptCollection from '../../features/prompt-collection/ui/PromptCollection';
 import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
 import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
+import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel'; // [추가]
 
-// 아이콘 컴포넌트들 (이제 사용됩니다)
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
 const CloseIcon = () => <LuCircleX size={22} />;
 const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
+const LatexHelpIcon = () => <LuBookMarked size={20} />; // [추가]
 
 interface ProblemEditorWrapperProps {
     onSave: (problem: ProcessedProblem) => void;
-    onCancel: (problemId: string) => void;
+    onRevert: (problemId: string) => void;
     onClose: () => void;
     onProblemChange: (problem: ProcessedProblem) => void;
 }
@@ -36,7 +37,7 @@ const ProblemEditorWrapper: React.FC<ProblemEditorWrapperProps> = (props) => {
     return <ProblemTextEditor problem={problemToEdit} {...props} />;
 };
 
-// 이제 사용됩니다.
+
 const SidebarContentRenderer: React.FC = () => {
     const { contentConfig } = useLayoutStore(selectRightSidebarConfig);
     const { pageActions } = useLayoutStore.getState();
@@ -47,14 +48,14 @@ const SidebarContentRenderer: React.FC = () => {
 
     switch(contentConfig.type) {
         case 'problemEditor': {
-            const { onSave, onCancel, onClose, onProblemChange } = contentConfig.props || {};
+            const { onSave, onRevert, onClose, onProblemChange } = contentConfig.props || {};
             const { editingProblemId } = useProblemPublishingStore.getState();
             if (!editingProblemId) return <div>선택된 문제가 없습니다.</div>;
             
             return (
                 <ProblemEditorWrapper
                     onSave={onSave}
-                    onCancel={onCancel}
+                    onRevert={onRevert}
                     onClose={onClose}
                     onProblemChange={onProblemChange}
                 />
@@ -84,6 +85,10 @@ const SidebarContentRenderer: React.FC = () => {
 
         case 'prompt':
             return <PromptCollection />;
+        
+        // [추가] LaTeX 도움말 패널 렌더링
+        case 'latexHelp':
+            return <LatexHelpPanel />;
 
         default:
             return (
@@ -97,8 +102,7 @@ const SidebarContentRenderer: React.FC = () => {
 
 const GlassSidebarRight: React.FC = () => {
     const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    // 이제 사용됩니다.
-    const { registerTrigger, settingsTrigger, promptTrigger, onClose } = useSidebarTriggers();
+    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, onClose } = useSidebarTriggers(); // latexHelpTrigger 추가
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
     const isRightSidebarExpanded = contentConfig.type !== null;
@@ -115,7 +119,6 @@ const GlassSidebarRight: React.FC = () => {
 
     return (
         <aside className={sidebarClassName}>
-            {/* [핵심] 누락되었던 JSX 부분입니다. */}
             {currentBreakpoint !== 'mobile' && (
                 <div className="rgs-header-desktop">
                     {isOpen ? (
@@ -142,6 +145,19 @@ const GlassSidebarRight: React.FC = () => {
                                         aria-label={promptTrigger.tooltip}
                                     >
                                         <PromptIcon />
+                                    </button>
+                                </Tippy>
+                            )}
+
+                            {/* [추가] LaTeX 도움말 버튼 */}
+                            {latexHelpTrigger && (
+                                <Tippy content={latexHelpTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                                    <button
+                                        onClick={latexHelpTrigger.onClick}
+                                        className="settings-toggle-button"
+                                        aria-label={latexHelpTrigger.tooltip}
+                                    >
+                                        <LatexHelpIcon />
                                     </button>
                                 </Tippy>
                             )}

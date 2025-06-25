@@ -27,6 +27,14 @@ const ProblemPublishingPage: React.FC = () => {
         setEditingProblemId(null);
         setRightSidebarConfig({ contentConfig: { type: null } });
     }, [setEditingProblemId, setRightSidebarConfig]);
+    
+    // [추가] LaTeX 도움말 사이드바를 여는 함수
+    const handleOpenLatexHelpSidebar = useCallback(() => {
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'latexHelp' },
+            isExtraWide: false
+        });
+    }, [setRightSidebarConfig]);
 
     const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => {
         await handleSaveProblem(problem);
@@ -66,12 +74,20 @@ const ProblemPublishingPage: React.FC = () => {
     const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
 
     useEffect(() => {
-        registerPageActions({ onClose: handleCloseEditor });
+        // [수정] openLatexHelpSidebar 액션을 등록
+        registerPageActions({ 
+            onClose: handleCloseEditor,
+            openLatexHelpSidebar: handleOpenLatexHelpSidebar
+        });
         return () => {
             setRightSidebarConfig({ contentConfig: { type: null } });
-            registerPageActions({ onClose: undefined });
+            // [수정] 액션 등록 해제
+            registerPageActions({ 
+                onClose: undefined,
+                openLatexHelpSidebar: undefined
+            });
         };
-    }, [registerPageActions, handleCloseEditor, setRightSidebarConfig]);
+    }, [registerPageActions, handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar]);
 
     return (
         <div className="problem-publishing-page">
@@ -111,7 +127,6 @@ const ProblemPublishingPage: React.FC = () => {
                     contentFontFamily={headerInfo.titleFontFamily} 
                     problemBoxMinHeight={problemBoxMinHeight} 
                     onHeightUpdate={handleHeightUpdate} 
-                    onProblemUpdate={() => {}}
                     onProblemClick={handleProblemClick} 
                     onHeaderUpdate={handleHeaderUpdate} 
                 />

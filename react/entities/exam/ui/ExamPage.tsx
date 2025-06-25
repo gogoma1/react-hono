@@ -1,5 +1,3 @@
-// ./react/entities/exam/ui/ExamPage.tsx
-
 import React, { useMemo, useCallback, forwardRef } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
@@ -28,16 +26,16 @@ const ProblemItem = forwardRef<HTMLDivElement, ProblemItemProps>(({ problem, all
 
     return (
         <div ref={ref} className="problem-container" data-unique-id={problem.uniqueId}>
-             <button type="button" className="text-trigger" onClick={() => onProblemClick(problem)} aria-label={`${problem.question_number}번 문제 수정`}>
+             <button type="button" className="text-trigger" onClick={() => onProblemClick(problem)} aria-label={`${problem.display_question_number}번 문제 수정`}>
                 <div className="problem-header">
                     <div className="header-inner">
-                        <span className="problem-number">{useSequentialNumbering ? globalProblemIndex : problem.question_number}.</span>
+                        <span className="problem-number">{useSequentialNumbering ? `${globalProblemIndex}.` : `${problem.display_question_number}.`}</span>
                         <span className="global-index">({globalProblemIndex})</span>
-                        {problem.score && <span className="problem-score">[{problem.score}점]</span>}
+                        {problem.score && <span className="problem-score">[{problem.score}]</span>}
                     </div>
                 </div>
                 <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily, minHeight: `${problemBoxMinHeight}em` }}>
-                    <div className="mathpix-wrapper">
+                    <div className="mathpix-wrapper prose">
                         <MathpixRenderer text={problem.question_text ?? ''} onRenderComplete={() => onRenderComplete(problem.uniqueId)} />
                     </div>
                 </div>
@@ -54,7 +52,6 @@ interface ExamPageProps {
     allProblems: ProcessedProblem[];
     placementMap: Map<string, { page: number; column: number }>;
     onHeightUpdate: (uniqueId: string, height: number) => void;
-    onProblemUpdate: (id: string | number, updatedFields: Partial<Problem>) => void;
     onProblemClick: (problem: ProcessedProblem) => void;
     useSequentialNumbering: boolean;
     baseFontSize: string;
@@ -68,7 +65,7 @@ interface ExamPageProps {
 const ExamPage: React.FC<ExamPageProps> = (props) => {
     const {
         pageNumber, totalPages, problems, allProblems, placementMap,
-        onHeightUpdate, onProblemUpdate, useSequentialNumbering,
+        onHeightUpdate, useSequentialNumbering,
         baseFontSize, contentFontSizeEm, contentFontFamily, problemBoxMinHeight,
         headerInfo,
         onHeaderUpdate,

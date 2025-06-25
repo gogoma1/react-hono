@@ -371,11 +371,11 @@ const ProblemItem = forwardRef<HTMLDivElement, ProblemItemProps>(({ problem, all
                     <div className="header-inner">
                         <span className="problem-number">{useSequentialNumbering ? globalProblemIndex : problem.question_number}.</span>
                         <span className="global-index">({globalProblemIndex})</span>
-                        {problem.score && <span className="problem-score">[{problem.score}점]</span>}
+                        {problem.score && <span className="problem-score">[{problem.score}]</span>}
                     </div>
                 </div>
                 <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily, minHeight: `${problemBoxMinHeight}em` }}>
-                    <div className="mathpix-wrapper">
+                    <div className="mathpix-wrapper prose">
                         <MathpixRenderer text={problem.question_text ?? ''} onRenderComplete={() => onRenderComplete(problem.uniqueId)} />
                     </div>
                 </div>
@@ -392,7 +392,6 @@ interface ExamPageProps {
     allProblems: ProcessedProblem[];
     placementMap: Map<string, { page: number; column: number }>;
     onHeightUpdate: (uniqueId: string, height: number) => void;
-    onProblemUpdate: (id: string | number, updatedFields: Partial<Problem>) => void;
     onProblemClick: (problem: ProcessedProblem) => void;
     useSequentialNumbering: boolean;
     baseFontSize: string;
@@ -406,7 +405,7 @@ interface ExamPageProps {
 const ExamPage: React.FC<ExamPageProps> = (props) => {
     const {
         pageNumber, totalPages, problems, allProblems, placementMap,
-        onHeightUpdate, onProblemUpdate, useSequentialNumbering,
+        onHeightUpdate, useSequentialNumbering,
         baseFontSize, contentFontSizeEm, contentFontFamily, problemBoxMinHeight,
         headerInfo,
         onHeaderUpdate,
@@ -2233,60 +2232,156 @@ const ProfileMenuContent: React.FC<ProfileMenuContentProps> = ({ onClose }) => {
 };
 
 export default ProfileMenuContent;
------ ./react/features/problem-publishing/model/useProblemPublishing.ts -----
+----- ./react/features/problem-publishing/model/problemPublishingStore.ts -----
+import { create } from 'zustand';
+import { produce } from 'immer';
+import type { Problem } from '../../../entities/problem/model/types';
 
+export type ProcessedProblem = Problem & { display_question_number: string; uniqueId: string; };
+
+interface ProblemPublishingState {
+  initialProblems: ProcessedProblem[];
+  draftProblems: ProcessedProblem[] | null;
+  editingProblemId: string | null;
+}
+
+interface ProblemPublishingActions {
+  setInitialData: (problems: ProcessedProblem[]) => void;
+  startEditing: () => void;
+  revertChanges: () => void;
+  updateDraftProblem: (updatedProblem: ProcessedProblem) => void;
+  revertSingleProblem: (problemId: string) => void;
+  setEditingProblemId: (problemId: string | null) => void;
+  saveProblem: (problemToSave: ProcessedProblem) => void; // 저장 후 상태 동기화를 위한 액션
+}
+
+export const useProblemPublishingStore = create<ProblemPublishingState & ProblemPublishingActions>((set, get) => ({
+  initialProblems: [],
+  draftProblems: null,
+  editingProblemId: null,
+
+  setInitialData: (problems) => {
+    set({ initialProblems: problems, draftProblems: null, editingProblemId: null });
+  },
+
+  startEditing: () => {
+    if (get().draftProblems === null) {
+      set(state => ({
+        draftProblems: JSON.parse(JSON.stringify(state.initialProblems))
+      }));
+    }
+  },
+
+  revertChanges: () => {
+    set({ draftProblems: null });
+  },
+
+  updateDraftProblem: (updatedProblem) => {
+    set(produce((state: ProblemPublishingState) => {
+      if (state.draftProblems) {
+        const index = state.draftProblems.findIndex(p => p.uniqueId === updatedProblem.uniqueId);
+        if (index !== -1) {
+          state.draftProblems[index] = updatedProblem;
+        }
+      }
+    }));
+  },
+
+  revertSingleProblem: (problemId) => {
+    set(produce((state: ProblemPublishingState) => {
+      const originalProblem = state.initialProblems.find(p => p.uniqueId === problemId);
+      if (originalProblem && state.draftProblems) {
+        const index = state.draftProblems.findIndex(p => p.uniqueId === problemId);
+        if (index !== -1) {
+          state.draftProblems[index] = originalProblem;
+        }
+      }
+    }));
+  },
+  
+  setEditingProblemId: (problemId) => {
+    set({ editingProblemId: problemId });
+  },
+
+  saveProblem: (problemToSave) => {
+    set(produce((state: ProblemPublishingState) => {
+        const initialIndex = state.initialProblems.findIndex(p => p.uniqueId === problemToSave.uniqueId);
+        if (initialIndex !== -1) {
+            state.initialProblems[initialIndex] = problemToSave;
+        }
+        if (state.draftProblems) {
+            const draftIndex = state.draftProblems.findIndex(p => p.uniqueId === problemToSave.uniqueId);
+            if (draftIndex !== -1) {
+                state.draftProblems[draftIndex] = problemToSave;
+            }
+        }
+    }));
+  }
+}));
+----- ./react/features/problem-publishing/model/useProblemPublishing.ts -----
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useProblemsQuery } from '../../../entities/problem/model/useProblemsQuery';
 import { useUpdateProblemMutation } from '../../../entities/problem/model/useProblemMutations';
 import { useRowSelection } from '../../row-selection/model/useRowSelection';
 import type { Problem } from '../../../entities/problem/model/types';
-import { produce } from 'immer';
+import { useProblemPublishingStore, type ProcessedProblem } from './problemPublishingStore';
 
 const SINGLE_COLUMN_MAX_HEIGHT = 920;
 const DEFAULT_ESTIMATED_HEIGHT = 150;
+
 type ProblemPlacementInfo = { page: number; column: number };
 type ProblemGroup = { problems: ProcessedProblem[]; totalHeight: number };
-export type ProcessedProblem = Problem & { display_question_number: string; uniqueId: string; };
+export type { ProcessedProblem };
 
 export function useProblemPublishing() {
     const { data: rawProblems = [], isLoading: isLoadingProblems } = useProblemsQuery();
     const { mutateAsync: updateProblem } = useUpdateProblemMutation();
 
-    const initialProblems = useMemo((): ProcessedProblem[] => {
-        if (!rawProblems || rawProblems.length === 0) return [];
-        const typeOrder: Record<string, number> = { '객관식': 1, '서답형': 2 };
-        return [...rawProblems]
-            .sort((a, b) => {
-                const sourceCompare = a.source.localeCompare(b.source);
-                if (sourceCompare !== 0) return sourceCompare;
-                const typeA_Rank = typeOrder[a.problem_type] || 99;
-                const typeB_Rank = typeOrder[b.problem_type] || 99;
-                const typeCompare = typeA_Rank - typeB_Rank;
-                if (typeCompare !== 0) return typeCompare;
-                return a.question_number - b.question_number;
-            })
-            .map((p): ProcessedProblem => ({
-                ...p,
-                question_text: p.question_text ? String(p.question_text).replace(/\\/g, '\\\\') : '',
-                solution_text: p.solution_text ? String(p.solution_text).replace(/\\/g, '\\\\') : '',
-                uniqueId: p.problem_id,
-                display_question_number: p.problem_type === '서답형'
-                    ? `서답형 ${p.question_number}`
-                    : String(p.question_number)
-            }));
-    }, [rawProblems]);
-    
-    const [liveProblems, setLiveProblems] = useState<ProcessedProblem[] | null>(null);
+    const {
+        initialProblems,
+        draftProblems,
+        setInitialData,
+        startEditing,
+        updateDraftProblem,
+        revertSingleProblem,
+        setEditingProblemId,
+        saveProblem,
+    } = useProblemPublishingStore();
 
-    const displayProblems = useMemo(() => liveProblems ?? initialProblems, [liveProblems, initialProblems]);
+    useEffect(() => {
+        if (!isLoadingProblems && rawProblems.length > 0) {
+            const typeOrder: Record<string, number> = { '객관식': 1, '서답형': 2 };
+            const processed = [...rawProblems]
+                .sort((a, b) => {
+                    const sourceCompare = a.source.localeCompare(b.source);
+                    if (sourceCompare !== 0) return sourceCompare;
+                    const typeA_Rank = typeOrder[a.problem_type] || 99;
+                    const typeB_Rank = typeOrder[b.problem_type] || 99;
+                    const typeCompare = typeA_Rank - typeB_Rank;
+                    if (typeCompare !== 0) return typeCompare;
+                    return a.question_number - b.question_number;
+                })
+                .map((p): ProcessedProblem => ({
+                    ...p,
+                    question_text: p.question_text ?? '',
+                    solution_text: p.solution_text ?? '',
+                    uniqueId: p.problem_id,
+                    display_question_number: p.problem_type === '서답형'
+                        ? `서답형 ${p.question_number}`
+                        : String(p.question_number)
+                }));
+            setInitialData(processed);
+        }
+    }, [rawProblems, isLoadingProblems, setInitialData]);
 
+    const displayProblems = useMemo(() => draftProblems ?? initialProblems, [draftProblems, initialProblems]);
     const problemUniqueIds = useMemo(() => initialProblems.map(p => p.uniqueId), [initialProblems]);
     const { selectedIds, toggleRow, toggleSelectAll, isAllSelected } = useRowSelection<string>({ allItems: problemUniqueIds });
-    
-    const selectedProblems = useMemo(() => {
-        return initialProblems.filter(p => selectedIds.has(p.uniqueId));
-    }, [initialProblems, selectedIds]);
 
+    const selectedProblems = useMemo(() => {
+        const source = draftProblems ?? initialProblems;
+        return source.filter(p => selectedIds.has(p.uniqueId));
+    }, [draftProblems, initialProblems, selectedIds]);
 
     const [problemHeightsMap, setProblemHeightsMap] = useState<Map<string, number>>(new Map());
     const [distributedPages, setDistributedPages] = useState<ProcessedProblem[][]>([]);
@@ -2306,7 +2401,6 @@ export function useProblemPublishing() {
         simplifiedGradeText: '고3',
     });
 
-
     const handleHeightUpdate = useCallback((uniqueId: string, height: number) => {
         setProblemHeightsMap(prevMap => {
             if (height > 0 && prevMap.get(uniqueId) !== height) {
@@ -2318,49 +2412,25 @@ export function useProblemPublishing() {
         });
     }, []);
 
-    const handleSaveProblem = useCallback(async (updatedProblem: Problem) => {
-        const payload = {
-            ...updatedProblem,
-            question_text: updatedProblem.question_text.replace(/\\\\/g, '\\'),
-            solution_text: updatedProblem.solution_text ? updatedProblem.solution_text.replace(/\\\\/g, '\\') : null,
+    const handleSaveProblem = useCallback(async (updatedProblem: ProcessedProblem) => {
+        const payload: Partial<Problem> = {
+            ...updatedProblem
         };
-        await updateProblem({ id: payload.problem_id, fields: payload });
-        setLiveProblems(null); // 저장 후 초안 상태 초기화
-    }, [updateProblem]);
-    
-    const handleLiveProblemChange = useCallback((updatedProblem: ProcessedProblem) => {
-        setLiveProblems(currentProblems => {
-            const base = currentProblems ?? initialProblems;
-            return produce(base, draft => {
-                const index = draft.findIndex(p => p.uniqueId === updatedProblem.uniqueId);
-                if (index !== -1) {
-                    draft[index] = updatedProblem;
-                }
-            });
-        });
-    }, [initialProblems]);
+        delete (payload as any).uniqueId;
+        delete (payload as any).display_question_number;
 
-    const handleRevertProblem = useCallback((problemId: string) => {
-        setLiveProblems(currentProblems => {
-            if (!currentProblems) return null;
-            return produce(currentProblems, draft => {
-                const originalProblem = initialProblems.find(p => p.uniqueId === problemId);
-                if (originalProblem) {
-                    const indexToRevert = draft.findIndex(p => p.uniqueId === problemId);
-                    if (indexToRevert !== -1) {
-                        draft[indexToRevert] = originalProblem;
-                    }
-                }
-            });
-        });
-    }, [initialProblems]);
+        const savedData = await updateProblem({ id: payload.problem_id!, fields: payload });
 
-    const startEditingProblem = useCallback(() => {
-        if (liveProblems === null) {
-            setLiveProblems(initialProblems);
-        }
-    }, [liveProblems, initialProblems]);
-    
+        const processedSavedData: ProcessedProblem = {
+            ...savedData,
+            uniqueId: savedData.problem_id,
+            display_question_number: savedData.problem_type === '서답형'
+                ? `서답형 ${savedData.question_number}`
+                : String(savedData.question_number)
+        };
+        saveProblem(processedSavedData);
+    }, [updateProblem, saveProblem]);
+
     const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: any) => {
         setHeaderInfo(prev => {
             const newState = { ...prev };
@@ -2386,6 +2456,7 @@ export function useProblemPublishing() {
                 setIsCalculating(false);
                 return;
             }
+
             const problemGroups: ProblemGroup[] = [];
             let currentGroupProblems: ProcessedProblem[] = [];
             let currentGroupHeight = 0;
@@ -2394,9 +2465,12 @@ export function useProblemPublishing() {
                 const problemHeight = problemHeightsMap.get(problem.uniqueId) || DEFAULT_ESTIMATED_HEIGHT;
 
                 if (problemHeight > SINGLE_COLUMN_MAX_HEIGHT) {
-                    if (currentGroupProblems.length > 0) problemGroups.push({ problems: currentGroupProblems, totalHeight: currentGroupHeight });
+                    if (currentGroupProblems.length > 0) {
+                        problemGroups.push({ problems: currentGroupProblems, totalHeight: currentGroupHeight });
+                    }
                     problemGroups.push({ problems: [problem], totalHeight: problemHeight });
-                    currentGroupProblems = []; currentGroupHeight = 0;
+                    currentGroupProblems = [];
+                    currentGroupHeight = 0;
                 } else if (currentGroupHeight + problemHeight <= SINGLE_COLUMN_MAX_HEIGHT || currentGroupProblems.length === 0) {
                     currentGroupProblems.push(problem);
                     currentGroupHeight += problemHeight;
@@ -2406,7 +2480,9 @@ export function useProblemPublishing() {
                     currentGroupHeight = problemHeight;
                 }
             }
-            if (currentGroupProblems.length > 0) problemGroups.push({ problems: currentGroupProblems, totalHeight: currentGroupHeight });
+            if (currentGroupProblems.length > 0) {
+                problemGroups.push({ problems: currentGroupProblems, totalHeight: currentGroupHeight });
+            }
 
             const newPages: ProcessedProblem[][] = [];
             const newPlacementMap = new Map<string, ProblemPlacementInfo>();
@@ -2416,10 +2492,12 @@ export function useProblemPublishing() {
 
             for (const group of problemGroups) {
                 const targetColumn = currentColumnIndex + 1;
+                
                 for (const problem of group.problems) {
                     newPlacementMap.set(problem.uniqueId, { page: currentPageNumber, column: targetColumn });
                     pageProblemBuffer.push(problem);
                 }
+
                 if (currentColumnIndex === 0) {
                     currentColumnIndex = 1;
                 } else {
@@ -2429,7 +2507,9 @@ export function useProblemPublishing() {
                     currentColumnIndex = 0;
                 }
             }
-            if (pageProblemBuffer.length > 0) newPages.push([...pageProblemBuffer]);
+            if (pageProblemBuffer.length > 0) {
+                newPages.push([...pageProblemBuffer]);
+            }
 
             setDistributedPages(newPages);
             setPlacementMap(newPlacementMap);
@@ -2461,9 +2541,10 @@ export function useProblemPublishing() {
         setUseSequentialNumbering,
         handleHeaderUpdate,
         handleSaveProblem,
-        handleLiveProblemChange,
-        handleRevertProblem,
-        startEditingProblem,
+        handleLiveProblemChange: updateDraftProblem,
+        handleRevertProblem: revertSingleProblem,
+        startEditingProblem: startEditing,
+        setEditingProblemId,
     };
 }
 ----- ./react/features/problem-text-editing/ui/ProblemMetadataEditor.tsx -----
@@ -2616,7 +2697,7 @@ type ProcessedProblem = Problem & { uniqueId: string; display_question_number: s
 interface ProblemTextEditorProps {
     problem: ProcessedProblem;
     onSave: (updatedProblem: ProcessedProblem) => void;
-    onCancel: (problemId: string) => void;
+    onRevert: (problemId: string) => void; // 이름 변경
     onClose: () => void;
     onProblemChange: (updatedProblem: ProcessedProblem) => void;
 }
@@ -2624,7 +2705,7 @@ interface ProblemTextEditorProps {
 const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({ 
     problem, 
     onSave, 
-    onCancel,
+    onRevert, // 이름 변경
     onClose,
     onProblemChange 
 }) => {
@@ -2641,8 +2722,8 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
         onSave(problem);
     };
 
-    const handleCancel = () => {
-        onCancel(problem.uniqueId);
+    const handleRevert = () => {
+        onRevert(problem.uniqueId);
     };
 
     return (
@@ -2650,9 +2731,9 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
             <div className="editor-header">
                 <h4 className="editor-title">{problem.display_question_number}번 문제 수정</h4>
                 <div className="editor-actions">
-                    <ActionButton onClick={handleCancel} aria-label="변경사항 취소">
+                    <ActionButton onClick={handleRevert} aria-label="변경사항 초기화">
                         <LuUndo2 size={14} style={{ marginRight: '4px' }} />
-                        취소
+                        초기화
                     </ActionButton>
                     <ActionButton onClick={handleSave} className="primary" aria-label="변경사항 저장">
                         <LuCheck size={14} style={{ marginRight: '4px' }} />
@@ -2662,7 +2743,6 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
             </div>
             
             <div className="editor-body-wrapper">
-                {/* [핵심 수정] '문제 본문' 영역을 Editor 컴포넌트로 교체 */}
                 <div className="editor-section">
                     <h5 className="editor-section-title">문제 본문</h5>
                     <div className="editor-wrapper-body">
@@ -2673,14 +2753,12 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                     </div>
                 </div>
 
-                {/* 메타데이터 편집기는 그대로 유지 */}
                 <ProblemMetadataEditor
                     fields={EDITABLE_METADATA_FIELDS}
                     problemData={problem}
                     onDataChange={handleMetadataChange}
                 />
 
-                {/* [핵심 수정] '해설' 영역을 Editor 컴포넌트로 교체 */}
                 <div className="editor-section">
                     <h5 className="editor-section-title">해설</h5>
                     <div className="editor-wrapper-body">
@@ -4645,7 +4723,7 @@ const LoginPageWithErrorDisplay: React.FC = () => {
 
 export default LoginPageWithErrorDisplay;
 ----- ./react/pages/ProblemPublishingPage.tsx -----
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useLayoutStore } from '../shared/store/layoutStore';
 import { useProblemPublishing, type ProcessedProblem } from '../features/problem-publishing/model/useProblemPublishing';
 import ProblemSelectionWidget from '../widgets/ProblemSelectionWidget';
@@ -4664,26 +4742,25 @@ const ProblemPublishingPage: React.FC = () => {
         handleSaveProblem,
         handleLiveProblemChange,
         handleRevertProblem,
-        startEditingProblem
+        startEditingProblem,
+        setEditingProblemId,
     } = useProblemPublishing();
 
-    const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
     const { setRightSidebarConfig, registerPageActions } = useLayoutStore.getState();
 
     const handleCloseEditor = useCallback(() => {
         setEditingProblemId(null);
         setRightSidebarConfig({ contentConfig: { type: null } });
-    }, [setRightSidebarConfig]);
+    }, [setEditingProblemId, setRightSidebarConfig]);
 
     const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => {
         await handleSaveProblem(problem);
         handleCloseEditor();
     }, [handleSaveProblem, handleCloseEditor]);
 
-    const handleCancelAndClose = useCallback((problemId: string) => {
+    const handleRevertAndKeepOpen = useCallback((problemId: string) => {
         handleRevertProblem(problemId);
-        handleCloseEditor();
-    }, [handleRevertProblem, handleCloseEditor]);
+    }, [handleRevertProblem]);
     
     const handleProblemClick = useCallback((problem: ProcessedProblem) => {
         startEditingProblem();
@@ -4693,24 +4770,23 @@ const ProblemPublishingPage: React.FC = () => {
             contentConfig: {
                 type: 'problemEditor',
                 props: {
-                    problemId: problem.uniqueId,
-                    onSave: handleSaveAndClose,
-                    onCancel: handleCancelAndClose,
-                    onClose: handleCloseEditor,
                     onProblemChange: handleLiveProblemChange,
+                    onSave: handleSaveAndClose,
+                    onRevert: handleRevertAndKeepOpen,
+                    onClose: handleCloseEditor,
                 }
             },
             isExtraWide: true
         });
     }, [
         startEditingProblem, 
+        setEditingProblemId,
         setRightSidebarConfig, 
         handleSaveAndClose, 
-        handleCancelAndClose, 
+        handleRevertAndKeepOpen, 
         handleCloseEditor, 
         handleLiveProblemChange
     ]);
-
 
     const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
 
@@ -4760,7 +4836,6 @@ const ProblemPublishingPage: React.FC = () => {
                     contentFontFamily={headerInfo.titleFontFamily} 
                     problemBoxMinHeight={problemBoxMinHeight} 
                     onHeightUpdate={handleHeightUpdate} 
-                    onProblemUpdate={() => {}}
                     onProblemClick={handleProblemClick} 
                     onHeaderUpdate={handleHeaderUpdate} 
                 />
@@ -10802,7 +10877,6 @@ interface ExamPreviewWidgetProps {
     problemBoxMinHeight: number;
     
     onHeightUpdate: (uniqueId: string, height: number) => void;
-    onProblemUpdate: (id: string | number, updatedFields: Partial<Problem>) => void;
     onProblemClick: (problem: ProcessedProblem) => void;
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
 }
@@ -11410,7 +11484,7 @@ import StudentRegistrationForm from '../../features/student-registration/ui/Stud
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
 import PromptCollection from '../../features/prompt-collection/ui/PromptCollection';
 import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
-import { useProblemPublishing, type ProcessedProblem } from '../../features/problem-publishing/model/useProblemPublishing';
+import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -11419,19 +11493,18 @@ const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
 
 interface ProblemEditorWrapperProps {
-    problemId: string;
     onSave: (problem: ProcessedProblem) => void;
-    onCancel: (problemId: string) => void;
+    onRevert: (problemId: string) => void; // [수정] onCancel -> onRevert
     onClose: () => void;
     onProblemChange: (problem: ProcessedProblem) => void;
 }
 
 const ProblemEditorWrapper: React.FC<ProblemEditorWrapperProps> = (props) => {
-    const { allProblems } = useProblemPublishing();
-    const problemToEdit = allProblems.find(p => p.uniqueId === props.problemId);
+    const { draftProblems, editingProblemId } = useProblemPublishingStore();
+    const problemToEdit = draftProblems?.find(p => p.uniqueId === editingProblemId);
 
     if (!problemToEdit) {
-        return <div>문제 데이터를 불러오는 중... (ID: {props.problemId})</div>;
+        return <div>수정할 문제를 선택해주세요.</div>;
     }
 
     return <ProblemTextEditor problem={problemToEdit} {...props} />;
@@ -11448,15 +11521,14 @@ const SidebarContentRenderer: React.FC = () => {
 
     switch(contentConfig.type) {
         case 'problemEditor': {
-            const { problemId, onSave, onCancel, onClose, onProblemChange } = contentConfig.props || {};
-
-            if (!problemId) return <div>선택된 문제가 없습니다.</div>;
+            const { onSave, onRevert, onClose, onProblemChange } = contentConfig.props || {};
+            const { editingProblemId } = useProblemPublishingStore.getState();
+            if (!editingProblemId) return <div>선택된 문제가 없습니다.</div>;
             
             return (
-                <ProblemEditorWrapper 
-                    problemId={problemId}
+                <ProblemEditorWrapper
                     onSave={onSave}
-                    onCancel={onCancel}
+                    onRevert={onRevert} // onCancel 대신 onRevert를 전달
                     onClose={onClose}
                     onProblemChange={onProblemChange}
                 />
