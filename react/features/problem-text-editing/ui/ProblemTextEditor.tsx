@@ -2,7 +2,6 @@ import React, { useCallback } from 'react';
 import type { Problem } from '../../../entities/problem/model/types';
 import Editor from '../../../shared/ui/codemirror-editor/Editor';
 import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
-// [수정] LuX 아이콘 import 제거, LuUndo2는 유지
 import { LuCheck, LuUndo2 } from 'react-icons/lu';
 import ProblemMetadataEditor from './ProblemMetadataEditor';
 import './ProblemTextEditor.css';
@@ -18,16 +17,16 @@ type ProcessedProblem = Problem & { uniqueId: string; display_question_number: s
 interface ProblemTextEditorProps {
     problem: ProcessedProblem;
     onSave: (updatedProblem: ProcessedProblem) => void;
-    onCancel: (problemId: string) => void;
-    onClose: () => void; // 이 prop은 GlassSidebarRight의 닫기 버튼과 연결됩니다.
+    onRevert: (problemId: string) => void; // 이름 변경
+    onClose: () => void;
     onProblemChange: (updatedProblem: ProcessedProblem) => void;
 }
 
 const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({ 
     problem, 
     onSave, 
-    onCancel,
-    onClose, // prop은 받지만 컴포넌트 내에서 직접 사용하지는 않습니다.
+    onRevert, // 이름 변경
+    onClose,
     onProblemChange 
 }) => {
 
@@ -43,8 +42,8 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
         onSave(problem);
     };
 
-    const handleCancel = () => {
-        onCancel(problem.uniqueId);
+    const handleRevert = () => {
+        onRevert(problem.uniqueId);
     };
 
     return (
@@ -52,17 +51,14 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
             <div className="editor-header">
                 <h4 className="editor-title">{problem.display_question_number}번 문제 수정</h4>
                 <div className="editor-actions">
-                    {/* '취소' 버튼: 변경사항을 되돌리고 닫음 */}
-                    <ActionButton onClick={handleCancel} aria-label="변경사항 취소">
+                    <ActionButton onClick={handleRevert} aria-label="변경사항 초기화">
                         <LuUndo2 size={14} style={{ marginRight: '4px' }} />
-                        취소
+                        초기화
                     </ActionButton>
-                    {/* '저장' 버튼: 변경사항을 DB에 저장하고 닫음 */}
                     <ActionButton onClick={handleSave} className="primary" aria-label="변경사항 저장">
                         <LuCheck size={14} style={{ marginRight: '4px' }} />
                         저장
                     </ActionButton>
-                    {/* [삭제] 컴포넌트 내의 'X' 닫기 버튼을 제거합니다. */}
                 </div>
             </div>
             
@@ -71,7 +67,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                     <h5 className="editor-section-title">문제 본문</h5>
                     <div className="editor-wrapper-body">
                         <Editor 
-                            initialContent={problem.question_text}
+                            initialContent={problem.question_text ?? ''}
                             onContentChange={(content) => handleContentChange('question_text', content)}
                         />
                     </div>

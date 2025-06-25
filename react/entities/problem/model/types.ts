@@ -1,5 +1,7 @@
+// ./react/entities/problem/model/types.ts
+
 export interface Problem {
-    problem_id: string; // [추가] DB의 UUID 기본 키
+    problem_id: string; 
     source: string;
     page: number | null;
     question_number: number;
@@ -14,7 +16,8 @@ export interface Problem {
     difficulty: string;
     score: string;
     question_text: string;
-    solution_text: string;
+    // [핵심 수정] solution_text가 null 값을 가질 수 있도록 타입을 변경합니다.
+    solution_text: string | null; 
 }
 
 export interface Column {

@@ -19,12 +19,19 @@ interface RegisteredPageActions {
   openRegisterSidebar: () => void;
   openSettingsSidebar: () => void;
   openPromptSidebar: () => void;
+  openEditSidebar: (student: any) => void;
   onClose: () => void;
 }
 
+// 사이드바 콘텐츠 타입을 정의합니다.
+interface SidebarContentConfig {
+    // [수정] 'edit' 타입을 추가합니다.
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | null;
+    props?: Record<string, any>; // problemId, student 등을 전달하기 위한 props
+}
 
 interface RightSidebarState {
-    content: ReactNode | null;
+    contentConfig: SidebarContentConfig; // ReactNode 대신 contentConfig를 사용합니다.
     isExtraWide: boolean;
 }
 
@@ -36,7 +43,7 @@ interface LayoutState {
 }
 
 interface LayoutActions {
-  setRightSidebarConfig: (config: { content: ReactNode | null, isExtraWide?: boolean }) => void;
+  setRightSidebarConfig: (config: { contentConfig: SidebarContentConfig, isExtraWide?: boolean }) => void;
   updateLayoutForPath: (path: string) => void;
   registerPageActions: (actions: Partial<RegisteredPageActions>) => void;
   setStudentSearchProps: (props: StoredSearchProps | null) => void;
@@ -49,21 +56,38 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     onClose: () => console.warn('onClose action not registered.'),
 };
 
-export const useLayoutStore = create<LayoutState & LayoutActions>((set) => ({
+export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => ({
   rightSidebar: {
-    content: null,
+    contentConfig: { type: null }, // 초기 상태 변경
     isExtraWide: false,
   },
   currentPageConfig: {},
   pageActions: initialPageActions,
   studentSearchProps: null,
   
-  setRightSidebarConfig: (config) => set({ 
-    rightSidebar: {
-      content: config.content,
-      isExtraWide: config.isExtraWide ?? false
-    } 
-  }),
+  setRightSidebarConfig: (config) => {
+    const currentState = get().rightSidebar;
+    // 상태가 실제로 변경되었을 때만 업데이트하여 불필요한 리렌더링을 방지합니다.
+    if (!config.contentConfig) {
+        if (currentState.contentConfig.type !== null) {
+            set({ rightSidebar: { contentConfig: { type: null }, isExtraWide: false } });
+        }
+        return;
+    }
+
+    if (
+        currentState.contentConfig.type !== config.contentConfig.type ||
+        JSON.stringify(currentState.contentConfig.props) !== JSON.stringify(config.contentConfig.props) ||
+        currentState.isExtraWide !== (config.isExtraWide ?? false)
+    ) {
+        set({ 
+            rightSidebar: {
+                contentConfig: config.contentConfig,
+                isExtraWide: config.isExtraWide ?? false
+            } 
+        });
+    }
+  },
 
   updateLayoutForPath: (path) => {
     const newConfig = Object.entries(layoutConfigMap)

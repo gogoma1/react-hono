@@ -1,10 +1,11 @@
+// ./react/entities/exam/ui/ExamPage.tsx
+
 import React, { useMemo, useCallback, forwardRef } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
 import ExamHeader from './ExamHeader';
 import './ExamPage.css';
 
-// [수정] 컴포넌트들이 받을 props 타입에 uniqueId를 명시합니다.
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
 
 interface ProblemItemProps {
@@ -37,7 +38,7 @@ const ProblemItem = forwardRef<HTMLDivElement, ProblemItemProps>(({ problem, all
                 </div>
                 <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily, minHeight: `${problemBoxMinHeight}em` }}>
                     <div className="mathpix-wrapper">
-                        <MathpixRenderer text={problem.question_text} onRenderComplete={() => onRenderComplete(problem.uniqueId)} />
+                        <MathpixRenderer text={problem.question_text ?? ''} onRenderComplete={() => onRenderComplete(problem.uniqueId)} />
                     </div>
                 </div>
              </button>
@@ -51,11 +52,8 @@ interface ExamPageProps {
     totalPages: number;
     problems: ProcessedProblem[];
     allProblems: ProcessedProblem[];
-    // [수정] placementMap의 키를 string으로 변경
     placementMap: Map<string, { page: number; column: number }>;
-    // [수정] onHeightUpdate의 첫 번째 인자 타입을 string으로 변경
     onHeightUpdate: (uniqueId: string, height: number) => void;
-    // onProblemUpdate는 DB의 question_number를 기준으로 하므로 그대로 둡니다.
     onProblemUpdate: (id: string | number, updatedFields: Partial<Problem>) => void;
     onProblemClick: (problem: ProcessedProblem) => void;
     useSequentialNumbering: boolean;

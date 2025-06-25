@@ -1,6 +1,4 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import Editor from '../shared/ui/codemirror-editor/Editor';
-import MathpixRenderer from '../shared/ui/MathpixRenderer';
 import { useImageUploadManager } from '../features/image-upload/model/useImageUploadManager';
 import ImageManager from '../features/image-upload/ui/ImageManager';
 import './ProblemWorkbenchPage.css';
@@ -9,11 +7,14 @@ import { useUIStore } from '../shared/store/uiStore';
 import PromptCollection from '../features/prompt-collection/ui/PromptCollection';
 import { LuCopy, LuCopyCheck, LuFilePlus } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
+import CodeEditorPanel from '../shared/components/workbench/CodeEditorPanel';
+import PreviewPanel from '../shared/components/workbench/PreviewPanel';
 
 const LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH = 'problem-workbench-draft';
 
 const ProblemWorkbenchPage: React.FC = () => {
-    const { registerPageActions, setRightSidebarContent } = useLayoutStore.getState();
+    // [수정] setRightSidebarContent 대신 setRightSidebarConfig를 가져옵니다.
+    const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
 
     const initialContent = useMemo(() => `# Mathpix Markdown 에디터에 오신 것을 환영합니다! 👋
@@ -51,10 +52,8 @@ const ProblemWorkbenchPage: React.FC = () => {
             try {
                 if (markdownContent !== initialContent) {
                     localStorage.setItem(LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH, markdownContent);
-                    console.log(`[ProblemWorkbench] ✅ 임시 작업 내용이 로컬에 성공적으로 저장되었습니다. (${new Date().toLocaleTimeString()})`);
                 } else {
                     localStorage.removeItem(LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH);
-                    console.log(`[ProblemWorkbench] 📝 임시 저장 내용이 삭제되었습니다 (초기 상태). (${new Date().toLocaleTimeString()})`);
                 }
             } catch (error) {
                 console.error(`[ProblemWorkbench] ❌ 로컬 저장소에 내용 저장 실패:`, error);
@@ -76,24 +75,28 @@ const ProblemWorkbenchPage: React.FC = () => {
     }, [markdownContent, initialContent]);
 
     const handleOpenSettingsSidebar = useCallback(() => {
-        setRightSidebarContent(
-            <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
-                <h4>문제 작업 설정</h4>
-                <p>이곳에 문제 작업 관련 설정 UI가 표시됩니다.</p>
-            </div>
-        );
+        // [수정] setRightSidebarConfig를 사용하여 'settings' 타입의 콘텐츠를 요청합니다.
+        setRightSidebarConfig({
+            contentConfig: { type: 'settings' },
+            isExtraWide: false
+        });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleOpenPromptSidebar = useCallback(() => {
-        setRightSidebarContent(<PromptCollection />);
+        // [수정] setRightSidebarConfig를 사용하여 'prompt' 타입의 콘텐츠를 요청합니다.
+        setRightSidebarConfig({
+            contentConfig: { type: 'prompt' },
+            isExtraWide: false
+        });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleCloseSidebar = useCallback(() => {
         setRightSidebarExpanded(false);
-        setTimeout(() => setRightSidebarContent(null), 300);
-    }, [setRightSidebarExpanded, setRightSidebarContent]);
+        // [수정] 닫을 때는 contentConfig의 type을 null로 설정합니다.
+        setTimeout(() => setRightSidebarConfig({ contentConfig: { type: null } }), 300);
+    }, [setRightSidebarExpanded, setRightSidebarConfig]);
 
     useEffect(() => {
         registerPageActions({
@@ -107,6 +110,7 @@ const ProblemWorkbenchPage: React.FC = () => {
                 openPromptSidebar: undefined,
                 onClose: undefined,
             });
+            handleCloseSidebar();
         };
     }, [registerPageActions, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleCloseSidebar]);
 
@@ -156,6 +160,21 @@ const ProblemWorkbenchPage: React.FC = () => {
         }
     }, [initialContent]);
 
+    const editorHeaderActions = (
+        <>
+            <Tippy content="새 작업 (초기화)" placement="top" theme="custom-glass">
+                <button onClick={handleNewDocument} className="panel-header-button" aria-label="새 작업 시작">
+                    <LuFilePlus size={18} />
+                </button>
+            </Tippy>
+            <Tippy content={isCopied ? "복사 완료!" : "전체 내용 복사"} placement="top" theme="custom-glass">
+                <button onClick={handleCopyContent} className="panel-header-button" aria-label="에디터 내용 복사">
+                    {isCopied ? <LuCopyCheck size={18} color="var(--accent-color)" /> : <LuCopy size={18} />}
+                </button>
+            </Tippy>
+        </>
+    );
+
     return (
         <div className="problem-workbench-page">
             <input
@@ -166,37 +185,18 @@ const ProblemWorkbenchPage: React.FC = () => {
                 style={{ display: 'none' }}
             />
             <div className="problem-workbench-layout">
-                <div className="workbench-panel editor-panel">
-                    <div className="panel-title-container">
-                        <h2 className="panel-title">Markdown & LaTeX 입력</h2>
-                        <div className="panel-header-actions">
-                            <Tippy content="새 작업 (초기화)" placement="top" theme="custom-glass">
-                                <button onClick={handleNewDocument} className="panel-header-button" aria-label="새 작업 시작">
-                                    <LuFilePlus size={18} />
-                                </button>
-                            </Tippy>
-                            <Tippy content={isCopied ? "복사 완료!" : "전체 내용 복사"} placement="top" theme="custom-glass">
-                                <button onClick={handleCopyContent} className="panel-header-button" aria-label="에디터 내용 복사">
-                                    {isCopied ? <LuCopyCheck size={18} color="var(--accent-color)" /> : <LuCopy size={18} />}
-                                </button>
-                            </Tippy>
-                        </div>
-                    </div>
-                    <div className="panel-content editor-content-wrapper">
-                        <Editor
-                            initialContent={markdownContent}
-                            onContentChange={handleContentChange}
-                        />
-                    </div>
-                </div>
-                <div className="workbench-panel preview-panel">
-                     <div className="panel-title-container">
-                        <h2 className="panel-title">실시간 미리보기 (Mathpix)</h2>
-                    </div>
-                    <div className="panel-content preview-content-wrapper prose">
-                        <MathpixRenderer text={markdownContent} />
-                    </div>
-                </div>
+                <CodeEditorPanel
+                    title="Markdown & LaTeX 입력"
+                    content={markdownContent}
+                    onContentChange={handleContentChange}
+                    headerActions={editorHeaderActions}
+                />
+
+                <PreviewPanel
+                    title="실시간 미리보기 (Mathpix)"
+                    content={markdownContent}
+                />
+                
                 <div className="workbench-panel image-manager-wrapper-panel">
                     <ImageManager
                         extractedImages={imageManager.extractedImages}

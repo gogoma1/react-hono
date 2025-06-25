@@ -1,0 +1,12 @@
+/* ./react/shared/components/workbench/CodeEditorPanel.css */
+
+/* workbench-panel, panel-title-container 등 공통 스타일은 ProblemWorkbenchPage.css에서 가져옵니다. */
+
+.editor-panel .panel-content {
+    padding: 0;
+    overflow: hidden;
+}
+
+.editor-panel .cm-scroller {
+    overflow-y: auto !important;
+}

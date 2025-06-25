@@ -1,38 +1,41 @@
+// ./react/pages/JsonRendererPage.tsx
+
 import React, { useCallback, useEffect } from 'react';
 import JsonProblemImporterWidget from '../widgets/json-problem-importer/JsonProblemImporterWidget';
 import './JsonRendererPage.css';
 import { useLayoutStore } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
-// [추가] 프롬프트 컬렉션 컴포넌트 import
-import PromptCollection from '../features/prompt-collection/ui/PromptCollection';
 
 const JsonRendererPage: React.FC = () => {
-    const { registerPageActions, setRightSidebarContent } = useLayoutStore.getState();
+    // [수정] setRightSidebarContent 대신 setRightSidebarConfig를 가져옵니다.
+    const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore();
 
-    // [추가] 프롬프트 모음 사이드바를 여는 핸들러
     const handleOpenPromptSidebar = useCallback(() => {
-        setRightSidebarContent(<PromptCollection />);
+        // [수정] 설정 객체로 전달합니다. type: 'prompt'
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'prompt' },
+            isExtraWide: false
+        });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleOpenSettingsSidebar = useCallback(() => {
-        setRightSidebarContent(
-            <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
-                <h4>JSON 렌더러 설정</h4>
-                <p>이곳에 JSON 렌더러 관련 설정 UI가 표시될 예정입니다.</p>
-            </div>
-        );
+        // [수정] 설정 객체로 전달합니다. type: 'settings'
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'settings' },
+            isExtraWide: false
+        });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleCloseSidebar = useCallback(() => {
         setRightSidebarExpanded(false);
-        setTimeout(() => setRightSidebarContent(null), 300);
-    }, [setRightSidebarExpanded, setRightSidebarContent]);
+        // [수정] 닫을 때도 contentConfig의 type을 null로 설정합니다.
+        setTimeout(() => setRightSidebarConfig({ contentConfig: { type: null } }), 300);
+    }, [setRightSidebarExpanded, setRightSidebarConfig]);
 
     useEffect(() => {
-        // [수정] registerPageActions에 openPromptSidebar 핸들러 추가
         registerPageActions({
             openPromptSidebar: handleOpenPromptSidebar,
             openSettingsSidebar: handleOpenSettingsSidebar,
@@ -45,6 +48,7 @@ const JsonRendererPage: React.FC = () => {
                 openSettingsSidebar: undefined,
                 onClose: undefined,
             });
+            handleCloseSidebar();
         };
     }, [registerPageActions, handleOpenPromptSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
 

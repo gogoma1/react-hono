@@ -337,6 +337,7 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
 
 export default ExamHeader;
 ----- ./react/entities/exam/ui/ExamPage.tsx -----
+
 import React, { useMemo, useCallback, forwardRef } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
@@ -375,7 +376,7 @@ const ProblemItem = forwardRef<HTMLDivElement, ProblemItemProps>(({ problem, all
                 </div>
                 <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily, minHeight: `${problemBoxMinHeight}em` }}>
                     <div className="mathpix-wrapper">
-                        <MathpixRenderer text={problem.question_text} onRenderComplete={() => onRenderComplete(problem.uniqueId)} />
+                        <MathpixRenderer text={problem.question_text ?? ''} onRenderComplete={() => onRenderComplete(problem.uniqueId)} />
                     </div>
                 </div>
              </button>
@@ -547,8 +548,9 @@ export const uploadProblemsAPI = async (problems: Problem[]): Promise<UploadResp
     return handleApiResponse<UploadResponse>(res);
 };
 ----- ./react/entities/problem/model/types.ts -----
+
 export interface Problem {
-    problem_id: string; // [추가] DB의 UUID 기본 키
+    problem_id: string; 
     source: string;
     page: number | null;
     question_number: number;
@@ -563,7 +565,7 @@ export interface Problem {
     difficulty: string;
     score: string;
     question_text: string;
-    solution_text: string;
+    solution_text: string | null; 
 }
 
 export interface Column {
@@ -2232,6 +2234,7 @@ const ProfileMenuContent: React.FC<ProfileMenuContentProps> = ({ onClose }) => {
 
 export default ProfileMenuContent;
 ----- ./react/features/problem-publishing/model/useProblemPublishing.ts -----
+
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useProblemsQuery } from '../../../entities/problem/model/useProblemsQuery';
 import { useUpdateProblemMutation } from '../../../entities/problem/model/useProblemMutations';
@@ -2247,11 +2250,9 @@ export type ProcessedProblem = Problem & { display_question_number: string; uniq
 
 export function useProblemPublishing() {
     const { data: rawProblems = [], isLoading: isLoadingProblems } = useProblemsQuery();
-    const { mutateAsync: updateProblem } = useUpdateProblemMutation(); // [수정] mutateAsync 사용
+    const { mutateAsync: updateProblem } = useUpdateProblemMutation();
 
-    const [liveProblems, setLiveProblems] = useState<ProcessedProblem[] | null>(null);
-
-    const allProblems = useMemo((): ProcessedProblem[] => {
+    const initialProblems = useMemo((): ProcessedProblem[] => {
         if (!rawProblems || rawProblems.length === 0) return [];
         const typeOrder: Record<string, number> = { '객관식': 1, '서답형': 2 };
         return [...rawProblems]
@@ -2266,19 +2267,27 @@ export function useProblemPublishing() {
             })
             .map((p): ProcessedProblem => ({
                 ...p,
-                uniqueId: p.problem_id, // [수정] 고유 ID를 problem_id로 사용
+                question_text: p.question_text ? String(p.question_text).replace(/\\/g, '\\\\') : '',
+                solution_text: p.solution_text ? String(p.solution_text).replace(/\\/g, '\\\\') : '',
+                uniqueId: p.problem_id,
                 display_question_number: p.problem_type === '서답형'
                     ? `서답형 ${p.question_number}`
                     : String(p.question_number)
             }));
     }, [rawProblems]);
-
-    const displayProblems = useMemo(() => liveProblems ?? allProblems, [liveProblems, allProblems]);
-
-    const problemUniqueIds = useMemo(() => displayProblems.map(p => p.uniqueId), [displayProblems]);
-    const { selectedIds, toggleRow, toggleSelectAll, isAllSelected } = useRowSelection<string>({ allItems: problemUniqueIds });
-    const selectedProblems = useMemo(() => displayProblems.filter(p => selectedIds.has(p.uniqueId)), [displayProblems, selectedIds]);
     
+    const [liveProblems, setLiveProblems] = useState<ProcessedProblem[] | null>(null);
+
+    const displayProblems = useMemo(() => liveProblems ?? initialProblems, [liveProblems, initialProblems]);
+
+    const problemUniqueIds = useMemo(() => initialProblems.map(p => p.uniqueId), [initialProblems]);
+    const { selectedIds, toggleRow, toggleSelectAll, isAllSelected } = useRowSelection<string>({ allItems: problemUniqueIds });
+    
+    const selectedProblems = useMemo(() => {
+        return initialProblems.filter(p => selectedIds.has(p.uniqueId));
+    }, [initialProblems, selectedIds]);
+
+
     const [problemHeightsMap, setProblemHeightsMap] = useState<Map<string, number>>(new Map());
     const [distributedPages, setDistributedPages] = useState<ProcessedProblem[][]>([]);
     const [placementMap, setPlacementMap] = useState<Map<string, ProblemPlacementInfo>>(new Map());
@@ -2297,6 +2306,7 @@ export function useProblemPublishing() {
         simplifiedGradeText: '고3',
     });
 
+
     const handleHeightUpdate = useCallback((uniqueId: string, height: number) => {
         setProblemHeightsMap(prevMap => {
             if (height > 0 && prevMap.get(uniqueId) !== height) {
@@ -2309,13 +2319,18 @@ export function useProblemPublishing() {
     }, []);
 
     const handleSaveProblem = useCallback(async (updatedProblem: Problem) => {
-        await updateProblem({ id: updatedProblem.problem_id, fields: updatedProblem });
-        setLiveProblems(null);
+        const payload = {
+            ...updatedProblem,
+            question_text: updatedProblem.question_text.replace(/\\\\/g, '\\'),
+            solution_text: updatedProblem.solution_text ? updatedProblem.solution_text.replace(/\\\\/g, '\\') : null,
+        };
+        await updateProblem({ id: payload.problem_id, fields: payload });
+        setLiveProblems(null); // 저장 후 초안 상태 초기화
     }, [updateProblem]);
     
     const handleLiveProblemChange = useCallback((updatedProblem: ProcessedProblem) => {
         setLiveProblems(currentProblems => {
-            const base = currentProblems ?? allProblems;
+            const base = currentProblems ?? initialProblems;
             return produce(base, draft => {
                 const index = draft.findIndex(p => p.uniqueId === updatedProblem.uniqueId);
                 if (index !== -1) {
@@ -2323,14 +2338,13 @@ export function useProblemPublishing() {
                 }
             });
         });
-    }, [allProblems]);
+    }, [initialProblems]);
 
     const handleRevertProblem = useCallback((problemId: string) => {
         setLiveProblems(currentProblems => {
-            if (!currentProblems) return null; // 초안이 없으면 아무것도 안함
-            
+            if (!currentProblems) return null;
             return produce(currentProblems, draft => {
-                const originalProblem = allProblems.find(p => p.uniqueId === problemId);
+                const originalProblem = initialProblems.find(p => p.uniqueId === problemId);
                 if (originalProblem) {
                     const indexToRevert = draft.findIndex(p => p.uniqueId === problemId);
                     if (indexToRevert !== -1) {
@@ -2339,13 +2353,13 @@ export function useProblemPublishing() {
                 }
             });
         });
-    }, [allProblems]);
+    }, [initialProblems]);
 
     const startEditingProblem = useCallback(() => {
         if (liveProblems === null) {
-            setLiveProblems(allProblems);
+            setLiveProblems(initialProblems);
         }
-    }, [liveProblems, allProblems]);
+    }, [liveProblems, initialProblems]);
     
     const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: any) => {
         setHeaderInfo(prev => {
@@ -2426,7 +2440,7 @@ export function useProblemPublishing() {
     }, [selectedProblems, problemHeightsMap]);
 
     return {
-        allProblems: displayProblems, // [수정] displayProblems를 외부에 노출
+        allProblems: displayProblems,
         isLoadingProblems,
         selectedIds,
         isAllSelected,
@@ -2603,7 +2617,7 @@ interface ProblemTextEditorProps {
     problem: ProcessedProblem;
     onSave: (updatedProblem: ProcessedProblem) => void;
     onCancel: (problemId: string) => void;
-    onClose: () => void; // 이 prop은 GlassSidebarRight의 닫기 버튼과 연결됩니다.
+    onClose: () => void;
     onProblemChange: (updatedProblem: ProcessedProblem) => void;
 }
 
@@ -2611,7 +2625,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     problem, 
     onSave, 
     onCancel,
-    onClose, // prop은 받지만 컴포넌트 내에서 직접 사용하지는 않습니다.
+    onClose,
     onProblemChange 
 }) => {
 
@@ -2636,37 +2650,37 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
             <div className="editor-header">
                 <h4 className="editor-title">{problem.display_question_number}번 문제 수정</h4>
                 <div className="editor-actions">
-                    {/* '취소' 버튼: 변경사항을 되돌리고 닫음 */}
                     <ActionButton onClick={handleCancel} aria-label="변경사항 취소">
                         <LuUndo2 size={14} style={{ marginRight: '4px' }} />
                         취소
                     </ActionButton>
-                    {/* '저장' 버튼: 변경사항을 DB에 저장하고 닫음 */}
                     <ActionButton onClick={handleSave} className="primary" aria-label="변경사항 저장">
                         <LuCheck size={14} style={{ marginRight: '4px' }} />
                         저장
                     </ActionButton>
-                    {/* [삭제] 컴포넌트 내의 'X' 닫기 버튼을 제거합니다. */}
                 </div>
             </div>
             
             <div className="editor-body-wrapper">
+                {/* [핵심 수정] '문제 본문' 영역을 Editor 컴포넌트로 교체 */}
                 <div className="editor-section">
                     <h5 className="editor-section-title">문제 본문</h5>
                     <div className="editor-wrapper-body">
                         <Editor 
-                            initialContent={problem.question_text}
+                            initialContent={problem.question_text ?? ''}
                             onContentChange={(content) => handleContentChange('question_text', content)}
                         />
                     </div>
                 </div>
 
+                {/* 메타데이터 편집기는 그대로 유지 */}
                 <ProblemMetadataEditor
                     fields={EDITABLE_METADATA_FIELDS}
                     problemData={problem}
                     onDataChange={handleMetadataChange}
                 />
 
+                {/* [핵심 수정] '해설' 영역을 Editor 컴포넌트로 교체 */}
                 <div className="editor-section">
                     <h5 className="editor-section-title">해설</h5>
                     <div className="editor-wrapper-body">
@@ -4008,23 +4022,12 @@ createRoot(rootElement).render(
 ----- ./react/pages/DashBoard.tsx -----
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLayoutStore } from '../shared/store/layoutStore';
+import { useUIStore } from '../shared/store/uiStore';
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../entities/student/model/useStudentDataWithRQ';
 import { useRowSelection } from '../features/row-selection/model/useRowSelection';
-
-import StudentRegistrationForm from '../features/student-registration/ui/StudentRegistrationForm';
-import StudentEditForm from '../features/student-editing/ui/StudentEditForm';
-import TableColumnToggler from '../features/table-column-toggler/ui/TableColumnToggler';
 import StudentTableWidget from '../widgets/student-table/StudentTableWidget';
 import { useTableSearch } from '../features/table-search/model/useTableSearch';
 import type { SuggestionGroup } from '../features/table-search/ui/TableSearch';
-
-function usePrevious<T>(value: T): T | undefined {
-  const ref = useRef<T | undefined>(undefined);
-  useEffect(() => {
-    ref.current = value;
-  });
-  return ref.current;
-}
 
 const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] => {
     if (!items || !Array.isArray(items) || items.length === 0) return [];
@@ -4046,16 +4049,13 @@ const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] =
 };
 
 const DashBoard: React.FC = () => {
-    const { setRightSidebarConfig, registerPageActions } = useLayoutStore.getState();
+    const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
+    const { setRightSidebarExpanded } = useUIStore.getState();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
     
-    const [activeSidebarView, setActiveSidebarView] = useState<'register' | 'edit' | 'settings' | null>(null);
-    const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
-
-    const prevActiveSidebarView = usePrevious(activeSidebarView);
 
     const currentStudents = students || [];
     const studentIds = useMemo(() => currentStudents.map(s => s.id), [currentStudents]);
@@ -4074,11 +4074,6 @@ const DashBoard: React.FC = () => {
         if (filteredStudentIds.length === 0) return false;
         return filteredStudentIds.every(id => selectedIds.has(id));
     }, [filteredStudentIds, selectedIds]);
-    
-    const handleToggleFilteredAll = useCallback(() => {
-        toggleItems(filteredStudentIds);
-    }, [toggleItems, filteredStudentIds]);
-
 
     const suggestionGroups = useMemo((): SuggestionGroup[] => {
         return [
@@ -4119,45 +4114,34 @@ const DashBoard: React.FC = () => {
         alert(`${selectedIds.size}명의 학생을 대상으로 문제 출제 로직을 실행합니다. (콘솔 확인)`);
     }, [selectedIds]);
 
-    const handleCloseSidebar = useCallback(() => {
-        setActiveSidebarView(null);
-    }, []);
+     const handleCloseSidebar = useCallback(() => {
+        setRightSidebarConfig({ contentConfig: { type: null } });
+        setRightSidebarExpanded(false);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
     
     const handleRequestEdit = useCallback((student: Student) => {
-        setStudentToEdit(student);
-        setActiveSidebarView('edit');
-    }, []);
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'edit', props: { student } },
+            isExtraWide: false 
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleOpenRegisterSidebar = useCallback(() => {
-        setStudentToEdit(null);
-        setActiveSidebarView('register');
-    }, []);
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'register' },
+            isExtraWide: false 
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
     
     const handleOpenSettingsSidebar = useCallback(() => {
-        setStudentToEdit(null);
-        setActiveSidebarView('settings');
-    }, []);
-
-    useEffect(() => {
-        if (activeSidebarView === null) {
-            if (prevActiveSidebarView !== null) {
-                const timer = setTimeout(() => {
-                    setRightSidebarConfig({ content: null, isExtraWide: false });
-                }, 300);
-                return () => clearTimeout(timer);
-            }
-        } else {
-            let content: React.ReactNode = null;
-            if (activeSidebarView === 'register') {
-                content = <StudentRegistrationForm onSuccess={handleCloseSidebar} />;
-            } else if (activeSidebarView === 'edit' && studentToEdit) {
-                content = <StudentEditForm student={studentToEdit} onSuccess={handleCloseSidebar} />;
-            } else if (activeSidebarView === 'settings') {
-                content = <TableColumnToggler />;
-            }
-            setRightSidebarConfig({ content, isExtraWide: false });
-        }
-    }, [activeSidebarView, prevActiveSidebarView, studentToEdit, handleCloseSidebar, setRightSidebarConfig]);
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'settings' },
+            isExtraWide: false 
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     useEffect(() => {
         registerPageActions({
@@ -4172,6 +4156,7 @@ const DashBoard: React.FC = () => {
                 openSettingsSidebar: undefined,
                 onClose: undefined,
             });
+            handleCloseSidebar();
         };
     }, [registerPageActions, handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
     
@@ -4220,7 +4205,7 @@ const DashBoard: React.FC = () => {
                 selectedIds={selectedIds}
                 toggleRow={toggleRow}
                 isAllSelected={isFilteredAllSelected}
-                toggleSelectAll={handleToggleFilteredAll}
+                toggleSelectAll={handleToggleFilteredSelection}
             />
         </div>
     );
@@ -4387,36 +4372,37 @@ const HomePage: React.FC = () => {
 
 export default HomePage;
 ----- ./react/pages/JsonRendererPage.tsx -----
+
 import React, { useCallback, useEffect } from 'react';
 import JsonProblemImporterWidget from '../widgets/json-problem-importer/JsonProblemImporterWidget';
 import './JsonRendererPage.css';
 import { useLayoutStore } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
-import PromptCollection from '../features/prompt-collection/ui/PromptCollection';
 
 const JsonRendererPage: React.FC = () => {
-    const { registerPageActions, setRightSidebarContent } = useLayoutStore.getState();
+    const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore();
 
     const handleOpenPromptSidebar = useCallback(() => {
-        setRightSidebarContent(<PromptCollection />);
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'prompt' },
+            isExtraWide: false
+        });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleOpenSettingsSidebar = useCallback(() => {
-        setRightSidebarContent(
-            <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
-                <h4>JSON 렌더러 설정</h4>
-                <p>이곳에 JSON 렌더러 관련 설정 UI가 표시될 예정입니다.</p>
-            </div>
-        );
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'settings' },
+            isExtraWide: false
+        });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleCloseSidebar = useCallback(() => {
         setRightSidebarExpanded(false);
-        setTimeout(() => setRightSidebarContent(null), 300);
-    }, [setRightSidebarExpanded, setRightSidebarContent]);
+        setTimeout(() => setRightSidebarConfig({ contentConfig: { type: null } }), 300);
+    }, [setRightSidebarExpanded, setRightSidebarConfig]);
 
     useEffect(() => {
         registerPageActions({
@@ -4431,6 +4417,7 @@ const JsonRendererPage: React.FC = () => {
                 openSettingsSidebar: undefined,
                 onClose: undefined,
             });
+            handleCloseSidebar();
         };
     }, [registerPageActions, handleOpenPromptSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
 
@@ -4664,7 +4651,6 @@ import { useProblemPublishing, type ProcessedProblem } from '../features/problem
 import ProblemSelectionWidget from '../widgets/ProblemSelectionWidget';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
 import ExamPreviewWidget from '../widgets/ExamPreviewWidget';
-import ProblemTextEditor from '../features/problem-text-editing/ui/ProblemTextEditor';
 import './ProblemPublishingPage.css';
 
 const ProblemPublishingPage: React.FC = () => {
@@ -4684,14 +4670,10 @@ const ProblemPublishingPage: React.FC = () => {
     const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
     const { setRightSidebarConfig, registerPageActions } = useLayoutStore.getState();
 
-    const handleProblemClick = useCallback((problem: ProcessedProblem) => {
-        startEditingProblem(); // 편집용 '초안' 상태 생성 또는 유지
-        setEditingProblemId(problem.uniqueId); // 어떤 문제를 편집할지 ID 설정
-    }, [startEditingProblem]);
-
     const handleCloseEditor = useCallback(() => {
         setEditingProblemId(null);
-    }, []);
+        setRightSidebarConfig({ contentConfig: { type: null } });
+    }, [setRightSidebarConfig]);
 
     const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => {
         await handleSaveProblem(problem);
@@ -4703,40 +4685,39 @@ const ProblemPublishingPage: React.FC = () => {
         handleCloseEditor();
     }, [handleRevertProblem, handleCloseEditor]);
     
+    const handleProblemClick = useCallback((problem: ProcessedProblem) => {
+        startEditingProblem();
+        setEditingProblemId(problem.uniqueId);
+
+        setRightSidebarConfig({
+            contentConfig: {
+                type: 'problemEditor',
+                props: {
+                    problemId: problem.uniqueId,
+                    onSave: handleSaveAndClose,
+                    onCancel: handleCancelAndClose,
+                    onClose: handleCloseEditor,
+                    onProblemChange: handleLiveProblemChange,
+                }
+            },
+            isExtraWide: true
+        });
+    }, [
+        startEditingProblem, 
+        setRightSidebarConfig, 
+        handleSaveAndClose, 
+        handleCancelAndClose, 
+        handleCloseEditor, 
+        handleLiveProblemChange
+    ]);
+
+
     const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
 
     useEffect(() => {
-        if (editingProblemId) {
-            const problemToEdit = allProblems.find(p => p.uniqueId === editingProblemId);
-            
-            if (problemToEdit) {
-                setRightSidebarConfig({
-                    content: (
-                        <ProblemTextEditor 
-                            key={problemToEdit.uniqueId} 
-                            problem={problemToEdit} 
-                            onSave={handleSaveAndClose}
-                            onCancel={handleCancelAndClose}
-                            onClose={handleCloseEditor}
-                            onProblemChange={handleLiveProblemChange}
-                        />
-                    ),
-                    isExtraWide: true 
-                });
-            } else {
-                setEditingProblemId(null);
-                setRightSidebarConfig({ content: null, isExtraWide: false });
-            }
-        } else {
-            const timer = setTimeout(() => setRightSidebarConfig({ content: null, isExtraWide: false }), 300);
-            return () => clearTimeout(timer);
-        }
-    }, [editingProblemId, allProblems, setRightSidebarConfig, handleSaveAndClose, handleCancelAndClose, handleCloseEditor, handleLiveProblemChange]);
-    
-    useEffect(() => {
         registerPageActions({ onClose: handleCloseEditor });
         return () => {
-            setRightSidebarConfig({ content: null, isExtraWide: false });
+            setRightSidebarConfig({ contentConfig: { type: null } });
             registerPageActions({ onClose: undefined });
         };
     }, [registerPageActions, handleCloseEditor, setRightSidebarConfig]);
@@ -4779,7 +4760,7 @@ const ProblemPublishingPage: React.FC = () => {
                     contentFontFamily={headerInfo.titleFontFamily} 
                     problemBoxMinHeight={problemBoxMinHeight} 
                     onHeightUpdate={handleHeightUpdate} 
-                    onProblemUpdate={() => {}} // [수정] 이 위젯에서의 직접 업데이트는 막고 사이드바를 통하게 함
+                    onProblemUpdate={() => {}}
                     onProblemClick={handleProblemClick} 
                     onHeaderUpdate={handleHeaderUpdate} 
                 />
@@ -4791,8 +4772,6 @@ const ProblemPublishingPage: React.FC = () => {
 export default ProblemPublishingPage;
 ----- ./react/pages/ProblemWorkbenchPage.tsx -----
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import Editor from '../shared/ui/codemirror-editor/Editor';
-import MathpixRenderer from '../shared/ui/MathpixRenderer';
 import { useImageUploadManager } from '../features/image-upload/model/useImageUploadManager';
 import ImageManager from '../features/image-upload/ui/ImageManager';
 import './ProblemWorkbenchPage.css';
@@ -4801,11 +4780,13 @@ import { useUIStore } from '../shared/store/uiStore';
 import PromptCollection from '../features/prompt-collection/ui/PromptCollection';
 import { LuCopy, LuCopyCheck, LuFilePlus } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
+import CodeEditorPanel from '../shared/components/workbench/CodeEditorPanel';
+import PreviewPanel from '../shared/components/workbench/PreviewPanel';
 
 const LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH = 'problem-workbench-draft';
 
 const ProblemWorkbenchPage: React.FC = () => {
-    const { registerPageActions, setRightSidebarContent } = useLayoutStore.getState();
+    const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
 
     const initialContent = useMemo(() => `# Mathpix Markdown 에디터에 오신 것을 환영합니다! 👋
@@ -4843,10 +4824,8 @@ const ProblemWorkbenchPage: React.FC = () => {
             try {
                 if (markdownContent !== initialContent) {
                     localStorage.setItem(LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH, markdownContent);
-                    console.log(`[ProblemWorkbench] ✅ 임시 작업 내용이 로컬에 성공적으로 저장되었습니다. (${new Date().toLocaleTimeString()})`);
                 } else {
                     localStorage.removeItem(LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH);
-                    console.log(`[ProblemWorkbench] 📝 임시 저장 내용이 삭제되었습니다 (초기 상태). (${new Date().toLocaleTimeString()})`);
                 }
             } catch (error) {
                 console.error(`[ProblemWorkbench] ❌ 로컬 저장소에 내용 저장 실패:`, error);
@@ -4868,24 +4847,25 @@ const ProblemWorkbenchPage: React.FC = () => {
     }, [markdownContent, initialContent]);
 
     const handleOpenSettingsSidebar = useCallback(() => {
-        setRightSidebarContent(
-            <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
-                <h4>문제 작업 설정</h4>
-                <p>이곳에 문제 작업 관련 설정 UI가 표시됩니다.</p>
-            </div>
-        );
+        setRightSidebarConfig({
+            contentConfig: { type: 'settings' },
+            isExtraWide: false
+        });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleOpenPromptSidebar = useCallback(() => {
-        setRightSidebarContent(<PromptCollection />);
+        setRightSidebarConfig({
+            contentConfig: { type: 'prompt' },
+            isExtraWide: false
+        });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleCloseSidebar = useCallback(() => {
         setRightSidebarExpanded(false);
-        setTimeout(() => setRightSidebarContent(null), 300);
-    }, [setRightSidebarExpanded, setRightSidebarContent]);
+        setTimeout(() => setRightSidebarConfig({ contentConfig: { type: null } }), 300);
+    }, [setRightSidebarExpanded, setRightSidebarConfig]);
 
     useEffect(() => {
         registerPageActions({
@@ -4899,6 +4879,7 @@ const ProblemWorkbenchPage: React.FC = () => {
                 openPromptSidebar: undefined,
                 onClose: undefined,
             });
+            handleCloseSidebar();
         };
     }, [registerPageActions, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleCloseSidebar]);
 
@@ -4948,6 +4929,21 @@ const ProblemWorkbenchPage: React.FC = () => {
         }
     }, [initialContent]);
 
+    const editorHeaderActions = (
+        <>
+            <Tippy content="새 작업 (초기화)" placement="top" theme="custom-glass">
+                <button onClick={handleNewDocument} className="panel-header-button" aria-label="새 작업 시작">
+                    <LuFilePlus size={18} />
+                </button>
+            </Tippy>
+            <Tippy content={isCopied ? "복사 완료!" : "전체 내용 복사"} placement="top" theme="custom-glass">
+                <button onClick={handleCopyContent} className="panel-header-button" aria-label="에디터 내용 복사">
+                    {isCopied ? <LuCopyCheck size={18} color="var(--accent-color)" /> : <LuCopy size={18} />}
+                </button>
+            </Tippy>
+        </>
+    );
+
     return (
         <div className="problem-workbench-page">
             <input
@@ -4958,37 +4954,18 @@ const ProblemWorkbenchPage: React.FC = () => {
                 style={{ display: 'none' }}
             />
             <div className="problem-workbench-layout">
-                <div className="workbench-panel editor-panel">
-                    <div className="panel-title-container">
-                        <h2 className="panel-title">Markdown & LaTeX 입력</h2>
-                        <div className="panel-header-actions">
-                            <Tippy content="새 작업 (초기화)" placement="top" theme="custom-glass">
-                                <button onClick={handleNewDocument} className="panel-header-button" aria-label="새 작업 시작">
-                                    <LuFilePlus size={18} />
-                                </button>
-                            </Tippy>
-                            <Tippy content={isCopied ? "복사 완료!" : "전체 내용 복사"} placement="top" theme="custom-glass">
-                                <button onClick={handleCopyContent} className="panel-header-button" aria-label="에디터 내용 복사">
-                                    {isCopied ? <LuCopyCheck size={18} color="var(--accent-color)" /> : <LuCopy size={18} />}
-                                </button>
-                            </Tippy>
-                        </div>
-                    </div>
-                    <div className="panel-content editor-content-wrapper">
-                        <Editor
-                            initialContent={markdownContent}
-                            onContentChange={handleContentChange}
-                        />
-                    </div>
-                </div>
-                <div className="workbench-panel preview-panel">
-                     <div className="panel-title-container">
-                        <h2 className="panel-title">실시간 미리보기 (Mathpix)</h2>
-                    </div>
-                    <div className="panel-content preview-content-wrapper prose">
-                        <MathpixRenderer text={markdownContent} />
-                    </div>
-                </div>
+                <CodeEditorPanel
+                    title="Markdown & LaTeX 입력"
+                    content={markdownContent}
+                    onContentChange={handleContentChange}
+                    headerActions={editorHeaderActions}
+                />
+
+                <PreviewPanel
+                    title="실시간 미리보기 (Mathpix)"
+                    content={markdownContent}
+                />
+                
                 <div className="workbench-panel image-manager-wrapper-panel">
                     <ImageManager
                         extractedImages={imageManager.extractedImages}
@@ -5345,6 +5322,72 @@ const GlassPopover: React.FC<GlassPopoverProps> = ({
 };
 
 export default GlassPopover;
+----- ./react/shared/components/workbench/CodeEditorPanel.tsx -----
+import React from 'react';
+import Editor from '../../ui/codemirror-editor/Editor';
+import './CodeEditorPanel.css';
+
+interface CodeEditorPanelProps {
+  title: string;
+  content: string;
+  onContentChange: (content: string) => void;
+  headerActions?: React.ReactNode;
+  className?: string;
+}
+
+const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
+  title,
+  content,
+  onContentChange,
+  headerActions,
+  className = '',
+}) => {
+  return (
+    <div className={`workbench-panel editor-panel ${className}`}>
+      <div className="panel-title-container">
+        <h2 className="panel-title">{title}</h2>
+        {headerActions && <div className="panel-header-actions">{headerActions}</div>}
+      </div>
+      <div className="panel-content editor-content-wrapper">
+        <Editor
+          initialContent={content}
+          onContentChange={onContentChange}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default React.memo(CodeEditorPanel);
+----- ./react/shared/components/workbench/PreviewPanel.tsx -----
+import React from 'react';
+import MathpixRenderer from '../../ui/MathpixRenderer';
+import './PreviewPanel.css';
+
+interface PreviewPanelProps {
+  title: string;
+  content: string;
+  className?: string;
+}
+
+const PreviewPanel: React.FC<PreviewPanelProps> = ({
+  title,
+  content,
+  className = '',
+}) => {
+  return (
+    <div className={`workbench-panel preview-panel ${className}`}>
+      <div className="panel-title-container">
+        <h2 className="panel-title">{title}</h2>
+      </div>
+      <div className="panel-content preview-content-wrapper prose">
+        <MathpixRenderer text={content} />
+      </div>
+    </div>
+  );
+};
+
+export default React.memo(PreviewPanel);
 ----- ./react/shared/hooks/useColumnPermissions.ts -----
 import { useMemo } from 'react';
 
@@ -5756,12 +5799,17 @@ interface RegisteredPageActions {
   openRegisterSidebar: () => void;
   openSettingsSidebar: () => void;
   openPromptSidebar: () => void;
+  openEditSidebar: (student: any) => void;
   onClose: () => void;
 }
 
+interface SidebarContentConfig {
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | null;
+    props?: Record<string, any>; // problemId, student 등을 전달하기 위한 props
+}
 
 interface RightSidebarState {
-    content: ReactNode | null;
+    contentConfig: SidebarContentConfig; // ReactNode 대신 contentConfig를 사용합니다.
     isExtraWide: boolean;
 }
 
@@ -5773,7 +5821,7 @@ interface LayoutState {
 }
 
 interface LayoutActions {
-  setRightSidebarConfig: (config: { content: ReactNode | null, isExtraWide?: boolean }) => void;
+  setRightSidebarConfig: (config: { contentConfig: SidebarContentConfig, isExtraWide?: boolean }) => void;
   updateLayoutForPath: (path: string) => void;
   registerPageActions: (actions: Partial<RegisteredPageActions>) => void;
   setStudentSearchProps: (props: StoredSearchProps | null) => void;
@@ -5786,21 +5834,37 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     onClose: () => console.warn('onClose action not registered.'),
 };
 
-export const useLayoutStore = create<LayoutState & LayoutActions>((set) => ({
+export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => ({
   rightSidebar: {
-    content: null,
+    contentConfig: { type: null }, // 초기 상태 변경
     isExtraWide: false,
   },
   currentPageConfig: {},
   pageActions: initialPageActions,
   studentSearchProps: null,
   
-  setRightSidebarConfig: (config) => set({ 
-    rightSidebar: {
-      content: config.content,
-      isExtraWide: config.isExtraWide ?? false
-    } 
-  }),
+  setRightSidebarConfig: (config) => {
+    const currentState = get().rightSidebar;
+    if (!config.contentConfig) {
+        if (currentState.contentConfig.type !== null) {
+            set({ rightSidebar: { contentConfig: { type: null }, isExtraWide: false } });
+        }
+        return;
+    }
+
+    if (
+        currentState.contentConfig.type !== config.contentConfig.type ||
+        JSON.stringify(currentState.contentConfig.props) !== JSON.stringify(config.contentConfig.props) ||
+        currentState.isExtraWide !== (config.isExtraWide ?? false)
+    ) {
+        set({ 
+            rightSidebar: {
+                contentConfig: config.contentConfig,
+                isExtraWide: config.isExtraWide ?? false
+            } 
+        });
+    }
+  },
 
   updateLayoutForPath: (path) => {
     const newConfig = Object.entries(layoutConfigMap)
@@ -11339,8 +11403,14 @@ import React from 'react';
 import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore'; 
+import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
 import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList } from 'react-icons/lu';
+import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
+import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
+import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
+import PromptCollection from '../../features/prompt-collection/ui/PromptCollection';
+import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
+import { useProblemPublishing, type ProcessedProblem } from '../../features/problem-publishing/model/useProblemPublishing';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -11348,13 +11418,91 @@ const CloseIcon = () => <LuCircleX size={22} />;
 const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
 
+interface ProblemEditorWrapperProps {
+    problemId: string;
+    onSave: (problem: ProcessedProblem) => void;
+    onCancel: (problemId: string) => void;
+    onClose: () => void;
+    onProblemChange: (problem: ProcessedProblem) => void;
+}
+
+const ProblemEditorWrapper: React.FC<ProblemEditorWrapperProps> = (props) => {
+    const { allProblems } = useProblemPublishing();
+    const problemToEdit = allProblems.find(p => p.uniqueId === props.problemId);
+
+    if (!problemToEdit) {
+        return <div>문제 데이터를 불러오는 중... (ID: {props.problemId})</div>;
+    }
+
+    return <ProblemTextEditor problem={problemToEdit} {...props} />;
+};
+
+
+const SidebarContentRenderer: React.FC = () => {
+    const { contentConfig } = useLayoutStore(selectRightSidebarConfig);
+    const { pageActions } = useLayoutStore.getState();
+
+    if (!contentConfig?.type) {
+        return null;
+    }
+
+    switch(contentConfig.type) {
+        case 'problemEditor': {
+            const { problemId, onSave, onCancel, onClose, onProblemChange } = contentConfig.props || {};
+
+            if (!problemId) return <div>선택된 문제가 없습니다.</div>;
+            
+            return (
+                <ProblemEditorWrapper 
+                    problemId={problemId}
+                    onSave={onSave}
+                    onCancel={onCancel}
+                    onClose={onClose}
+                    onProblemChange={onProblemChange}
+                />
+            );
+        }
+        case 'register':
+            return <StudentRegistrationForm onSuccess={pageActions.onClose || (() => {})} />;
+        
+        case 'edit': {
+            const { student } = contentConfig.props || {};
+            if (!student) return <div>학생 정보를 불러오는 중...</div>;
+            return <StudentEditForm student={student} onSuccess={pageActions.onClose || (() => {})} />;
+        }
+
+        case 'settings': {
+             const currentPath = window.location.pathname;
+             if (currentPath.startsWith('/dashboard')) {
+                 return <TableColumnToggler />;
+             }
+             return (
+                 <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
+                     <h4>설정</h4>
+                     <p>현재 페이지의 설정 옵션이 여기에 표시됩니다.</p>
+                 </div>
+             );
+        }
+
+        case 'prompt':
+            return <PromptCollection />;
+
+        default:
+            return (
+                 <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
+                    <h4>콘텐츠 없음</h4>
+                    <p>표시할 사이드바 콘텐츠가 설정되지 않았습니다.</p>
+                </div>
+            );
+    }
+}
+
 const GlassSidebarRight: React.FC = () => {
-    const { content: rightSidebarContent, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
+    const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
     const { registerTrigger, settingsTrigger, promptTrigger, onClose } = useSidebarTriggers();
-    
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
-    const isRightSidebarExpanded = rightSidebarContent !== null;
+    const isRightSidebarExpanded = contentConfig.type !== null;
 
     const isOpen = currentBreakpoint === 'mobile' ? mobileSidebarType === 'right' : isRightSidebarExpanded;
 
@@ -11426,7 +11574,7 @@ const GlassSidebarRight: React.FC = () => {
                         </div>
                      )}
                     
-                    {rightSidebarContent}
+                    <SidebarContentRenderer />
                 </div>
             )}
         </aside>

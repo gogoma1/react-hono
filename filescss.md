@@ -2520,7 +2520,7 @@ body {
     height: 100%;
 }
 
-/* 모든 패널에 적용되는 공통 스타일 */
+/* 모든 패널에 적용되는 공통 스타일 (신규 컴포넌트들에서도 사용) */
 .workbench-panel {
     flex: 1;
     min-width: 0;
@@ -2533,44 +2533,7 @@ body {
     overflow: hidden; /* [중요] 이 속성이 패널의 둥근 모서리를 지켜줌 */
 }
 
-/* 에디터/미리보기 패널의 제목 스타일 */
-.editor-panel .panel-title,
-.preview-panel .panel-title {
-    padding: 12px 16px;
-    margin: 0;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text-primary);
-    flex-shrink: 0;
-    background-color: none;
-}
-
-.panel-content {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 16px;
-    scrollbar-gutter: stable;
-}
-
-/* 개별 패널 특화 스타일 */
-.editor-panel .panel-content { padding: 0; overflow: hidden; }
-.editor-panel .cm-scroller { overflow-y: auto !important; }
-.image-manager-wrapper-panel { padding: 0; } /* ImageManager가 자체 패딩을 관리하므로 제거 */
-
-/* Mathpix 렌더러 내부 스타일 */
-.prose img:not([src*="#left"]):not([src*="#right"]):not([src*="#align"]) { display: block; margin-left: auto; margin-right: auto; max-width: 90%; border-radius: 8px; clear: both; }
-.prose img[src*="#left"] { float: left; width: 45%; max-width: 350px; margin: 0.5em 1.5em 1em 0; border-radius: 8px; }
-.prose img[src*="#right"] { float: right; width: 45%; max-width: 350px; margin: 0.5em 0 1em 1.5em; border-radius: 8px; }
-
-/* 모바일 반응형 스타일 */
-@media (max-width: 768px) {
-    .problem-workbench-layout {
-        flex-direction: column;
-    }
-    .workbench-panel {
-        min-height: 300px;
-    }
-}
+/* 패널 헤더의 공통 스타일 */
 .panel-title-container {
     display: flex;
     justify-content: space-between;
@@ -2582,16 +2545,19 @@ body {
 }
 
 .panel-title {
-    padding: 0; /* 컨테이너에서 패딩을 관리하므로 제거 */
+    padding: 0;
     margin: 0;
     font-size: 15px;
     font-weight: 600;
     color: var(--text-primary);
-    border-bottom: none; /* 컨테이너에서 테두리를 관리하므로 제거 */
-    background-color: transparent; /* 컨테이너에서 배경색을 관리하므로 제거 */
 }
 
-/* [새로운 스타일] 패널 헤더의 아이콘 버튼 */
+.panel-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .panel-header-button {
     background: none;
     border: none;
@@ -2608,6 +2574,21 @@ body {
 .panel-header-button:hover {
     background-color: rgba(0, 0, 0, 0.1);
     color: var(--text-primary);
+}
+
+/* 개별 패널 특화 스타일 (ImageManager 패널만 남음) */
+.image-manager-wrapper-panel { 
+    padding: 0; 
+}
+
+/* 모바일 반응형 스타일 */
+@media (max-width: 768px) {
+    .problem-workbench-layout {
+        flex-direction: column;
+    }
+    .workbench-panel {
+        min-height: 300px;
+    }
 }
 ----- ./react/pages/ProfileSetupPage.css -----
 /* filepath: react-hono\react\pages\ProfileSetupPage.css */
@@ -2884,6 +2865,52 @@ body {
 .glass-popover li a:hover svg,
 .glass-popover li button:hover svg {
     color: var(--icon-active-color);
+}
+----- ./react/shared/components/workbench/CodeEditorPanel.css -----
+/* ./react/shared/components/workbench/CodeEditorPanel.css */
+
+/* workbench-panel, panel-title-container 등 공통 스타일은 ProblemWorkbenchPage.css에서 가져옵니다. */
+
+.editor-panel .panel-content {
+    padding: 0;
+    overflow: hidden;
+}
+
+.editor-panel .cm-scroller {
+    overflow-y: auto !important;
+}
+----- ./react/shared/components/workbench/PreviewPanel.css -----
+/* ./react/shared/components/workbench/PreviewPanel.css */
+
+/* workbench-panel, panel-title-container 등 공통 스타일은 ProblemWorkbenchPage.css에서 가져옵니다. */
+
+.preview-content-wrapper {
+    padding: 16px;
+}
+
+.prose img:not([src*="#left"]):not([src*="#right"]):not([src*="#align"]) {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 90%;
+    border-radius: 8px;
+    clear: both;
+}
+
+.prose img[src*="#left"] {
+    float: left;
+    width: 45%;
+    max-width: 350px;
+    margin: 0.5em 1.5em 1em 0;
+    border-radius: 8px;
+}
+
+.prose img[src*="#right"] {
+    float: right;
+    width: 45%;
+    max-width: 350px;
+    margin: 0.5em 0 1em 1.5em;
+    border-radius: 8px;
 }
 ----- ./react/shared/ui/actionbutton/ActionButton.css -----
 /* react/shared/ui/actionbutton/ActionButton.css */
@@ -3342,7 +3369,7 @@ body {
     margin-bottom: 0;
 }
 ----- ./react/widgets/ProblemSelectionWidget.css -----
-/* react/widgets/ProblemSelectionWidget.css */
+/* ./react/widgets/ProblemSelectionWidget.css */
 
 .problem-selection-widget {
     /* [핵심] 위젯 자체를 Flexbox 컨테이너로 설정 */
@@ -3377,8 +3404,9 @@ body {
 .selection-table-container {
     flex-grow: 1;  /* 부모(.problem-selection-widget)의 남는 공간을 모두 차지 */
     min-height: 0; /* flex item이 부모보다 작아질 수 있도록 하는 필수 속성 */
-    overflow: auto; /* 이 컨테이너 자체는 스크롤되지 않음 */
+    overflow: hidden; /* 이 컨테이너 자체는 스크롤되지 않음 (중요) */
     display: flex; /* 자식인 GlassTable이 높이를 100% 채울 수 있도록 */
+    flex-direction: column; /* 자식을 세로로 쌓기 위함 */
 }
 
 /* 
@@ -3397,9 +3425,11 @@ body {
  * [핵심] GlassTable의 실제 스크롤 영역
  * (GlassTable.tsx 내부의 .glass-table-scroll-container)
  * 이 영역이 남는 공간을 채우고, 가로/세로 스크롤을 모두 담당합니다.
+ * 이 영역은 이제 세로 스크롤도 담당해야 합니다.
  */
 .selection-table-container .glass-table-scroll-container {
     flex-grow: 1;
+    overflow: auto; /* 가로/세로 스크롤 모두 자동 처리 */
 }
 
 /* --- 기존 기타 스타일 (유지) --- */

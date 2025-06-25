@@ -1,22 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLayoutStore } from '../shared/store/layoutStore';
+import { useUIStore } from '../shared/store/uiStore';
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../entities/student/model/useStudentDataWithRQ';
 import { useRowSelection } from '../features/row-selection/model/useRowSelection';
-
-import StudentRegistrationForm from '../features/student-registration/ui/StudentRegistrationForm';
-import StudentEditForm from '../features/student-editing/ui/StudentEditForm';
-import TableColumnToggler from '../features/table-column-toggler/ui/TableColumnToggler';
 import StudentTableWidget from '../widgets/student-table/StudentTableWidget';
 import { useTableSearch } from '../features/table-search/model/useTableSearch';
 import type { SuggestionGroup } from '../features/table-search/ui/TableSearch';
-
-function usePrevious<T>(value: T): T | undefined {
-  const ref = useRef<T | undefined>(undefined);
-  useEffect(() => {
-    ref.current = value;
-  });
-  return ref.current;
-}
 
 const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] => {
     if (!items || !Array.isArray(items) || items.length === 0) return [];
@@ -38,16 +27,14 @@ const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] =
 };
 
 const DashBoard: React.FC = () => {
-    const { setRightSidebarConfig, registerPageActions } = useLayoutStore.getState();
+    // [수정] setRightSidebarConfig를 직접 가져옵니다.
+    const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
+    const { setRightSidebarExpanded } = useUIStore.getState();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
     
-    const [activeSidebarView, setActiveSidebarView] = useState<'register' | 'edit' | 'settings' | null>(null);
-    const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
-
-    const prevActiveSidebarView = usePrevious(activeSidebarView);
 
     const currentStudents = students || [];
     const studentIds = useMemo(() => currentStudents.map(s => s.id), [currentStudents]);
@@ -66,11 +53,6 @@ const DashBoard: React.FC = () => {
         if (filteredStudentIds.length === 0) return false;
         return filteredStudentIds.every(id => selectedIds.has(id));
     }, [filteredStudentIds, selectedIds]);
-    
-    const handleToggleFilteredAll = useCallback(() => {
-        toggleItems(filteredStudentIds);
-    }, [toggleItems, filteredStudentIds]);
-
 
     const suggestionGroups = useMemo((): SuggestionGroup[] => {
         return [
@@ -111,46 +93,40 @@ const DashBoard: React.FC = () => {
         alert(`${selectedIds.size}명의 학생을 대상으로 문제 출제 로직을 실행합니다. (콘솔 확인)`);
     }, [selectedIds]);
 
-    const handleCloseSidebar = useCallback(() => {
-        setActiveSidebarView(null);
-    }, []);
+     const handleCloseSidebar = useCallback(() => {
+        setRightSidebarConfig({ contentConfig: { type: null } });
+        setRightSidebarExpanded(false);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
     
+    // [수정] '수정' 버튼 클릭 핸들러
     const handleRequestEdit = useCallback((student: Student) => {
-        setStudentToEdit(student);
-        setActiveSidebarView('edit');
-    }, []);
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'edit', props: { student } },
+            isExtraWide: false 
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
+    // [수정] '신입생 등록' 사이드바 열기 핸들러
     const handleOpenRegisterSidebar = useCallback(() => {
-        setStudentToEdit(null);
-        setActiveSidebarView('register');
-    }, []);
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'register' },
+            isExtraWide: false 
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
     
+    // [수정] '테이블 설정' 사이드바 열기 핸들러
     const handleOpenSettingsSidebar = useCallback(() => {
-        setStudentToEdit(null);
-        setActiveSidebarView('settings');
-    }, []);
+        setRightSidebarConfig({ 
+            contentConfig: { type: 'settings' },
+            isExtraWide: false 
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
-    useEffect(() => {
-        if (activeSidebarView === null) {
-            if (prevActiveSidebarView !== null) {
-                const timer = setTimeout(() => {
-                    setRightSidebarConfig({ content: null, isExtraWide: false });
-                }, 300);
-                return () => clearTimeout(timer);
-            }
-        } else {
-            let content: React.ReactNode = null;
-            if (activeSidebarView === 'register') {
-                content = <StudentRegistrationForm onSuccess={handleCloseSidebar} />;
-            } else if (activeSidebarView === 'edit' && studentToEdit) {
-                content = <StudentEditForm student={studentToEdit} onSuccess={handleCloseSidebar} />;
-            } else if (activeSidebarView === 'settings') {
-                content = <TableColumnToggler />;
-            }
-            setRightSidebarConfig({ content, isExtraWide: false });
-        }
-    }, [activeSidebarView, prevActiveSidebarView, studentToEdit, handleCloseSidebar, setRightSidebarConfig]);
-
+    // [수정] activeSidebarView 상태와 관련 useEffect를 제거하고,
+    // 각 핸들러에서 직접 setRightSidebarConfig를 호출하도록 변경
     useEffect(() => {
         registerPageActions({
             openRegisterSidebar: handleOpenRegisterSidebar,
@@ -164,6 +140,7 @@ const DashBoard: React.FC = () => {
                 openSettingsSidebar: undefined,
                 onClose: undefined,
             });
+            handleCloseSidebar();
         };
     }, [registerPageActions, handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
     
@@ -212,7 +189,7 @@ const DashBoard: React.FC = () => {
                 selectedIds={selectedIds}
                 toggleRow={toggleRow}
                 isAllSelected={isFilteredAllSelected}
-                toggleSelectAll={handleToggleFilteredAll}
+                toggleSelectAll={handleToggleFilteredSelection}
             />
         </div>
     );

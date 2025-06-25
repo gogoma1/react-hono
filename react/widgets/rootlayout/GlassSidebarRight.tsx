@@ -1,23 +1,107 @@
 import React from 'react';
-import Tippy from '@tippyjs/react';
+import Tippy from '@tippyjs/react'; // 이제 사용됩니다.
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore'; 
+import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
 import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList } from 'react-icons/lu';
+import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
+import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
+import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
+import PromptCollection from '../../features/prompt-collection/ui/PromptCollection';
+import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
+import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 
+// 아이콘 컴포넌트들 (이제 사용됩니다)
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
 const CloseIcon = () => <LuCircleX size={22} />;
 const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
 
+interface ProblemEditorWrapperProps {
+    onSave: (problem: ProcessedProblem) => void;
+    onCancel: (problemId: string) => void;
+    onClose: () => void;
+    onProblemChange: (problem: ProcessedProblem) => void;
+}
+
+const ProblemEditorWrapper: React.FC<ProblemEditorWrapperProps> = (props) => {
+    const { draftProblems, editingProblemId } = useProblemPublishingStore();
+    const problemToEdit = draftProblems?.find(p => p.uniqueId === editingProblemId);
+
+    if (!problemToEdit) {
+        return <div>수정할 문제를 선택해주세요.</div>;
+    }
+
+    return <ProblemTextEditor problem={problemToEdit} {...props} />;
+};
+
+// 이제 사용됩니다.
+const SidebarContentRenderer: React.FC = () => {
+    const { contentConfig } = useLayoutStore(selectRightSidebarConfig);
+    const { pageActions } = useLayoutStore.getState();
+
+    if (!contentConfig?.type) {
+        return null;
+    }
+
+    switch(contentConfig.type) {
+        case 'problemEditor': {
+            const { onSave, onCancel, onClose, onProblemChange } = contentConfig.props || {};
+            const { editingProblemId } = useProblemPublishingStore.getState();
+            if (!editingProblemId) return <div>선택된 문제가 없습니다.</div>;
+            
+            return (
+                <ProblemEditorWrapper
+                    onSave={onSave}
+                    onCancel={onCancel}
+                    onClose={onClose}
+                    onProblemChange={onProblemChange}
+                />
+            );
+        }
+        case 'register':
+            return <StudentRegistrationForm onSuccess={pageActions.onClose || (() => {})} />;
+        
+        case 'edit': {
+            const { student } = contentConfig.props || {};
+            if (!student) return <div>학생 정보를 불러오는 중...</div>;
+            return <StudentEditForm student={student} onSuccess={pageActions.onClose || (() => {})} />;
+        }
+
+        case 'settings': {
+             const currentPath = window.location.pathname;
+             if (currentPath.startsWith('/dashboard')) {
+                 return <TableColumnToggler />;
+             }
+             return (
+                 <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
+                     <h4>설정</h4>
+                     <p>현재 페이지의 설정 옵션이 여기에 표시됩니다.</p>
+                 </div>
+             );
+        }
+
+        case 'prompt':
+            return <PromptCollection />;
+
+        default:
+            return (
+                 <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
+                    <h4>콘텐츠 없음</h4>
+                    <p>표시할 사이드바 콘텐츠가 설정되지 않았습니다.</p>
+                </div>
+            );
+    }
+}
+
 const GlassSidebarRight: React.FC = () => {
-    const { content: rightSidebarContent, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
+    const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
+    // 이제 사용됩니다.
     const { registerTrigger, settingsTrigger, promptTrigger, onClose } = useSidebarTriggers();
-    
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
-    const isRightSidebarExpanded = rightSidebarContent !== null;
+    const isRightSidebarExpanded = contentConfig.type !== null;
 
     const isOpen = currentBreakpoint === 'mobile' ? mobileSidebarType === 'right' : isRightSidebarExpanded;
 
@@ -31,6 +115,7 @@ const GlassSidebarRight: React.FC = () => {
 
     return (
         <aside className={sidebarClassName}>
+            {/* [핵심] 누락되었던 JSX 부분입니다. */}
             {currentBreakpoint !== 'mobile' && (
                 <div className="rgs-header-desktop">
                     {isOpen ? (
@@ -89,7 +174,7 @@ const GlassSidebarRight: React.FC = () => {
                         </div>
                      )}
                     
-                    {rightSidebarContent}
+                    <SidebarContentRenderer />
                 </div>
             )}
         </aside>
