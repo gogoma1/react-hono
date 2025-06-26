@@ -337,66 +337,64 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
 
 export default ExamHeader;
 ----- ./react/entities/exam/ui/ExamPage.tsx -----
-import React, { useMemo, useCallback, forwardRef } from 'react';
+import React, { useMemo } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
 import ExamHeader from './ExamHeader';
 import './ExamPage.css';
-import { LuCircleX } from "react-icons/lu"; // [추가] 아이콘 임포트
+import { LuCircleX } from "react-icons/lu";
+import { useHeightMeasurer } from '../../../features/problem-publishing/hooks/useHeightMeasurer';
 
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
 
 interface ProblemItemProps {
-    problem: ProcessedProblem;
+    problem: ProcessedProblem; // uniqueId 대신 problem 객체 전체를 받음
     allProblems: ProcessedProblem[];
-    onRenderComplete: (uniqueId: string) => void;
+    onRenderComplete: (uniqueId: string, height: number) => void;
     useSequentialNumbering: boolean;
     problemBoxMinHeight: number;
     contentFontSizeEm: number;
     contentFontFamily: string;
     onProblemClick: (problem: ProcessedProblem) => void;
-    onDeselectProblem: (uniqueId: string) => void; // [추가] 문제 선택 해제 핸들러
+    onDeselectProblem: (uniqueId: string) => void;
+    measuredHeight?: number; 
 }
-
-const ProblemItem = forwardRef<HTMLDivElement, ProblemItemProps>(({ problem, allProblems, onRenderComplete, useSequentialNumbering, problemBoxMinHeight, contentFontSizeEm, contentFontFamily, onProblemClick, onDeselectProblem }, ref) => {
+const ProblemItem: React.FC<ProblemItemProps> = React.memo(({ problem, allProblems, onRenderComplete, useSequentialNumbering, problemBoxMinHeight, contentFontSizeEm, contentFontFamily, onProblemClick, onDeselectProblem, measuredHeight }) => {
     
-    const globalProblemIndex = useMemo(() => 
-        allProblems.findIndex(p => p.uniqueId === problem.uniqueId) + 1,
-        [allProblems, problem]
-    );
+
+
+    const globalProblemIndex = useMemo(() => allProblems.findIndex(p => p.uniqueId === problem.uniqueId) + 1, [allProblems, problem.uniqueId]);
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onProblemClick(problem); } };
+    
+    const measureRef = useHeightMeasurer(onRenderComplete, problem.uniqueId);
+
+    if (!problem) return null; // 안전 장치로 남겨둘 수는 있음
 
     return (
-        <div ref={ref} className="problem-container" data-unique-id={problem.uniqueId}>
-             <button type="button" className="text-trigger" onClick={() => onProblemClick(problem)} aria-label={`${problem.display_question_number}번 문제 수정`}>
+        <div ref={measureRef} className="problem-container" data-unique-id={problem.uniqueId}>
+             <div role="button" tabIndex={0} onKeyDown={handleKeyDown} className="text-trigger" onClick={() => onProblemClick(problem)} aria-label={`${problem.display_question_number}번 문제 수정`}>
                 <div className="problem-header">
                     <div className="header-inner">
                         <span className="problem-number">{useSequentialNumbering ? `${globalProblemIndex}.` : `${problem.display_question_number}.`}</span>
                         <span className="global-index">({globalProblemIndex})</span>
                         {problem.score && <span className="problem-score">[{problem.score}]</span>}
+                        {measuredHeight && <span className="measured-height">({measuredHeight.toFixed(0)}px)</span>}
                     </div>
-                    {/* [추가] 문제 선택 해제 아이콘 버튼 */}
-                    <button
-                        type="button"
-                        className="problem-deselect-button"
-                        aria-label="문제 선택 해제"
-                        onClick={(e) => {
-                            e.stopPropagation(); // 부모 버튼의 onClick 이벤트 전파를 막습니다.
-                            onDeselectProblem(problem.uniqueId);
-                        }}
-                    >
+                    <button type="button" className="problem-deselect-button" aria-label="문제 선택 해제" onClick={(e) => { e.stopPropagation(); onDeselectProblem(problem.uniqueId); }}>
                         <LuCircleX size={18} />
                     </button>
                 </div>
                 <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily, minHeight: `${problemBoxMinHeight}em` }}>
                     <div className="mathpix-wrapper prose">
-                        <MathpixRenderer text={problem.question_text ?? ''} onRenderComplete={() => onRenderComplete(problem.uniqueId)} />
+                        <MathpixRenderer text={problem.question_text ?? ''} />
                     </div>
                 </div>
-             </button>
+             </div>
         </div>
     );
 });
 ProblemItem.displayName = 'ProblemItem';
+
 
 interface ExamPageProps {
     pageNumber: number;
@@ -413,20 +411,19 @@ interface ExamPageProps {
     problemBoxMinHeight: number;
     headerInfo: any;
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
-    onDeselectProblem: (uniqueId: string) => void; // [추가]
+    onDeselectProblem: (uniqueId: string) => void;
+    measuredHeights: Map<string, number>; 
 }
 
 const ExamPage: React.FC<ExamPageProps> = (props) => {
     const {
-        pageNumber, totalPages, problems, allProblems, placementMap,
-        onHeightUpdate, useSequentialNumbering,
-        baseFontSize, contentFontSizeEm, contentFontFamily, problemBoxMinHeight,
-        headerInfo,
-        onHeaderUpdate,
-        onProblemClick,
-        onDeselectProblem, // [추가]
+        pageNumber, totalPages, problems, allProblems, placementMap, onHeightUpdate,
+        useSequentialNumbering, baseFontSize, contentFontSizeEm, contentFontFamily,
+        problemBoxMinHeight, headerInfo, onHeaderUpdate, onProblemClick, onDeselectProblem,
+        measuredHeights, 
     } = props;
-
+    
+    
     const leftColumnProblems = useMemo(() => 
         problems.filter(p => placementMap.get(p.uniqueId)?.column === 1),
         [problems, placementMap]
@@ -437,40 +434,22 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
         [problems, placementMap]
     );
     
-    const registerElement = useCallback((uniqueId: string, node: HTMLDivElement | null) => {
-        if (node) {
-            requestAnimationFrame(() => {
-                const styles = window.getComputedStyle(node);
-                const marginBottom = parseFloat(styles.marginBottom);
-                const totalHeight = node.offsetHeight + (isNaN(marginBottom) ? 0 : marginBottom);
-                onHeightUpdate(uniqueId, totalHeight);
-            });
-        }
-    }, [onHeightUpdate]);
-
-    const handleRenderComplete = useCallback((uniqueId: string) => {
-        const node = document.querySelector(`[data-unique-id="${uniqueId}"]`) as HTMLDivElement | null;
-        if(node) registerElement(uniqueId, node);
-    }, [registerElement]);
-    
     const renderColumn = (problemList: ProcessedProblem[]) => {
-        return problemList.map((problem) => {
-            return (
-                <ProblemItem
-                    key={problem.uniqueId}
-                    ref={(node) => registerElement(problem.uniqueId, node)}
-                    problem={problem}
-                    allProblems={allProblems}
-                    onRenderComplete={handleRenderComplete}
-                    useSequentialNumbering={useSequentialNumbering}
-                    problemBoxMinHeight={problemBoxMinHeight}
-                    contentFontSizeEm={contentFontSizeEm}
-                    contentFontFamily={contentFontFamily}
-                    onProblemClick={onProblemClick}
-                    onDeselectProblem={onDeselectProblem} // [추가]
-                />
-            );
-        });
+        return problemList.map((problem) => (
+            <ProblemItem
+                key={problem.uniqueId}
+                problem={problem} // [핵심] problem 객체 직접 전달
+                allProblems={allProblems}
+                onRenderComplete={onHeightUpdate}
+                useSequentialNumbering={useSequentialNumbering}
+                problemBoxMinHeight={problemBoxMinHeight}
+                contentFontSizeEm={contentFontSizeEm}
+                contentFontFamily={contentFontFamily}
+                onProblemClick={onProblemClick}
+                onDeselectProblem={onDeselectProblem}
+                measuredHeight={measuredHeights.get(problem.uniqueId)} 
+            />
+        ));
     };
 
     return (
@@ -478,17 +457,16 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
             <div className="exam-paper">
                 <ExamHeader 
                     page={pageNumber}
+                    totalPages={totalPages}
                     additionalBoxContent={problems[0]?.source ?? '정보 없음'}
                     {...headerInfo}
                     onUpdate={onHeaderUpdate}
                 />
-                
                 <div className="exam-columns-container">
                     <div className="exam-column">{renderColumn(leftColumnProblems)}</div>
                     <div className="exam-column">{renderColumn(rightColumnProblems)}</div>
                     <div className="column-divider"></div>
                 </div>
-
                 <div className="page-footer">
                     <div className="page-counter-box">{pageNumber} / {totalPages}</div>
                 </div>
@@ -498,6 +476,206 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
 };
 
 export default React.memo(ExamPage);
+----- ./react/entities/exam/ui/QuickAnswerPage.tsx -----
+import React from 'react';
+import type { Problem } from '../../problem/model/types';
+import './ExamPage.css';
+
+type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
+interface HeaderInfo {
+    title: string;
+    titleFontFamily?: string;
+    [key: string]: any;
+}
+
+interface QuickAnswerPageProps {
+    pageNumber: number;
+    totalPages: number;
+    problems: ProcessedProblem[];
+    headerInfo: HeaderInfo;
+    baseFontSize: string;
+    useSequentialNumbering: boolean;
+    allProblems: ProcessedProblem[];
+}
+
+const QuickAnswerPage: React.FC<QuickAnswerPageProps> = ({
+    pageNumber,
+    totalPages,
+    problems,
+    headerInfo,
+    baseFontSize,
+    useSequentialNumbering,
+    allProblems
+}) => {
+    const QuickAnswerHeader: React.FC<{ title: string; page: number }> = ({ title, page }) => (
+        <div className="quick-answer-header">
+            <h1 className="quick-answer-title" style={{ fontFamily: headerInfo.titleFontFamily }}>{title}</h1>
+            <div className="exam-header-page-number" style={{ fontFamily: "'Noto Serif KR', serif" }}>{page}</div>
+        </div>
+    );
+    
+    const getProblemNumber = (problem: ProcessedProblem) => {
+        if (useSequentialNumbering) {
+            const globalIndex = allProblems.findIndex(p => p.uniqueId === problem.uniqueId);
+            return (globalIndex + 1).toString(); // 순차 번호일 경우 숫자 반환
+        }
+        return problem.display_question_number; // 원본 번호일 경우 "서답형" 포함된 문자열 반환
+    };
+
+    const middleIndex = Math.ceil(problems.length / 2);
+    const leftColumnProblems = problems.slice(0, middleIndex);
+    const rightColumnProblems = problems.slice(middleIndex);
+
+    const renderColumn = (columnProblems: ProcessedProblem[]) => (
+        <div className="quick-answer-column">
+            {columnProblems.map((problem) => (
+                <div key={problem.uniqueId} className="quick-answer-item">
+                    <span className="quick-answer-number">{getProblemNumber(problem)})</span>
+                    <span className="quick-answer-value">{problem.answer}</span>
+                </div>
+            ))}
+        </div>
+    );
+
+    return (
+        <div className="exam-page-component" style={{ fontSize: baseFontSize }}>
+            <div className="exam-paper">
+                <QuickAnswerHeader title="빠른 정답" page={pageNumber} />
+                <div className="quick-answer-columns-container">
+                    {renderColumn(leftColumnProblems)}
+                    {renderColumn(rightColumnProblems)}
+                    <div className="column-divider"></div>
+                </div>
+                <div className="page-footer">
+                    <div className="page-counter-box">{pageNumber} / {totalPages}</div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default QuickAnswerPage;
+----- ./react/entities/exam/ui/SolutionPage.tsx -----
+import React, { useMemo } from 'react';
+import type { Problem } from '../../problem/model/types';
+import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
+import ExamHeader from './ExamHeader';
+import type { LayoutItem } from '../../../features/problem-publishing/model/useProblemPublishing';
+import './ExamPage.css';
+import { useHeightMeasurer } from '../../../features/problem-publishing/hooks/useHeightMeasurer';
+
+type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
+interface SolutionChunkItemProps {
+    item: Extract<LayoutItem, { type: 'solutionChunk' }>;
+    allProblems: ProcessedProblem[];
+    onRenderComplete: (uniqueId: string, height: number) => void;
+    useSequentialNumbering: boolean;
+    contentFontSizeEm: number;
+    contentFontFamily: string;
+    isFirstChunk: boolean;
+    parentProblem: ProcessedProblem;
+}
+const SolutionChunkItem: React.FC<SolutionChunkItemProps> = React.memo(({ item, allProblems, onRenderComplete, useSequentialNumbering, contentFontSizeEm, contentFontFamily, isFirstChunk, parentProblem }) => {
+    
+
+    const globalProblemIndex = useMemo(() => allProblems.findIndex(p => p.uniqueId === item.data.parentProblem.uniqueId) + 1, [allProblems, item.data.parentProblem.uniqueId]);
+    
+    const measureRef = useHeightMeasurer(onRenderComplete, item.uniqueId);
+    
+    if (!parentProblem) return null; // 안전 장치
+
+    const displayNumber = useSequentialNumbering ? `${globalProblemIndex}` : parentProblem.display_question_number;
+    
+    return (
+        <div ref={measureRef} className="solution-item-container" data-solution-id={item.uniqueId}>
+            {isFirstChunk && (<div className="solution-header"><span className="solution-number">{displayNumber}.</span></div>)}
+            <div className="solution-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily }}>
+                <div className="mathpix-wrapper prose">
+                    <MathpixRenderer text={item.data.text} />
+                </div>
+            </div>
+        </div>
+    );
+});
+SolutionChunkItem.displayName = 'SolutionChunkItem';
+
+
+interface SolutionPageProps {
+    pageNumber: number;
+    totalPages: number;
+    items: LayoutItem[];
+    allProblems: ProcessedProblem[];
+    placementMap: Map<string, { page: number; column: number }>;
+    onHeightUpdate: (uniqueId: string, height: number) => void;
+    useSequentialNumbering: boolean;
+    baseFontSize: string;
+    contentFontSizeEm: number;
+    contentFontFamily: string;
+    headerInfo: any;
+    onHeaderUpdate: (targetId: string, field: string, value: any) => void;
+}
+
+const SolutionPage: React.FC<SolutionPageProps> = (props) => {
+    const {
+        pageNumber, totalPages, items, allProblems, placementMap, onHeightUpdate,
+        useSequentialNumbering, baseFontSize, contentFontSizeEm, contentFontFamily,
+        headerInfo, onHeaderUpdate,
+    } = props;
+    
+    const leftColumnItems = useMemo(() => items.filter(item => placementMap.get(item.uniqueId)?.column === 1), [items, placementMap]);
+    const rightColumnItems = useMemo(() => items.filter(item => placementMap.get(item.uniqueId)?.column === 2), [items, placementMap]);
+
+    const latestProblemsMap = useMemo(() => new Map(allProblems.map(p => [p.uniqueId, p])), [allProblems]);
+
+    const renderColumn = (columnItems: LayoutItem[]) => {
+        return columnItems.map((item) => {
+            if (item.type !== 'solutionChunk') return null;
+
+            const parentProblem = latestProblemsMap.get(item.data.parentProblem.uniqueId);
+            if (!parentProblem) return null; // 부모 문제가 없으면 렌더링하지 않음
+
+            return (
+                <SolutionChunkItem
+                    key={item.uniqueId}
+                    item={item} 
+                    allProblems={allProblems}
+                    onRenderComplete={onHeightUpdate}
+                    useSequentialNumbering={useSequentialNumbering}
+                    contentFontSizeEm={contentFontSizeEm}
+                    contentFontFamily={contentFontFamily}
+                    isFirstChunk={!item.uniqueId.includes('-sol-') || item.uniqueId.endsWith('-sol-0')}
+                    parentProblem={parentProblem} // 찾은 최신 문제 객체를 prop으로 전달
+                />
+            );
+        });
+    };
+    
+    const solutionHeaderInfo = { ...headerInfo, title: "정답 및 해설", subject: headerInfo.subject + " (해설)" };
+
+    return (
+        <div className="exam-page-component solution-page" style={{ fontSize: baseFontSize }}>
+            <div className="exam-paper">
+                <ExamHeader 
+                    page={pageNumber}
+                    totalPages={totalPages}
+                    additionalBoxContent={allProblems[0]?.source ?? '정보 없음'}
+                    {...solutionHeaderInfo}
+                    onUpdate={onHeaderUpdate}
+                />
+                <div className="exam-columns-container">
+                    <div className="exam-column">{renderColumn(leftColumnItems)}</div>
+                    <div className="exam-column">{renderColumn(rightColumnItems)}</div>
+                    <div className="column-divider"></div>
+                </div>
+                <div className="page-footer">
+                    <div className="page-counter-box">{pageNumber} / {totalPages}</div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default React.memo(SolutionPage);
 ----- ./react/entities/problem/api/problemApi.ts -----
 import { handleApiResponse } from '../../../shared/api/api.utils';
 import type { Problem } from '../model/types';
@@ -2331,6 +2509,399 @@ const ProfileMenuContent: React.FC<ProfileMenuContentProps> = ({ onClose }) => {
 };
 
 export default ProfileMenuContent;
+----- ./react/features/problem-publishing/hooks/useHeightMeasurer.ts -----
+import { useCallback, useEffect, useRef } from 'react';
+
+/**
+ * [수정] 렌더링된 요소의 높이를 측정하고 콜백을 통해 보고하는 훅.
+ * 컴포넌트가 언마운트될 때 측정 시도를 취소하는 기능이 추가됨.
+ * @param onHeightUpdate 높이가 측정되었을 때 호출될 콜백 함수 (uniqueId, height)
+ * @param uniqueId 이 훅 인스턴스가 담당할 요소의 고유 ID
+ */
+export function useHeightMeasurer(onHeightUpdate: (uniqueId: string, height: number) => void, uniqueId: string) {
+    const nodeRef = useRef<HTMLDivElement | null>(null);
+    const timerRef = useRef<number | null>(null);
+
+    const setRef = useCallback((node: HTMLDivElement | null) => {
+        nodeRef.current = node;
+    }, []);
+
+    useEffect(() => {
+        const cleanup = () => {
+            if (timerRef.current) {
+                clearTimeout(timerRef.current);
+                timerRef.current = null;
+            }
+        };
+
+        const measure = (attempt = 1) => {
+            if (!nodeRef.current) {
+                if (attempt < 5) {
+                    timerRef.current = window.setTimeout(() => measure(attempt + 1), 100 * attempt);
+                }
+                return;
+            }
+
+            const styles = window.getComputedStyle(nodeRef.current);
+            const marginBottom = parseFloat(styles.marginBottom);
+            const totalHeight = nodeRef.current.offsetHeight + (isNaN(marginBottom) ? 0 : marginBottom);
+
+            if (totalHeight > 0) {
+                onHeightUpdate(uniqueId, totalHeight);
+            } else if (attempt < 5) {
+                timerRef.current = window.setTimeout(() => measure(attempt + 1), 100 * attempt);
+            } else {
+                console.warn(`[useHeightMeasurer] ⚠️ Failed to get a valid height for ${uniqueId} after multiple attempts.`);
+            }
+        };
+        
+        timerRef.current = window.setTimeout(measure, 50);
+
+        return cleanup;
+
+    }, [uniqueId, onHeightUpdate]);
+
+    return setRef;
+}
+----- ./react/features/problem-publishing/model/examLayoutEngine.ts -----
+import type { ProcessedProblem } from './problemPublishingStore';
+
+const PROBLEM_COLUMN_MAX_HEIGHT = 920;
+const SOLUTION_COLUMN_MAX_HEIGHT = 980;
+const DEFAULT_SOLUTION_CHUNK_ESTIMATED_HEIGHT = 40;
+
+export type ProblemPlacementInfo = { page: number; column: number };
+
+export type LayoutItem = 
+    | { type: 'problem'; data: ProcessedProblem; uniqueId: string; }
+    | { type: 'solutionChunk'; data: { text: string; parentProblem: ProcessedProblem }; uniqueId: string; };
+
+type ProblemGroup = { items: LayoutItem[]; totalHeight: number };
+
+const runLayoutCalculation = (
+    itemsToLayout: LayoutItem[],
+    heightsMap: Map<string, number>,
+    defaultHeight: number,
+    maxHeight: number 
+): { pages: LayoutItem[][]; placements: Map<string, ProblemPlacementInfo> } => {
+    const problemGroups: ProblemGroup[] = [];
+    let currentGroupItems: LayoutItem[] = [];
+    let currentGroupHeight = 0;
+    for (const item of itemsToLayout) {
+        const itemHeight = heightsMap.get(item.uniqueId) || defaultHeight;
+        if (itemHeight > maxHeight) {
+            if (currentGroupItems.length > 0) problemGroups.push({ items: currentGroupItems, totalHeight: currentGroupHeight });
+            problemGroups.push({ items: [item], totalHeight: itemHeight });
+            currentGroupItems = [];
+            currentGroupHeight = 0;
+        } else if (currentGroupHeight + itemHeight <= maxHeight || currentGroupItems.length === 0) {
+            currentGroupItems.push(item);
+            currentGroupHeight += itemHeight;
+        } else {
+            problemGroups.push({ items: currentGroupItems, totalHeight: currentGroupHeight });
+            currentGroupItems = [item];
+            currentGroupHeight = itemHeight;
+        }
+    }
+    if (currentGroupItems.length > 0) problemGroups.push({ items: currentGroupItems, totalHeight: currentGroupHeight });
+    const newPages: LayoutItem[][] = [];
+    const newPlacementMap = new Map<string, ProblemPlacementInfo>();
+    let currentPageNumber = 1;
+    let currentColumnIndex = 0;
+    let pageItemBuffer: LayoutItem[] = [];
+    for (const group of problemGroups) {
+        const targetColumn = currentColumnIndex + 1;
+        for (const item of group.items) {
+            newPlacementMap.set(item.uniqueId, { page: currentPageNumber, column: targetColumn });
+            pageItemBuffer.push(item);
+        }
+        if (currentColumnIndex === 0) {
+            currentColumnIndex = 1;
+        } else {
+            newPages.push([...pageItemBuffer]);
+            pageItemBuffer = [];
+            currentPageNumber++;
+            currentColumnIndex = 0;
+        }
+    }
+    if (pageItemBuffer.length > 0) newPages.push([...pageItemBuffer]);
+    return { pages: newPages, placements: newPlacementMap };
+};
+
+export const calculateInitialLayout = (selectedProblems: ProcessedProblem[], problemBoxMinHeight: number, itemHeightsMap: Map<string, number>) => {
+    console.log(`[LayoutEngine] 🎬 Calculating layout using existing height map.`);
+    const initialEstimatedProblemHeight = problemBoxMinHeight * 12;
+    const problemLayoutItems: LayoutItem[] = selectedProblems.map(p => ({ type: 'problem', data: p, uniqueId: p.uniqueId }));
+    const problemResult = runLayoutCalculation(
+        problemLayoutItems, 
+        itemHeightsMap, // [수정] new Map() 대신 전달받은 맵 사용
+        initialEstimatedProblemHeight,
+        PROBLEM_COLUMN_MAX_HEIGHT
+    );
+
+    const solutionLayoutItems: LayoutItem[] = [];
+    selectedProblems.forEach(p => {
+        if (p.solution_text?.trim()) {
+            p.solution_text.split(/\n\s*\n/).filter(c => c.trim()).forEach((chunk, index) => {
+                solutionLayoutItems.push({
+                    type: 'solutionChunk',
+                    data: { text: chunk, parentProblem: p },
+                    uniqueId: `${p.uniqueId}-sol-${index}`
+                });
+            });
+        }
+    });
+    const solutionResult = runLayoutCalculation(
+        solutionLayoutItems,
+        itemHeightsMap, // [수정] new Map() 대신 전달받은 맵 사용
+        DEFAULT_SOLUTION_CHUNK_ESTIMATED_HEIGHT,
+        SOLUTION_COLUMN_MAX_HEIGHT
+    );
+    
+    console.log(`[LayoutEngine] ✅ Layout calculation finished.`);
+    return {
+        problems: problemResult,
+        solutions: solutionResult,
+    };
+};
+
+export const recalculateProblemLayout = (problemsForLayout: ProcessedProblem[], itemHeightsMap: Map<string, number>, problemBoxMinHeight: number) => {
+    console.log(`[LayoutEngine] 🚀 RE-calculating PROBLEM layout ONLY with actual heights.`);
+    
+    const fallbackProblemHeight = problemBoxMinHeight * 12;
+
+    const problemLayoutItems: LayoutItem[] = problemsForLayout.map(p => ({ type: 'problem', data: p, uniqueId: p.uniqueId }));
+    const problemResult = runLayoutCalculation(problemLayoutItems, itemHeightsMap, fallbackProblemHeight, PROBLEM_COLUMN_MAX_HEIGHT);
+
+    console.log(`[LayoutEngine] ✅ Problem re-calculation finished.`);
+    return problemResult;
+};
+
+export const recalculateSolutionLayout = (selectedProblems: ProcessedProblem[], itemHeightsMap: Map<string, number>) => {
+    console.log(`[LayoutEngine] 🚀 RE-calculating SOLUTION layout ONLY with actual heights.`);
+
+    const solutionLayoutItems: LayoutItem[] = [];
+    selectedProblems.forEach(p => {
+        if (p.solution_text?.trim()) {
+            p.solution_text.split(/\n\s*\n/).filter(c => c.trim()).forEach((chunk, index) => {
+                solutionLayoutItems.push({
+                    type: 'solutionChunk',
+                    data: { text: chunk, parentProblem: p },
+                    uniqueId: `${p.uniqueId}-sol-${index}`
+                });
+            });
+        }
+    });
+
+    const solutionResult = runLayoutCalculation(
+        solutionLayoutItems,
+        itemHeightsMap,
+        DEFAULT_SOLUTION_CHUNK_ESTIMATED_HEIGHT,
+        SOLUTION_COLUMN_MAX_HEIGHT
+    );
+    
+    console.log(`[LayoutEngine] ✅ Solution re-calculation finished.`);
+    return solutionResult;
+};
+----- ./react/features/problem-publishing/model/examLayoutStore.ts -----
+import { create } from 'zustand';
+import type { ProcessedProblem } from './problemPublishingStore';
+import { calculateInitialLayout, recalculateProblemLayout, recalculateSolutionLayout, type LayoutItem, type ProblemPlacementInfo } from './examLayoutEngine';
+import { useProblemPublishingStore } from './problemPublishingStore';
+
+let itemHeightsMap = new Map<string, number>();
+let debounceTimer: number | null = null;
+
+interface ExamUIOptions {
+    problemBoxMinHeight: number;
+    baseFontSize: string;
+    contentFontSizeEm: number;
+    useSequentialNumbering: boolean;
+}
+
+interface ExamLayoutState extends ExamUIOptions {
+    distributedPages: LayoutItem[][];
+    placementMap: Map<string, ProblemPlacementInfo>;
+    distributedSolutionPages: LayoutItem[][];
+    solutionPlacementMap: Map<string, ProblemPlacementInfo>;
+    problemsForLayout: ProcessedProblem[];
+    isLayoutFinalized: boolean; 
+    isDraggingControl: boolean;
+}
+
+interface ExamLayoutActions {
+    setItemHeight: (uniqueId: string, height: number) => void;
+    startLayoutCalculation: (selectedProblems: ProcessedProblem[]) => void;
+    resetLayout: () => void;
+    updateMinHeightAndRecalculate: (height: number) => void;
+    setBaseFontSize: (size: string) => void;
+    setContentFontSizeEm: (size: number) => void;
+    setUseSequentialNumbering: (use: boolean) => void;
+    setDraggingControl: (isDragging: boolean) => void;
+    forceRecalculateLayout: () => void;
+}
+
+const logLayoutResult = (problems: ProcessedProblem[], problemPlacements: Map<string, ProblemPlacementInfo>, solutionPlacements: Map<string, ProblemPlacementInfo>) => {
+    console.groupCollapsed('--- Layout Calculation Result ---');
+    
+    problemPlacements.forEach((placement, uniqueId) => {
+        const problem = problems.find(p => p.uniqueId === uniqueId);
+        const height = itemHeightsMap.get(uniqueId) || 'N/A';
+        if (problem) {
+            console.log(
+                `[Problem] Num: ${problem.display_question_number}, Page: ${placement.page}, Col: ${placement.column}, Height: ${typeof height === 'number' ? height.toFixed(1) + 'px' : height}`
+            );
+        }
+    });
+
+    solutionPlacements.forEach((placement, uniqueId) => {
+        const parentProblemId = uniqueId.split('-sol-')[0];
+        const problem = problems.find(p => p.uniqueId === parentProblemId);
+        const height = itemHeightsMap.get(uniqueId) || 'N/A';
+        if (problem) {
+            console.log(
+                `  [Solution Chunk] For: ${problem.display_question_number}, Page: ${placement.page}, Col: ${placement.column}, Height: ${typeof height === 'number' ? height.toFixed(1) + 'px' : height}`
+            );
+        }
+    });
+
+    console.groupEnd();
+};
+
+const runDebouncedRecalculation = (get: () => ExamLayoutState & ExamLayoutActions, set: (partial: Partial<ExamLayoutState & ExamLayoutActions>) => void) => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    debounceTimer = window.setTimeout(() => {
+        const isEditing = !!useProblemPublishingStore.getState().editingProblemId;
+        if (isEditing) {
+            console.log("[LOG] examLayoutStore: 📝 편집 중이므로 디바운스된 레이아웃 재계산을 건너뜁니다.");
+            return;
+        }
+
+        console.log("[LOG] examLayoutStore: ⏳ 디바운스 타이머 실행! 레이아웃 재계산 시작.");
+        const { problemsForLayout, problemBoxMinHeight } = get();
+        if (problemsForLayout.length === 0) {
+            console.log("[LOG] examLayoutStore: problemsForLayout이 비어있어 재계산 중단.");
+            return;
+        }
+
+        console.log("[LOG] examLayoutStore: 🚀 Debounced: RE-calculating ALL layouts based on new heights.");
+
+        const problemResult = recalculateProblemLayout(problemsForLayout, itemHeightsMap, problemBoxMinHeight);
+        const solutionResult = recalculateSolutionLayout(problemsForLayout, itemHeightsMap);
+
+        set({
+            distributedPages: problemResult.pages,
+            placementMap: problemResult.placements,
+            distributedSolutionPages: solutionResult.pages,
+            solutionPlacementMap: solutionResult.placements,
+            isLayoutFinalized: true,
+        });
+
+        logLayoutResult(problemsForLayout, problemResult.placements, solutionResult.placements);
+    }, 500);
+};
+
+
+export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((set, get) => ({
+    problemBoxMinHeight: 28,
+    baseFontSize: '12px',
+    contentFontSizeEm: 1,
+    useSequentialNumbering: false,
+    
+    distributedPages: [],
+    placementMap: new Map(),
+    distributedSolutionPages: [],
+    solutionPlacementMap: new Map(),
+    problemsForLayout: [],
+    isLayoutFinalized: true,
+    isDraggingControl: false,
+
+    setDraggingControl: (isDragging) => set({ isDraggingControl: isDragging }),
+
+    setItemHeight: (uniqueId, height) => {
+        if (get().isLayoutFinalized || get().isDraggingControl) {
+            return;
+        }
+        itemHeightsMap.set(uniqueId, height);
+        runDebouncedRecalculation(get, set);
+    },
+    
+    forceRecalculateLayout: () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        console.log("[LOG] examLayoutStore: ⚡️ 강제 레이아웃 재계산을 시작합니다.");
+        const { problemsForLayout, problemBoxMinHeight } = get();
+        if (problemsForLayout.length === 0) return;
+
+        const problemResult = recalculateProblemLayout(problemsForLayout, itemHeightsMap, problemBoxMinHeight);
+        const solutionResult = recalculateSolutionLayout(problemsForLayout, itemHeightsMap);
+
+        set({
+            distributedPages: problemResult.pages,
+            placementMap: problemResult.placements,
+            distributedSolutionPages: solutionResult.pages,
+            solutionPlacementMap: solutionResult.placements,
+            isLayoutFinalized: true,
+        });
+        logLayoutResult(problemsForLayout, problemResult.placements, solutionResult.placements);
+    },
+
+    resetLayout: () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        itemHeightsMap = new Map<string, number>();
+        set({
+            distributedPages: [],
+            placementMap: new Map(),
+            distributedSolutionPages: [],
+            solutionPlacementMap: new Map(),
+            problemsForLayout: [],
+            isLayoutFinalized: true,
+        });
+    },
+
+    startLayoutCalculation: (selectedProblems) => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        const { problemBoxMinHeight } = get();
+
+        const newHeightsMap = new Map<string, number>();
+        const selectedIds = new Set(selectedProblems.map(p => p.uniqueId));
+        itemHeightsMap.forEach((height, id) => {
+            const problemId = id.includes('-sol-') ? id.split('-sol-')[0] : id;
+            if (selectedIds.has(problemId)) {
+                newHeightsMap.set(id, height);
+            }
+        });
+        itemHeightsMap = newHeightsMap;
+
+        const { problems, solutions } = calculateInitialLayout(selectedProblems, problemBoxMinHeight, itemHeightsMap);
+        
+        set({ 
+            problemsForLayout: selectedProblems,
+            distributedPages: problems.pages,
+            placementMap: problems.placements,
+            distributedSolutionPages: solutions.pages,
+            solutionPlacementMap: solutions.placements,
+            isLayoutFinalized: false, 
+        });
+
+        logLayoutResult(selectedProblems, problems.placements, solutions.placements);
+    },
+    
+    updateMinHeightAndRecalculate: (height) => {
+        set({ problemBoxMinHeight: height, isLayoutFinalized: false });
+        runDebouncedRecalculation(get, set);
+    },
+
+    setBaseFontSize: (size) => {
+        set({ baseFontSize: size, isLayoutFinalized: false });
+        runDebouncedRecalculation(get, set);
+    },
+    setContentFontSizeEm: (size) => {
+        set({ contentFontSizeEm: size, isLayoutFinalized: false });
+        runDebouncedRecalculation(get, set);
+    },
+    setUseSequentialNumbering: (use) => set({ useSequentialNumbering: use }),
+}));
 ----- ./react/features/problem-publishing/model/problemPublishingStore.ts -----
 import { create } from 'zustand';
 import { produce } from 'immer';
@@ -2376,6 +2947,7 @@ export const useProblemPublishingStore = create<ProblemPublishingState & Problem
   },
 
   updateDraftProblem: (updatedProblem) => {
+    console.log('[LOG] problemPublishingStore: 📝 updateDraftProblem 액션 실행', { uniqueId: updatedProblem.uniqueId, textLength: updatedProblem.question_text.length });
     set(produce((state: ProblemPublishingState) => {
       if (state.draftProblems) {
         const index = state.draftProblems.findIndex(p => p.uniqueId === updatedProblem.uniqueId);
@@ -2417,72 +2989,87 @@ export const useProblemPublishingStore = create<ProblemPublishingState & Problem
     }));
   }
 }));
+----- ./react/features/problem-publishing/model/useExamLayoutManager.ts -----
+import { useEffect, useRef } from 'react';
+import { useExamLayoutStore } from './examLayoutStore';
+import type { ProcessedProblem } from './problemPublishingStore';
+
+interface ExamLayoutManagerProps {
+    selectedProblems: ProcessedProblem[];
+}
+
+/**
+ * 선택된 문제 목록을 받아 시험지 레이아웃 계산을 관리하는 훅.
+ */
+export function useExamLayoutManager({ selectedProblems }: ExamLayoutManagerProps) {
+    const { startLayoutCalculation, resetLayout } = useExamLayoutStore();
+    
+    const prevSelectedIdsRef = useRef<string>('');
+
+    useEffect(() => {
+        const currentSelectedIds = selectedProblems.map(p => p.uniqueId).sort().join(',');
+
+        if (currentSelectedIds !== prevSelectedIdsRef.current) {
+            console.log('[useExamLayoutManager] Detected change in selected problems. Triggering full layout calculation.');
+            prevSelectedIdsRef.current = currentSelectedIds; // 이전 ID 목록을 현재 목록으로 업데이트
+
+            if (selectedProblems.length > 0) {
+                startLayoutCalculation(selectedProblems);
+            } else {
+                resetLayout();
+            }
+        }
+
+    }, [selectedProblems, startLayoutCalculation, resetLayout]);
+
+    useEffect(() => {
+        return () => {
+            resetLayout();
+        };
+    }, [resetLayout]);
+}
 ----- ./react/features/problem-publishing/model/useProblemPublishing.ts -----
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { useProblemsQuery } from '../../../entities/problem/model/useProblemsQuery';
 import { useUpdateProblemMutation } from '../../../entities/problem/model/useProblemMutations';
 import { useRowSelection } from '../../row-selection/model/useRowSelection';
-import type { Problem } from '../../../entities/problem/model/types';
 import { useProblemPublishingStore, type ProcessedProblem } from './problemPublishingStore';
 
-const SINGLE_COLUMN_MAX_HEIGHT = 920;
-const DEFAULT_ESTIMATED_HEIGHT = 150;
+export type { ProcessedProblem } from './problemPublishingStore';
+export type { LayoutItem } from './examLayoutEngine'; 
 
-type ProblemPlacementInfo = { page: number; column: number };
-type ProblemGroup = { problems: ProcessedProblem[]; totalHeight: number };
-export type { ProcessedProblem };
-
+/**
+ * 문제 출제 페이지의 문제 데이터와 관련된 로직을 관리하는 훅.
+ * (데이터 패칭, 선택 상태, 수정 로직 담당)
+ */
 export function useProblemPublishing() {
     const { data: rawProblems = [], isLoading: isLoadingProblems } = useProblemsQuery();
     const { mutateAsync: updateProblem } = useUpdateProblemMutation();
-
+    
     const {
-        initialProblems,
-        draftProblems,
-        setInitialData,
-        startEditing,
-        updateDraftProblem,
-        revertSingleProblem,
-        setEditingProblemId,
-        saveProblem,
+        initialProblems, draftProblems, setInitialData, startEditing,
+        updateDraftProblem, revertSingleProblem, setEditingProblemId, saveProblem,
     } = useProblemPublishingStore();
-
+    
     useEffect(() => {
         if (!isLoadingProblems && rawProblems.length > 0) {
             const typeOrder: Record<string, number> = { '객관식': 1, '주관식': 2, '서답형': 3, '논술형': 4 };
-            let shortAnswerCounter = 1;
             const processed = [...rawProblems]
                 .sort((a, b) => {
                     const sourceCompare = a.source.localeCompare(b.source);
                     if (sourceCompare !== 0) return sourceCompare;
-                    
                     const typeA_Rank = typeOrder[a.problem_type] || 99;
                     const typeB_Rank = typeOrder[b.problem_type] || 99;
-                    const typeCompare = typeA_Rank - typeB_Rank;
-                    if (typeCompare !== 0) return typeCompare;
-
+                    if (typeA_Rank !== typeB_Rank) return typeA_Rank - typeB_Rank;
                     return a.question_number - b.question_number;
                 })
-                .map((p, index, arr): ProcessedProblem => {
-                    let display_question_number;
-                    if (p.problem_type === '서답형') {
-                        if (index > 0 && arr[index-1].problem_type === '서답형' && arr[index-1].source === p.source) {
-                        } else {
-                            shortAnswerCounter = 1;
-                        }
-                        display_question_number = `서답형 ${p.question_number}`;
-                    } else {
-                        display_question_number = String(p.question_number);
-                    }
-
-                    return {
-                        ...p,
-                        question_text: p.question_text ?? '',
-                        solution_text: p.solution_text ?? '',
-                        uniqueId: p.problem_id,
-                        display_question_number: display_question_number
-                    };
-                });
+                .map((p): ProcessedProblem => ({
+                    ...p,
+                    question_text: p.question_text ?? '',
+                    solution_text: p.solution_text ?? '',
+                    uniqueId: p.problem_id,
+                    display_question_number: p.problem_type === '서답형' ? `서답형 ${p.question_number}` : String(p.question_number),
+                }));
             setInitialData(processed);
         }
     }, [rawProblems, isLoadingProblems, setInitialData]);
@@ -2490,169 +3077,33 @@ export function useProblemPublishing() {
     const displayProblems = useMemo(() => draftProblems ?? initialProblems, [draftProblems, initialProblems]);
     const problemUniqueIds = useMemo(() => initialProblems.map(p => p.uniqueId), [initialProblems]);
     const { selectedIds, toggleRow, toggleSelectAll, isAllSelected } = useRowSelection<string>({ allItems: problemUniqueIds });
-
-    const selectedProblems = useMemo(() => {
-        const source = draftProblems ?? initialProblems;
-        return source.filter(p => selectedIds.has(p.uniqueId));
-    }, [draftProblems, initialProblems, selectedIds]);
-
-    const [problemHeightsMap, setProblemHeightsMap] = useState<Map<string, number>>(new Map());
-    const [distributedPages, setDistributedPages] = useState<ProcessedProblem[][]>([]);
-    const [placementMap, setPlacementMap] = useState<Map<string, ProblemPlacementInfo>>(new Map());
-    const [isCalculating, setIsCalculating] = useState(false);
-    const calculationTimeoutRef = useRef<number | null>(null);
-
-    const [baseFontSize, setBaseFontSize] = useState('12px');
-    const [contentFontSizeEm, setContentFontSizeEm] = useState(1);
-    const [problemBoxMinHeight, setProblemBoxMinHeight] = useState(28);
-    const [useSequentialNumbering, setUseSequentialNumbering] = useState(false);
-    const [headerInfo, setHeaderInfo] = useState({
-        title: '2025학년도 3월 전국연합학력평가', titleFontSize: 1.64, titleFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
-        school: '제2교시', schoolFontSize: 1, schoolFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
-        subject: '수학 영역', subjectFontSize: 3, subjectFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
-        simplifiedSubjectText: '수학 영역', simplifiedSubjectFontSize: 1.6, simplifiedSubjectFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
-        simplifiedGradeText: '고3',
-    });
-
-    const handleHeightUpdate = useCallback((uniqueId: string, height: number) => {
-        setProblemHeightsMap(prevMap => {
-            if (height > 0 && prevMap.get(uniqueId) !== height) {
-                const newMap = new Map(prevMap);
-                newMap.set(uniqueId, height);
-                return newMap;
-            }
-            return prevMap;
-        });
-    }, []);
+    const selectedProblems = useMemo(() => displayProblems.filter(p => selectedIds.has(p.uniqueId)), [displayProblems, selectedIds]);
 
     const handleSaveProblem = useCallback(async (updatedProblem: ProcessedProblem) => {
-        const payload: Partial<Problem> = {
-            ...updatedProblem
-        };
+        const payload = { ...updatedProblem };
         delete (payload as any).uniqueId;
         delete (payload as any).display_question_number;
 
         const savedData = await updateProblem({ id: payload.problem_id!, fields: payload });
-
+        
         const processedSavedData: ProcessedProblem = {
             ...savedData,
             uniqueId: savedData.problem_id,
-            display_question_number: savedData.problem_type === '서답형'
-                ? `서답형 ${savedData.question_number}`
-                : String(savedData.question_number)
+            display_question_number: savedData.problem_type === '서답형' ? `서답형 ${savedData.question_number}` : String(savedData.question_number)
         };
         saveProblem(processedSavedData);
     }, [updateProblem, saveProblem]);
 
-    const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: any) => {
-        setHeaderInfo(prev => {
-            const newState = { ...prev };
-            switch (targetId) {
-                case 'title': newState.title = value.text; newState.titleFontSize = value.fontSize; break;
-                case 'school': newState.school = value.text; newState.schoolFontSize = value.fontSize; break;
-                case 'subject': newState.subject = value.text; newState.subjectFontSize = value.fontSize; break;
-                case 'simplifiedSubject': newState.simplifiedSubjectText = value.text; newState.simplifiedSubjectFontSize = value.fontSize; break;
-                case 'simplifiedGrade': newState.simplifiedGradeText = value.text; break;
-            }
-            return newState;
-        });
-    }, []);
-
-    useEffect(() => {
-        if (calculationTimeoutRef.current) { clearTimeout(calculationTimeoutRef.current); }
-        setIsCalculating(true);
-        
-        calculationTimeoutRef.current = window.setTimeout(() => {
-            if (selectedProblems.length === 0) {
-                setDistributedPages([]);
-                setPlacementMap(new Map());
-                setIsCalculating(false);
-                return;
-            }
-
-            const problemGroups: ProblemGroup[] = [];
-            let currentGroupProblems: ProcessedProblem[] = [];
-            let currentGroupHeight = 0;
-            
-            for (const problem of selectedProblems) {
-                const problemHeight = problemHeightsMap.get(problem.uniqueId) || DEFAULT_ESTIMATED_HEIGHT;
-
-                if (problemHeight > SINGLE_COLUMN_MAX_HEIGHT) {
-                    if (currentGroupProblems.length > 0) {
-                        problemGroups.push({ problems: currentGroupProblems, totalHeight: currentGroupHeight });
-                    }
-                    problemGroups.push({ problems: [problem], totalHeight: problemHeight });
-                    currentGroupProblems = [];
-                    currentGroupHeight = 0;
-                } else if (currentGroupHeight + problemHeight <= SINGLE_COLUMN_MAX_HEIGHT || currentGroupProblems.length === 0) {
-                    currentGroupProblems.push(problem);
-                    currentGroupHeight += problemHeight;
-                } else {
-                    problemGroups.push({ problems: currentGroupProblems, totalHeight: currentGroupHeight });
-                    currentGroupProblems = [problem];
-                    currentGroupHeight = problemHeight;
-                }
-            }
-            if (currentGroupProblems.length > 0) {
-                problemGroups.push({ problems: currentGroupProblems, totalHeight: currentGroupHeight });
-            }
-
-            const newPages: ProcessedProblem[][] = [];
-            const newPlacementMap = new Map<string, ProblemPlacementInfo>();
-            let currentPageNumber = 1; 
-            let currentColumnIndex = 0;
-            let pageProblemBuffer: ProcessedProblem[] = [];
-
-            for (const group of problemGroups) {
-                const targetColumn = currentColumnIndex + 1;
-                
-                for (const problem of group.problems) {
-                    newPlacementMap.set(problem.uniqueId, { page: currentPageNumber, column: targetColumn });
-                    pageProblemBuffer.push(problem);
-                }
-
-                if (currentColumnIndex === 0) {
-                    currentColumnIndex = 1;
-                } else {
-                    newPages.push([...pageProblemBuffer]);
-                    pageProblemBuffer = [];
-                    currentPageNumber++;
-                    currentColumnIndex = 0;
-                }
-            }
-            if (pageProblemBuffer.length > 0) {
-                newPages.push([...pageProblemBuffer]);
-            }
-
-            setDistributedPages(newPages);
-            setPlacementMap(newPlacementMap);
-            setIsCalculating(false);
-        }, 350);
-
-        return () => { if (calculationTimeoutRef.current) clearTimeout(calculationTimeoutRef.current); };
-    }, [selectedProblems, problemHeightsMap]);
-
     return {
         allProblems: displayProblems,
         isLoadingProblems,
+        selectedProblems,
+        
         selectedIds,
         isAllSelected,
         toggleRow,
         toggleSelectAll,
-        distributedPages,
-        placementMap,
-        isCalculating,
-        handleHeightUpdate,
-        headerInfo,
-        baseFontSize,
-        contentFontSizeEm,
-        problemBoxMinHeight,
-        useSequentialNumbering,
-        setBaseFontSize,
-        setContentFontSizeEm,
-        setProblemBoxMinHeight,
-        setUseSequentialNumbering,
-        handleHeaderUpdate,
+        
         handleSaveProblem,
         handleLiveProblemChange: updateDraftProblem,
         handleRevertProblem: revertSingleProblem,
@@ -2791,7 +3242,7 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
 
 export default ProblemMetadataEditor;
 ----- ./react/features/problem-text-editing/ui/ProblemTextEditor.tsx -----
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react'; // useState 추가
 import type { Problem } from '../../../entities/problem/model/types';
 import Editor from '../../../shared/ui/codemirror-editor/Editor';
 import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
@@ -2810,7 +3261,7 @@ type ProcessedProblem = Problem & { uniqueId: string; display_question_number: s
 interface ProblemTextEditorProps {
     problem: ProcessedProblem;
     onSave: (updatedProblem: ProcessedProblem) => void;
-    onRevert: (problemId: string) => void; // 이름 변경
+    onRevert: (problemId: string) => void; 
     onClose: () => void;
     onProblemChange: (updatedProblem: ProcessedProblem) => void;
 }
@@ -2818,21 +3269,51 @@ interface ProblemTextEditorProps {
 const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({ 
     problem, 
     onSave, 
-    onRevert, // 이름 변경
+    onRevert,
     onClose,
-    onProblemChange 
+    onProblemChange,
 }) => {
 
-    const handleContentChange = useCallback((field: 'question_text' | 'solution_text', newContent: string) => {
-        onProblemChange({ ...problem, [field]: newContent });
-    }, [problem, onProblemChange]);
+    const [localQuestionText, setLocalQuestionText] = useState(problem.question_text ?? '');
+    const [localSolutionText, setLocalSolutionText] = useState(problem.solution_text ?? '');
+    const [localProblemData, setLocalProblemData] = useState(problem);
+
+    useEffect(() => {
+        setLocalQuestionText(problem.question_text ?? '');
+        setLocalSolutionText(problem.solution_text ?? '');
+        setLocalProblemData(problem);
+    }, [problem]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (problem.question_text !== localQuestionText || problem.solution_text !== localSolutionText) {
+                console.log('[LOG] Debounced update 실행! 상위 컴포넌트로 변경사항 전파');
+                onProblemChange({ 
+                    ...localProblemData, 
+                    question_text: localQuestionText,
+                    solution_text: localSolutionText
+                });
+            }
+        }, 300); // 300ms 디바운스
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [localQuestionText, localSolutionText, onProblemChange, problem, localProblemData]);
+    
 
     const handleMetadataChange = useCallback((field: keyof Problem, value: string | number) => {
-        onProblemChange({ ...problem, [field]: value });
-    }, [problem, onProblemChange]);
+        const updatedProblem = { ...localProblemData, [field]: value };
+        setLocalProblemData(updatedProblem);
+        onProblemChange(updatedProblem);
+    }, [localProblemData, onProblemChange]);
 
     const handleSave = () => {
-        onSave(problem);
+        onSave({ 
+            ...localProblemData, 
+            question_text: localQuestionText,
+            solution_text: localSolutionText 
+        });
     };
 
     const handleRevert = () => {
@@ -2860,15 +3341,15 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                     <h5 className="editor-section-title">문제 본문</h5>
                     <div className="editor-wrapper-body">
                         <Editor 
-                            initialContent={problem.question_text ?? ''}
-                            onContentChange={(content) => handleContentChange('question_text', content)}
+                            initialContent={localQuestionText}
+                            onContentChange={setLocalQuestionText}
                         />
                     </div>
                 </div>
 
                 <ProblemMetadataEditor
                     fields={EDITABLE_METADATA_FIELDS}
-                    problemData={problem}
+                    problemData={localProblemData}
                     onDataChange={handleMetadataChange}
                 />
 
@@ -2876,8 +3357,8 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                     <h5 className="editor-section-title">해설</h5>
                     <div className="editor-wrapper-body">
                         <Editor
-                            initialContent={problem.solution_text ?? ''}
-                            onContentChange={(content) => handleContentChange('solution_text', content)}
+                            initialContent={localSolutionText}
+                            onContentChange={setLocalSolutionText}
                         />
                     </div>
                 </div>
@@ -2886,7 +3367,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     );
 };
 
-export default ProblemTextEditor;
+export default React.memo(ProblemTextEditor);
 ----- ./react/features/prompt-collection/model/usePromptManager.ts -----
 import { useState, useEffect, useCallback } from 'react';
 import { produce } from 'immer';
@@ -4197,7 +4678,9 @@ export default TableSearch;
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import "./index.css"; 
+import "./index.css";
+
+
 
 
 
@@ -4836,93 +5319,131 @@ const LoginPageWithErrorDisplay: React.FC = () => {
 
 export default LoginPageWithErrorDisplay;
 ----- ./react/pages/ProblemPublishingPage.tsx -----
-import React, { useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useLayoutStore } from '../shared/store/layoutStore';
-import { useProblemPublishing, type ProcessedProblem } from '../features/problem-publishing/model/useProblemPublishing';
+import { useProblemPublishing } from '../features/problem-publishing/model/useProblemPublishing';
+import { useExamLayoutStore } from '../features/problem-publishing/model/examLayoutStore';
+import { useExamLayoutManager } from '../features/problem-publishing/model/useExamLayoutManager';
 import ProblemSelectionWidget from '../widgets/ProblemSelectionWidget';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
 import ExamPreviewWidget from '../widgets/ExamPreviewWidget';
 import './ProblemPublishingPage.css';
+import type { ProcessedProblem } from '../features/problem-publishing/model/problemPublishingStore';
 
 const ProblemPublishingPage: React.FC = () => {
     const {
         allProblems, isLoadingProblems, selectedIds, isAllSelected,
-        distributedPages, placementMap, isCalculating, headerInfo, baseFontSize,
-        contentFontSizeEm, problemBoxMinHeight, useSequentialNumbering,
-        toggleRow, toggleSelectAll, handleHeightUpdate,
-        handleHeaderUpdate, setBaseFontSize, setContentFontSizeEm,
-        setProblemBoxMinHeight, setUseSequentialNumbering,
-        handleSaveProblem,
-        handleLiveProblemChange,
+        toggleRow, toggleSelectAll, handleSaveProblem,
+        handleLiveProblemChange, 
         handleRevertProblem,
-        startEditingProblem,
-        setEditingProblemId,
+        startEditingProblem, setEditingProblemId, selectedProblems,
     } = useProblemPublishing();
 
-    const { setRightSidebarConfig, registerPageActions } = useLayoutStore.getState();
-
-    const handleCloseEditor = useCallback(() => {
-        setEditingProblemId(null);
-        setRightSidebarConfig({ contentConfig: { type: null } });
-    }, [setEditingProblemId, setRightSidebarConfig]);
+    const {
+        distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap,
+        setItemHeight,
+        problemBoxMinHeight, baseFontSize, contentFontSizeEm, useSequentialNumbering,
+        updateMinHeightAndRecalculate, setBaseFontSize, setContentFontSizeEm, setUseSequentialNumbering,
+        forceRecalculateLayout, // [추가] 강제 재계산 액션 가져오기
+    } = useExamLayoutStore();
     
-    const handleOpenLatexHelpSidebar = useCallback(() => {
-        setRightSidebarConfig({ 
-            contentConfig: { type: 'latexHelp' },
-            isExtraWide: false
+    const [measuredHeights, setMeasuredHeights] = useState<Map<string, number>>(new Map());
+
+    const handleHeightUpdate = useCallback((uniqueId: string, height: number) => {
+        setItemHeight(uniqueId, height);
+        setMeasuredHeights(prev => {
+            if (prev.get(uniqueId) !== height) {
+                const newMap = new Map(prev);
+                newMap.set(uniqueId, height);
+                return newMap;
+            }
+            return prev;
         });
-    }, [setRightSidebarConfig]);
+    }, [setItemHeight]);
 
-    const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => {
-        await handleSaveProblem(problem);
-        handleCloseEditor();
-    }, [handleSaveProblem, handleCloseEditor]);
-
-    const handleRevertAndKeepOpen = useCallback((problemId: string) => {
-        handleRevertProblem(problemId);
-    }, [handleRevertProblem]);
+    const [headerInfo, setHeaderInfo] = useState({
+        title: '2025학년도 3월 전국연합학력평가', titleFontSize: 1.64, titleFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
+        school: '제2교시', schoolFontSize: 1, schoolFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
+        subject: '수학 영역', subjectFontSize: 3, subjectFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
+        simplifiedSubjectText: '수학 영역', simplifiedSubjectFontSize: 1.6, simplifiedSubjectFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
+        simplifiedGradeText: '고3',
+    });
+    const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: any) => {
+        setHeaderInfo(prev => {
+            const newState = { ...prev };
+            switch (targetId) {
+                case 'title': newState.title = value.text; newState.titleFontSize = value.fontSize; break;
+                case 'school': newState.school = value.text; newState.schoolFontSize = value.fontSize; break;
+                case 'subject': newState.subject = value.text; newState.subjectFontSize = value.fontSize; break;
+                case 'simplifiedSubject': newState.simplifiedSubjectText = value.text; newState.simplifiedSubjectFontSize = value.fontSize; break;
+                case 'simplifiedGrade': newState.simplifiedGradeText = value.text; break;
+            }
+            return newState;
+        });
+    }, []);
     
-    const handleProblemClick = useCallback((problem: ProcessedProblem) => {
-        startEditingProblem();
-        setEditingProblemId(problem.uniqueId);
+    useExamLayoutManager({ selectedProblems });
+    
+    const [localMinHeight, setLocalMinHeight] = useState(problemBoxMinHeight);
+    const [localContentFontSize, setLocalContentFontSize] = useState(contentFontSizeEm);
 
-        setRightSidebarConfig({
-            contentConfig: {
-                type: 'problemEditor',
-                props: {
-                    onProblemChange: handleLiveProblemChange,
-                    onSave: handleSaveAndClose,
-                    onRevert: handleRevertAndKeepOpen,
-                    onClose: handleCloseEditor,
-                }
-            },
-            isExtraWide: true
-        });
-    }, [
-        startEditingProblem, 
-        setEditingProblemId,
-        setRightSidebarConfig, 
-        handleSaveAndClose, 
-        handleRevertAndKeepOpen, 
-        handleCloseEditor, 
-        handleLiveProblemChange
-    ]);
-
-    const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
+    useEffect(() => { setLocalMinHeight(problemBoxMinHeight); }, [problemBoxMinHeight]);
+    useEffect(() => { setLocalContentFontSize(contentFontSizeEm); }, [contentFontSizeEm]);
 
     useEffect(() => {
-        registerPageActions({ 
-            onClose: handleCloseEditor,
-            openLatexHelpSidebar: handleOpenLatexHelpSidebar
-        });
-        return () => {
-            setRightSidebarConfig({ contentConfig: { type: null } });
-            registerPageActions({ 
-                onClose: undefined,
-                openLatexHelpSidebar: undefined
-            });
-        };
-    }, [registerPageActions, handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar]);
+        const handler = setTimeout(() => {
+            if (localMinHeight !== problemBoxMinHeight) {
+                updateMinHeightAndRecalculate(localMinHeight);
+            }
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [localMinHeight, problemBoxMinHeight, updateMinHeightAndRecalculate]);
+    
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (localContentFontSize !== contentFontSizeEm) {
+                setContentFontSizeEm(localContentFontSize);
+            }
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [localContentFontSize, contentFontSizeEm, setContentFontSizeEm]);
+    
+    const { setRightSidebarConfig, registerPageActions } = useLayoutStore.getState();
+
+    const handleCloseEditor = useCallback(() => { 
+        setEditingProblemId(null); 
+        setRightSidebarConfig({ contentConfig: { type: null } }); 
+        forceRecalculateLayout();
+    }, [setEditingProblemId, setRightSidebarConfig, forceRecalculateLayout]);
+    
+    const handleOpenLatexHelpSidebar = useCallback(() => { setRightSidebarConfig({ contentConfig: { type: 'latexHelp' }, isExtraWide: false }); }, [setRightSidebarConfig]);
+    
+    const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => { 
+        handleSaveProblem(problem); 
+        handleCloseEditor(); // handleCloseEditor가 재계산까지 담당
+    }, [handleSaveProblem, handleCloseEditor]);
+    
+    const handleRevertAndKeepOpen = useCallback((problemId: string) => { handleRevertProblem(problemId); }, [handleRevertProblem]);
+    
+    const handleProblemClick = useCallback((problem: ProcessedProblem) => { 
+        console.log(`[LOG] ProblemPublishingPage: ➡️ handleProblemClick 호출됨 (사이드바 열기)`, { uniqueId: problem.uniqueId });
+        startEditingProblem(); 
+        setEditingProblemId(problem.uniqueId); 
+        setRightSidebarConfig({ 
+            contentConfig: { 
+                type: 'problemEditor', 
+                props: { 
+                    onProblemChange: handleLiveProblemChange,
+                    onSave: handleSaveAndClose, 
+                    onRevert: handleRevertAndKeepOpen, 
+                } 
+            }, 
+            isExtraWide: true 
+        }); 
+    }, [startEditingProblem, setEditingProblemId, setRightSidebarConfig, handleLiveProblemChange, handleSaveAndClose, handleRevertAndKeepOpen, handleCloseEditor]);
+
+    const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
+    useEffect(() => { registerPageActions({ onClose: handleCloseEditor, openLatexHelpSidebar: handleOpenLatexHelpSidebar }); return () => { setRightSidebarConfig({ contentConfig: { type: null } }); registerPageActions({ onClose: undefined, openLatexHelpSidebar: undefined }); }; }, [registerPageActions, handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar]);
 
     return (
         <div className="problem-publishing-page">
@@ -4939,32 +5460,35 @@ const ProblemPublishingPage: React.FC = () => {
                 </div>
                 <PublishingToolbarWidget 
                     useSequentialNumbering={useSequentialNumbering}
-                    onToggleSequentialNumbering={() => setUseSequentialNumbering(p => !p)}
+                    onToggleSequentialNumbering={() => setUseSequentialNumbering(!useSequentialNumbering)}
                     baseFontSize={baseFontSize}
                     onBaseFontSizeChange={setBaseFontSize}
-                    contentFontSizeEm={contentFontSizeEm}
-                    onContentFontSizeEmChange={setContentFontSizeEm}
-                    problemBoxMinHeight={problemBoxMinHeight}
-                    onProblemBoxMinHeightChange={setProblemBoxMinHeight}
+                    contentFontSizeEm={localContentFontSize}
+                    onContentFontSizeEmChange={setLocalContentFontSize}
+                    problemBoxMinHeight={localMinHeight}
+                    onProblemBoxMinHeightChange={setLocalMinHeight}
                     onDownloadPdf={handleDownloadPdf} 
                 />
             </div>
             <div className="scrollable-content-area">
                 <ExamPreviewWidget 
                     distributedPages={distributedPages} 
+                    distributedSolutionPages={distributedSolutionPages}
                     allProblems={allProblems} 
+                    selectedProblems={selectedProblems}
                     placementMap={placementMap} 
-                    isCalculating={isCalculating} 
+                    solutionPlacementMap={solutionPlacementMap}
                     headerInfo={headerInfo} 
                     useSequentialNumbering={useSequentialNumbering} 
                     baseFontSize={baseFontSize} 
                     contentFontSizeEm={contentFontSizeEm} 
                     contentFontFamily={headerInfo.titleFontFamily} 
-                    problemBoxMinHeight={problemBoxMinHeight} 
-                    onHeightUpdate={handleHeightUpdate} 
+                    problemBoxMinHeight={localMinHeight}
+                    onHeightUpdate={handleHeightUpdate}
                     onProblemClick={handleProblemClick} 
                     onHeaderUpdate={handleHeaderUpdate} 
                     onDeselectProblem={toggleRow} 
+                    measuredHeights={measuredHeights}
                 />
             </div>
         </div>
@@ -5632,6 +6156,77 @@ export function useColumnPermissions() {
     permittedColumnsConfig,   // 허용된 컬럼의 설정 객체 배열 (UI용)
     allColumnConfig: COLUMN_CONFIG, // 테이블 정의에 필요한 전체 설정
   };
+}
+----- ./react/shared/hooks/useContinuousChange.ts -----
+import { useRef, useCallback } from 'react';
+
+type Direction = 'increase' | 'decrease';
+
+const INITIAL_INTERVAL = 150; // ms
+const MIN_INTERVAL = 20;      // ms
+const ACCELERATION = 0.95;    // 95%씩 간격 감소 (조금 더 부드러운 가속)
+
+/**
+ * 버튼을 누르고 있을 때 숫자를 연속적으로, 가속도 붙여 변경하는 훅.
+ * @param onChange - (updater: (prev: number) => number) 형식의 콜백. 이전 값을 받아 새 값을 반환해야 합니다.
+ * @param step - 한 번에 변경될 값의 크기
+ */
+export function useContinuousChange(onChange: (updater: (prev: number) => number) => void, step: number) {
+    const intervalRef = useRef<number | null>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const currentIntervalRef = useRef(INITIAL_INTERVAL);
+
+    const stopChanging = useCallback(() => {
+        if (intervalRef.current) {
+            cancelAnimationFrame(intervalRef.current);
+            intervalRef.current = null;
+        }
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
+    }, []);
+
+    const startChanging = useCallback((direction: Direction) => {
+        stopChanging();
+        currentIntervalRef.current = INITIAL_INTERVAL;
+
+        const change = () => {
+            const dynamicStep = direction === 'increase' ? step : -step;
+            onChange(prev => parseFloat((prev + dynamicStep * (INITIAL_INTERVAL / currentIntervalRef.current)).toFixed(2)));
+            
+            intervalRef.current = requestAnimationFrame(change);
+        };
+        
+        const accelerate = () => {
+            currentIntervalRef.current = Math.max(MIN_INTERVAL, currentIntervalRef.current * ACCELERATION);
+            timeoutRef.current = setTimeout(accelerate, 50); // 50ms 마다 가속
+        };
+        
+        onChange(prev => parseFloat((prev + (direction === 'increase' ? step : -step)).toFixed(2)));
+        
+        timeoutRef.current = setTimeout(() => {
+            intervalRef.current = requestAnimationFrame(change);
+            accelerate();
+        }, 400);
+
+    }, [onChange, step, stopChanging]);
+
+    const getHandlers = (direction: Direction) => ({
+        onMouseDown: (e: React.MouseEvent) => {
+            e.preventDefault();
+            startChanging(direction);
+        },
+        onMouseUp: stopChanging,
+        onMouseLeave: stopChanging,
+        onTouchStart: (e: React.TouchEvent) => {
+            e.preventDefault();
+            startChanging(direction);
+        },
+        onTouchEnd: stopChanging,
+    });
+
+    return { getHandlers };
 }
 ----- ./react/shared/hooks/useDragToScroll.ts -----
 import { useRef, useState, useCallback, useEffect } from 'react';
@@ -10789,7 +11384,6 @@ const GlassTable = forwardRef(GlassTableInner) as <T extends { id: string | numb
 
 export default GlassTable;
 ----- ./react/shared/ui/MathpixRenderer.tsx -----
-
 import React, { useState, useEffect, useMemo } from 'react';
 
 declare global {
@@ -10861,7 +11455,7 @@ const MathpixRenderer: React.FC<MathpixRendererProps> = ({ text, options = {}, o
         }
       }
     }
-  }, [status, text, memoizedOptions, onRenderComplete]); // [수정 3] 의존성 배열에 onRenderComplete 추가
+  }, [status, text, memoizedOptions, onRenderComplete]);
 
   
   if (status === 'error') {
@@ -10882,47 +11476,14 @@ import { LuCircle, LuCircleCheckBig } from 'react-icons/lu';
 
 
 interface CheckboxProps {
-    /**
-     * 체크박스의 현재 선택 상태. 이 값에 따라 아이콘이 변경됩니다.
-     */
     isChecked: boolean;
-    /**
-     * 체크박스가 토글될 때 호출되는 함수입니다.
-     * 상위 컴포넌트에서 이 함수를 통해 isChecked 상태를 업데이트해야 합니다.
-     */
     onToggle: () => void;
-    /**
-     * 아이콘의 크기 (react-icons의 size prop).
-     * @default 20
-     */
     iconSize?: number;
-    /**
-     * 선택되었을 때 아이콘 색상 (CSS color 값, 예: '#3498db' 또는 'blue').
-     * @default '#3498db'
-     */
     checkedColor?: string;
-    /**
-     * 선택되지 않았을 때 아이콘 색상 (CSS color 값, 예: '#666' 또는 'gray').
-     * @default '#ccc'
-     */
     uncheckedColor?: string;
-    /**
-     * 체크박스를 비활성화할지 여부.
-     * @default false
-     */
     disabled?: boolean;
-    /**
-     * 최상위 요소(button)에 적용할 사용자 정의 CSS 클래스명.
-     */
     className?: string;
-    /**
-     * 최상위 요소(button)에 직접 적용할 인라인 스타일 객체.
-     */
     style?: React.CSSProperties;
-    /**
-     * 접근성을 위한 ARIA 레이블.
-     * @default 'Checkbox'
-     */
     ariaLabel?: string;
 }
 
@@ -10930,23 +11491,22 @@ const Checkbox: React.FC<CheckboxProps> = ({
     isChecked,
     onToggle,
     iconSize = 20,
-    checkedColor = '#3498db', // 기본 선택 색상
-    uncheckedColor = '#ccc',   // 기본 미선택 색상
+    checkedColor = '#3498db',
+    uncheckedColor = '#ccc',
     disabled = false,
     className = '',
     style = {},
-    ariaLabel = 'Checkbox', // 기본 ARIA 레이블 제공
+    ariaLabel = 'Checkbox',
 }) => {
     const handleClick = () => {
         if (!disabled) {
-            console.log(`[TableCellCheckbox] 클릭됨! onToggle 호출. 현재 isChecked: ${isChecked}`);
-            onToggle(); // 외부로 상태 변경 요청 (상위에서 isChecked 상태를 업데이트해야 함)
+            onToggle();
         }
     };
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
         if (!disabled && (event.key === ' ' || event.key === 'Enter')) {
-            event.preventDefault(); // 기본 동작(예: 스페이스바로 페이지 스크롤) 방지
+            event.preventDefault();
             onToggle();
         }
     };
@@ -10954,28 +11514,28 @@ const Checkbox: React.FC<CheckboxProps> = ({
     const currentIconColor = isChecked ? checkedColor : uncheckedColor;
 
     const buttonClassName = `
-    checkbox-component ${/* 이 컴포넌트 전체를 위한 기본 식별 클래스 (선택 사항) */''}
-    ${disabled ? 'checkbox-disabled' : 'checkbox-enabled'} ${/* CSS에서 스타일링하기 위한 활성/비활성 클래스 */''}
-    ${className} ${/* 사용자가 전달한 추가 클래스 */''}
-  `.trim().replace(/\s+/g, ' '); // 여분의 공백 정리
+    checkbox-component ${''}
+    ${disabled ? 'checkbox-disabled' : 'checkbox-enabled'} ${''}
+    ${className} ${''}
+  `.trim().replace(/\s+/g, ' ');
 
     const buttonStyle: React.CSSProperties = {
-        background: 'none', // 버튼 기본 배경 제거
-        border: 'none',     // 버튼 기본 테두리 제거
-        padding: 0,         // 버튼 기본 패딩 제거
+        background: 'none',
+        border: 'none',
+        padding: 0,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        display: 'inline-flex', // 아이콘 정렬 및 크기 조정을 위해
+        display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: disabled ? 0.5 : 1, // 비활성화 시 투명도 조절
-        ...style, // 사용자가 전달한 스타일로 덮어쓰기 가능
+        opacity: disabled ? 0.5 : 1,
+        ...style,
     };
 
     return (
         <button
-            type="button" // 폼 내부에서 기본 제출 동작 방지
+            type="button"
             onClick={handleClick}
-            onKeyDown={handleKeyDown} // 스페이스바, 엔터키로 토글 지원
+            onKeyDown={handleKeyDown}
             disabled={disabled}
             className={buttonClassName}
             style={buttonStyle}
@@ -10988,26 +11548,28 @@ const Checkbox: React.FC<CheckboxProps> = ({
             ) : (
                 <LuCircle size={iconSize} color={currentIconColor} aria-hidden="true" />
             )}
-            {/* 스크린 리더 사용자를 위해 숨겨진 텍스트 추가 (선택 사항, aria-label로 충분할 수도 있음) */}
-            {/* <span className="sr-only">{isChecked ? 'Selected' : 'Not selected'}</span> */}
         </button>
     );
 };
 
 export default Checkbox;
 ----- ./react/widgets/ExamPreviewWidget.tsx -----
-import React from 'react';
-import type { Problem } from '../entities/problem/model/types';
+import React, { useMemo } from 'react';
 import ExamPage from '../entities/exam/ui/ExamPage';
+import QuickAnswerPage from '../entities/exam/ui/QuickAnswerPage';
+import SolutionPage from '../entities/exam/ui/SolutionPage';
+import type { LayoutItem, ProcessedProblem } from '../features/problem-publishing/model/useProblemPublishing';
 import './ExamPreviewWidget.css';
 
-type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
+const ANSWERS_PER_PAGE = 80;
 
 interface ExamPreviewWidgetProps {
-    distributedPages: ProcessedProblem[][];
+    distributedPages: LayoutItem[][];
+    distributedSolutionPages: LayoutItem[][];
     allProblems: ProcessedProblem[];
+    selectedProblems: ProcessedProblem[];
     placementMap: Map<string, { page: number; column: number }>;
-    isCalculating: boolean;
+    solutionPlacementMap: Map<string, { page: number; column: number }>;
     headerInfo: any;
     
     useSequentialNumbering: boolean;
@@ -11019,34 +11581,114 @@ interface ExamPreviewWidgetProps {
     onHeightUpdate: (uniqueId: string, height: number) => void;
     onProblemClick: (problem: ProcessedProblem) => void;
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
-    onDeselectProblem: (uniqueId: string) => void; // [추가]
+    onDeselectProblem: (uniqueId:string) => void;
+    measuredHeights: Map<string, number>;
 }
 
 const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
-    const { distributedPages, isCalculating, allProblems, placementMap } = props;
+    const { 
+        distributedPages = [],
+        distributedSolutionPages = [],
+        allProblems, // [핵심] 최신 데이터가 담긴 이 배열을 사용합니다.
+        selectedProblems = [],
+        placementMap, 
+        solutionPlacementMap,
+        onHeightUpdate,
+    } = props;
+    
+    const latestProblemsMap = useMemo(() => 
+        new Map(allProblems.map(p => [p.uniqueId, p])),
+        [allProblems]
+    );
 
-    if (distributedPages.length > 0) {
-        return (
-            <div className="exam-preview-widget">
-                {distributedPages.map((pageProblems, pageIndex) => (
-                    <div key={`page-container-${pageIndex}-${pageProblems[0]?.uniqueId || ''}`} id={`page-${pageIndex + 1}`} className="page-container">
-                        <ExamPage
-                            {...props}
-                            pageNumber={pageIndex + 1}
-                            totalPages={distributedPages.length}
-                            problems={pageProblems}
-                            allProblems={allProblems}
-                            placementMap={placementMap}
-                        />
-                    </div>
-                ))}
+    const distributedAnswerPages = React.useMemo(() => {
+        if (selectedProblems.length === 0) return [];
+        const pages: ProcessedProblem[][] = [];
+        for (let i = 0; i < selectedProblems.length; i += ANSWERS_PER_PAGE) {
+            pages.push(selectedProblems.slice(i, i + ANSWERS_PER_PAGE));
+        }
+        return pages;
+    }, [selectedProblems]);
+
+    const totalProblemPages = distributedPages.length;
+    const totalAnswerPages = distributedAnswerPages.length;
+    const totalSolutionPages = distributedSolutionPages.length;
+    const totalPages = totalProblemPages + totalAnswerPages + totalSolutionPages;
+
+    if (selectedProblems.length === 0) {
+         return (
+            <div className="status-message">
+                상단 테이블에서 문제를 선택해주세요.
             </div>
         );
     }
     
+    if (distributedPages.length === 0 && selectedProblems.length > 0) {
+        return <div className="status-message">시험지 구성 중...</div>;
+    }
+
     return (
-        <div className="status-message">
-            {isCalculating ? '문제 배치 중...' : '상단 테이블에서 문제를 선택해주세요.'}
+        <div className="exam-preview-widget">
+            <>
+                {/* 1. 문제 페이지 렌더링 */}
+                {distributedPages.map((pageItems, pageIndex) => {
+                    const pageProblems = pageItems
+                        .filter((item): item is Extract<LayoutItem, { type: 'problem' }> => item.type === 'problem')
+                        .map(item => latestProblemsMap.get(item.data.uniqueId))
+                        .filter((p): p is ProcessedProblem => !!p);
+
+                    return (
+                        <div key={`page-container-${pageIndex}`} id={`page-${pageIndex + 1}`} className="page-container">
+                            <ExamPage {...props} allProblems={allProblems} pageNumber={pageIndex + 1} totalPages={totalPages} problems={pageProblems} placementMap={placementMap} />
+                        </div>
+                    );
+                })}
+                
+                {/* 2. 빠른 정답 페이지 렌더링 */}
+                {distributedAnswerPages.map((pageProblems, pageIndex) => {
+                    const pageNumber = totalProblemPages + pageIndex + 1;
+                    return (
+                        <div key={`quick-answer-page-${pageIndex}`} id={`page-${pageNumber}`} className="page-container">
+                            <QuickAnswerPage {...props} allProblems={allProblems} pageNumber={pageNumber} totalPages={totalPages} problems={pageProblems} />
+                        </div>
+                    );
+                })}
+                
+                {/* 3. 해설 페이지 렌더링 */}
+                {distributedSolutionPages.map((pageItems, pageIndex) => {
+                    const pageNumber = totalProblemPages + totalAnswerPages + pageIndex + 1;
+
+                    const updatedPageItems = pageItems.map(item => {
+                        if (item.type === 'solutionChunk') {
+                            const latestParentProblem = latestProblemsMap.get(item.data.parentProblem.uniqueId);
+                            if (latestParentProblem) {
+                                return {
+                                    ...item,
+                                    data: {
+                                        ...item.data,
+                                        parentProblem: latestParentProblem
+                                    }
+                                };
+                            }
+                        }
+                        return item;
+                    }).filter((item): item is LayoutItem => !!item);
+
+                    return (
+                        <div key={`solution-page-container-${pageIndex}`} id={`page-${pageNumber}`} className="page-container">
+                            <SolutionPage 
+                                {...props} 
+                                allProblems={allProblems}
+                                pageNumber={pageNumber} 
+                                totalPages={totalPages} 
+                                items={updatedPageItems} // 업데이트된 아이템 사용
+                                placementMap={solutionPlacementMap}
+                                onHeightUpdate={onHeightUpdate} 
+                            />
+                        </div>
+                    );
+                })}
+            </>
         </div>
     );
 };
@@ -11251,9 +11893,10 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
 
 export default ProblemSelectionWidget;
 ----- ./react/widgets/PublishingToolbarWidget.tsx -----
-import React from 'react';
+import React, { useRef, useCallback, useEffect, useState } from 'react';
 import ActionButton from '../shared/ui/actionbutton/ActionButton';
 import { LuFileDown } from 'react-icons/lu';
+import { useExamLayoutStore } from '../features/problem-publishing/model/examLayoutStore';
 
 interface PublishingToolbarWidgetProps {
     useSequentialNumbering: boolean;
@@ -11275,6 +11918,89 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         problemBoxMinHeight, onProblemBoxMinHeightChange,
         onDownloadPdf
     } = props;
+
+    const { setDraggingControl } = useExamLayoutStore.getState();
+    const dragStartRef = useRef<{ startY: number; startHeight: number } | null>(null);
+
+    const [isEditingMinHeight, setIsEditingMinHeight] = useState(false);
+    const [minHeightInput, setMinHeightInput] = useState(String(problemBoxMinHeight));
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!isEditingMinHeight) {
+            setMinHeightInput(String(problemBoxMinHeight.toFixed(1)));
+        }
+    }, [problemBoxMinHeight, isEditingMinHeight]);
+
+    useEffect(() => {
+        if (isEditingMinHeight && inputRef.current) {
+            inputRef.current.select();
+        }
+    }, [isEditingMinHeight]);
+
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!dragStartRef.current) return;
+        const deltaY = e.clientY - dragStartRef.current.startY;
+        const sensitivity = -0.1;
+        const newHeight = dragStartRef.current.startHeight + deltaY * sensitivity;
+        const clampedHeight = Math.max(5, Math.min(newHeight, 150));
+        onProblemBoxMinHeightChange(clampedHeight);
+    }, [onProblemBoxMinHeightChange]);
+
+    const handleMouseUp = useCallback(() => {
+        if (!dragStartRef.current) return;
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        
+        setDraggingControl(false);
+        
+        dragStartRef.current = null;
+    }, [handleMouseMove, setDraggingControl]);
+
+    const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setDraggingControl(true);
+        dragStartRef.current = {
+            startY: e.clientY,
+            startHeight: problemBoxMinHeight,
+        };
+        document.body.style.cursor = 'ns-resize';
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    }, [problemBoxMinHeight, handleMouseMove, handleMouseUp, setDraggingControl]);
+
+    const handleMinHeightDoubleClick = () => {
+        setIsEditingMinHeight(true);
+    };
+
+    const handleMinHeightInputBlur = () => {
+        const newValue = parseFloat(minHeightInput);
+        if (!isNaN(newValue)) {
+            onProblemBoxMinHeightChange(Math.max(5, Math.min(newValue, 150)));
+        }
+        setIsEditingMinHeight(false);
+    };
+
+    const handleMinHeightInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleMinHeightInputBlur();
+        } else if (e.key === 'Escape') {
+            setIsEditingMinHeight(false);
+            setMinHeightInput(String(problemBoxMinHeight.toFixed(1)));
+        }
+    };
+
+
+    useEffect(() => {
+        return () => {
+            if (dragStartRef.current) {
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+            }
+        };
+    }, [handleMouseMove, handleMouseUp]);
     
     return (
         <div className="publishing-controls-panel">
@@ -11293,11 +12019,42 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
             </div>
             <div className="control-group">
                 <label htmlFor="content-font-size">본문 크기(em):</label>
-                <input id="content-font-size" type="number" step="0.1" value={contentFontSizeEm} onChange={e => onContentFontSizeEmChange(parseFloat(e.target.value))} />
+                <input 
+                    id="content-font-size" 
+                    type="number" 
+                    step="0.1" 
+                    value={contentFontSizeEm} 
+                    onChange={e => onContentFontSizeEmChange(parseFloat(e.target.value) || 0)} 
+                />
             </div>
             <div className="control-group">
-                <label htmlFor="min-box-height">문제 최소높이(em):</label>
-                <input id="min-box-height" type="number" value={problemBoxMinHeight} onChange={e => onProblemBoxMinHeightChange(parseInt(e.target.value, 10))} />
+                <label htmlFor="min-box-height-drag">문제 최소높이(em):</label>
+                {isEditingMinHeight ? (
+                    <input
+                        ref={inputRef}
+                        type="number"
+                        value={minHeightInput}
+                        onChange={(e) => setMinHeightInput(e.target.value)}
+                        onBlur={handleMinHeightInputBlur}
+                        onKeyDown={handleMinHeightInputKeyDown}
+                        className="draggable-number-input"
+                    />
+                ) : (
+                    <div
+                        id="min-box-height-drag"
+                        className="draggable-number"
+                        onMouseDown={handleMouseDown}
+                        onDoubleClick={handleMinHeightDoubleClick}
+                        role="slider"
+                        aria-valuenow={problemBoxMinHeight}
+                        aria-valuemin={5}
+                        aria-valuemax={150}
+                        aria-label="문제 최소 높이 조절. 마우스를 누른 채 위아래로 드래그하거나 더블클릭하여 직접 입력하세요."
+                        title="드래그 또는 더블클릭하여 수정"
+                    >
+                        {problemBoxMinHeight.toFixed(1)}
+                    </div>
+                )}
             </div>
         </div>
     );

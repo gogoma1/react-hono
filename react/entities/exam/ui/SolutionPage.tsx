@@ -1,45 +1,44 @@
-import React, { useMemo, useCallback, forwardRef } from 'react';
+import React, { useMemo } from 'react';
+// useShallow와 useProblemPublishingStore import 제거
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
 import ExamHeader from './ExamHeader';
 import type { LayoutItem } from '../../../features/problem-publishing/model/useProblemPublishing';
 import './ExamPage.css';
+import { useHeightMeasurer } from '../../../features/problem-publishing/hooks/useHeightMeasurer';
 
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
-
 interface SolutionChunkItemProps {
     item: Extract<LayoutItem, { type: 'solutionChunk' }>;
     allProblems: ProcessedProblem[];
-    onRenderComplete: (uniqueId: string) => void;
+    onRenderComplete: (uniqueId: string, height: number) => void;
     useSequentialNumbering: boolean;
     contentFontSizeEm: number;
     contentFontFamily: string;
     isFirstChunk: boolean;
+    // [추가] 부모 문제 객체를 props로 직접 받습니다.
+    parentProblem: ProcessedProblem;
 }
-
-const SolutionChunkItem = forwardRef<HTMLDivElement, SolutionChunkItemProps>(({ item, allProblems, onRenderComplete, useSequentialNumbering, contentFontSizeEm, contentFontFamily, isFirstChunk }, ref) => {
-    const parentProblem = item.data.parentProblem;
+const SolutionChunkItem: React.FC<SolutionChunkItemProps> = React.memo(({ item, allProblems, onRenderComplete, useSequentialNumbering, contentFontSizeEm, contentFontFamily, isFirstChunk, parentProblem }) => {
     
-    const globalProblemIndex = useMemo(() => 
-        allProblems.findIndex(p => p.uniqueId === parentProblem.uniqueId) + 1,
-        [allProblems, parentProblem]
-    );
+    // [핵심] store 구독 제거
+    // const parentProblem = useProblemPublishingStore(...)
 
-    const displayNumber = useSequentialNumbering 
-        ? `${globalProblemIndex}` 
-        : parentProblem.display_question_number;
+    const globalProblemIndex = useMemo(() => allProblems.findIndex(p => p.uniqueId === item.data.parentProblem.uniqueId) + 1, [allProblems, item.data.parentProblem.uniqueId]);
+    
+    const measureRef = useHeightMeasurer(onRenderComplete, item.uniqueId);
+    
+    // 이제 parentProblem이 null일 수 없으므로 관련 체크 제거
+    if (!parentProblem) return null; // 안전 장치
 
+    const displayNumber = useSequentialNumbering ? `${globalProblemIndex}` : parentProblem.display_question_number;
+    
     return (
-        <div ref={ref} className="solution-item-container" data-solution-id={item.uniqueId}>
-            {/* [수정] 해당 문제의 첫 번째 해설 조각일 때만 문제 번호 표시 */}
-            {isFirstChunk && (
-                <div className="solution-header">
-                    <span className="solution-number">{displayNumber}.</span>
-                </div>
-            )}
+        <div ref={measureRef} className="solution-item-container" data-solution-id={item.uniqueId}>
+            {isFirstChunk && (<div className="solution-header"><span className="solution-number">{displayNumber}.</span></div>)}
             <div className="solution-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily }}>
                 <div className="mathpix-wrapper prose">
-                    <MathpixRenderer text={item.data.text} onRenderComplete={() => onRenderComplete(item.uniqueId)} />
+                    <MathpixRenderer text={item.data.text} />
                 </div>
             </div>
         </div>
@@ -47,10 +46,11 @@ const SolutionChunkItem = forwardRef<HTMLDivElement, SolutionChunkItemProps>(({ 
 });
 SolutionChunkItem.displayName = 'SolutionChunkItem';
 
+
 interface SolutionPageProps {
     pageNumber: number;
     totalPages: number;
-    items: LayoutItem[]; // [수정] props 타입을 LayoutItem 배열로 변경
+    items: LayoutItem[];
     allProblems: ProcessedProblem[];
     placementMap: Map<string, { page: number; column: number }>;
     onHeightUpdate: (uniqueId: string, height: number) => void;
@@ -64,84 +64,58 @@ interface SolutionPageProps {
 
 const SolutionPage: React.FC<SolutionPageProps> = (props) => {
     const {
-        pageNumber, totalPages, items, allProblems, placementMap,
-        onHeightUpdate, useSequentialNumbering,
-        baseFontSize, contentFontSizeEm, contentFontFamily,
-        headerInfo,
-        onHeaderUpdate,
+        pageNumber, totalPages, items, allProblems, placementMap, onHeightUpdate,
+        useSequentialNumbering, baseFontSize, contentFontSizeEm, contentFontFamily,
+        headerInfo, onHeaderUpdate,
     } = props;
-
-    const leftColumnItems = useMemo(() => 
-        items.filter(item => placementMap.get(item.uniqueId)?.column === 1),
-        [items, placementMap]
-    );
-
-    const rightColumnItems = useMemo(() => 
-        items.filter(item => placementMap.get(item.uniqueId)?.column === 2),
-        [items, placementMap]
-    );
     
-    const registerElement = useCallback((uniqueId: string, node: HTMLDivElement | null) => {
-        if (node) {
-            requestAnimationFrame(() => {
-                const styles = window.getComputedStyle(node);
-                const marginBottom = parseFloat(styles.marginBottom);
-                const totalHeight = node.offsetHeight + (isNaN(marginBottom) ? 0 : marginBottom);
-                onHeightUpdate(uniqueId, totalHeight);
-            });
-        }
-    }, [onHeightUpdate]);
+    const leftColumnItems = useMemo(() => items.filter(item => placementMap.get(item.uniqueId)?.column === 1), [items, placementMap]);
+    const rightColumnItems = useMemo(() => items.filter(item => placementMap.get(item.uniqueId)?.column === 2), [items, placementMap]);
 
-    const handleRenderComplete = useCallback((uniqueId: string) => {
-        const node = document.querySelector(`[data-solution-id="${uniqueId}"]`) as HTMLDivElement | null;
-        if(node) registerElement(uniqueId, node);
-    }, [registerElement]);
-    
+    // [추가] 최신 문제 데이터를 빠르게 찾기 위한 맵
+    const latestProblemsMap = useMemo(() => new Map(allProblems.map(p => [p.uniqueId, p])), [allProblems]);
+
     const renderColumn = (columnItems: LayoutItem[]) => {
         return columnItems.map((item) => {
             if (item.type !== 'solutionChunk') return null;
 
-            // [수정] 이 조각이 해당 문제의 첫 번째 조각인지 확인
-            const isFirstChunk = !item.uniqueId.endsWith('-sol-0');
-            
+            // [핵심] 최신 부모 문제 정보를 찾아서 props로 전달합니다.
+            const parentProblem = latestProblemsMap.get(item.data.parentProblem.uniqueId);
+            if (!parentProblem) return null; // 부모 문제가 없으면 렌더링하지 않음
+
             return (
                 <SolutionChunkItem
                     key={item.uniqueId}
-                    ref={(node) => registerElement(item.uniqueId, node)}
-                    item={item}
+                    item={item} 
                     allProblems={allProblems}
-                    onRenderComplete={handleRenderComplete}
+                    onRenderComplete={onHeightUpdate}
                     useSequentialNumbering={useSequentialNumbering}
                     contentFontSizeEm={contentFontSizeEm}
                     contentFontFamily={contentFontFamily}
                     isFirstChunk={!item.uniqueId.includes('-sol-') || item.uniqueId.endsWith('-sol-0')}
+                    parentProblem={parentProblem} // 찾은 최신 문제 객체를 prop으로 전달
                 />
             );
         });
     };
     
-    const solutionHeaderInfo = {
-        ...headerInfo,
-        title: "정답 및 해설",
-        subject: headerInfo.subject + " (해설)",
-    };
+    const solutionHeaderInfo = { ...headerInfo, title: "정답 및 해설", subject: headerInfo.subject + " (해설)" };
 
     return (
         <div className="exam-page-component solution-page" style={{ fontSize: baseFontSize }}>
             <div className="exam-paper">
                 <ExamHeader 
                     page={pageNumber}
+                    totalPages={totalPages}
                     additionalBoxContent={allProblems[0]?.source ?? '정보 없음'}
                     {...solutionHeaderInfo}
                     onUpdate={onHeaderUpdate}
                 />
-                
                 <div className="exam-columns-container">
                     <div className="exam-column">{renderColumn(leftColumnItems)}</div>
                     <div className="exam-column">{renderColumn(rightColumnItems)}</div>
                     <div className="column-divider"></div>
                 </div>
-
                 <div className="page-footer">
                     <div className="page-counter-box">{pageNumber} / {totalPages}</div>
                 </div>

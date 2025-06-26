@@ -39,8 +39,6 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'student_name', direction: 'asc' });
 
     const sortedStudents = useMemo(() => {
-        // [핵심 수정] students 배열을 복사하여 원본을 수정하지 않도록 합니다.
-        // Array.prototype.sort()는 원본 배열을 변경(mutate)하기 때문입니다.
         return [...students].sort((a, b) => {
             const statusComparison = statusOrder[a.status] - statusOrder[b.status];
             if (statusComparison !== 0) {
@@ -85,7 +83,6 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({
     };
 
     const handleToggleStatusEditor = (studentId: string) => {
-        // [수정] prevId와 studentId를 비교하여 상태 토글
         setEditingStatusRowId(prevId => (prevId === studentId ? null : studentId));
     };
 
@@ -125,7 +122,7 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({
             ref={scrollContainerRef}
             scrollContainerProps={{
                 onMouseDown: onMouseDown,
-                className: isDragging ? 'dragging' : '',
+                className: `draggable ${isDragging ? 'dragging' : ''}`.trim(),
             }}
             students={sortedStudents}
             isLoading={isLoading}

@@ -1,0 +1,54 @@
+/* ----- ./widgets/PublishingToolbarWidget.css ----- */
+
+.continuous-input-wrapper {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--text-placeholder);
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: var(--main-content-bg-color);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.continuous-input-wrapper:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.1);
+}
+
+.continuous-input-wrapper input[type="number"] {
+    width: 60px;
+    border: none;
+    outline: none;
+    padding: 6px 4px;
+    text-align: center;
+    font-size: 0.9rem;
+    background-color: transparent;
+    -moz-appearance: textfield;
+}
+
+.continuous-input-wrapper input[type="number"]::-webkit-outer-spin-button,
+.continuous-input-wrapper input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.continuous-btn {
+    background-color: rgba(0,0,0,0.05);
+    border: none;
+    padding: 0 8px;
+    align-self: stretch; /* 부모 높이에 꽉 차도록 */
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: background-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.continuous-btn:hover {
+    background-color: rgba(0,0,0,0.1);
+    color: var(--text-primary);
+}
+
+.continuous-btn:active {
+    background-color: rgba(var(--accent-color-rgb), 0.15);
+    color: var(--accent-color-darker);
+}

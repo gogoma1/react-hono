@@ -348,8 +348,6 @@
     background: none; 
     border: none; 
     font: inherit; 
-    /* 전체 컨테이너에서 패딩을 뺐으므로, 이 버튼이 패딩 역할을 해야 할 수 있습니다. */
-    /* 필요 시 패딩 추가: padding: 0.9em 1.1em; */
 }
 .text-trigger:hover { background-color: rgba(0,0,0,0.05); }
 .text-trigger:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
@@ -385,6 +383,101 @@
 .problem-deselect-button:focus-visible {
     outline: 2px solid var(--accent-color);
     outline-offset: 1px;
+}
+
+/* ==========================================================================
+   5. 빠른 정답 페이지 스타일 (QuickAnswerPage)
+   ========================================================================== */
+.quick-answer-header {
+    position: relative;
+    text-align: center;
+    margin-bottom: 2em;
+    padding: 1em 0;
+    border-top: 3px double black;
+    border-bottom: 1.5px solid black;
+}
+.quick-answer-title {
+    font-size: 2.2em;
+    font-weight: 700;
+    margin: 0;
+}
+/* 2열 컨테이너 */
+.quick-answer-columns-container {
+    display: flex;
+    flex-grow: 1;
+    gap: 2em;
+    padding: 1em 0;
+    position: relative; /* [수정] 구분선 위치의 기준이 되도록 추가 */
+}
+/* 각 열 스타일 */
+.quick-answer-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8em;
+}
+/* 각 정답 아이템 스타일 */
+.quick-answer-item {
+    display: flex;
+    align-items: baseline;
+    font-size: 1.1em;
+    line-height: 1.5;
+}
+.quick-answer-number {
+    min-width: 2.5em;
+    text-align: right;
+    font-weight: 600;
+    padding-right: 0.5em;
+}
+.quick-answer-value {
+    font-weight: 500;
+}
+
+
+/* ==========================================================================
+   6. 해설 페이지 스타일 (SolutionPage)
+   ========================================================================== */
+.solution-item-container {
+    padding: 0.5em 0.2em;
+    margin-bottom: 1.5em;
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.solution-header {
+    margin-bottom: 0.7em;
+    display: flex;
+    flex-shrink: 0;
+    align-items: baseline;
+    justify-content: flex-start;
+    white-space: nowrap;
+    font-size: 1em;
+    font-weight: 700;
+    line-height: 1;
+}
+.solution-number {
+    font-size: 2em;
+    font-weight: 700;
+    line-height: 1;
+}
+.solution-content-wrapper {
+    position: relative;
+    min-height: 0;
+    width: 100%;
+    flex-grow: 1;
+    overflow: hidden;
+    line-height: 1.75;
+}
+/* [추가] 측정된 높이 값 스타일 */
+.measured-height {
+    margin-left: 0.5em;
+    font-size: 0.8em;
+    font-weight: 400;
+    color: #e67e22; /* accent-color */
+    font-family: monospace;
 }
 ----- ./react/entities/student/ui/StudentDisplayDesktop.css -----
 /* ./react/entities/student/ui/StudentDisplayDesktop.css */
@@ -2537,46 +2630,33 @@ body {
     }
 }
 ----- ./react/pages/ProblemPublishingPage.css -----
-/* react/pages/ProblemPublishingPage.css */
+/* ----- ./react/pages/ProblemPublishingPage.css ----- */
 
-/*
- * [수정] 페이지 최상위 컨테이너
- * height: 100%를 제거하여 내용만큼 높이가 늘어나도록 합니다.
- * 이제 이 컨테이너는 부모인 main-content의 스크롤에 따라 움직입니다.
- */
 .problem-publishing-page {
+    /* 페이지 전체가 main-content의 스크롤을 따르도록 높이 제약을 제거합니다. */
     display: flex;
     flex-direction: column;
     width: 100%;
-    gap: 1.5rem;
+    gap: 1.5rem; /* 상단 영역과 하단 미리보기 영역 사이의 간격 */
 }
 
-/*
- * 상단 영역 (문제 선택 위젯 + 툴바).
- * 이 영역은 이제 페이지 스크롤과 함께 자연스럽게 움직입니다.
- */
 .sticky-top-container {
+    /* 이 컨테이너는 더 이상 화면에 고정되지 않습니다. */
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.5rem; /* 문제 선택 위젯과 툴바 사이의 간격 */
 }
 
-/*
- * [스크롤 영역 1: 테이블]
- * 테이블 컨테이너는 기존과 동일하게 높이를 제한하여
- * 테이블 내용이 많을 때 자체 스크롤이 생기도록 합니다.
- */
 .selection-widget-container {
+    /* 테이블이 너무 커지는 것을 방지하기 위해 최대/최소 높이 설정 */
     flex-shrink: 0;
     max-height: 40vh;
     min-height: 250px;
-    display: flex;
+    display: flex; /* 자식인 ProblemSelectionWidget이 높이를 100% 채우도록 */
     flex-direction: column;
-    
 }
 
-/* 컨트롤 패널 스타일 (변경 없음) */
 .publishing-controls-panel {
     flex-shrink: 0;
     padding: 1rem;
@@ -2585,9 +2665,9 @@ body {
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: wrap; /* 창이 좁아지면 줄바꿈 */
     align-items: center;
-    gap: 1.5rem;
+    gap: 1rem 1.5rem; /* 세로 간격, 가로 간격 */
 }
 
 .control-group {
@@ -2614,19 +2694,44 @@ body {
     text-align: center;
 }
 
+/* --- [추가 시작] 드래그 가능한 숫자 컨트롤 스타일 --- */
+.draggable-number {
+    width: 70px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--text-placeholder);
+    background-color: var(--main-content-bg-color);
+    font-size: 0.9rem;
+    text-align: center;
+    cursor: ns-resize; /* 남북 방향 리사이즈 커서로 드래그 가능함을 암시 */
+    user-select: none; /* 드래그 중 텍스트가 선택되는 것을 방지 */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.draggable-number:hover {
+    border-color: var(--accent-color);
+}
+
+.draggable-number:active {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.2);
+    cursor: ns-resize;
+}
+/* --- [추가 끝] --- */
+
 .control-group input:focus {
     outline: none;
     border-color: var(--accent-color);
     box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.1);
 }
 
-
-/*
- * [수정] 시험지 미리보기 영역.
- * flex-grow, overflow-y, min-height 속성을 모두 제거합니다.
- * 이제 이 영역은 스크롤을 가지지 않고, 내용만큼의 높이를 차지합니다.
- */
-
+.scrollable-content-area {
+    /* 이 영역은 이제 페이지의 나머지 부분을 차지하며, 스크롤되지 않습니다. */
+    /* 내부의 ExamPreviewWidget이 내용만큼의 높이를 가집니다. */
+    width: 100%;
+}
 
 .status-message {
     padding: 3rem 1rem;
@@ -3550,6 +3655,61 @@ body {
     border-radius: 4px;
     font-size: 0.8rem;
     margin: 2px;
+}
+----- ./react/widgets/PublishingToolbarWidget.css -----
+/* ----- ./widgets/PublishingToolbarWidget.css ----- */
+
+.continuous-input-wrapper {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--text-placeholder);
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: var(--main-content-bg-color);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.continuous-input-wrapper:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.1);
+}
+
+.continuous-input-wrapper input[type="number"] {
+    width: 60px;
+    border: none;
+    outline: none;
+    padding: 6px 4px;
+    text-align: center;
+    font-size: 0.9rem;
+    background-color: transparent;
+    -moz-appearance: textfield;
+}
+
+.continuous-input-wrapper input[type="number"]::-webkit-outer-spin-button,
+.continuous-input-wrapper input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.continuous-btn {
+    background-color: rgba(0,0,0,0.05);
+    border: none;
+    padding: 0 8px;
+    align-self: stretch; /* 부모 높이에 꽉 차도록 */
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: background-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.continuous-btn:hover {
+    background-color: rgba(0,0,0,0.1);
+    color: var(--text-primary);
+}
+
+.continuous-btn:active {
+    background-color: rgba(var(--accent-color-rgb), 0.15);
+    color: var(--accent-color-darker);
 }
 ----- ./react/widgets/rootlayout/BackgroundBlobs.css -----
 .blobs-container {

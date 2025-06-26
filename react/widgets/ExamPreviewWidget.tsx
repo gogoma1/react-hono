@@ -1,5 +1,4 @@
-import React from 'react';
-// [수정] 사용하지 않는 Problem 타입 import 제거
+import React, { useMemo } from 'react';
 import ExamPage from '../entities/exam/ui/ExamPage';
 import QuickAnswerPage from '../entities/exam/ui/QuickAnswerPage';
 import SolutionPage from '../entities/exam/ui/SolutionPage';
@@ -15,7 +14,6 @@ interface ExamPreviewWidgetProps {
     selectedProblems: ProcessedProblem[];
     placementMap: Map<string, { page: number; column: number }>;
     solutionPlacementMap: Map<string, { page: number; column: number }>;
-    isCalculating: boolean;
     headerInfo: any;
     
     useSequentialNumbering: boolean;
@@ -27,24 +25,25 @@ interface ExamPreviewWidgetProps {
     onHeightUpdate: (uniqueId: string, height: number) => void;
     onProblemClick: (problem: ProcessedProblem) => void;
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
-    onDeselectProblem: (uniqueId: string) => void;
+    onDeselectProblem: (uniqueId:string) => void;
+    measuredHeights: Map<string, number>;
 }
 
 const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
     const { 
         distributedPages = [],
         distributedSolutionPages = [],
-        isCalculating, 
-        allProblems, 
+        allProblems, // [핵심] 최신 데이터가 담긴 이 배열을 사용합니다.
         selectedProblems = [],
         placementMap, 
         solutionPlacementMap,
         onHeightUpdate,
     } = props;
     
-    const problemsWithSolutions = React.useMemo(() => 
-        selectedProblems.filter(p => p.solution_text && p.solution_text.trim() !== ''),
-        [selectedProblems]
+    // [추가] 최신 문제 데이터를 빠르게 찾기 위한 Map을 생성합니다.
+    const latestProblemsMap = useMemo(() => 
+        new Map(allProblems.map(p => [p.uniqueId, p])),
+        [allProblems]
     );
 
     const distributedAnswerPages = React.useMemo(() => {
@@ -61,7 +60,7 @@ const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
     const totalSolutionPages = distributedSolutionPages.length;
     const totalPages = totalProblemPages + totalAnswerPages + totalSolutionPages;
 
-    if (totalProblemPages === 0 && !isCalculating) {
+    if (selectedProblems.length === 0) {
          return (
             <div className="status-message">
                 상단 테이블에서 문제를 선택해주세요.
@@ -69,83 +68,75 @@ const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
         );
     }
     
+    if (distributedPages.length === 0 && selectedProblems.length > 0) {
+        return <div className="status-message">시험지 구성 중...</div>;
+    }
+
     return (
         <div className="exam-preview-widget">
-            {isCalculating && <div className="status-message">문제 배치 중...</div>}
-            
-            {/* 1. 문제 페이지 렌더링 */}
-            {distributedPages.map((pageItems, pageIndex) => {
-                const pageProblems = pageItems
-                    .filter((item): item is Extract<LayoutItem, { type: 'problem' }> => item.type === 'problem')
-                    .map(item => item.data);
+            <>
+                {/* 1. 문제 페이지 렌더링 */}
+                {distributedPages.map((pageItems, pageIndex) => {
+                    // [수정] 레이아웃의 ID를 이용해 최신 문제 데이터를 찾아옵니다.
+                    const pageProblems = pageItems
+                        .filter((item): item is Extract<LayoutItem, { type: 'problem' }> => item.type === 'problem')
+                        .map(item => latestProblemsMap.get(item.data.uniqueId))
+                        .filter((p): p is ProcessedProblem => !!p);
 
-                return (
-                    <div key={`page-container-${pageIndex}-${pageProblems[0]?.uniqueId || ''}`} id={`page-${pageIndex + 1}`} className="page-container">
-                        <ExamPage
-                            {...props}
-                            pageNumber={pageIndex + 1}
-                            totalPages={totalPages}
-                            problems={pageProblems}
-                            placementMap={placementMap}
-                        />
-                    </div>
-                );
-            })}
-            
-            {/* 2. 빠른 정답 페이지 렌더링 */}
-            {distributedAnswerPages.map((pageProblems, pageIndex) => {
-                const pageNumber = totalProblemPages + pageIndex + 1;
-                return (
-                    <div key={`quick-answer-page-${pageIndex}`} id={`page-${pageNumber}`} className="page-container">
-                        <QuickAnswerPage
-                            pageNumber={pageNumber}
-                            totalPages={totalPages}
-                            problems={pageProblems}
-                            headerInfo={props.headerInfo}
-                            baseFontSize={props.baseFontSize}
-                            useSequentialNumbering={props.useSequentialNumbering}
-                            allProblems={allProblems}
-                        />
-                    </div>
-                );
-            })}
-            
-            {/* 3. 해설 페이지 렌더링 */}
-            {distributedSolutionPages.map((pageItems, pageIndex) => {
-                const pageNumber = totalProblemPages + totalAnswerPages + pageIndex + 1;
-                return (
-                    <div key={`solution-page-container-${pageIndex}-${pageItems[0]?.uniqueId || ''}`} id={`page-${pageNumber}`} className="page-container">
-                        <SolutionPage
-                            {...props}
-                            pageNumber={pageNumber}
-                            totalPages={totalPages}
-                            items={pageItems} 
-                            placementMap={solutionPlacementMap}
-                            onHeightUpdate={onHeightUpdate} 
-                        />
-                    </div>
-                );
-            })}
-            
-            {/* 해설 페이지 높이 계산을 위한 숨겨진 렌더링 영역 */}
-            <div style={{ position: 'absolute', zIndex: -1, opacity: 0, pointerEvents: 'none', top: '-9999px', left: '-9999px' }}>
-                <SolutionPage
-                    {...props}
-                    pageNumber={-1}
-                    totalPages={-1}
-                    // [수정] 해설 조각 아이템으로 변환
-                    items={problemsWithSolutions.flatMap(p => 
-                        // p.solution_text가 null이 아님을 filter에서 확인했으므로 non-null assertion(!) 사용 가능
-                        p.solution_text!.split(/\n\s*\n/).filter(c => c.trim()).map((chunk, cIndex) => ({
-                            type: 'solutionChunk' as const, // 타입을 명확히 함
-                            data: { text: chunk, parentProblem: p },
-                            uniqueId: `${p.uniqueId}-sol-${cIndex}`
-                        }))
-                    )}
-                    placementMap={new Map()}
-                    onHeightUpdate={onHeightUpdate} 
-                />
-            </div>
+                    return (
+                        <div key={`page-container-${pageIndex}`} id={`page-${pageIndex + 1}`} className="page-container">
+                            <ExamPage {...props} allProblems={allProblems} pageNumber={pageIndex + 1} totalPages={totalPages} problems={pageProblems} placementMap={placementMap} />
+                        </div>
+                    );
+                })}
+                
+                {/* 2. 빠른 정답 페이지 렌더링 */}
+                {distributedAnswerPages.map((pageProblems, pageIndex) => {
+                    const pageNumber = totalProblemPages + pageIndex + 1;
+                    return (
+                        <div key={`quick-answer-page-${pageIndex}`} id={`page-${pageNumber}`} className="page-container">
+                            <QuickAnswerPage {...props} allProblems={allProblems} pageNumber={pageNumber} totalPages={totalPages} problems={pageProblems} />
+                        </div>
+                    );
+                })}
+                
+                {/* 3. 해설 페이지 렌더링 */}
+                {distributedSolutionPages.map((pageItems, pageIndex) => {
+                    const pageNumber = totalProblemPages + totalAnswerPages + pageIndex + 1;
+
+                    // [수정] 해설 아이템의 부모 문제 데이터를 최신 버전으로 교체합니다.
+                    const updatedPageItems = pageItems.map(item => {
+                        if (item.type === 'solutionChunk') {
+                            const latestParentProblem = latestProblemsMap.get(item.data.parentProblem.uniqueId);
+                            if (latestParentProblem) {
+                                // 새로운 부모 문제 데이터로 교체한 새 아이템 객체 반환
+                                return {
+                                    ...item,
+                                    data: {
+                                        ...item.data,
+                                        parentProblem: latestParentProblem
+                                    }
+                                };
+                            }
+                        }
+                        return item;
+                    }).filter((item): item is LayoutItem => !!item);
+
+                    return (
+                        <div key={`solution-page-container-${pageIndex}`} id={`page-${pageNumber}`} className="page-container">
+                            <SolutionPage 
+                                {...props} 
+                                allProblems={allProblems}
+                                pageNumber={pageNumber} 
+                                totalPages={totalPages} 
+                                items={updatedPageItems} // 업데이트된 아이템 사용
+                                placementMap={solutionPlacementMap}
+                                onHeightUpdate={onHeightUpdate} 
+                            />
+                        </div>
+                    );
+                })}
+            </>
         </div>
     );
 };
