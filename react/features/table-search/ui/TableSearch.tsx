@@ -1,5 +1,5 @@
 import React from 'react';
-import { LuSearch, LuX, LuRotateCcw, LuCirclePlus, LuListChecks, LuListX, LuEyeOff } from 'react-icons/lu'; // LuEyeOff 추가
+import { LuSearch, LuX, LuRotateCcw, LuCirclePlus, LuListChecks, LuEyeOff } from 'react-icons/lu';
 import './TableSearch.css';
 
 export interface SuggestionGroup {
@@ -14,13 +14,13 @@ export interface TableSearchProps {
     activeFilters: Record<string, Set<string>>;
     onFilterChange: (key: string, value: string) => void;
     onResetFilters: () => void;
-    onHide?: () => void; // [추가]
+    onHide?: () => void;
     
     onToggleFiltered?: () => void;
     onCreateProblemSet?: () => void;
     selectedCount?: number;
     showActionControls?: boolean;
-    isFilteredAllSelected?: boolean;
+    isSelectionComplete?: boolean; // [수정] isFilteredAllSelected -> isSelectionComplete
 }
 
 const TableSearch: React.FC<TableSearchProps> = ({
@@ -30,15 +30,14 @@ const TableSearch: React.FC<TableSearchProps> = ({
     activeFilters,
     onFilterChange,
     onResetFilters,
-    onHide, // [추가]
+    onHide,
     onToggleFiltered,
     onCreateProblemSet,
     selectedCount = 0,
     showActionControls = true,
-    isFilteredAllSelected = false,
+    isSelectionComplete = false, // [수정]
 }) => {
-    const hasActiveFilters = Object.keys(activeFilters).length > 0;
-    const hasSuggestions = suggestionGroups.some(g => g.suggestions.length > 0);
+    const hasActiveFilters = Object.keys(activeFilters).length > 0 || searchTerm.trim() !== '';
 
     return (
         <div className="table-search-panel">
@@ -55,7 +54,7 @@ const TableSearch: React.FC<TableSearchProps> = ({
             
             <div className="filter-actions-container">
                 <div className="filter-chips-area">
-                    {hasSuggestions && suggestionGroups.map((group) => (
+                    {suggestionGroups.map((group) => (
                         group.suggestions.length > 0 && (
                             <div key={group.key} className="suggestion-group">
                                 <div className="suggestion-buttons-wrapper">
@@ -81,7 +80,6 @@ const TableSearch: React.FC<TableSearchProps> = ({
 
                 {showActionControls && (
                     <div className="action-controls-area">
-                        {/* 1. 문제 출제 또는 결과 선택 버튼 */}
                         {onCreateProblemSet && (
                              <button
                                 type="button"
@@ -97,15 +95,16 @@ const TableSearch: React.FC<TableSearchProps> = ({
                         {onToggleFiltered && (
                             <button
                                 type="button"
-                                className="control-button primary" /* [수정] primary 클래스 추가 */
+                                className="control-button primary"
                                 onClick={onToggleFiltered}
+                                // [수정] 비활성화 조건을 새로운 prop으로 변경
+                                disabled={isSelectionComplete}
                             >
-                                {isFilteredAllSelected ? <LuListX size={16} /> : <LuListChecks size={16} />}
-                                <span>{isFilteredAllSelected ? '선택 해제' : '결과 선택'}</span>
+                                <LuListChecks size={16} />
+                                <span>결과 선택</span>
                             </button>
                         )}
                         
-                        {/* 2. 검색창 숨기기 버튼 */}
                         {onHide && (
                             <button
                                 type="button"
@@ -117,7 +116,6 @@ const TableSearch: React.FC<TableSearchProps> = ({
                             </button>
                         )}
 
-                        {/* 3. 초기화 버튼 */}
                         <button 
                             type="button" 
                             className="control-button"

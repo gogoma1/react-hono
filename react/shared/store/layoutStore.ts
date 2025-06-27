@@ -1,10 +1,7 @@
-// ./react/shared/store/layoutStore.ts
-
 import { create } from 'zustand';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
 
-// [수정] export 추가
 export interface StoredSearchProps {
     searchTerm: string;
     onSearchTermChange: (value: string) => void;
@@ -16,7 +13,7 @@ export interface StoredSearchProps {
     onCreateProblemSet?: () => void;
     selectedCount?: number;
     showActionControls?: boolean;
-    isFilteredAllSelected?: boolean;
+    isSelectionComplete?: boolean; // [수정] isFilteredAllSelected를 isSelectionComplete로 변경
     onHide?: () => void;
 }
 

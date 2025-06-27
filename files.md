@@ -2739,6 +2739,7 @@ import { useProblemPublishingStore } from './problemPublishingStore';
 
 let itemHeightsMap = new Map<string, number>();
 let debounceTimer: number | null = null;
+let recalculateTimer: NodeJS.Timeout | null = null;
 
 interface ExamUIOptions {
     baseFontSize: string;
@@ -2805,7 +2806,6 @@ const runDebouncedRecalculation = (get: () => ExamLayoutState & ExamLayoutAction
              console.log("[LOG] examLayoutStore: 레이아웃이 확정되었거나, 드래그 중이거나, 편집 중이므로 디바운스된 재계산을 건너뜁니다.");
             return;
         }
-
     }, 500);
 };
 
@@ -2826,9 +2826,39 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
 
     setItemHeight: (uniqueId, height) => {
         const oldHeight = itemHeightsMap.get(uniqueId);
-        if (oldHeight !== height) {
-            itemHeightsMap.set(uniqueId, height);
-        }
+        if (oldHeight === height) return;
+        
+        itemHeightsMap.set(uniqueId, height);
+
+        if (recalculateTimer) clearTimeout(recalculateTimer);
+        recalculateTimer = setTimeout(() => {
+            console.log('[LOG] examLayoutStore: 높이 측정 완료 후 최종 레이아웃 재계산을 시도합니다.');
+            const { problemsForLayout, isLayoutFinalized, isDraggingControl } = get();
+            const isEditing = !!useProblemPublishingStore.getState().editingProblemId;
+
+            if (isLayoutFinalized || isDraggingControl || isEditing || problemsForLayout.length === 0) {
+                return;
+            }
+            
+            const allItemsToMeasure: string[] = [];
+            problemsForLayout.forEach(p => {
+                allItemsToMeasure.push(p.uniqueId);
+                if (p.solution_text?.trim()) {
+                    p.solution_text.split(/\n\s*\n/).filter(c => c.trim()).forEach((_, index) => {
+                        allItemsToMeasure.push(`${p.uniqueId}-sol-${index}`);
+                    });
+                }
+            });
+
+            const allMeasured = allItemsToMeasure.every(id => itemHeightsMap.has(id));
+
+            if (allMeasured) {
+                console.log('[LOG] examLayoutStore: ✅ 모든 항목의 높이가 측정되었습니다. 최종 레이아웃을 실행합니다.');
+                get().forceRecalculateLayout(31);
+            } else {
+                console.log('[LOG] examLayoutStore: ⏳ 아직 측정되지 않은 항목이 있습니다. 재계산을 보류합니다.');
+            }
+        }, 500);
     },
     
     forceRecalculateLayout: (minHeight) => {
@@ -2854,6 +2884,7 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
 
     resetLayout: () => {
         if (debounceTimer) clearTimeout(debounceTimer);
+        if (recalculateTimer) clearTimeout(recalculateTimer);
         itemHeightsMap = new Map<string, number>();
         set({
             distributedPages: [],
@@ -2867,6 +2898,7 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
 
     startLayoutCalculation: (selectedProblems, problemBoxMinHeight) => {
         if (debounceTimer) clearTimeout(debounceTimer);
+        if (recalculateTimer) clearTimeout(recalculateTimer);
         
         const newHeightsMap = new Map<string, number>();
         const selectedIds = new Set(selectedProblems.map(p => p.uniqueId));
@@ -2890,6 +2922,10 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
         });
 
         logLayoutResult(selectedProblems, problems.placements, solutions.placements);
+
+        recalculateTimer = setTimeout(() => {
+            get().setItemHeight('', -1);
+        }, 600);
     },
 
     setBaseFontSize: (size) => {
@@ -3076,7 +3112,16 @@ export function useProblemPublishing() {
 
     const displayProblems = useMemo(() => draftProblems ?? initialProblems, [draftProblems, initialProblems]);
     const problemUniqueIds = useMemo(() => initialProblems.map(p => p.uniqueId), [initialProblems]);
-    const { selectedIds, toggleRow, toggleSelectAll, isAllSelected } = useRowSelection<string>({ allItems: problemUniqueIds });
+    
+    const { 
+        selectedIds,
+        toggleRow, 
+        toggleItems, 
+        replaceSelection, // [추가]
+        clearSelection,   // [추가]
+        setSelectedIds,   // [추가]
+    } = useRowSelection<string>({ allItems: problemUniqueIds });
+    
     const selectedProblems = useMemo(() => displayProblems.filter(p => selectedIds.has(p.uniqueId)), [displayProblems, selectedIds]);
 
     const handleSaveProblem = useCallback(async (updatedProblem: ProcessedProblem) => {
@@ -3100,9 +3145,11 @@ export function useProblemPublishing() {
         selectedProblems,
         
         selectedIds,
-        isAllSelected,
+        setSelectedIds,   // [추가]
         toggleRow,
-        toggleSelectAll,
+        toggleItems,
+        replaceSelection, // [추가]
+        clearSelection,   // [추가]
         
         handleSaveProblem,
         handleLiveProblemChange: updateDraftProblem,
@@ -3128,9 +3175,9 @@ export function useProblemPublishingPage() {
         allProblems: allProblemsFromSource,
         isLoadingProblems,
         selectedIds,
-        isAllSelected: isAllSelectedInFiltered, // 이름의 명확성을 위해 변경
+        setSelectedIds,
         toggleRow,
-        toggleSelectAll: toggleSelectAllInSource, // 이름의 명확성을 위해 변경
+        toggleItems, // 여전히 테이블 헤더 전체선택에 필요
         handleSaveProblem,
         handleLiveProblemChange,
         handleRevertProblem,
@@ -3147,8 +3194,9 @@ export function useProblemPublishingPage() {
         forceRecalculateLayout, startLayoutCalculation, resetLayout
     } = useExamLayoutStore();
     
-    const { setRightSidebarConfig } = useLayoutStore.getState();
+    const { setRightSidebarConfig, setSearchBoxProps, registerPageActions } = useLayoutStore.getState();
 
+    const [isSearchBoxVisible, setIsSearchBoxVisible] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState<Record<string, Set<string>>>({});
     const [problemBoxMinHeight, setProblemBoxMinHeight] = useState(31);
@@ -3169,6 +3217,26 @@ export function useProblemPublishingPage() {
         activeFilters,
     }) as ProcessedProblem[];
 
+    const filteredProblemIds = useMemo(() => new Set(filteredProblems.map(p => p.uniqueId)), [filteredProblems]);
+    const hasActiveSearchOrFilter = searchTerm.trim() !== '' || Object.keys(activeFilters).length > 0;
+
+    const isAllFilteredSelected = useMemo(() => {
+        if (!hasActiveSearchOrFilter || filteredProblems.length === 0) return false;
+        return filteredProblems.every(p => selectedIds.has(p.uniqueId));
+    }, [filteredProblems, selectedIds, hasActiveSearchOrFilter]);
+    
+    const handleToggleAllInTable = useCallback(() => {
+        toggleItems(filteredProblems.map(p => p.uniqueId));
+    }, [filteredProblems, toggleItems]);
+    
+    const handleAddAllFiltered = useCallback(() => {
+        setSelectedIds(prevSelectedIds => {
+            const newSet = new Set(prevSelectedIds);
+            filteredProblemIds.forEach(id => newSet.add(id));
+            return newSet;
+        });
+    }, [filteredProblemIds, setSelectedIds]);
+
     const suggestionGroups = useMemo((): SuggestionGroup[] => {
         const getUniqueSortedValues = (items: ProcessedProblem[], key: keyof ProcessedProblem): string[] => {
             if (!items || items.length === 0) return [];
@@ -3183,127 +3251,89 @@ export function useProblemPublishingPage() {
     }, [allProblemsFromSource]);
     
     const handleFilterChange = useCallback((key: string, value: string) => {
-        setActiveFilters(prev => {
-            const newFilters = { ...prev };
-            const currentSet = new Set(newFilters[key]);
-            if (currentSet.has(value)) currentSet.delete(value);
-            else currentSet.add(value);
-            if (currentSet.size === 0) delete newFilters[key];
-            else newFilters[key] = currentSet;
-            return newFilters;
-        });
-    }, []);
-
-    const handleResetFilters = useCallback(() => setActiveFilters({}), []);
-
-    const handleHeightUpdate = useCallback((uniqueId: string, height: number) => {
-        setItemHeight(uniqueId, height);
-        setMeasuredHeights(prev => {
-            const newMap = new Map(prev);
-            newMap.set(uniqueId, height);
-            return newMap;
-        });
-    }, [setItemHeight]);
-
-    const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: any) => {
-        setHeaderInfo(prev => {
-            const newState = { ...prev };
-            switch (targetId) {
-                case 'title': newState.title = value.text; newState.titleFontSize = value.fontSize; break;
-                case 'school': newState.school = value.text; newState.schoolFontSize = value.fontSize; break;
-                case 'subject': newState.subject = value.text; newState.subjectFontSize = value.fontSize; break;
-                case 'simplifiedSubject': newState.simplifiedSubjectText = value.text; newState.simplifiedSubjectFontSize = value.fontSize; break;
-                case 'simplifiedGrade': newState.simplifiedGradeText = value.text; break;
-            }
-            return newState;
-        });
-    }, []);
-
-    const handleCloseEditor = useCallback(() => { 
-        setEditingProblemId(null); 
-        setRightSidebarConfig({ contentConfig: { type: null } }); 
-        forceRecalculateLayout(problemBoxMinHeight);
-    }, [setEditingProblemId, setRightSidebarConfig, forceRecalculateLayout, problemBoxMinHeight]);
-    
-    const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => { 
-        await handleSaveProblem(problem); 
-        handleCloseEditor(); 
-    }, [handleSaveProblem, handleCloseEditor]);
-    
-    const handleRevertAndKeepOpen = useCallback((problemId: string) => { handleRevertProblem(problemId); }, [handleRevertProblem]);
-    
-    const handleProblemClick = useCallback((problem: ProcessedProblem) => { 
-        startEditingProblem(); 
-        setEditingProblemId(problem.uniqueId); 
-        setRightSidebarConfig({ 
-            contentConfig: { 
-                type: 'problemEditor', 
-                props: { 
-                    onProblemChange: handleLiveProblemChange,
-                    onSave: handleSaveAndClose, 
-                    onRevert: handleRevertAndKeepOpen,
-                    onClose: handleCloseEditor,
-                } 
-            }, 
-            isExtraWide: true 
-        }); 
-    }, [startEditingProblem, setEditingProblemId, setRightSidebarConfig, handleLiveProblemChange, handleSaveAndClose, handleRevertAndKeepOpen, handleCloseEditor]);
-
-    const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
-
-    const handleOpenLatexHelpSidebar = useCallback(() => { setRightSidebarConfig({ contentConfig: { type: 'latexHelp' }, isExtraWide: false }); }, [setRightSidebarConfig]);
-    
-    const handleOpenSearchSidebar = useCallback(() => {
-        setRightSidebarConfig({
-            contentConfig: {
-                type: 'problemSearch',
-                props: {
-                    searchTerm,
-                    onSearchTermChange: setSearchTerm,
-                    activeFilters,
-                    onFilterChange: handleFilterChange,
-                    onResetFilters: handleResetFilters,
-                    suggestionGroups,
-                },
-            },
-            isExtraWide: false,
-        });
-    }, [setRightSidebarConfig, searchTerm, activeFilters, handleFilterChange, handleResetFilters, suggestionGroups]);
-
-    const prevSelectedIdsRef = useRef<string>('');
-    useEffect(() => {
-        const currentSelectedIds = selectedProblems.map(p => p.uniqueId).sort().join(',');
-        if (currentSelectedIds !== prevSelectedIdsRef.current) {
-            prevSelectedIdsRef.current = currentSelectedIds;
-            if (selectedProblems.length > 0) {
-                startLayoutCalculation(selectedProblems, problemBoxMinHeight);
-            } else {
-                resetLayout();
-            }
+        const isCurrentlyAllSelected = allProblemsFromSource.length > 0 && selectedIds.size === allProblemsFromSource.length;
+        const isNewFilter = !activeFilters[key]?.has(value);
+        
+        if (isCurrentlyAllSelected && isNewFilter) {
+            const initialFiltered = allProblemsFromSource.filter(p => p[key as keyof ProcessedProblem] === value);
+            setSelectedIds(new Set(initialFiltered.map(p => p.uniqueId)));
+            setActiveFilters({ [key]: new Set([value]) });
+        } else {
+            setActiveFilters(prev => {
+                const newFilters = { ...prev };
+                const currentSet = new Set(newFilters[key] || []);
+                if (currentSet.has(value)) {
+                    currentSet.delete(value);
+                } else {
+                    currentSet.add(value);
+                }
+                if (currentSet.size === 0) {
+                    delete newFilters[key];
+                } else {
+                    newFilters[key] = currentSet;
+                }
+                return newFilters;
+            });
         }
-    }, [selectedProblems, startLayoutCalculation, resetLayout, problemBoxMinHeight]);
+    }, [activeFilters, allProblemsFromSource, selectedIds.size, setSelectedIds]);
+
+    const handleResetFilters = useCallback(() => {
+        setActiveFilters({});
+        setSearchTerm('');
+        setSelectedIds(new Set());
+    }, [setSelectedIds]);
+    
+    const toggleSearchBox = useCallback(() => {
+        setIsSearchBoxVisible(prev => !prev);
+    }, []);
 
     useEffect(() => {
-        return () => {
-            resetLayout();
-        };
-    }, [resetLayout]);
-
-    useEffect(() => {
-        const { registerPageActions } = useLayoutStore.getState();
-        registerPageActions({ onClose: handleCloseEditor, openLatexHelpSidebar: handleOpenLatexHelpSidebar, openSearchSidebar: handleOpenSearchSidebar }); 
-        return () => { 
-            setRightSidebarConfig({ contentConfig: { type: null } }); 
-            registerPageActions({ onClose: undefined, openLatexHelpSidebar: undefined, openSearchSidebar: undefined }); 
-        }; 
-    }, [handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar, handleOpenSearchSidebar]);
+        if (isSearchBoxVisible) {
+            setSearchBoxProps({
+                searchTerm,
+                onSearchTermChange: setSearchTerm,
+                activeFilters,
+                onFilterChange: handleFilterChange,
+                onResetFilters: handleResetFilters,
+                suggestionGroups: JSON.stringify(suggestionGroups),
+                onToggleFiltered: handleAddAllFiltered, // [수정] 새로 만든 '추가 전용' 핸들러 전달
+                onCreateProblemSet: undefined,
+                showActionControls: true, 
+                selectedCount: selectedIds.size,
+                isFilteredAllSelected: isAllFilteredSelected,
+                onHide: toggleSearchBox,
+            });
+        } else {
+            setSearchBoxProps(null);
+        }
+    }, [
+        isSearchBoxVisible, searchTerm, activeFilters, suggestionGroups, handleFilterChange, 
+        handleResetFilters, handleAddAllFiltered, setSearchBoxProps, isAllFilteredSelected,
+        selectedIds.size, toggleSearchBox
+    ]);
+    
+    const handleHeightUpdate = useCallback((uniqueId: string, height: number) => { setItemHeight(uniqueId, height); setMeasuredHeights(prev => { const newMap = new Map(prev); newMap.set(uniqueId, height); return newMap; }); }, [setItemHeight]);
+    const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: any) => { setHeaderInfo(prev => { const newState = { ...prev }; switch (targetId) { case 'title': newState.title = value.text; newState.titleFontSize = value.fontSize; break; case 'school': newState.school = value.text; newState.schoolFontSize = value.fontSize; break; case 'subject': newState.subject = value.text; newState.subjectFontSize = value.fontSize; break; case 'simplifiedSubject': newState.simplifiedSubjectText = value.text; newState.simplifiedSubjectFontSize = value.fontSize; break; case 'simplifiedGrade': newState.simplifiedGradeText = value.text; break; } return newState; }); }, []);
+    const handleCloseEditor = useCallback(() => { setEditingProblemId(null); setRightSidebarConfig({ contentConfig: { type: null } }); forceRecalculateLayout(problemBoxMinHeight); }, [setEditingProblemId, setRightSidebarConfig, forceRecalculateLayout, problemBoxMinHeight]);
+    const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => { await handleSaveProblem(problem); handleCloseEditor(); }, [handleSaveProblem, handleCloseEditor]);
+    const handleRevertAndKeepOpen = useCallback((problemId: string) => { handleRevertProblem(problemId); }, [handleRevertProblem]);
+    const handleProblemClick = useCallback((problem: ProcessedProblem) => { startEditingProblem(); setEditingProblemId(problem.uniqueId); setRightSidebarConfig({ contentConfig: { type: 'problemEditor', props: { onProblemChange: handleLiveProblemChange, onSave: handleSaveAndClose, onRevert: handleRevertAndKeepOpen, onClose: handleCloseEditor, } }, isExtraWide: true }); }, [startEditingProblem, setEditingProblemId, setRightSidebarConfig, handleLiveProblemChange, handleSaveAndClose, handleRevertAndKeepOpen, handleCloseEditor]);
+    const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
+    const handleOpenLatexHelpSidebar = useCallback(() => { setRightSidebarConfig({ contentConfig: { type: 'latexHelp' }, isExtraWide: false }); }, [setRightSidebarConfig]);
+    const prevSelectedIdsRef = useRef<string>('');
+    useEffect(() => { const currentSelectedIds = selectedProblems.map(p => p.uniqueId).sort().join(','); if (currentSelectedIds !== prevSelectedIdsRef.current) { prevSelectedIdsRef.current = currentSelectedIds; if (selectedProblems.length > 0) { startLayoutCalculation(selectedProblems, problemBoxMinHeight); } else { resetLayout(); } } }, [selectedProblems, startLayoutCalculation, resetLayout, problemBoxMinHeight]);
+    useEffect(() => { return () => { resetLayout(); }; }, [resetLayout]);
+    useEffect(() => { registerPageActions({ onClose: handleCloseEditor, openLatexHelpSidebar: handleOpenLatexHelpSidebar, openSearchSidebar: toggleSearchBox }); return () => { setRightSidebarConfig({ contentConfig: { type: null } }); setSearchBoxProps(null); registerPageActions({ onClose: undefined, openLatexHelpSidebar: undefined, openSearchSidebar: undefined }); }; }, [handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar, toggleSearchBox, registerPageActions, setSearchBoxProps]);
 
     return {
-        allProblems: filteredProblems, // 필터링된 결과를 View에 전달
+        allProblems: allProblemsFromSource,
+        filteredProblemIds,
+        hasActiveSearchOrFilter,
         isLoadingProblems,
         selectedProblems,
         selectedIds,
-        isAllSelected: isAllSelectedInFiltered,
+        isAllSelected: isAllFilteredSelected,
+        toggleSelectAll: handleToggleAllInTable, // [수정] 테이블에는 토글 핸들러 전달
         distributedPages,
         placementMap,
         distributedSolutionPages,
@@ -3315,9 +3345,7 @@ export function useProblemPublishingPage() {
         measuredHeights,
         problemBoxMinHeight,
         previewAreaRef,
-
         toggleRow,
-        toggleSelectAll: toggleSelectAllInSource,
         onToggleSequentialNumbering: () => setUseSequentialNumbering(!useSequentialNumbering),
         onBaseFontSizeChange: setBaseFontSize,
         onContentFontSizeEmChange: setContentFontSizeEm,
@@ -3329,38 +3357,6 @@ export function useProblemPublishingPage() {
         onDeselectProblem: toggleRow,
     };
 }
------ ./react/features/problem-publishing/ui/ProblemSearchPanel.tsx -----
-import React from 'react';
-import TableSearch from '../../../features/table-search/ui/TableSearch';
-import type { SuggestionGroup } from '../../../features/table-search/ui/TableSearch';
-
-interface ProblemSearchPanelProps {
-    searchTerm: string;
-    onSearchTermChange: (value: string) => void;
-    activeFilters: Record<string, Set<string>>;
-    onFilterChange: (key: string, value: string) => void;
-    onResetFilters: () => void;
-    suggestionGroups: SuggestionGroup[];
-}
-
-const ProblemSearchPanel: React.FC<ProblemSearchPanelProps> = (props) => {
-    return (
-        <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <h4 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--text-color-primary)' }}>
-                문제 검색 및 필터
-            </h4>
-            <TableSearch
-                {...props}
-                selectedCount={0}
-                onCreateProblemSet={() => {}}
-                onToggleFiltered={() => {}}
-                showActionControls={false} 
-            />
-        </div>
-    );
-};
-
-export default ProblemSearchPanel;
 ----- ./react/features/problem-text-editing/ui/ProblemMetadataEditor.tsx -----
 import React, { useState, useCallback } from 'react';
 import type { Problem, ComboboxOption } from '../../../entities/problem/model/types';
@@ -4139,12 +4135,14 @@ interface UseRowSelectionProps<T extends string | number> {
 
 interface UseRowSelectionReturn<T extends string | number> {
     selectedIds: Set<T>;
+    setSelectedIds: React.Dispatch<React.SetStateAction<Set<T>>>; // [추가] 외부에서 직접 제어
     toggleRow: (id: T) => void;
     isRowSelected: (id: T) => boolean;
     toggleSelectAll: () => void;
     isAllSelected: boolean;
     clearSelection: () => void;
-    toggleItems: (ids: T[]) => void; // [추가] 부분 선택/해제 함수
+    toggleItems: (ids: T[]) => void;
+    replaceSelection: (ids: T[]) => void; // [추가]
 }
 
 export function useRowSelection<T extends string | number>({
@@ -4205,15 +4203,21 @@ export function useRowSelection<T extends string | number>({
             return newSelected;
         });
     }, [selectedIds]);
+    
+    const replaceSelection = useCallback((ids: T[]) => {
+        setSelectedIds(new Set(ids));
+    }, []);
 
     return {
         selectedIds,
+        setSelectedIds, // [추가]
         toggleRow,
         isRowSelected,
         toggleSelectAll,
         isAllSelected,
         clearSelection,
-        toggleItems, // [추가]
+        toggleItems,
+        replaceSelection, // [추가]
     };
 }
 ----- ./react/features/student-actions/ui/StudentActionButtons.tsx -----
@@ -4404,7 +4408,7 @@ export function useStudentDashboard() {
     }, [registerPageActions, handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
     
     useEffect(() => {
-        useLayoutStore.getState().setStudentSearchProps({
+        useLayoutStore.getState().setSearchBoxProps({
             searchTerm,
             onSearchTermChange: setSearchTerm,
             activeFilters,
@@ -4414,11 +4418,15 @@ export function useStudentDashboard() {
             onToggleFiltered: handleToggleFilteredSelection,
             onCreateProblemSet: handleCreateProblemSet,
             selectedCount: selectedIds.size,
+            showActionControls: true,
+            isFilteredAllSelected,
+            onHide: undefined, // [수정] 대시보드에서는 숨기기 기능 없음
         });
-        return () => useLayoutStore.getState().setStudentSearchProps(null);
+        return () => useLayoutStore.getState().setSearchBoxProps(null);
     }, [
         searchTerm, activeFilters, suggestionGroupsJSON, selectedIds.size, 
-        handleFilterChange, handleResetFilters, handleToggleFilteredSelection, handleCreateProblemSet
+        handleFilterChange, handleResetFilters, handleToggleFilteredSelection, handleCreateProblemSet,
+        isFilteredAllSelected
     ]);
     
     return {
@@ -4967,7 +4975,7 @@ export function useTableSearch({
 }
 ----- ./react/features/table-search/ui/TableSearch.tsx -----
 import React from 'react';
-import { LuSearch, LuX, LuRotateCcw, LuCirclePlus, LuListChecks } from 'react-icons/lu';
+import { LuSearch, LuX, LuRotateCcw, LuCirclePlus, LuListChecks, LuEyeOff } from 'react-icons/lu'; // LuListX 제거
 import './TableSearch.css';
 
 export interface SuggestionGroup {
@@ -4982,11 +4990,13 @@ export interface TableSearchProps {
     activeFilters: Record<string, Set<string>>;
     onFilterChange: (key: string, value: string) => void;
     onResetFilters: () => void;
+    onHide?: () => void;
     
     onToggleFiltered?: () => void;
     onCreateProblemSet?: () => void;
     selectedCount?: number;
-    showActionControls?: boolean; // [추가] 액션 버튼 영역을 제어하기 위한 prop
+    showActionControls?: boolean;
+    isFilteredAllSelected?: boolean;
 }
 
 const TableSearch: React.FC<TableSearchProps> = ({
@@ -4996,13 +5006,14 @@ const TableSearch: React.FC<TableSearchProps> = ({
     activeFilters,
     onFilterChange,
     onResetFilters,
+    onHide,
     onToggleFiltered,
     onCreateProblemSet,
     selectedCount = 0,
-    showActionControls = true, // [추가] 기본값은 true (기존 대시보드 호환)
+    showActionControls = true,
+    isFilteredAllSelected = false,
 }) => {
-    const hasActiveFilters = Object.keys(activeFilters).length > 0;
-    const hasSuggestions = suggestionGroups.some(g => g.suggestions.length > 0);
+    const hasActiveFilters = Object.keys(activeFilters).length > 0 || searchTerm.trim() !== '';
 
     return (
         <div className="table-search-panel">
@@ -5019,7 +5030,7 @@ const TableSearch: React.FC<TableSearchProps> = ({
             
             <div className="filter-actions-container">
                 <div className="filter-chips-area">
-                    {hasSuggestions && suggestionGroups.map((group) => (
+                    {suggestionGroups.map((group) => (
                         group.suggestions.length > 0 && (
                             <div key={group.key} className="suggestion-group">
                                 <div className="suggestion-buttons-wrapper">
@@ -5043,26 +5054,44 @@ const TableSearch: React.FC<TableSearchProps> = ({
                     ))}
                 </div>
 
-                {/* [수정] showActionControls prop에 따라 조건부 렌더링 */}
-                {showActionControls && onCreateProblemSet && onToggleFiltered && (
+                {showActionControls && (
                     <div className="action-controls-area">
-                        <button
-                            type="button"
-                            className="control-button primary"
-                            onClick={onCreateProblemSet}
-                            disabled={selectedCount === 0}
-                        >
-                            <LuCirclePlus size={16} />
-                            <span>문제 출제 ({selectedCount})</span>
-                        </button>
-                        <button
-                            type="button"
-                            className="control-button"
-                            onClick={onToggleFiltered}
-                        >
-                            <LuListChecks size={16} />
-                            <span>결과 선택</span>
-                        </button>
+                        {onCreateProblemSet && (
+                             <button
+                                type="button"
+                                className="control-button primary"
+                                onClick={onCreateProblemSet}
+                                disabled={selectedCount === 0}
+                            >
+                                <LuCirclePlus size={16} />
+                                <span>문제 출제 ({selectedCount})</span>
+                            </button>
+                        )}
+                       
+                        {onToggleFiltered && (
+                            <button
+                                type="button"
+                                className="control-button primary"
+                                onClick={onToggleFiltered}
+                                disabled={isFilteredAllSelected}
+                            >
+                                {/* [수정] 아이콘과 텍스트 고정 */}
+                                <LuListChecks size={16} />
+                                <span>결과 선택</span>
+                            </button>
+                        )}
+                        
+                        {onHide && (
+                            <button
+                                type="button"
+                                className="control-button"
+                                onClick={onHide}
+                            >
+                                <LuEyeOff size={16} />
+                                <span>검색창 숨기기</span>
+                            </button>
+                        )}
+
                         <button 
                             type="button" 
                             className="control-button"
@@ -5519,8 +5548,8 @@ const ProblemPublishingPage: React.FC = () => {
                         isLoading={isLoadingProblems} 
                         selectedIds={selectedIds} 
                         onToggleRow={toggleRow} 
-                        onToggleAll={toggleSelectAll} 
-                        isAllSelected={isAllSelected} 
+                        onToggleAll={toggleSelectAll} // 이 함수는 이제 필터링된 결과에 대해 동작합니다.
+                        isAllSelected={isAllSelected} // 이 값은 이제 필터링된 결과의 선택 상태를 나타냅니다.
                     />
                 </div>
                 <PublishingToolbarWidget 
@@ -6650,11 +6679,12 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
   }
 };
 ----- ./react/shared/store/layoutStore.ts -----
+
 import { create } from 'zustand';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
 
-interface StoredSearchProps {
+export interface StoredSearchProps {
     searchTerm: string;
     onSearchTermChange: (value: string) => void;
     activeFilters: Record<string, Set<string>>;
@@ -6664,6 +6694,9 @@ interface StoredSearchProps {
     onToggleFiltered?: () => void;
     onCreateProblemSet?: () => void;
     selectedCount?: number;
+    showActionControls?: boolean;
+    isFilteredAllSelected?: boolean;
+    onHide?: () => void;
 }
 
 interface RegisteredPageActions {
@@ -6671,13 +6704,13 @@ interface RegisteredPageActions {
   openSettingsSidebar: () => void;
   openPromptSidebar: () => void;
   openLatexHelpSidebar: () => void;
-  openSearchSidebar: () => void; // [추가]
+  openSearchSidebar: () => void; 
   openEditSidebar: (student: any) => void;
   onClose: () => void;
 }
 
 interface SidebarContentConfig {
-    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | 'problemSearch' | null; // [추가]
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | null;
     props?: Record<string, any>;
 }
 
@@ -6690,14 +6723,14 @@ interface LayoutState {
   rightSidebar: RightSidebarState; 
   currentPageConfig: PageLayoutConfig;
   pageActions: Partial<RegisteredPageActions>;
-  studentSearchProps: StoredSearchProps | null;
+  searchBoxProps: StoredSearchProps | null;
 }
 
 interface LayoutActions {
   setRightSidebarConfig: (config: { contentConfig: SidebarContentConfig, isExtraWide?: boolean }) => void;
   updateLayoutForPath: (path: string) => void;
   registerPageActions: (actions: Partial<RegisteredPageActions>) => void;
-  setStudentSearchProps: (props: StoredSearchProps | null) => void;
+  setSearchBoxProps: (props: StoredSearchProps | null) => void;
 }
 
 const initialPageActions: Partial<RegisteredPageActions> = {
@@ -6705,7 +6738,7 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     openSettingsSidebar: () => console.warn('openSettingsSidebar action not registered.'),
     openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
     openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'),
-    openSearchSidebar: () => console.warn('openSearchSidebar action not registered.'), // [추가]
+    openSearchSidebar: () => console.warn('openSearchSidebar action not registered.'),
     onClose: () => console.warn('onClose action not registered.'),
 };
 
@@ -6716,7 +6749,7 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
   },
   currentPageConfig: {},
   pageActions: initialPageActions,
-  studentSearchProps: null,
+  searchBoxProps: null,
   
   setRightSidebarConfig: (config) => {
     const currentState = get().rightSidebar;
@@ -6754,12 +6787,12 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
     }));
   },
   
-  setStudentSearchProps: (props) => set({ studentSearchProps: props }),
+  setSearchBoxProps: (props) => set({ searchBoxProps: props }),
 }));
 
 
 export const selectRightSidebarConfig = (state: LayoutState) => state.rightSidebar;
-export const selectStudentSearchProps = (state: LayoutState) => state.studentSearchProps;
+export const selectSearchBoxProps = (state: LayoutState) => state.searchBoxProps;
 
 
 export const useSidebarTriggers = () => {
@@ -12168,11 +12201,14 @@ const BackgroundBlobs = () => {
 export default BackgroundBlobs;
 ----- ./react/widgets/rootlayout/GlassNavbar.tsx -----
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link } from 'react-router'; // react-router-dom으로 수정
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, LuSettings2 } from 'react-icons/lu';
+import { 
+    LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, 
+    LuSettings2, LuSearch, LuClipboardList, LuBookMarked // [추가] 아이콘 임포트
+} from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
 import GlassPopover from '../../shared/components/GlassPopover';
@@ -12181,8 +12217,13 @@ import ProfileMenuContent from '../../features/popovermenu/ProfileMenuContent';
 const LogoIcon = () => <LuLayoutDashboard size={26} className="navbar-logo-icon" />;
 const HamburgerIcon = () => <LuMenu size={22} />;
 const ProfileIcon = () => <LuCircleUserRound size={22} />;
+
 const RegisterIcon = () => <LuCirclePlus size={22} />;
 const SettingsIcon = () => <LuSettings2 size={22} />;
+const SearchIcon = () => <LuSearch size={22} />;
+const PromptIcon = () => <LuClipboardList size={22} />;
+const LatexHelpIcon = () => <LuBookMarked size={22} />;
+
 
 const GlassNavbar: React.FC = () => {
     const {
@@ -12192,7 +12233,13 @@ const GlassNavbar: React.FC = () => {
         closeMobileSidebar,
     } = useUIStore();
     
-    const { registerTrigger, settingsTrigger } = useSidebarTriggers();
+    const { 
+        registerTrigger, 
+        settingsTrigger, 
+        searchTrigger, 
+        promptTrigger, 
+        latexHelpTrigger 
+    } = useSidebarTriggers();
 
     const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
     const profileButtonRef = useRef<HTMLButtonElement>(null);
@@ -12209,10 +12256,10 @@ const GlassNavbar: React.FC = () => {
     };
 
     useEffect(() => {
-        if (isProfilePopoverOpen) {
+        if (isProfilePopoverOpen && currentBreakpoint !== 'desktop') {
             handleCloseProfilePopover();
         }
-    }, [currentBreakpoint]);
+    }, [currentBreakpoint, isProfilePopoverOpen]); // 의존성 배열 정리
 
     return (
         <nav className="glass-navbar">
@@ -12237,10 +12284,32 @@ const GlassNavbar: React.FC = () => {
             <div className="navbar-right">
                 {currentBreakpoint === 'mobile' && (
                     <div className="mobile-right-actions">
+                        {/* [수정] 모든 트리거에 대해 버튼을 렌더링하도록 로직 확장 */}
                         {registerTrigger && (
                             <Tippy content={registerTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={registerTrigger.onClick} className="navbar-icon-button" aria-label={registerTrigger.tooltip}>
                                     <RegisterIcon />
+                                </button>
+                            </Tippy>
+                        )}
+                        {searchTrigger && (
+                             <Tippy content={searchTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={searchTrigger.onClick} className="navbar-icon-button" aria-label={searchTrigger.tooltip}>
+                                    <SearchIcon />
+                                </button>
+                            </Tippy>
+                        )}
+                        {promptTrigger && (
+                             <Tippy content={promptTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={promptTrigger.onClick} className="navbar-icon-button" aria-label={promptTrigger.tooltip}>
+                                    <PromptIcon />
+                                </button>
+                            </Tippy>
+                        )}
+                        {latexHelpTrigger && (
+                             <Tippy content={latexHelpTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                <button onClick={latexHelpTrigger.onClick} className="navbar-icon-button" aria-label={latexHelpTrigger.tooltip}>
+                                    <LatexHelpIcon />
                                 </button>
                             </Tippy>
                         )}
@@ -12459,7 +12528,7 @@ import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch } from 'react-icons/lu'; // LuBookMarked 추가
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch } from 'react-icons/lu';
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
@@ -12467,7 +12536,6 @@ import PromptCollection from '../../features/prompt-collection/ui/PromptCollecti
 import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
 import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel';
-import ProblemSearchPanel from '../../features/problem-publishing/ui/ProblemSearchPanel';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -12505,9 +12573,6 @@ const SidebarContentRenderer: React.FC = () => {
     }
 
     switch(contentConfig.type) {
-        case 'problemSearch': {
-            return <ProblemSearchPanel {...(contentConfig.props as any)} />;
-        }
         case 'problemEditor': {
             const { onSave, onRevert, onClose, onProblemChange } = contentConfig.props || {};
             const { editingProblemId } = useProblemPublishingStore.getState();
@@ -12670,10 +12735,10 @@ const GlassSidebarRight: React.FC = () => {
 
 export default GlassSidebarRight;
 ----- ./react/widgets/rootlayout/RootLayout.tsx -----
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectStudentSearchProps, selectRightSidebarConfig } from '../../shared/store/layoutStore'; 
+import { useLayoutStore, selectSearchBoxProps, selectRightSidebarConfig, StoredSearchProps } from '../../shared/store/layoutStore';
 import BackgroundBlobs from '../rootlayout/BackgroundBlobs';
 import GlassNavbar from '../rootlayout/GlassNavbar';
 import GlassSidebar from '../rootlayout/GlassSidebar';
@@ -12697,21 +12762,44 @@ const RootLayout = () => {
     } = useUIStore();
     
     const { contentConfig, isExtraWide: isRightSidebarExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const studentSearchProps = useLayoutStore(selectStudentSearchProps);
+    const searchBoxProps = useLayoutStore(selectSearchBoxProps);
     
+    const [isSearchBoxVisible, setIsSearchBoxVisible] = useState(false);
+    const [searchPropsForRender, setSearchPropsForRender] = useState<StoredSearchProps | null>(null);
+
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (searchBoxProps) {
+            setSearchPropsForRender(searchBoxProps);
+            timer = setTimeout(() => {
+                setIsSearchBoxVisible(true);
+            }, 20); // 20ms 정도의 짧은 지연
+        } else {
+            setIsSearchBoxVisible(false);
+        }
+        
+        return () => clearTimeout(timer); // 클린업
+    }, [searchBoxProps]);
+    
+    const handleTransitionEnd = () => {
+        if (!isSearchBoxVisible) {
+            setSearchPropsForRender(null);
+        }
+    };
+
     const isRightSidebarExpanded = contentConfig.type !== null;
 
     const parsedSuggestionGroups = useMemo(() => {
-        if (studentSearchProps?.suggestionGroups) {
+        if (searchPropsForRender?.suggestionGroups) {
             try {
-                return JSON.parse(studentSearchProps.suggestionGroups);
+                return JSON.parse(searchPropsForRender.suggestionGroups);
             } catch (e) {
                 console.error("Failed to parse suggestionGroups JSON", e);
                 return [];
             }
         }
         return [];
-    }, [studentSearchProps?.suggestionGroups]);
+    }, [searchPropsForRender?.suggestionGroups]);
 
     const showOverlay = currentBreakpoint === 'mobile' && mobileSidebarType !== null;
     
@@ -12723,6 +12811,11 @@ const RootLayout = () => {
 
     const isWorkbenchPage = location.pathname === '/problem-workbench';
     const mainContentClasses = `main-content ${isWorkbenchPage ? 'main-content--compact-padding' : ''}`;
+
+    const bottomContentAreaClasses = `
+        bottom-content-area 
+        ${isSearchBoxVisible ? 'visible' : ''}
+    `.trim();
 
     return (
         <div className={`app-container ${sidebarStateClass} ${showOverlay ? 'mobile-sidebar-active' : ''}`}>
@@ -12744,10 +12837,13 @@ const RootLayout = () => {
                     {currentBreakpoint !== 'mobile' && <GlassSidebarRight />}
                 </div>
 
-                {studentSearchProps && (
-                    <div className="bottom-content-area">
+                {searchPropsForRender && (
+                    <div 
+                        className={bottomContentAreaClasses}
+                        onTransitionEnd={handleTransitionEnd}
+                    >
                         <TableSearch
-                            {...studentSearchProps}
+                            {...searchPropsForRender}
                             suggestionGroups={parsedSuggestionGroups}
                         />
                     </div>

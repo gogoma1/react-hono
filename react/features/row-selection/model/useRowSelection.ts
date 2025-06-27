@@ -1,4 +1,3 @@
-// ./react/features/row-selection/model/useRowSelection.ts
 import { useState, useCallback, useMemo } from 'react';
 
 interface UseRowSelectionProps<T extends string | number> {
@@ -8,12 +7,14 @@ interface UseRowSelectionProps<T extends string | number> {
 
 interface UseRowSelectionReturn<T extends string | number> {
     selectedIds: Set<T>;
+    setSelectedIds: React.Dispatch<React.SetStateAction<Set<T>>>; // [추가] 외부에서 직접 제어
     toggleRow: (id: T) => void;
     isRowSelected: (id: T) => boolean;
     toggleSelectAll: () => void;
     isAllSelected: boolean;
     clearSelection: () => void;
-    toggleItems: (ids: T[]) => void; // [추가] 부분 선택/해제 함수
+    toggleItems: (ids: T[]) => void;
+    replaceSelection: (ids: T[]) => void; // [추가]
 }
 
 export function useRowSelection<T extends string | number>({
@@ -59,7 +60,6 @@ export function useRowSelection<T extends string | number>({
         }
     }, [allItems, isAllSelected, selectedIds]);
 
-    // [추가] 부분 선택/해제 함수 구현
     const toggleItems = useCallback((idsToToggle: T[]) => {
         if (idsToToggle.length === 0) return;
 
@@ -68,23 +68,28 @@ export function useRowSelection<T extends string | number>({
         setSelectedIds(prev => {
             const newSelected = new Set(prev);
             if (allFilteredAreSelected) {
-                // 모두 선택된 상태 -> 모두 해제
                 idsToToggle.forEach(id => newSelected.delete(id));
             } else {
-                // 하나라도 선택되지 않은 상태 -> 모두 선택
                 idsToToggle.forEach(id => newSelected.add(id));
             }
             return newSelected;
         });
     }, [selectedIds]);
+    
+    // [추가] 선택 상태를 완전히 새로운 ID 배열로 교체하는 함수
+    const replaceSelection = useCallback((ids: T[]) => {
+        setSelectedIds(new Set(ids));
+    }, []);
 
     return {
         selectedIds,
+        setSelectedIds, // [추가]
         toggleRow,
         isRowSelected,
         toggleSelectAll,
         isAllSelected,
         clearSelection,
-        toggleItems, // [추가]
+        toggleItems,
+        replaceSelection, // [추가]
     };
 }

@@ -14,8 +14,10 @@ export function useProblemPublishingPage() {
         allProblems: allProblemsFromSource,
         isLoadingProblems,
         selectedIds,
+        setSelectedIds,
         toggleRow,
         toggleItems,
+        replaceSelection,
         handleSaveProblem,
         handleLiveProblemChange,
         handleRevertProblem,
@@ -34,7 +36,7 @@ export function useProblemPublishingPage() {
     
     const { setRightSidebarConfig, setSearchBoxProps, registerPageActions } = useLayoutStore.getState();
 
-    const [isSearchBoxVisible, setIsSearchBoxVisible] = useState(false);
+    const [isSearchBoxVisible, setIsSearchBoxVisible] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState<Record<string, Set<string>>>({});
     const [problemBoxMinHeight, setProblemBoxMinHeight] = useState(31);
@@ -55,10 +57,29 @@ export function useProblemPublishingPage() {
         activeFilters,
     }) as ProcessedProblem[];
 
+    const filteredProblemIds = useMemo(() => new Set(filteredProblems.map(p => p.uniqueId)), [filteredProblems]);
+    const hasActiveSearchOrFilter = searchTerm.trim() !== '' || Object.keys(activeFilters).length > 0;
+
     const isAllFilteredSelected = useMemo(() => {
-        if (filteredProblems.length === 0) return false;
+        if (!hasActiveSearchOrFilter || filteredProblems.length === 0) return false;
         return filteredProblems.every(p => selectedIds.has(p.uniqueId));
-    }, [filteredProblems, selectedIds]);
+    }, [filteredProblems, selectedIds, hasActiveSearchOrFilter]);
+    
+    const isSelectionComplete = useMemo(() => {
+        if (!hasActiveSearchOrFilter) return false;
+        return isAllFilteredSelected && selectedIds.size === filteredProblems.length;
+    }, [isAllFilteredSelected, selectedIds.size, filteredProblems.length, hasActiveSearchOrFilter]);
+
+
+    // [수정] filteredProblems에서 ID 배열을 만들어 전달
+    const handleToggleAllInTable = useCallback(() => {
+        toggleItems(Array.from(filteredProblemIds));
+    }, [filteredProblemIds, toggleItems]);
+    
+    // [수정] filteredProblems에서 ID 배열을 만들어 전달
+    const handleReplaceWithFiltered = useCallback(() => {
+        replaceSelection(Array.from(filteredProblemIds));
+    }, [filteredProblemIds, replaceSelection]);
 
     const suggestionGroups = useMemo((): SuggestionGroup[] => {
         const getUniqueSortedValues = (items: ProcessedProblem[], key: keyof ProcessedProblem): string[] => {
@@ -74,24 +95,38 @@ export function useProblemPublishingPage() {
     }, [allProblemsFromSource]);
     
     const handleFilterChange = useCallback((key: string, value: string) => {
-        setActiveFilters(prev => {
-            const newFilters = { ...prev };
-            const currentSet = new Set(newFilters[key]);
-            if (currentSet.has(value)) currentSet.delete(value);
-            else currentSet.add(value);
-            if (currentSet.size === 0) delete newFilters[key];
-            else newFilters[key] = currentSet;
-            return newFilters;
-        });
-    }, []);
+        const isCurrentlyAllSelected = allProblemsFromSource.length > 0 && selectedIds.size === allProblemsFromSource.length;
+        const isNewFilter = !activeFilters[key]?.has(value);
+        
+        if (isCurrentlyAllSelected && isNewFilter) {
+            const initialFiltered = allProblemsFromSource.filter(p => p[key as keyof ProcessedProblem] === value);
+            setSelectedIds(new Set(initialFiltered.map(p => p.uniqueId)));
+            setActiveFilters({ [key]: new Set([value]) });
+        } else {
+            setActiveFilters(prev => {
+                const newFilters = { ...prev };
+                const currentSet = new Set(newFilters[key] || []);
+                if (currentSet.has(value)) {
+                    currentSet.delete(value);
+                } else {
+                    currentSet.add(value);
+                }
+                if (currentSet.size === 0) {
+                    delete newFilters[key];
+                } else {
+                    newFilters[key] = currentSet;
+                }
+                return newFilters;
+            });
+        }
+    }, [activeFilters, allProblemsFromSource, selectedIds.size, setSelectedIds]);
 
-    const handleResetFilters = useCallback(() => setActiveFilters({}), []);
+    const handleResetFilters = useCallback(() => {
+        setActiveFilters({});
+        setSearchTerm('');
+        setSelectedIds(new Set());
+    }, [setSelectedIds]);
     
-    const handleToggleFiltered = useCallback(() => {
-        const filteredIds = filteredProblems.map(p => p.uniqueId);
-        toggleItems(filteredIds);
-    }, [filteredProblems, toggleItems]);
-
     const toggleSearchBox = useCallback(() => {
         setIsSearchBoxVisible(prev => !prev);
     }, []);
@@ -105,126 +140,45 @@ export function useProblemPublishingPage() {
                 onFilterChange: handleFilterChange,
                 onResetFilters: handleResetFilters,
                 suggestionGroups: JSON.stringify(suggestionGroups),
-                onToggleFiltered: handleToggleFiltered,
+                onToggleFiltered: handleReplaceWithFiltered,
                 onCreateProblemSet: undefined,
                 showActionControls: true, 
                 selectedCount: selectedIds.size,
-                isFilteredAllSelected: isAllFilteredSelected,
-                onHide: toggleSearchBox, // [수정] onHide prop 전달
+                isSelectionComplete: isSelectionComplete,
+                onHide: toggleSearchBox,
             });
         } else {
             setSearchBoxProps(null);
         }
     }, [
-        isSearchBoxVisible, 
-        searchTerm, 
-        activeFilters, 
-        suggestionGroups, 
-        handleFilterChange, 
-        handleResetFilters, 
-        handleToggleFiltered, 
-        setSearchBoxProps, 
-        isAllFilteredSelected,
-        selectedIds.size,
-        toggleSearchBox // [수정] 의존성 배열에 추가
+        isSearchBoxVisible, searchTerm, activeFilters, suggestionGroups, handleFilterChange, 
+        handleResetFilters, handleReplaceWithFiltered, setSearchBoxProps, isSelectionComplete,
+        selectedIds.size, toggleSearchBox
     ]);
-
-    const handleHeightUpdate = useCallback((uniqueId: string, height: number) => {
-        setItemHeight(uniqueId, height);
-        setMeasuredHeights(prev => {
-            const newMap = new Map(prev);
-            newMap.set(uniqueId, height);
-            return newMap;
-        });
-    }, [setItemHeight]);
-
-    const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: any) => {
-        setHeaderInfo(prev => {
-            const newState = { ...prev };
-            switch (targetId) {
-                case 'title': newState.title = value.text; newState.titleFontSize = value.fontSize; break;
-                case 'school': newState.school = value.text; newState.schoolFontSize = value.fontSize; break;
-                case 'subject': newState.subject = value.text; newState.subjectFontSize = value.fontSize; break;
-                case 'simplifiedSubject': newState.simplifiedSubjectText = value.text; newState.simplifiedSubjectFontSize = value.fontSize; break;
-                case 'simplifiedGrade': newState.simplifiedGradeText = value.text; break;
-            }
-            return newState;
-        });
-    }, []);
-
-    const handleCloseEditor = useCallback(() => { 
-        setEditingProblemId(null); 
-        setRightSidebarConfig({ contentConfig: { type: null } }); 
-        forceRecalculateLayout(problemBoxMinHeight);
-    }, [setEditingProblemId, setRightSidebarConfig, forceRecalculateLayout, problemBoxMinHeight]);
     
-    const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => { 
-        await handleSaveProblem(problem); 
-        handleCloseEditor(); 
-    }, [handleSaveProblem, handleCloseEditor]);
-    
+    // ... 나머지 핸들러 및 useEffect 훅들은 변경 없음 ...
+    const handleHeightUpdate = useCallback((uniqueId: string, height: number) => { setItemHeight(uniqueId, height); setMeasuredHeights(prev => { const newMap = new Map(prev); newMap.set(uniqueId, height); return newMap; }); }, [setItemHeight]);
+    const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: any) => { setHeaderInfo(prev => { const newState = { ...prev }; switch (targetId) { case 'title': newState.title = value.text; newState.titleFontSize = value.fontSize; break; case 'school': newState.school = value.text; newState.schoolFontSize = value.fontSize; break; case 'subject': newState.subject = value.text; newState.subjectFontSize = value.fontSize; break; case 'simplifiedSubject': newState.simplifiedSubjectText = value.text; newState.simplifiedSubjectFontSize = value.fontSize; break; case 'simplifiedGrade': newState.simplifiedGradeText = value.text; break; } return newState; }); }, []);
+    const handleCloseEditor = useCallback(() => { setEditingProblemId(null); setRightSidebarConfig({ contentConfig: { type: null } }); forceRecalculateLayout(problemBoxMinHeight); }, [setEditingProblemId, setRightSidebarConfig, forceRecalculateLayout, problemBoxMinHeight]);
+    const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => { await handleSaveProblem(problem); handleCloseEditor(); }, [handleSaveProblem, handleCloseEditor]);
     const handleRevertAndKeepOpen = useCallback((problemId: string) => { handleRevertProblem(problemId); }, [handleRevertProblem]);
-    
-    const handleProblemClick = useCallback((problem: ProcessedProblem) => { 
-        startEditingProblem(); 
-        setEditingProblemId(problem.uniqueId); 
-        setRightSidebarConfig({ 
-            contentConfig: { 
-                type: 'problemEditor', 
-                props: { 
-                    onProblemChange: handleLiveProblemChange,
-                    onSave: handleSaveAndClose, 
-                    onRevert: handleRevertAndKeepOpen,
-                    onClose: handleCloseEditor,
-                } 
-            }, 
-            isExtraWide: true 
-        }); 
-    }, [startEditingProblem, setEditingProblemId, setRightSidebarConfig, handleLiveProblemChange, handleSaveAndClose, handleRevertAndKeepOpen, handleCloseEditor]);
-
+    const handleProblemClick = useCallback((problem: ProcessedProblem) => { startEditingProblem(); setEditingProblemId(problem.uniqueId); setRightSidebarConfig({ contentConfig: { type: 'problemEditor', props: { onProblemChange: handleLiveProblemChange, onSave: handleSaveAndClose, onRevert: handleRevertAndKeepOpen, onClose: handleCloseEditor, } }, isExtraWide: true }); }, [startEditingProblem, setEditingProblemId, setRightSidebarConfig, handleLiveProblemChange, handleSaveAndClose, handleRevertAndKeepOpen, handleCloseEditor]);
     const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
-
     const handleOpenLatexHelpSidebar = useCallback(() => { setRightSidebarConfig({ contentConfig: { type: 'latexHelp' }, isExtraWide: false }); }, [setRightSidebarConfig]);
-    
     const prevSelectedIdsRef = useRef<string>('');
-    useEffect(() => {
-        const currentSelectedIds = selectedProblems.map(p => p.uniqueId).sort().join(',');
-        if (currentSelectedIds !== prevSelectedIdsRef.current) {
-            prevSelectedIdsRef.current = currentSelectedIds;
-            if (selectedProblems.length > 0) {
-                startLayoutCalculation(selectedProblems, problemBoxMinHeight);
-            } else {
-                resetLayout();
-            }
-        }
-    }, [selectedProblems, startLayoutCalculation, resetLayout, problemBoxMinHeight]);
-
-    useEffect(() => {
-        return () => {
-            resetLayout();
-        };
-    }, [resetLayout]);
-
-    useEffect(() => {
-        registerPageActions({ 
-            onClose: handleCloseEditor, 
-            openLatexHelpSidebar: handleOpenLatexHelpSidebar, 
-            openSearchSidebar: toggleSearchBox 
-        }); 
-        return () => { 
-            setRightSidebarConfig({ contentConfig: { type: null } }); 
-            setSearchBoxProps(null);
-            registerPageActions({ onClose: undefined, openLatexHelpSidebar: undefined, openSearchSidebar: undefined }); 
-        }; 
-    }, [handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar, toggleSearchBox, registerPageActions, setSearchBoxProps]);
+    useEffect(() => { const currentSelectedIds = selectedProblems.map(p => p.uniqueId).sort().join(','); if (currentSelectedIds !== prevSelectedIdsRef.current) { prevSelectedIdsRef.current = currentSelectedIds; if (selectedProblems.length > 0) { startLayoutCalculation(selectedProblems, problemBoxMinHeight); } else { resetLayout(); } } }, [selectedProblems, startLayoutCalculation, resetLayout, problemBoxMinHeight]);
+    useEffect(() => { return () => { resetLayout(); }; }, [resetLayout]);
+    useEffect(() => { registerPageActions({ onClose: handleCloseEditor, openLatexHelpSidebar: handleOpenLatexHelpSidebar, openSearchSidebar: toggleSearchBox }); return () => { setRightSidebarConfig({ contentConfig: { type: null } }); setSearchBoxProps(null); registerPageActions({ onClose: undefined, openLatexHelpSidebar: undefined, openSearchSidebar: undefined }); }; }, [handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar, toggleSearchBox, registerPageActions, setSearchBoxProps]);
 
     return {
-        allProblems: filteredProblems,
+        allProblems: allProblemsFromSource,
+        filteredProblemIds,
+        hasActiveSearchOrFilter,
         isLoadingProblems,
         selectedProblems,
         selectedIds,
         isAllSelected: isAllFilteredSelected,
-        toggleSelectAll: handleToggleFiltered,
+        toggleSelectAll: handleToggleAllInTable,
         distributedPages,
         placementMap,
         distributedSolutionPages,
@@ -236,7 +190,6 @@ export function useProblemPublishingPage() {
         measuredHeights,
         problemBoxMinHeight,
         previewAreaRef,
-
         toggleRow,
         onToggleSequentialNumbering: () => setUseSequentialNumbering(!useSequentialNumbering),
         onBaseFontSizeChange: setBaseFontSize,

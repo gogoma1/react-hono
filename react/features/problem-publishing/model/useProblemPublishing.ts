@@ -45,7 +45,16 @@ export function useProblemPublishing() {
 
     const displayProblems = useMemo(() => draftProblems ?? initialProblems, [draftProblems, initialProblems]);
     const problemUniqueIds = useMemo(() => initialProblems.map(p => p.uniqueId), [initialProblems]);
-    const { selectedIds, toggleRow, toggleSelectAll, isAllSelected, toggleItems } = useRowSelection<string>({ allItems: problemUniqueIds }); // [수정] toggleItems 추가
+    
+    const { 
+        selectedIds,
+        toggleRow, 
+        toggleItems, 
+        replaceSelection, // [추가]
+        clearSelection,   // [추가]
+        setSelectedIds,   // [추가]
+    } = useRowSelection<string>({ allItems: problemUniqueIds });
+    
     const selectedProblems = useMemo(() => displayProblems.filter(p => selectedIds.has(p.uniqueId)), [displayProblems, selectedIds]);
 
     const handleSaveProblem = useCallback(async (updatedProblem: ProcessedProblem) => {
@@ -69,10 +78,11 @@ export function useProblemPublishing() {
         selectedProblems,
         
         selectedIds,
-        isAllSelected,
+        setSelectedIds,   // [추가]
         toggleRow,
-        toggleSelectAll,
-        toggleItems, // [추가]
+        toggleItems,
+        replaceSelection, // [추가]
+        clearSelection,   // [추가]
         
         handleSaveProblem,
         handleLiveProblemChange: updateDraftProblem,

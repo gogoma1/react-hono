@@ -1671,7 +1671,6 @@
 /* 필터와 액션 영역을 감싸는 Flex 컨테이너 */
 .filter-actions-container {
     display: flex;
-    /* justify-content: space-between; <-- [수정] 이 속성을 제거하여 왼쪽 정렬을 기본으로 합니다. */
     align-items: flex-start;
     gap: 20px;
 }
@@ -1736,7 +1735,7 @@
 /* 오른쪽 액션 컨트롤 영역 */
 .action-controls-area {
     display: flex;
-    flex-direction: column; /* [핵심] 버튼을 세로로 정렬 */
+    flex-direction: column;
     gap: 8px;
     flex-shrink: 0;
 }
@@ -1779,26 +1778,32 @@
     cursor: not-allowed;
 }
 
-/* 미디어 쿼리는 그대로 유지해도 문제 없습니다. */
 @media (max-width: 768px) {
     .table-search-panel { padding: 12px; gap: 10px; }
     .search-input { padding: 12px 16px 12px 45px; font-size: 1rem; }
     
     .filter-actions-container {
-        flex-direction: row;
-        align-items: flex-start;
+        /* [수정] 모바일에서는 필터와 버튼 그룹이 세로로 쌓이도록 변경 */
+        flex-direction: column; 
+        align-items: stretch; /* 전체 너비를 사용하도록 변경 */
         gap: 12px;
     }
     
     .action-controls-area {
-        gap: 6px;
+        /* [수정] 모바일에서는 버튼들이 가로로 배치되도록 변경 (공간 효율성) */
+        flex-direction: row;
+        flex-wrap: wrap; /* 버튼이 많아지면 줄바꿈 */
+        gap: 8px;
     }
     
     .control-button {
-        min-width: 120px;
-        padding: 8px 10px;
+        /* [수정] 가로 배치에 맞게 너비를 자동으로 조절하도록 변경 */
+        flex-grow: 1;
+        width: auto;
+        min-width: 0; /* 최소 너비 제한 해제 */
+        justify-content: center; /* 아이콘/텍스트 중앙 정렬 */
         font-size: 13px;
-        justify-content: center;
+        padding: 8px 10px;
     }
 
     .control-button span {
@@ -4492,11 +4497,27 @@ body {
   z-index: 95;
   padding: 0 25px 20px 30px;
   box-sizing: border-box;
-  pointer-events: none;
-  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none; /* [수정] 기본적으로는 이벤트 통과, visible 클래스에서 제어 */
   display: flex;
   height: auto;
+
+  /* [수정] Fade & Slide 효과를 위한 기본 상태 설정 */
+  opacity: 0;
+  transform: translateY(20px);
+  transition: 
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+    width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* [추가] 검색창이 보일 때의 스타일 */
+.bottom-content-area.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto; /* 보일 때만 클릭 등 이벤트 허용 */
+}
+
 
 /* --- 사이드바 상태에 따른 너비 계산 --- */
 .app-container.left-sidebar-expanded.right-sidebar-collapsed .bottom-content-area {
