@@ -7,7 +7,6 @@ import './App.css';
 import RootLayout from './widgets/rootlayout/RootLayout';
 import ProtectedRoute from './shared/lib/ProtectedRoute';
 import HomePage from './pages/HomePage';
-import ExamplePage from './pages/example';
 import LoginPage from './pages/LoginPage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
 import DashBoard from './pages/DashBoard';
@@ -49,7 +48,6 @@ function App() {
                             <Route element={<RootLayout />}>
                                 <Route path="/" element={<HomePage />} />
                                 <Route path="/dashboard" element={<DashBoard />} />
-                                <Route path="/exampleget" element={<ExamplePage />} />
                                 <Route path="/problem-workbench" element={<ProblemWorkbenchPage />} />
                                 <Route path="/problem-publishing" element={<ProblemPublishingPage />} /> {/* [추가] */}
                                 <Route path="/json-renderer" element={<JsonRendererPage />} /> 

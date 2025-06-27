@@ -13,7 +13,7 @@ import {
      // 아이콘 import 업데이트
     LuLayoutDashboard, LuCheck, LuLibrary, LuHeart, LuActivity,
     LuChartBar, LuFileText, LuChevronLeft, LuChevronRight,
-    LuTestTubes, LuMove, LuFile, LuPrinter // 추가 아이콘
+    LuMove, LuFile, LuPrinter // 추가 아이콘
 } from 'react-icons/lu';
 
 interface MenuItemData {
@@ -28,7 +28,6 @@ interface MenuItemData {
 const DashboardIcon = () => <LuLayoutDashboard size={18} />;
 const ProblemIcon = () => <LuFile size={18} />;
 const ProblemPublishingIcon = () => <LuPrinter size={18} />;
-const ExampleIcon = () => <LuTestTubes size={18} />; 
 const MoveIcon = () => <LuMove size={18} />; 
 // 기존 아이콘 유지 (향후 사용 대비)
 const ActivityIcon = () => <LuActivity size={18} />;
@@ -66,20 +65,10 @@ export const allMenuItems: MenuItemData[] = [
         name: 'JSON 렌더러',
         icon: <JsonIcon />
     },
-   
-     { 
-        path: '/exampleget', 
-        name: 'DB 예제', 
-        icon: <ExampleIcon /> 
-    },
     // 기존 메뉴 주석 처리 (App.tsx에 라우트 추가 후 주석 해제)
-    // { path: '/studenttabletest', name: '테이블테스트', icon: <TasksIcon />, badge: 5 },
-    // { path: '/students', name: '학생관리', icon: <LibrariesIcon /> },
-    // { path: '/mystudentpage', name: 'API테스트', icon: <SavedIcon /> },
 ];
 
 
-// --- 컴포넌트 로직 (allMenuItems 사용 부분 외 변경 없음) ---
 const GlassSidebar: React.FC = () => {
     const { isLeftSidebarExpanded, mobileSidebarType, currentBreakpoint, toggleLeftSidebar, closeMobileSidebar } = useUIStore();
 

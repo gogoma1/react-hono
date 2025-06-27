@@ -840,7 +840,7 @@ import type {
     CreateStudentInput,
     UpdateStudentInput,
     UpdateStudentInputBody
-} from '../model/useStudentDataWithRQ';
+} from '../model/types'; // [수정] types.ts에서 타입 import
 import { handleApiResponse } from '../../../shared/api/api.utils';
 
 const API_BASE = '/api/manage/student';
@@ -899,14 +899,32 @@ export const deleteStudentAPI = async (id: string): Promise<{ message: string; i
     });
     return handleApiResponse<{ message: string; id: string }>(res);
 };
------ ./react/entities/student/model/useStudentDataWithRQ.ts -----
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-    fetchStudentsAPI,
-    addStudentAPI,
-    updateStudentAPI,
-    deleteStudentAPI,
-} from '../api/studentApi';
+----- ./react/entities/student/model/studentUtils.ts -----
+
+/**
+ * 객체 배열에서 특정 키에 해당하는 값들의 고유한 목록을 추출합니다.
+ * @param items - 처리할 객체 배열
+ * @param key - 값을 추출할 객체의 키
+ * @returns 고유한 값들의 배열 (문자 또는 숫자)
+ */
+export const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K): (string | number)[] => {
+    if (!items || items.length === 0) {
+        return [];
+    }
+
+    const uniqueValues = items.reduce((acc: Set<string | number>, item) => {
+        const value = item[key];
+        if (typeof value === 'string' && value.trim() !== '') {
+            acc.add(value);
+        } else if (typeof value === 'number') {
+            acc.add(value);
+        }
+        return acc;
+    }, new Set<string | number>());
+
+    return Array.from(uniqueValues);
+};
+----- ./react/entities/student/model/types.ts -----
 
 export interface CreateStudentInput {
     student_name: string;
@@ -973,6 +991,19 @@ export const GRADE_LEVELS = [
     '중1', '중2', '중3',
     '고1', '고2', '고3',
 ];
+----- ./react/entities/student/model/useStudentDataWithRQ.ts -----
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    fetchStudentsAPI,
+    addStudentAPI,
+    updateStudentAPI,
+    deleteStudentAPI,
+} from '../api/studentApi';
+import type { Student, CreateStudentInput, UpdateStudentInput, MutationStatus } from './types'; // [수정] types.ts에서 타입 import
+
+export type { Student, CreateStudentInput, UpdateStudentInput, MutationStatus }; // [추가] 다른 파일에서 import할 수 있도록 re-export
+export { GRADE_LEVELS } from './types'; // [추가] GRADE_LEVELS 상수 re-export
 
 export const STUDENTS_QUERY_KEY = 'students';
 
@@ -1063,8 +1094,9 @@ export function useStudentDataWithRQ() {
     };
 }
 ----- ./react/entities/student/ui/StudentDisplay.tsx -----
+
 import React, { forwardRef } from 'react';
-import type { Student } from '../model/useStudentDataWithRQ';
+import type { Student } from '../model/types'; // [수정] model/types에서 직접 가져옵니다.
 import { useUIStore } from '../../../shared/store/uiStore';
 import StudentDisplayDesktop from './StudentDisplayDesktop';
 import StudentDisplayMobile from './StudentDisplayMobile';
@@ -1111,7 +1143,7 @@ import GlassTable, { type TableColumn, type SortConfig } from '../../../shared/u
 import Badge from '../../../shared/ui/Badge/Badge';
 import { LuListChecks } from 'react-icons/lu';
 import TableCellCheckbox from '../../../shared/ui/TableCellCheckbox/TableCellCheckbox';
-import type { Student } from '../model/useStudentDataWithRQ';
+import type { Student } from '../model/types'; // [수정] 분리된 types.ts에서 가져옵니다.
 import StudentActionButtons from '../../../features/student-actions/ui/StudentActionButtons';
 import { useVisibleColumns } from '../../../shared/hooks/useVisibleColumns';
 import './StudentDisplayDesktop.css';
@@ -1122,14 +1154,14 @@ type StudentDisplayProps = {
     sortConfig?: SortConfig | null;
     onSort?: (key: string) => void;
     selectedIds: Set<string>;
-    onToggleRow: (studentId: string) => void; // 이 prop이 중요합니다!
+    onToggleRow: (studentId: string) => void;
     isHeaderChecked: boolean;
     onToggleHeader: () => void;
     isHeaderDisabled?: boolean;
     editingStatusRowId: string | null;
     onEdit: (student: Student) => void;
     onNavigate: (studentId: string) => void;
-    onToggleStatusEditor: (studentId: string) => void; // 이 prop도 중요합니다!
+    onToggleStatusEditor: (studentId: string) => void;
     onStatusUpdate: (studentId: string, status: Student['status'] | 'delete') => void;
     onCancel: () => void;
     scrollContainerProps?: React.HTMLAttributes<HTMLDivElement>;
@@ -1205,7 +1237,7 @@ const StudentDisplayDesktop = forwardRef<HTMLDivElement, StudentDisplayProps>((p
         return allColumns.filter(col => visibleColumns[col.key as string]);
 
     }, [
-        students,
+        students.length, // [수정] students 배열 전체 대신 length를 의존성에 추가하여 불필요한 재계산을 방지합니다.
         selectedIds,
         editingStatusRowId,
         isHeaderChecked,
@@ -1225,7 +1257,7 @@ const StudentDisplayDesktop = forwardRef<HTMLDivElement, StudentDisplayProps>((p
             ref={ref} 
             scrollContainerProps={scrollContainerProps}
             columns={columns}
-            data={students} // [수정] 정렬은 상위 컴포넌트(StudentTableWidget)에서 하므로 여기서는 받은 students를 그대로 사용합니다.
+            data={students} 
             isLoading={isLoading}
             emptyMessage="표시할 학생 정보가 없습니다."
             sortConfig={sortConfig}
@@ -1370,6 +1402,7 @@ const StudentDisplayMobile: React.FC<StudentDisplayProps> = (props) => {
 
 export default StudentDisplayMobile;
 ----- ./react/features/exam-header-editing/ui/ExamHeaderEditPopover.tsx -----
+
 import React from 'react';
 import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
 import { LuCheck, LuUndo2 } from 'react-icons/lu';
@@ -2513,61 +2546,54 @@ export default ProfileMenuContent;
 import { useCallback, useEffect, useRef } from 'react';
 
 /**
- * [수정] 렌더링된 요소의 높이를 측정하고 콜백을 통해 보고하는 훅.
- * 컴포넌트가 언마운트될 때 측정 시도를 취소하는 기능이 추가됨.
- * @param onHeightUpdate 높이가 측정되었을 때 호출될 콜백 함수 (uniqueId, height)
+ * [수정] ResizeObserver를 사용하여 렌더링된 요소의 높이 변경을 지속적으로 감지하고 보고하는 훅.
+ * @param onHeightUpdate 높이가 측정되거나 변경되었을 때 호출될 콜백 함수 (uniqueId, height)
  * @param uniqueId 이 훅 인스턴스가 담당할 요소의 고유 ID
  */
 export function useHeightMeasurer(onHeightUpdate: (uniqueId: string, height: number) => void, uniqueId: string) {
     const nodeRef = useRef<HTMLDivElement | null>(null);
-    const timerRef = useRef<number | null>(null);
+    const lastReportedHeightRef = useRef<number | null>(null);
 
     const setRef = useCallback((node: HTMLDivElement | null) => {
         nodeRef.current = node;
     }, []);
 
     useEffect(() => {
-        const cleanup = () => {
-            if (timerRef.current) {
-                clearTimeout(timerRef.current);
-                timerRef.current = null;
-            }
-        };
+        const element = nodeRef.current;
+        if (!element) {
+            return;
+        }
 
-        const measure = (attempt = 1) => {
-            if (!nodeRef.current) {
-                if (attempt < 5) {
-                    timerRef.current = window.setTimeout(() => measure(attempt + 1), 100 * attempt);
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const styles = window.getComputedStyle(entry.target);
+                const marginBottom = parseFloat(styles.marginBottom);
+                
+                const totalHeight = (entry.target as HTMLElement).offsetHeight + (isNaN(marginBottom) ? 0 : marginBottom);
+
+                if (totalHeight > 0 && totalHeight !== lastReportedHeightRef.current) {
+                    lastReportedHeightRef.current = totalHeight;
+                    onHeightUpdate(uniqueId, totalHeight);
                 }
-                return;
             }
+        });
 
-            const styles = window.getComputedStyle(nodeRef.current);
-            const marginBottom = parseFloat(styles.marginBottom);
-            const totalHeight = nodeRef.current.offsetHeight + (isNaN(marginBottom) ? 0 : marginBottom);
+        observer.observe(element);
 
-            if (totalHeight > 0) {
-                onHeightUpdate(uniqueId, totalHeight);
-            } else if (attempt < 5) {
-                timerRef.current = window.setTimeout(() => measure(attempt + 1), 100 * attempt);
-            } else {
-                console.warn(`[useHeightMeasurer] ⚠️ Failed to get a valid height for ${uniqueId} after multiple attempts.`);
-            }
+        return () => {
+            observer.disconnect();
         };
-        
-        timerRef.current = window.setTimeout(measure, 50);
 
-        return cleanup;
-
-    }, [uniqueId, onHeightUpdate]);
+    }, [uniqueId, onHeightUpdate]); // uniqueId나 콜백 함수가 변경될 때마다 observer를 재설정합니다.
 
     return setRef;
 }
 ----- ./react/features/problem-publishing/model/examLayoutEngine.ts -----
 import type { ProcessedProblem } from './problemPublishingStore';
 
-const PROBLEM_COLUMN_MAX_HEIGHT = 920;
-const SOLUTION_COLUMN_MAX_HEIGHT = 980;
+const PROBLEM_COLUMN_MAX_HEIGHT_FIRST_PAGE = 920;
+const PROBLEM_COLUMN_MAX_HEIGHT_OTHER_PAGES = 990; // 2페이지 이상부터 적용될 높이
+const SOLUTION_COLUMN_MAX_HEIGHT = 980; // 해설 페이지는 동일하게 유지
 const DEFAULT_SOLUTION_CHUNK_ESTIMATED_HEIGHT = 40;
 
 export type ProblemPlacementInfo = { page: number; column: number };
@@ -2578,23 +2604,33 @@ export type LayoutItem =
 
 type ProblemGroup = { items: LayoutItem[]; totalHeight: number };
 
+/**
+ * [핵심 수정] 레이아웃 계산 함수가 페이지 번호를 인자로 받아 최대 높이를 동적으로 결정하도록 변경합니다.
+ * @param itemsToLayout - 배치할 아이템 목록
+ * @param heightsMap - 각 아이템의 측정된 높이 맵
+ * @param defaultHeight - 측정되지 않은 아이템의 기본 높이
+ * @param getMaxHeight - 페이지 번호를 인자로 받아 해당 페이지의 최대 높이를 반환하는 함수
+ */
 const runLayoutCalculation = (
     itemsToLayout: LayoutItem[],
     heightsMap: Map<string, number>,
-    defaultHeight: number,
-    maxHeight: number 
+    defaultHeight: number, 
+    getMaxHeight: (pageNumber: number) => number // maxHeight를 함수로 변경
 ): { pages: LayoutItem[][]; placements: Map<string, ProblemPlacementInfo> } => {
     const problemGroups: ProblemGroup[] = [];
     let currentGroupItems: LayoutItem[] = [];
     let currentGroupHeight = 0;
+    
+    const conservativeMaxHeight = Math.min(getMaxHeight(1), getMaxHeight(2));
+
     for (const item of itemsToLayout) {
         const itemHeight = heightsMap.get(item.uniqueId) || defaultHeight;
-        if (itemHeight > maxHeight) {
+        if (itemHeight > conservativeMaxHeight) {
             if (currentGroupItems.length > 0) problemGroups.push({ items: currentGroupItems, totalHeight: currentGroupHeight });
             problemGroups.push({ items: [item], totalHeight: itemHeight });
             currentGroupItems = [];
             currentGroupHeight = 0;
-        } else if (currentGroupHeight + itemHeight <= maxHeight || currentGroupItems.length === 0) {
+        } else if (currentGroupHeight + itemHeight <= conservativeMaxHeight || currentGroupItems.length === 0) {
             currentGroupItems.push(item);
             currentGroupHeight += itemHeight;
         } else {
@@ -2604,39 +2640,58 @@ const runLayoutCalculation = (
         }
     }
     if (currentGroupItems.length > 0) problemGroups.push({ items: currentGroupItems, totalHeight: currentGroupHeight });
+
     const newPages: LayoutItem[][] = [];
     const newPlacementMap = new Map<string, ProblemPlacementInfo>();
+    
     let currentPageNumber = 1;
-    let currentColumnIndex = 0;
+    let currentColumnIndex = 0; // 0: 왼쪽 단, 1: 오른쪽 단
+    let currentColumnHeight = 0;
     let pageItemBuffer: LayoutItem[] = [];
+
     for (const group of problemGroups) {
-        const targetColumn = currentColumnIndex + 1;
-        for (const item of group.items) {
-            newPlacementMap.set(item.uniqueId, { page: currentPageNumber, column: targetColumn });
-            pageItemBuffer.push(item);
-        }
-        if (currentColumnIndex === 0) {
-            currentColumnIndex = 1;
+        const currentMaxHeight = getMaxHeight(currentPageNumber);
+
+        if (currentColumnHeight + group.totalHeight <= currentMaxHeight) {
+            pageItemBuffer.push(...group.items);
+            currentColumnHeight += group.totalHeight;
+            group.items.forEach(item => {
+                newPlacementMap.set(item.uniqueId, { page: currentPageNumber, column: currentColumnIndex + 1 });
+            });
         } else {
-            newPages.push([...pageItemBuffer]);
-            pageItemBuffer = [];
-            currentPageNumber++;
-            currentColumnIndex = 0;
+            currentColumnIndex++;
+            currentColumnHeight = 0;
+
+            if (currentColumnIndex > 1) { // 오른쪽 단도 꽉 찼으면 다음 페이지로
+                newPages.push([...pageItemBuffer]);
+                pageItemBuffer = [];
+                currentPageNumber++;
+                currentColumnIndex = 0;
+            }
+
+            pageItemBuffer.push(...group.items);
+            currentColumnHeight += group.totalHeight;
+            group.items.forEach(item => {
+                newPlacementMap.set(item.uniqueId, { page: currentPageNumber, column: currentColumnIndex + 1 });
+            });
         }
     }
+    
     if (pageItemBuffer.length > 0) newPages.push([...pageItemBuffer]);
     return { pages: newPages, placements: newPlacementMap };
 };
+
 
 export const calculateInitialLayout = (selectedProblems: ProcessedProblem[], problemBoxMinHeight: number, itemHeightsMap: Map<string, number>) => {
     console.log(`[LayoutEngine] 🎬 Calculating layout using existing height map.`);
     const initialEstimatedProblemHeight = problemBoxMinHeight * 12;
     const problemLayoutItems: LayoutItem[] = selectedProblems.map(p => ({ type: 'problem', data: p, uniqueId: p.uniqueId }));
+    
     const problemResult = runLayoutCalculation(
         problemLayoutItems, 
-        itemHeightsMap, // [수정] new Map() 대신 전달받은 맵 사용
+        itemHeightsMap,
         initialEstimatedProblemHeight,
-        PROBLEM_COLUMN_MAX_HEIGHT
+        (page) => page === 1 ? PROBLEM_COLUMN_MAX_HEIGHT_FIRST_PAGE : PROBLEM_COLUMN_MAX_HEIGHT_OTHER_PAGES
     );
 
     const solutionLayoutItems: LayoutItem[] = [];
@@ -2651,11 +2706,12 @@ export const calculateInitialLayout = (selectedProblems: ProcessedProblem[], pro
             });
         }
     });
+    
     const solutionResult = runLayoutCalculation(
         solutionLayoutItems,
-        itemHeightsMap, // [수정] new Map() 대신 전달받은 맵 사용
+        itemHeightsMap,
         DEFAULT_SOLUTION_CHUNK_ESTIMATED_HEIGHT,
-        SOLUTION_COLUMN_MAX_HEIGHT
+        () => SOLUTION_COLUMN_MAX_HEIGHT
     );
     
     console.log(`[LayoutEngine] ✅ Layout calculation finished.`);
@@ -2671,7 +2727,13 @@ export const recalculateProblemLayout = (problemsForLayout: ProcessedProblem[], 
     const fallbackProblemHeight = problemBoxMinHeight * 12;
 
     const problemLayoutItems: LayoutItem[] = problemsForLayout.map(p => ({ type: 'problem', data: p, uniqueId: p.uniqueId }));
-    const problemResult = runLayoutCalculation(problemLayoutItems, itemHeightsMap, fallbackProblemHeight, PROBLEM_COLUMN_MAX_HEIGHT);
+    
+    const problemResult = runLayoutCalculation(
+        problemLayoutItems, 
+        itemHeightsMap, 
+        fallbackProblemHeight, 
+        (page) => page === 1 ? PROBLEM_COLUMN_MAX_HEIGHT_FIRST_PAGE : PROBLEM_COLUMN_MAX_HEIGHT_OTHER_PAGES
+    );
 
     console.log(`[LayoutEngine] ✅ Problem re-calculation finished.`);
     return problemResult;
@@ -2692,12 +2754,12 @@ export const recalculateSolutionLayout = (selectedProblems: ProcessedProblem[], 
             });
         }
     });
-
+    
     const solutionResult = runLayoutCalculation(
         solutionLayoutItems,
         itemHeightsMap,
         DEFAULT_SOLUTION_CHUNK_ESTIMATED_HEIGHT,
-        SOLUTION_COLUMN_MAX_HEIGHT
+        () => SOLUTION_COLUMN_MAX_HEIGHT
     );
     
     console.log(`[LayoutEngine] ✅ Solution re-calculation finished.`);
@@ -2772,14 +2834,20 @@ const runDebouncedRecalculation = (get: () => ExamLayoutState & ExamLayoutAction
     if (debounceTimer) clearTimeout(debounceTimer);
 
     debounceTimer = window.setTimeout(() => {
+        const state = get();
         const isEditing = !!useProblemPublishingStore.getState().editingProblemId;
-        if (isEditing) {
-            console.log("[LOG] examLayoutStore: 📝 편집 중이므로 디바운스된 레이아웃 재계산을 건너뜁니다.");
+
+        if (state.isLayoutFinalized || state.isDraggingControl || isEditing) {
+             console.log("[LOG] examLayoutStore: 레이아웃이 확정되었거나, 드래그 중이거나, 편집 중이므로 디바운스된 재계산을 건너뜁니다.", {
+                isLayoutFinalized: state.isLayoutFinalized,
+                isDraggingControl: state.isDraggingControl,
+                isEditing
+            });
             return;
         }
 
         console.log("[LOG] examLayoutStore: ⏳ 디바운스 타이머 실행! 레이아웃 재계산 시작.");
-        const { problemsForLayout, problemBoxMinHeight } = get();
+        const { problemsForLayout, problemBoxMinHeight } = state;
         if (problemsForLayout.length === 0) {
             console.log("[LOG] examLayoutStore: problemsForLayout이 비어있어 재계산 중단.");
             return;
@@ -2795,16 +2863,16 @@ const runDebouncedRecalculation = (get: () => ExamLayoutState & ExamLayoutAction
             placementMap: problemResult.placements,
             distributedSolutionPages: solutionResult.pages,
             solutionPlacementMap: solutionResult.placements,
-            isLayoutFinalized: true,
+            isLayoutFinalized: true, // 재계산 후에는 레이아웃을 확정합니다.
         });
 
         logLayoutResult(problemsForLayout, problemResult.placements, solutionResult.placements);
-    }, 500);
+    }, 500); // 디바운스 시간
 };
 
 
 export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((set, get) => ({
-    problemBoxMinHeight: 28,
+    problemBoxMinHeight: 31,
     baseFontSize: '12px',
     contentFontSizeEm: 1,
     useSequentialNumbering: false,
@@ -2820,9 +2888,6 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
     setDraggingControl: (isDragging) => set({ isDraggingControl: isDragging }),
 
     setItemHeight: (uniqueId, height) => {
-        if (get().isLayoutFinalized || get().isDraggingControl) {
-            return;
-        }
         itemHeightsMap.set(uniqueId, height);
         runDebouncedRecalculation(get, set);
     },
@@ -2881,7 +2946,7 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
             placementMap: problems.placements,
             distributedSolutionPages: solutions.pages,
             solutionPlacementMap: solutions.placements,
-            isLayoutFinalized: false, 
+            isLayoutFinalized: false, // 최초 계산 시작 시 플래그를 false로 설정
         });
 
         logLayoutResult(selectedProblems, problems.placements, solutions.placements);
@@ -3270,7 +3335,6 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     problem, 
     onSave, 
     onRevert,
-    onClose,
     onProblemChange,
 }) => {
 
@@ -4034,6 +4098,7 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
 
 export default StudentActionButtons;
 ----- ./react/features/student-editing/ui/StudentEditForm.tsx -----
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     useStudentDataWithRQ, 
@@ -4041,6 +4106,7 @@ import {
     type UpdateStudentInput, 
     GRADE_LEVELS 
 } from '../../../entities/student/model/useStudentDataWithRQ';
+import { getUniqueValues } from '../../../entities/student/model/studentUtils'; // [수정] 유틸리티 함수 import
 import CategoryInput from '../../student-registration/ui/CategoryInput';
 import '../../student-registration/ui/StudentRegistrationForm.css';
 
@@ -4050,24 +4116,6 @@ interface StudentEditFormProps {
 }
 
 const statusOptions: Student['status'][] = ['재원', '휴원', '퇴원'];
-
-const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K): (string | number)[] => {
-    if (!items || items.length === 0) { // 오타 수정
-        return [];
-    }
-
-    const uniqueValues = items.reduce((acc: Set<string | number>, item) => {
-        const value = item[key];
-        if (typeof value === 'string' && value.trim() !== '') {
-            acc.add(value);
-        } else if (typeof value === 'number') {
-            acc.add(value);
-        }
-        return acc;
-    }, new Set<string | number>());
-
-    return Array.from(uniqueValues);
-};
 
 
 const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess }) => {
@@ -4279,34 +4327,17 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
 
 export default CategoryInput;
 ----- ./react/features/student-registration/ui/StudentRegistrationForm.tsx -----
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudentDataWithRQ, type CreateStudentInput, GRADE_LEVELS } from '../../../entities/student/model/useStudentDataWithRQ';
 import CategoryInput from './CategoryInput';
 import './StudentRegistrationForm.css';
 import { LuUserPlus } from 'react-icons/lu';
+import { getUniqueValues } from '../../../entities/student/model/studentUtils'; // [수정] 유틸리티 함수 import
 
 interface StudentRegistrationFormProps {
     onSuccess?: () => void;
 }
-
-const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K): (string | number)[] => {
-    if (!items || items.length === 0) { // 오타 수정
-        return [];
-    }
-
-    const uniqueValues = items.reduce((acc: Set<string | number>, item) => {
-        const value = item[key];
-        if (typeof value === 'string' && value.trim() !== '') {
-            acc.add(value);
-        } else if (typeof value === 'number') {
-            acc.add(value);
-        }
-        return acc;
-    }, new Set<string | number>());
-
-    return Array.from(uniqueValues);
-};
-
 
 const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuccess }) => {
     const { students, addStudent, addStudentStatus } = useStudentDataWithRQ();
@@ -4886,93 +4917,6 @@ const DashBoard: React.FC = () => {
 };
 
 export default DashBoard;
------ ./react/pages/example.tsx -----
-import { useState } from 'react';
-
-interface TableInfo {
-  schemaname: string;
-  tablename: string;
-  tableowner: string;
-  tablespace: string | null;
-  hasindexes: boolean;
-  hasrules: boolean;
-  hastriggers: boolean;
-  rowsecurity: boolean;
-  [key: string]: any; // 그 외 다른 컬럼들을 위해
-}
-
-interface ApiResponse {
-  success: boolean;
-  result?: TableInfo[];
-  error?: string;
-}
-
-const ExamplePage: React.FC = () => {
-  const [data, setData] = useState<TableInfo[] | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    setData(null);
-
-    try {
-      const response = await fetch('/api/example/pgtables');
-      credentials: 'include'
-      console.log(response)
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const jsonData: ApiResponse = await response.json();
-
-      if (jsonData.success && jsonData.result) {
-        setData(jsonData.result);
-      } else {
-        setError(jsonData.error || 'Failed to fetch data.');
-      }
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>PostgreSQL pg_tables 데이터 조회 예제</h1>
-      <button onClick={fetchData} disabled={loading}>
-        {loading ? '데이터 로딩 중...' : 'pg_tables 데이터 가져오기'}
-      </button>
-
-      {error && (
-        <div style={{ color: 'red', marginTop: '10px' }}>
-          <p>에러 발생:</p>
-          <pre>{error}</pre>
-        </div>
-      )}
-
-      {data && (
-        <div style={{ marginTop: '20px' }}>
-          <h2>조회된 데이터:</h2>
-          {data.length > 0 ? (
-            <pre style={{ background: '#f4f4f4', padding: '10px', borderRadius: '5px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-              {JSON.stringify(data, null, 2)}
-            </pre>
-          ) : (
-            <p>데이터가 없습니다.</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default ExamplePage;
 ----- ./react/pages/HomePage.tsx -----
 import React from "react";
 
@@ -5215,109 +5159,6 @@ const LoginPage: React.FC = () => {
 };
 
 export default LoginPage;
------ ./react/pages/LoginPageWithErrorDisplay.tsx -----
-import React, { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router'; // react-router-dom 훅 사용
-import { useAuthStore, selectAuthError, selectIsAuthenticated, selectIsLoadingAuth } from '../shared/store/authStore';
-
-const LoginPageWithErrorDisplay: React.FC = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const [urlError, setUrlError] = useState<string | null>(null);
-  const [urlErrorDescription, setUrlErrorDescription] = useState<string | null>(null);
-
-  const authStoreError = useAuthStore(selectAuthError);
-  const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  const isLoadingAuth = useAuthStore(selectIsLoadingAuth);
-  const clearAuthStoreError = useAuthStore.getState().clearAuthError; // 에러 클리어 액션
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const errorParam = params.get('error');
-    const errorDescriptionParam = params.get('error_description');
-
-    if (errorParam) {
-      setUrlError(decodeURIComponent(errorParam));
-    }
-    if (errorDescriptionParam) {
-      setUrlErrorDescription(decodeURIComponent(errorDescriptionParam));
-    }
-
-  }, [location.search /*, authStoreError, clearAuthStoreError */]);
-
-
-  useEffect(() => {
-    if (!isLoadingAuth && isAuthenticated) {
-      navigate('/'); // 또는 이전 페이지나 대시보드로 리다이렉트
-    }
-  }, [isLoadingAuth, isAuthenticated, navigate]);
-
-
-  const handleRetryLogin = () => {
-    navigate('/test-auth'); // 또는 로그인 시도 페이지
-  };
-
-  const displayError = urlError || authStoreError;
-  const displayErrorDescription = urlErrorDescription;
-
-
-  if (isLoadingAuth) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <p>인증 상태를 확인 중입니다...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '40px auto', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' }}>
-      <h1>로그인</h1>
-
-      {displayError && (
-        <div style={{ backgroundColor: '#ffebee', color: '#c62828', padding: '15px', margin: '20px 0', borderRadius: '4px' }}>
-          <h2>로그인 오류</h2>
-          <p><strong>오류 코드:</strong> {displayError}</p>
-          {displayErrorDescription && <p><strong>상세 정보:</strong> {displayErrorDescription}</p>}
-          <p>로그인 과정에서 문제가 발생했습니다.</p>
-        </div>
-      )}
-
-      {!displayError && !isAuthenticated && (
-        <p style={{ margin: '20px 0' }}>
-          로그인이 필요한 서비스입니다.
-        </p>
-      )}
-
-      {/* 사용자가 이미 로그인되어 있다면 이 페이지를 볼 이유가 별로 없음 */}
-      {/* isAuthenticated 상태에 따라 다른 UI를 보여줄 수도 있음 */}
-
-      <div style={{ marginTop: '30px' }}>
-        <button
-          onClick={handleRetryLogin}
-          style={{ padding: '10px 20px', marginRight: '10px', cursor: 'pointer' }}
-        >
-          로그인 페이지로 돌아가기
-        </button>
-        <Link to="/" style={{ textDecoration: 'none' }}>
-          <button style={{ padding: '10px 20px', cursor: 'pointer' }}>
-            홈으로 이동
-          </button>
-        </Link>
-      </div>
-
-      {/* authStore의 에러를 명시적으로 클리어하고 싶다면 버튼 추가 가능
-      {authStoreError && (
-        <button onClick={clearAuthStoreError} style={{ marginTop: '10px' }}>
-          스토어 에러 메시지 지우기
-        </button>
-      )}
-      */}
-    </div>
-  );
-};
-
-export default LoginPageWithErrorDisplay;
 ----- ./react/pages/ProblemPublishingPage.tsx -----
 import React, { useState, useCallback, useEffect } from 'react';
 import { useLayoutStore } from '../shared/store/layoutStore';
@@ -5344,7 +5185,7 @@ const ProblemPublishingPage: React.FC = () => {
         setItemHeight,
         problemBoxMinHeight, baseFontSize, contentFontSizeEm, useSequentialNumbering,
         updateMinHeightAndRecalculate, setBaseFontSize, setContentFontSizeEm, setUseSequentialNumbering,
-        forceRecalculateLayout, // [추가] 강제 재계산 액션 가져오기
+        forceRecalculateLayout,
     } = useExamLayoutStore();
     
     const [measuredHeights, setMeasuredHeights] = useState<Map<string, number>>(new Map());
@@ -5384,29 +5225,6 @@ const ProblemPublishingPage: React.FC = () => {
     
     useExamLayoutManager({ selectedProblems });
     
-    const [localMinHeight, setLocalMinHeight] = useState(problemBoxMinHeight);
-    const [localContentFontSize, setLocalContentFontSize] = useState(contentFontSizeEm);
-
-    useEffect(() => { setLocalMinHeight(problemBoxMinHeight); }, [problemBoxMinHeight]);
-    useEffect(() => { setLocalContentFontSize(contentFontSizeEm); }, [contentFontSizeEm]);
-
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            if (localMinHeight !== problemBoxMinHeight) {
-                updateMinHeightAndRecalculate(localMinHeight);
-            }
-        }, 500);
-        return () => clearTimeout(handler);
-    }, [localMinHeight, problemBoxMinHeight, updateMinHeightAndRecalculate]);
-    
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            if (localContentFontSize !== contentFontSizeEm) {
-                setContentFontSizeEm(localContentFontSize);
-            }
-        }, 500);
-        return () => clearTimeout(handler);
-    }, [localContentFontSize, contentFontSizeEm, setContentFontSizeEm]);
     
     const { setRightSidebarConfig, registerPageActions } = useLayoutStore.getState();
 
@@ -5419,8 +5237,8 @@ const ProblemPublishingPage: React.FC = () => {
     const handleOpenLatexHelpSidebar = useCallback(() => { setRightSidebarConfig({ contentConfig: { type: 'latexHelp' }, isExtraWide: false }); }, [setRightSidebarConfig]);
     
     const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => { 
-        handleSaveProblem(problem); 
-        handleCloseEditor(); // handleCloseEditor가 재계산까지 담당
+        await handleSaveProblem(problem); 
+        handleCloseEditor(); 
     }, [handleSaveProblem, handleCloseEditor]);
     
     const handleRevertAndKeepOpen = useCallback((problemId: string) => { handleRevertProblem(problemId); }, [handleRevertProblem]);
@@ -5435,7 +5253,8 @@ const ProblemPublishingPage: React.FC = () => {
                 props: { 
                     onProblemChange: handleLiveProblemChange,
                     onSave: handleSaveAndClose, 
-                    onRevert: handleRevertAndKeepOpen, 
+                    onRevert: handleRevertAndKeepOpen,
+                    onClose: handleCloseEditor,
                 } 
             }, 
             isExtraWide: true 
@@ -5463,10 +5282,10 @@ const ProblemPublishingPage: React.FC = () => {
                     onToggleSequentialNumbering={() => setUseSequentialNumbering(!useSequentialNumbering)}
                     baseFontSize={baseFontSize}
                     onBaseFontSizeChange={setBaseFontSize}
-                    contentFontSizeEm={localContentFontSize}
-                    onContentFontSizeEmChange={setLocalContentFontSize}
-                    problemBoxMinHeight={localMinHeight}
-                    onProblemBoxMinHeightChange={setLocalMinHeight}
+                    contentFontSizeEm={contentFontSizeEm}
+                    onContentFontSizeEmChange={setContentFontSizeEm} 
+                    problemBoxMinHeight={problemBoxMinHeight}
+                    onProblemBoxMinHeightChange={updateMinHeightAndRecalculate}
                     onDownloadPdf={handleDownloadPdf} 
                 />
             </div>
@@ -5483,7 +5302,7 @@ const ProblemPublishingPage: React.FC = () => {
                     baseFontSize={baseFontSize} 
                     contentFontSizeEm={contentFontSizeEm} 
                     contentFontFamily={headerInfo.titleFontFamily} 
-                    problemBoxMinHeight={localMinHeight}
+                    problemBoxMinHeight={problemBoxMinHeight}
                     onHeightUpdate={handleHeightUpdate}
                     onProblemClick={handleProblemClick} 
                     onHeaderUpdate={handleHeaderUpdate} 
@@ -6341,33 +6160,6 @@ const AuthInitializer: React.FC = () => {
 };
 
 export default AuthInitializer;
------ ./react/shared/lib/axiosInstance.ts -----
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:8787'; // 환경 변수로 설정 가능, 예: process.env.REACT_APP_API_BASE_URL
-
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000, // 요청 타임아웃 10초
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // Supabase 쿠키 인증을 위해 필요할 수 있음 (CORS 설정과 함께 확인)
-});
-
-
-axiosInstance.interceptors.response.use(
-  (response) => {
-    return response; // 성공적인 응답은 그대로 반환
-  },
-  (error) => {
-    if (error.response && error.response.status === 401) {
-    }
-    return Promise.reject(error); // 에러를 계속 전파하여 React Query가 처리하도록 함
-  }
-);
-
-export default axiosInstance;
 ----- ./react/shared/lib/ProtectedRoute.tsx -----
 import { Navigate, Outlet } from 'react-router';
 import { useAuthStore, selectIsAuthenticated } from '../store/authStore'; // authStore 경로 확인
@@ -12784,7 +12576,7 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({
             ref={scrollContainerRef}
             scrollContainerProps={{
                 onMouseDown: onMouseDown,
-                className: isDragging ? 'dragging' : '',
+                className: `draggable ${isDragging ? 'dragging' : ''}`.trim(),
             }}
             students={sortedStudents}
             isLoading={isLoading}

@@ -5,7 +5,6 @@ import { cors } from 'hono/cors';
 
 // --- 라우트 파일 import ---
 import profileRoutes from './routes/profiles/profiles';
-import exampleRoute from './routes/example/selectpg_tables';
 import studentRoutes from './routes/manage/student';
 import { supabaseMiddleware } from './routes/middleware/auth.middleware';
 import problemRoutes from './routes/manage/problems';
@@ -39,7 +38,6 @@ app.use('*', cors({
 app.use(supabaseMiddleware());
 
 // --- API 라우트 등록 ---
-app.route('/example', exampleRoute); 
 app.route('/profiles', profileRoutes); 
 app.route('/manage/student', studentRoutes);
 app.route('/manage/problems', problemRoutes); 
