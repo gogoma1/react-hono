@@ -33,6 +33,19 @@
     gap: 8px;
 }
 
+/* [추가] 파괴적인(destructive) 액션 버튼 스타일 */
+.editor-actions .action-button.destructive,
+.editor-actions .loading-button.destructive {
+    background-color: transparent;
+    border-color: #ef4444;
+    color: #ef4444;
+}
+.editor-actions .action-button.destructive:hover:not(:disabled),
+.editor-actions .loading-button.destructive:hover:not(:disabled) {
+    background-color: #ef4444;
+    color: white;
+}
+
 .editor-body-wrapper {
     flex-grow: 1;
     min-height: 0;
@@ -44,12 +57,11 @@
     scrollbar-gutter: stable;
 }
 
-/* [재활용] 이 클래스는 이제 문제 본문, 해설 모두에 사용됩니다. */
 .editor-section {
     display: flex;
     flex-direction: column;
-    min-height: 250px; /* 최소 높이 살짝 줄임 */
-    max-height: 45vh; /* 화면 높이의 45% */
+    min-height: 250px; 
+    max-height: 45vh; 
 }
 
 .editor-section-title {
@@ -91,48 +103,22 @@
     font-weight: 500;
 }
 
-.metadata-field-input {
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid var(--text-placeholder, #d1d5db);
-    border-radius: 8px;
-    font-size: 0.95rem;
-    color: var(--text-primary);
-    background-color: var(--app-bg-color);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.metadata-field-input:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);
-}
-
-.metadata-field-input {
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid var(--text-placeholder, #d1d5db);
-    border-radius: 8px;
-    font-size: 0.95rem;
-    color: var(--text-primary);
-    background-color: var(--app-bg-color);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-/* [추가] 콤보박스 트리거 버튼 스타일 */
+.metadata-field-input,
 .metadata-field-combobox-trigger {
-    /* .metadata-field-input 과 유사한 디자인으로 설정 */
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background-color: var(--app-bg-color);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metadata-field-combobox-trigger {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid var(--text-placeholder, #d1d5db);
-    border-radius: 8px;
-    font-size: 0.95rem;
-    color: var(--text-primary);
-    background-color: var(--app-bg-color);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
     text-align: left;
     cursor: pointer;
     font-family: inherit;
@@ -147,8 +133,8 @@
     flex-shrink: 0;
 }
 
-
-.metadata-field-input:focus {
+.metadata-field-input:focus,
+.metadata-field-combobox-trigger:focus {
     outline: none;
     border-color: var(--accent-color);
     box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);

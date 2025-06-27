@@ -1,14 +1,14 @@
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
 import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
 
-
+// ... (스키마 정의는 변경 없음)
 const problemSchema = z.object({
   problem_id: z.string().uuid().optional(),
   question_number: z.number(),
@@ -36,14 +36,17 @@ const uploadProblemsBodySchema = z.object({
 
 const updateProblemBodySchema = problemSchema.omit({ problem_id: true }).partial();
 
+const deleteProblemsBodySchema = z.object({
+    problem_ids: z.array(z.string().uuid()).min(1, { message: '삭제할 문제 ID를 하나 이상 제공해야 합니다.' }),
+});
+
 type UploadProblemsInput = z.infer<typeof uploadProblemsBodySchema>;
 type UpdateProblemInput = z.infer<typeof updateProblemBodySchema>;
 
 const problemRoutes = new Hono<AppEnv>();
 
-// ... (GET, POST /upload 라우트는 그대로 둡니다)
+// ... (GET, POST, PUT 라우트는 변경 없음)
 problemRoutes.get('/', async (c) => {
-    // ... 이전과 동일
     const user = c.get('user');
     if (!user) {
         return c.json({ error: '인증이 필요합니다.' }, 401);
@@ -80,7 +83,6 @@ problemRoutes.get('/', async (c) => {
     }
 });
 problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), async (c) => {
-    // ... 이전과 동일
     const user = c.get('user')!;
     const { problems } = c.req.valid('json') as UploadProblemsInput;
 
@@ -158,9 +160,6 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
         c.executionCtx.waitUntil(sql.end());
     }
 });
-
-
-// [수정] 문제 업데이트 라우트 로직 전체 수정
 problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) => {
     const user = c.get('user')!;
     const problemId = c.req.param('id');
@@ -171,13 +170,11 @@ problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c)
 
     try {
         const [updatedProblem] = await db.transaction(async (tx) => {
-            // 업데이트할 데이터를 담을 객체
             const dataToUpdate: Partial<typeof schema.problemTable.$inferInsert> = {
                 ...problemData,
                 updated_at: new Date()
             };
 
-            // major_chapter_id가 있으면 ID를 찾아서 교체
             if (problemData.major_chapter_id) {
                 const [majorChapter] = await tx.insert(schema.majorChaptersTable)
                     .values({ name: problemData.major_chapter_id })
@@ -186,7 +183,6 @@ problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c)
                 dataToUpdate.major_chapter_id = majorChapter.id;
             }
 
-            // middle_chapter_id가 있으면 ID를 찾아서 교체 (major_chapter_id가 필요함)
             if (problemData.middle_chapter_id && dataToUpdate.major_chapter_id) {
                  const [middleChapter] = await tx.insert(schema.middleChaptersTable)
                     .values({ name: problemData.middle_chapter_id, major_chapter_id: dataToUpdate.major_chapter_id })
@@ -197,7 +193,6 @@ problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c)
                 }
             }
 
-            // core_concept_id가 있으면 ID를 찾아서 교체
             if (problemData.core_concept_id) {
                 const [coreConcept] = await tx.insert(schema.coreConceptsTable)
                     .values({ name: problemData.core_concept_id })
@@ -206,7 +201,6 @@ problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c)
                 dataToUpdate.core_concept_id = coreConcept.id;
             }
 
-            // 최종적으로 problemTable 업데이트
             return tx.update(schema.problemTable)
                 .set(dataToUpdate)
                 .where(and(
@@ -225,6 +219,42 @@ problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c)
     } catch (error: any) {
         console.error(`Failed to update problem ${problemId}:`, error.message);
         return c.json({ error: '데이터베이스 업데이트에 실패했습니다.', details: error.message }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
+// [수정] 단일/다중 문제 영구 삭제 라우트 (DELETE /:id 경로 제거)
+problemRoutes.delete('/', zValidator('json', deleteProblemsBodySchema), async (c) => {
+    const user = c.get('user');
+    if (!user) {
+        return c.json({ error: '인증이 필요합니다.' }, 401);
+    }
+
+    const { problem_ids } = c.req.valid('json');
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+        const deletedProblems = await db.delete(schema.problemTable)
+            .where(and(
+                inArray(schema.problemTable.problem_id, problem_ids),
+                eq(schema.problemTable.creator_id, user.id)
+            ))
+            .returning({ id: schema.problemTable.problem_id });
+
+        if (deletedProblems.length === 0) {
+            return c.json({ error: '삭제할 문제를 찾을 수 없거나 권한이 없습니다.' }, 404);
+        }
+
+        return c.json({ 
+            message: `${deletedProblems.length}개의 문제가 성공적으로 삭제되었습니다.`, 
+            deleted_count: deletedProblems.length 
+        }, 200);
+
+    } catch (error: any) {
+        console.error(`Failed to delete problems:`, error.message);
+        return c.json({ error: '데이터베이스 삭제 작업에 실패했습니다.', details: error.message }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }

@@ -1,0 +1,105 @@
+/* react/shared/ui/modal/Modal.css */
+
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(30, 30, 32, 0.7);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeInBackdrop 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-content-wrapper {
+    background: var(--main-content-bg-color);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 90vh;
+}
+
+.modal-content-wrapper.small { width: 90vw; max-width: 400px; }
+.modal-content-wrapper.medium { width: 90vw; max-width: 520px; }
+.modal-content-wrapper.large { width: 90vw; max-width: 800px; }
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color-light);
+    flex-shrink: 0;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.modal-close-button {
+    background: none;
+    border: none;
+    padding: 4px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.modal-close-button:hover {
+    background-color: var(--menu-item-hover-bg);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color-light);
+    background-color: rgba(0,0,0,0.02);
+    flex-shrink: 0;
+}
+
+/* 추가: 파괴적인(destructive) 액션 버튼 스타일 */
+.action-button.destructive,
+.loading-button.destructive {
+    background-color: #ef4444; /* Tailwind red-500 */
+    color: white;
+}
+.action-button.destructive:hover:not(:disabled),
+.loading-button.destructive:hover:not(:disabled) {
+    background-color: #dc2626; /* Tailwind red-600 */
+}
+.action-button.destructive:disabled,
+.loading-button.destructive:disabled {
+    background-color: #fca5a5; /* Tailwind red-300 */
+}
+
+@keyframes fadeInBackdrop {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInUp {
+    from { transform: translateY(20px) scale(0.98); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}

@@ -29,6 +29,7 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
   '/problem-workbench': {
     sidebarButtons: {
       prompt: { tooltip: '프롬프트 모음' },
+      latexHelp: { tooltip: 'LaTeX 문법 도움말' },
       settings: { tooltip: '문제 작업 설정' },
     },
   },

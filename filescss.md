@@ -1988,7 +1988,7 @@ body {
     display: block;
     margin-left: auto;
     margin-right: 0;
-    width: 50%;
+    width: 150px;
     border-radius: 8px;
     clear: both;
     float: inline-end;
@@ -2708,7 +2708,7 @@ body {
     border: 1px solid var(--border-color-light, #e0e0e0);
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    overflow: hidden; /* [중요] 이 속성이 패널의 둥근 모서리를 지켜줌 */
+    overflow-y: auto; /* [중요] 이 속성이 패널의 둥근 모서리를 지켜줌 */
 }
 
 /* 패널 헤더의 공통 스타일 */
@@ -2768,6 +2768,17 @@ body {
         min-height: 300px;
     }
 }
+
+.preview-content-wrapper table:has(td[rowspan="2"][style*="width: 73px"]) td[colspan="3"] {
+  width: 400px !important;
+}
+
+
+
+
+
+
+
 ----- ./react/pages/ProfileSetupPage.css -----
 /* filepath: react-hono\react\pages\ProfileSetupPage.css */
 
@@ -3364,6 +3375,39 @@ body {
 .glass-table .last-sticky-col {
   right: 0;
   box-shadow: -4px 0 8px -4px rgba(0, 0, 0, 0.15);
+}
+----- ./react/shared/ui/loadingbutton/LoadingButton.css -----
+/* react/shared/ui/loadingbutton/LoadingButton.css */
+
+/* 로딩 중일 때 버튼 비활성화 시각적 피드백 */
+.action-button.loading {
+    cursor: wait;
+    opacity: 0.8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 스피너 아이콘 스타일 */
+.spinner {
+    width: 1em; /* 폰트 크기에 비례하도록 em 단위 사용 */
+    height: 1em;
+    border: 2px solid currentColor; /* 버튼의 현재 텍스트 색상을 상속 */
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 0.5em; /* 텍스트와의 간격 */
+    opacity: 0.7;
+}
+
+/* primary 버튼의 경우, 스피너 색상은 흰색 계열이어야 함 */
+.action-button.primary .spinner {
+    border-color: rgba(255, 255, 255, 0.8);
+    border-top-color: transparent;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 ----- ./react/shared/ui/popover-content/PopoverContent.css -----
 /* react-hono\react\shared\ui\popover-content\PopoverContent.css */

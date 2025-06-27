@@ -4,7 +4,6 @@ import ImageManager from '../features/image-upload/ui/ImageManager';
 import './ProblemWorkbenchPage.css';
 import { useLayoutStore } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
-import PromptCollection from '../features/prompt-collection/ui/PromptCollection';
 import { LuCopy, LuCopyCheck, LuFilePlus } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 import CodeEditorPanel from '../shared/components/workbench/CodeEditorPanel';
@@ -13,7 +12,6 @@ import PreviewPanel from '../shared/components/workbench/PreviewPanel';
 const LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH = 'problem-workbench-draft';
 
 const ProblemWorkbenchPage: React.FC = () => {
-    // [수정] setRightSidebarContent 대신 setRightSidebarConfig를 가져옵니다.
     const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
 
@@ -75,7 +73,6 @@ const ProblemWorkbenchPage: React.FC = () => {
     }, [markdownContent, initialContent]);
 
     const handleOpenSettingsSidebar = useCallback(() => {
-        // [수정] setRightSidebarConfig를 사용하여 'settings' 타입의 콘텐츠를 요청합니다.
         setRightSidebarConfig({
             contentConfig: { type: 'settings' },
             isExtraWide: false
@@ -84,9 +81,20 @@ const ProblemWorkbenchPage: React.FC = () => {
     }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleOpenPromptSidebar = useCallback(() => {
-        // [수정] setRightSidebarConfig를 사용하여 'prompt' 타입의 콘텐츠를 요청합니다.
+        setRightSidebarConfig({ 
+            contentConfig: { 
+                type: 'prompt',
+                props: { workbenchContent: markdownContent } 
+            },
+            isExtraWide: false
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded, markdownContent]);
+
+    // [추가] LaTeX 도우미 사이드바를 여는 함수
+    const handleOpenLatexHelpSidebar = useCallback(() => {
         setRightSidebarConfig({
-            contentConfig: { type: 'prompt' },
+            contentConfig: { type: 'latexHelp' },
             isExtraWide: false
         });
         setRightSidebarExpanded(true);
@@ -94,25 +102,27 @@ const ProblemWorkbenchPage: React.FC = () => {
 
     const handleCloseSidebar = useCallback(() => {
         setRightSidebarExpanded(false);
-        // [수정] 닫을 때는 contentConfig의 type을 null로 설정합니다.
         setTimeout(() => setRightSidebarConfig({ contentConfig: { type: null } }), 300);
     }, [setRightSidebarExpanded, setRightSidebarConfig]);
 
     useEffect(() => {
+        // [수정] registerPageActions에 openLatexHelpSidebar 추가
         registerPageActions({
             openSettingsSidebar: handleOpenSettingsSidebar,
             openPromptSidebar: handleOpenPromptSidebar,
+            openLatexHelpSidebar: handleOpenLatexHelpSidebar,
             onClose: handleCloseSidebar,
         });
         return () => {
             registerPageActions({
                 openSettingsSidebar: undefined,
                 openPromptSidebar: undefined,
+                openLatexHelpSidebar: undefined, // [수정] 클린업
                 onClose: undefined,
             });
             handleCloseSidebar();
         };
-    }, [registerPageActions, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleCloseSidebar]);
+    }, [registerPageActions, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleOpenLatexHelpSidebar, handleCloseSidebar]);
 
     const handleApplyUrls = useCallback(() => {
         const { extractedImages, uploadedUrls, canApply } = imageManager;

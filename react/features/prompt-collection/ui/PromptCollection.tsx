@@ -4,7 +4,11 @@ import { usePromptManager } from '../model/usePromptManager';
 import PromptMemo from './PromptMemo';
 import './PromptCollection.css';
 
-const PromptCollection: React.FC = () => {
+interface PromptCollectionProps {
+    workbenchContent?: string;
+}
+
+const PromptCollection: React.FC<PromptCollectionProps> = ({ workbenchContent }) => {
     const {
         prompts,
         editingPromptId,
@@ -12,8 +16,8 @@ const PromptCollection: React.FC = () => {
         setEditingTitle,
         editingContent,
         setEditingContent,
-        expandedPromptId, // [추가]
-        toggleExpand, // [추가]
+        expandedPromptId,
+        toggleExpand,
         addPrompt,
         deletePrompt,
         resetDefaultPrompt,
@@ -40,7 +44,7 @@ const PromptCollection: React.FC = () => {
                         key={prompt.id}
                         prompt={prompt}
                         isEditing={editingPromptId === prompt.id}
-                        isExpanded={expandedPromptId === prompt.id} // [추가]
+                        isExpanded={expandedPromptId === prompt.id}
                         editingTitle={editingTitle}
                         onSetEditingTitle={setEditingTitle}
                         editingContent={editingContent}
@@ -50,7 +54,8 @@ const PromptCollection: React.FC = () => {
                         onCancel={cancelEditing}
                         onDelete={deletePrompt}
                         onReset={resetDefaultPrompt}
-                        onToggleExpand={toggleExpand} // [추가]
+                        onToggleExpand={toggleExpand}
+                        workbenchContent={workbenchContent} // [추가] prop 전달
                     />
                 ))}
                 {prompts.length === 0 && (

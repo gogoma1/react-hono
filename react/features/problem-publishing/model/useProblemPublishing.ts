@@ -13,7 +13,8 @@ export type { LayoutItem } from './examLayoutEngine';
  */
 export function useProblemPublishing() {
     const { data: rawProblems = [], isLoading: isLoadingProblems } = useProblemsQuery();
-    const { mutateAsync: updateProblem } = useUpdateProblemMutation();
+    const updateProblemMutation = useUpdateProblemMutation();
+    const { mutateAsync: updateProblem } = updateProblemMutation;
     
     const {
         initialProblems, draftProblems, setInitialData, startEditing,
@@ -50,9 +51,9 @@ export function useProblemPublishing() {
         selectedIds,
         toggleRow, 
         toggleItems, 
-        replaceSelection, // [추가]
-        clearSelection,   // [추가]
-        setSelectedIds,   // [추가]
+        replaceSelection, 
+        clearSelection, // [수정] clearSelection을 받아옴
+        setSelectedIds,   
     } = useRowSelection<string>({ allItems: problemUniqueIds });
     
     const selectedProblems = useMemo(() => displayProblems.filter(p => selectedIds.has(p.uniqueId)), [displayProblems, selectedIds]);
@@ -78,12 +79,13 @@ export function useProblemPublishing() {
         selectedProblems,
         
         selectedIds,
-        setSelectedIds,   // [추가]
+        setSelectedIds,   
         toggleRow,
         toggleItems,
-        replaceSelection, // [추가]
-        clearSelection,   // [추가]
+        replaceSelection, 
+        clearSelection,   // [수정] clearSelection을 반환
         
+        isSavingProblem: updateProblemMutation.isPending,
         handleSaveProblem,
         handleLiveProblemChange: updateDraftProblem,
         handleRevertProblem: revertSingleProblem,

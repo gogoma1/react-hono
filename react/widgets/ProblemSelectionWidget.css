@@ -1,15 +1,10 @@
 /* ./react/widgets/ProblemSelectionWidget.css */
 
 .problem-selection-widget {
-    /* [핵심] 위젯 자체를 Flexbox 컨테이너로 설정 */
     display: flex;
-    flex-direction: column; /* 자식 요소(헤더, 테이블)를 세로로 쌓음 */
-    
-    /* [핵심] 부모(.selection-widget-container)의 높이를 100% 채움 */
+    flex-direction: column;
     height: 100%;
-    
-    /* 나머지 디자인 스타일 */
-    overflow: hidden; /* 위젯 자체의 스크롤은 방지 */
+    overflow: hidden;
     background-color: var(--glass-base-bg);
     border: 1px solid var(--border-color-light);
     border-radius: 12px;
@@ -22,27 +17,48 @@
     font-weight: 600;
     color: var(--text-primary);
     border-bottom: 1px solid var(--border-color-light);
-    flex-shrink: 0; /* 헤더는 높이가 줄어들지 않도록 고정 */
+    flex-shrink: 0;
+    /* [수정] flexbox로 변경하여 제목과 버튼을 양쪽으로 정렬 */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-/* 
- * [핵심] 테이블을 감싸는 컨테이너
- * 이 컨테이너가 헤더를 제외한 모든 남는 공간을 차지하고,
- * 내부에서 GlassTable이 스크롤되도록 만듭니다.
- */
+.selection-header-title {
+    flex-grow: 1;
+}
+
+/* [신규] 삭제 버튼 스타일 */
+.selection-header .action-button.destructive {
+    padding: 6px 12px;
+    background-color: transparent;
+    border: 1px solid #ef4444;
+    color: #ef4444;
+}
+.selection-header .action-button.destructive:hover:not(:disabled) {
+    background-color: #ef4444;
+    color: white;
+}
+.selection-header .action-button.destructive:disabled {
+    background-color: transparent;
+    border-color: var(--text-placeholder);
+    color: var(--text-placeholder);
+    opacity: 0.7;
+}
+
+.delete-button-text {
+    margin-left: 8px;
+    font-size: 13px;
+}
+
 .selection-table-container {
-    flex-grow: 1;  /* 부모(.problem-selection-widget)의 남는 공간을 모두 차지 */
-    min-height: 0; /* flex item이 부모보다 작아질 수 있도록 하는 필수 속성 */
-    overflow: hidden; /* 이 컨테이너 자체는 스크롤되지 않음 (중요) */
-    display: flex; /* 자식인 GlassTable이 높이를 100% 채울 수 있도록 */
-    flex-direction: column; /* 자식을 세로로 쌓기 위함 */
+    flex-grow: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
-/* 
- * [핵심] GlassTable 컴포넌트를 직접 감싸는 래퍼
- * (GlassTable.tsx 내부의 .glass-table-wrapper)
- * 이 래퍼가 높이를 100% 채우고, 내부의 스크롤 컨테이너를 제어합니다.
- */
 .selection-table-container .glass-table-wrapper {
     height: 100%;
     width: 100%;
@@ -50,18 +66,11 @@
     flex-direction: column;
 }
 
-/* 
- * [핵심] GlassTable의 실제 스크롤 영역
- * (GlassTable.tsx 내부의 .glass-table-scroll-container)
- * 이 영역이 남는 공간을 채우고, 가로/세로 스크롤을 모두 담당합니다.
- * 이 영역은 이제 세로 스크롤도 담당해야 합니다.
- */
 .selection-table-container .glass-table-scroll-container {
     flex-grow: 1;
-    overflow: auto; /* 가로/세로 스크롤 모두 자동 처리 */
+    overflow: auto;
 }
 
-/* --- 기존 기타 스타일 (유지) --- */
 .keyword-badge {
     display: inline-block;
     background-color: rgba(var(--accent-color-rgb), 0.1);

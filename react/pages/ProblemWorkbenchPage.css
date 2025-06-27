@@ -23,7 +23,7 @@
     border: 1px solid var(--border-color-light, #e0e0e0);
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    overflow: hidden; /* [중요] 이 속성이 패널의 둥근 모서리를 지켜줌 */
+    overflow-y: auto; /* [중요] 이 속성이 패널의 둥근 모서리를 지켜줌 */
 }
 
 /* 패널 헤더의 공통 스타일 */
@@ -83,3 +83,14 @@
         min-height: 300px;
     }
 }
+
+.preview-content-wrapper table:has(td[rowspan="2"][style*="width: 73px"]) td[colspan="3"] {
+  width: 400px !important;
+}
+
+
+
+
+
+
+

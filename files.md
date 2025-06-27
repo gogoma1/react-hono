@@ -785,8 +785,6 @@ export function useUpdateProblemMutation() {
         
         onSuccess: (updatedProblem) => {
             queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
-
-            alert('문제가 성공적으로 저장되었습니다.');
         },
         
         onError: (error) => {
@@ -2308,83 +2306,370 @@ export const SignOutButton: React.FC = () => {
   );
 };
 
------ ./react/features/latex-help/ui/LatexHelpPanel.tsx -----
-import React from 'react';
-import './LatexHelpPanel.css';
+----- ./react/features/latex-help/model/useLatexHelpManager.ts -----
+import { useState, useEffect, useCallback } from 'react';
+import { produce } from 'immer';
 
-const helpData = [
+export interface LatexHelpItem {
+    id: string;
+    title: string;
+    content: string;
+}
+
+const oldHelpData = [
+    { category: '기본 문법', items: [ { syntax: '$...$', description: '인라인 수학 수식' }, { syntax: '$$...$$', description: '블록 수학 수식 (가운데 정렬)' }, { syntax: '\\\\', description: '줄바꿈' }, { syntax: '\\{ \\}', description: '중괄호 { } 표시' } ] },
+    { category: '분수 및 지수/첨자', items: [ { syntax: '\\dfrac{a}{b}', description: '분수 (크게 표시)' }, { syntax: '\\frac{a}{b}', description: '분수 (작게 표시)' }, { syntax: 'x^{...}', description: '윗첨자 (지수)' }, { syntax: 'x_{...}', description: '아래첨자' } ] },
+    { category: '기호 및 연산자', items: [ { syntax: '\\pm', description: '± 기호' }, { syntax: '\\times', description: '× 곱셈 기호' }, { syntax: '\\div', description: '÷ 나눗셈 기호' }, { syntax: '\\le', description: '≤ (작거나 같다)' }, { syntax: '\\ge', description: '≥ (크거나 같다)' }, { syntax: '\\neq', description: '≠ (같지 않다)' }, { syntax: '\\approx', description: '≈ (근사값)' } ] },
+    { category: '루트, 합/곱, 극한, 적분', items: [ { syntax: '\\sqrt{...}', description: '제곱근' }, { syntax: '\\sqrt[n]{...}', description: 'n제곱근' }, { syntax: '\\sum_{i=1}^{n}', description: '합 (시그마)' }, { syntax: '\\prod_{i=1}^{n}', description: '곱 (프로덕트)' }, { syntax: '\\lim_{x \\to \\infty}', description: '극한' }, { syntax: '\\int_{a}^{b}', description: '적분' } ] },
+    { category: '행렬 (matrix)', items: [ { syntax: '\\begin{matrix} a & b \\\\ c & d \\end{matrix}', description: '기본 행렬 (괄호 없음)' }, { syntax: '\\begin{pmatrix} ... \\end{pmatrix}', description: '괄호 () 행렬' }, { syntax: '\\begin{bmatrix} ... \\end{bmatrix}', description: '대괄호 [] 행렬' }, { syntax: '\\begin{vmatrix} ... \\end{vmatrix}', description: '수직선 | | 행렬' } ] }
+];
+
+const oldHelpContent = oldHelpData.map(section => {
+    const itemsText = section.items.map(item => `\`${item.syntax}\`  -  ${item.description}`).join('\n');
+    return `### ${section.category}\n\n${itemsText}`;
+}).join('\n\n');
+
+
+const defaultLatexHelpItems: LatexHelpItem[] = [
     {
-        category: '기본 문법',
-        items: [
-            { syntax: '$...$', description: '인라인 수학 수식' },
-            { syntax: '$$...$$', description: '블록 수학 수식 (가운데 정렬)' },
-            { syntax: '\\\\', description: '줄바꿈' },
-            { syntax: '\\{ \\}', description: '중괄호 { } 표시' },
-        ]
+        id: 'default-latex-1',
+        title: '글상자',
+        content: `\\begin{tabular}{|l|}\\hline
+ㄱ. 이 부분에 글을 작성해 주세요.\\\\
+ㄴ. 다음줄로 넘어가려면 백슬래쉬"\\\\"를 문장의 마지막에 두 번 입력하면 됩니다.\\\\
+ㄷ. 더 필요한 기능을 요청해 주시면 만들겠습니다.\\\\
+ㄹ. 문장이 끝나는 마지막 줄에도 백슬래쉬를 두 번 입력해주세요.\\\\
+ \\hline
+\\end{tabular}`
     },
     {
-        category: '분수 및 지수/첨자',
-        items: [
-            { syntax: '\\dfrac{a}{b}', description: '분수 (크게 표시)' },
-            { syntax: '\\frac{a}{b}', description: '분수 (작게 표시)' },
-            { syntax: 'x^{...}', description: '윗첨자 (지수)' },
-            { syntax: 'x_{...}', description: '아래첨자' },
-        ]
+        id: 'default-latex-2',
+        title: '보기 상자',
+        content: `\\begin{tabular}{|c@{}c@{}c|}
+\\multicolumn{1}{c}{} & \\multirow{2}{73px}{<보기>} & \\multicolumn{1}{} \\\\
+\\cline{1-1}\\cline{3-3}
+\\multicolumn{1}{|c}{} && \\multicolumn{1}{c|}{}\\\\
+\\multicolumn{3}{|l|}{
+    \\parbox{400px}{ 
+    ㄱ. 상단에 화살표 보기가 있는 상자입니다. 이 텍스트가 400px 너비 안에서 자동으로 줄바꿈됩니다.\\\\
+    ㄴ. 보기 상자에서는 enter를 이용해서 줄바꿈을 합니다.\\\\
+    ㄷ. 더 필요한 기능을 요청해 주세요.
+    }
+} \\\\
+\\hline
+\\end{tabular}`
     },
     {
-        category: '기호 및 연산자',
-        items: [
-            { syntax: '\\pm', description: '± 기호' },
-            { syntax: '\\times', description: '× 곱셈 기호' },
-            { syntax: '\\div', description: '÷ 나눗셈 기호' },
-            { syntax: '\\le', description: '≤ (작거나 같다)' },
-            { syntax: '\\ge', description: '≥ (크거나 같다)' },
-            { syntax: '\\neq', description: '≠ (같지 않다)' },
-            { syntax: '\\approx', description: '≈ (근사값)' },
-        ]
+        id: 'default-latex-3',
+        title: '기본 LaTeX 문법 모음',
+        content: oldHelpContent,
     },
     {
-        category: '루트, 합/곱, 극한, 적분',
-        items: [
-            { syntax: '\\sqrt{...}', description: '제곱근' },
-            { syntax: '\\sqrt[n]{...}', description: 'n제곱근' },
-            { syntax: '\\sum_{i=1}^{n}', description: '합 (시그마)' },
-            { syntax: '\\prod_{i=1}^{n}', description: '곱 (프로덕트)' },
-            { syntax: '\\lim_{x \\to \\infty}', description: '극한' },
-            { syntax: '\\int_{a}^{b}', description: '적분' },
-        ]
-    },
-    {
-        category: '행렬 (matrix)',
-        items: [
-            { syntax: '\\begin{matrix} a & b \\\\ c & d \\end{matrix}', description: '기본 행렬 (괄호 없음)' },
-            { syntax: '\\begin{pmatrix} ... \\end{pmatrix}', description: '괄호 () 행렬' },
-            { syntax: '\\begin{bmatrix} ... \\end{bmatrix}', description: '대괄호 [] 행렬' },
-            { syntax: '\\begin{vmatrix} ... \\end{vmatrix}', description: '수직선 | | 행렬' },
-        ]
+        id: 'default-latex-4',
+        title: '수식 강조',
+        content: `$$
+\\int_0^1 x^2 dx = \\frac{1}{3}
+$$`
     }
 ];
 
-const LatexHelpPanel: React.FC = () => {
+const STORAGE_KEY = 'latexHelpCollection';
+
+export function useLatexHelpManager() {
+    const [helpItems, setHelpItems] = useState<LatexHelpItem[]>([]);
+    const [editingItemId, setEditingItemId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState('');
+    const [editingContent, setEditingContent] = useState('');
+    const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+
+    useEffect(() => {
+        let initialItems: LatexHelpItem[] = [];
+        try {
+            const storedData = localStorage.getItem(STORAGE_KEY);
+            if (storedData) {
+                initialItems = JSON.parse(storedData);
+                defaultLatexHelpItems.forEach(defaultItem => {
+                    if (!initialItems.some((p: LatexHelpItem) => p.id === defaultItem.id)) {
+                        initialItems.unshift(defaultItem);
+                    }
+                });
+            } else {
+                initialItems = [...defaultLatexHelpItems];
+            }
+        } catch (error) {
+            console.error("Failed to load LaTeX help items from localStorage", error);
+            initialItems = [...defaultLatexHelpItems];
+        }
+        
+        setHelpItems(initialItems);
+        setExpandedItemId(null);
+    }, []);
+
+    useEffect(() => {
+        if (helpItems.length > 0) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(helpItems));
+            } catch (error) {
+                console.error("Failed to save LaTeX help items to localStorage", error);
+            }
+        } else {
+             localStorage.removeItem(STORAGE_KEY);
+        }
+    }, [helpItems]);
+
+    const addHelpItem = useCallback(() => {
+        const newItem: LatexHelpItem = {
+            id: `latex-help-${Date.now()}`,
+            title: '새 도움말',
+            content: '여기에 LaTeX 코드를 작성하세요.'
+        };
+        const nextItems = produce(helpItems, draft => {
+            draft.push(newItem);
+        });
+        setHelpItems(nextItems);
+        setEditingItemId(newItem.id);
+        setEditingTitle(newItem.title);
+        setEditingContent(newItem.content);
+        setExpandedItemId(newItem.id);
+    }, [helpItems]);
+
+    const deleteHelpItem = useCallback((idToDelete: string) => {
+        if (idToDelete.startsWith('default-')) {
+            alert('기본 도움말은 삭제할 수 없습니다.');
+            return;
+        }
+        if (window.confirm("정말로 이 도움말을 삭제하시겠습니까?")) {
+            setHelpItems(prev => prev.filter(p => p.id !== idToDelete));
+        }
+    }, []);
+    
+    const resetDefaultHelpItem = useCallback((idToReset: string) => {
+        const originalItem = defaultLatexHelpItems.find(p => p.id === idToReset);
+        if (!originalItem || !window.confirm('이 도움말을 기본값으로 되돌리시겠습니까? 변경사항은 사라집니다.')) {
+            return;
+        }
+        
+        const nextItems = produce(helpItems, draft => {
+            const itemToReset = draft.find(p => p.id === idToReset);
+            if (itemToReset) {
+                itemToReset.title = originalItem.title;
+                itemToReset.content = originalItem.content;
+            }
+        });
+        setHelpItems(nextItems);
+    }, [helpItems]);
+    
+    const startEditing = useCallback((item: LatexHelpItem) => {
+        setEditingItemId(item.id);
+        setEditingTitle(item.title);
+        setEditingContent(item.content);
+        setExpandedItemId(item.id);
+    }, []);
+
+    const cancelEditing = useCallback(() => {
+        setEditingItemId(null);
+        setEditingTitle('');
+        setEditingContent('');
+    }, []);
+
+    const saveEditing = useCallback(() => {
+        if (!editingItemId) return;
+        
+        const nextItems = produce(helpItems, draft => {
+            const itemToUpdate = draft.find(p => p.id === editingItemId);
+            if (itemToUpdate) {
+                itemToUpdate.title = editingTitle.trim() || '제목 없음';
+                itemToUpdate.content = editingContent;
+            }
+        });
+        setHelpItems(nextItems);
+        cancelEditing();
+    }, [editingItemId, editingTitle, editingContent, helpItems, cancelEditing]);
+
+    const toggleExpand = useCallback((id: string) => {
+        if (editingItemId && editingItemId !== id) return;
+        setExpandedItemId(prevId => (prevId === id ? null : id));
+    }, [editingItemId]);
+
+    return {
+        helpItems,
+        editingItemId,
+        editingTitle,
+        setEditingTitle,
+        editingContent,
+        setEditingContent,
+        expandedItemId,
+        toggleExpand,
+        addHelpItem,
+        deleteHelpItem,
+        resetDefaultHelpItem,
+        startEditing,
+        cancelEditing,
+        saveEditing,
+    };
+}
+----- ./react/features/latex-help/ui/LatexHelpPanel.tsx -----
+import React, { useState, useCallback } from 'react';
+import { LuCopy, LuChevronDown, LuPencil, LuTrash2, LuSave, LuCircleX, LuRotateCcw, LuCirclePlus } from 'react-icons/lu';
+import Tippy from '@tippyjs/react';
+import { useLatexHelpManager, type LatexHelpItem } from '../model/useLatexHelpManager';
+import '../../prompt-collection/ui/PromptCollection.css';
+
+interface HelpItemMemoProps {
+    item: LatexHelpItem;
+    isEditing: boolean;
+    isExpanded: boolean;
+    editingTitle: string;
+    onSetEditingTitle: (title: string) => void;
+    editingContent: string;
+    onSetEditingContent: (content: string) => void;
+    onStartEditing: (item: LatexHelpItem) => void;
+    onSave: () => void;
+    onCancel: () => void;
+    onDelete: (id: string) => void;
+    onReset: (id: string) => void;
+    onToggleExpand: (id: string) => void;
+}
+
+const HelpItemMemo: React.FC<HelpItemMemoProps> = ({
+    item, isEditing, isExpanded, editingTitle, onSetEditingTitle, editingContent, onSetEditingContent,
+    onStartEditing, onSave, onCancel, onDelete, onReset, onToggleExpand
+}) => {
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleCopy = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(item.content).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }).catch(err => {
+            console.error('클립보드 복사 실패:', err);
+            alert('클립보드 복사에 실패했습니다.');
+        });
+    }, [item.content]);
+
+    const handleEditClick = (e: React.MouseEvent) => { e.stopPropagation(); onStartEditing(item); };
+    const handleDeleteClick = (e: React.MouseEvent) => { e.stopPropagation(); onDelete(item.id); };
+    const handleResetClick = (e: React.MouseEvent) => { e.stopPropagation(); onReset(item.id); };
+    
+    const editModeHeader = (
+        <div className="prompt-memo-header non-clickable">
+            <input 
+                type="text" 
+                value={editingTitle} 
+                onChange={(e) => onSetEditingTitle(e.target.value)} 
+                className="title-input"
+                placeholder="도움말 제목"
+            />
+            <div className="button-group">
+                <Tippy content="저장" theme="custom-glass"><button onClick={onSave} className="prompt-action-button save"><LuSave size={16} /></button></Tippy>
+                <Tippy content="취소" theme="custom-glass"><button onClick={onCancel} className="prompt-action-button cancel"><LuCircleX size={16} /></button></Tippy>
+            </div>
+        </div>
+    );
+    
+    const viewModeHeader = (
+        <div className="prompt-memo-header" onClick={() => onToggleExpand(item.id)}>
+            <div className="header-top-row">
+                <button className="expand-toggle-button" aria-expanded={isExpanded}>
+                    <LuChevronDown size={18} className="chevron-icon" />
+                </button>
+                <h5 className="prompt-memo-title">{item.title}</h5>
+            </div>
+            <div className="header-bottom-row">
+                <div className="button-group">
+                    <Tippy content={isCopied ? "복사 완료!" : "내용 복사"} theme="custom-glass"><button onClick={handleCopy} className="prompt-action-button copy"><LuCopy size={16} /></button></Tippy>
+                    <Tippy content="수정" theme="custom-glass"><button onClick={handleEditClick} className="prompt-action-button edit"><LuPencil size={16} /></button></Tippy>
+                    {item.id.startsWith('default-') && (
+                         <Tippy content="기본값으로 초기화" theme="custom-glass"><button onClick={handleResetClick} className="prompt-action-button reset"><LuRotateCcw size={16} /></button></Tippy>
+                    )}
+                    <Tippy content="삭제" theme="custom-glass"><button onClick={handleDeleteClick} disabled={item.id.startsWith('default-')} className="prompt-action-button delete"><LuTrash2 size={16} /></button></Tippy>
+                </div>
+            </div>
+        </div>
+    );
+
+    if (isEditing) {
+        return (
+            <div className="prompt-memo-card editing expanded"> 
+                {editModeHeader}
+                <div className="prompt-memo-content">
+                    <textarea 
+                        value={editingContent} 
+                        onChange={(e) => onSetEditingContent(e.target.value)} 
+                        className="content-textarea"
+                        placeholder="LaTeX 내용"
+                    />
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="latex-help-panel">
-            <h4 className="latex-help-title">LaTeX 문법 도움말</h4>
-            <div className="latex-help-content">
-                {helpData.map(section => (
-                    <div key={section.category} className="help-section">
-                        <h5 className="help-category-title">{section.category}</h5>
-                        <table className="help-table">
-                            <tbody>
-                                {section.items.map(item => (
-                                    <tr key={item.syntax}>
-                                        <td className="syntax-cell"><code>{item.syntax}</code></td>
-                                        <td className="description-cell">{item.description}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+        <div className={`prompt-memo-card ${isExpanded ? 'expanded' : ''}`}>
+            {viewModeHeader}
+            <div className="prompt-memo-content">
+                <pre>{item.content}</pre>
+            </div>
+        </div>
+    );
+};
+
+
+const LatexHelpPanel: React.FC = () => {
+    const {
+        helpItems,
+        editingItemId,
+        editingTitle,
+        setEditingTitle,
+        editingContent,
+        setEditingContent,
+        expandedItemId,
+        toggleExpand,
+        addHelpItem,
+        deleteHelpItem,
+        resetDefaultHelpItem,
+        startEditing,
+        cancelEditing,
+        saveEditing
+    } = useLatexHelpManager();
+
+    return (
+        <div className="prompt-collection-container">
+            <div className="prompt-collection-header">
+                <h4 className="prompt-collection-title">LaTeX 도우미</h4>
+            </div>
+            <div className="add-prompt-section">
+                <button onClick={addHelpItem} className="add-prompt-button">
+                    <LuCirclePlus size={16} />
+                    <span>새 도움말 추가</span>
+                </button>
+            </div>
+            <div className="prompt-list">
+                {helpItems.map(item => (
+                    <HelpItemMemo
+                        key={item.id}
+                        item={item}
+                        isEditing={editingItemId === item.id}
+                        isExpanded={expandedItemId === item.id}
+                        editingTitle={editingTitle}
+                        onSetEditingTitle={setEditingTitle}
+                        editingContent={editingContent}
+                        onSetEditingContent={setEditingContent}
+                        onStartEditing={startEditing}
+                        onSave={saveEditing}
+                        onCancel={cancelEditing}
+                        onDelete={deleteHelpItem}
+                        onReset={resetDefaultHelpItem}
+                        onToggleExpand={toggleExpand}
+                    />
                 ))}
+                {helpItems.length === 0 && (
+                    <div className="empty-prompt-list">
+                        <p>저장된 도움말이 없습니다.</p>
+                        <p>'새 도움말 추가' 버튼을 눌러 시작하세요.</p>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -3032,12 +3317,13 @@ import type { ProcessedProblem } from './problemPublishingStore';
 
 interface ExamLayoutManagerProps {
     selectedProblems: ProcessedProblem[];
+    problemBoxMinHeight: number;
 }
 
 /**
  * 선택된 문제 목록을 받아 시험지 레이아웃 계산을 관리하는 훅.
  */
-export function useExamLayoutManager({ selectedProblems }: ExamLayoutManagerProps) {
+export function useExamLayoutManager({ selectedProblems, problemBoxMinHeight }: ExamLayoutManagerProps) {
     const { startLayoutCalculation, resetLayout } = useExamLayoutStore();
     
     const prevSelectedIdsRef = useRef<string>('');
@@ -3050,13 +3336,12 @@ export function useExamLayoutManager({ selectedProblems }: ExamLayoutManagerProp
             prevSelectedIdsRef.current = currentSelectedIds; // 이전 ID 목록을 현재 목록으로 업데이트
 
             if (selectedProblems.length > 0) {
-                startLayoutCalculation(selectedProblems);
+                startLayoutCalculation(selectedProblems, problemBoxMinHeight);
             } else {
                 resetLayout();
             }
         }
-
-    }, [selectedProblems, startLayoutCalculation, resetLayout]);
+    }, [selectedProblems, problemBoxMinHeight, startLayoutCalculation, resetLayout]);
 
     useEffect(() => {
         return () => {
@@ -3080,7 +3365,8 @@ export type { LayoutItem } from './examLayoutEngine';
  */
 export function useProblemPublishing() {
     const { data: rawProblems = [], isLoading: isLoadingProblems } = useProblemsQuery();
-    const { mutateAsync: updateProblem } = useUpdateProblemMutation();
+    const updateProblemMutation = useUpdateProblemMutation();
+    const { mutateAsync: updateProblem } = updateProblemMutation;
     
     const {
         initialProblems, draftProblems, setInitialData, startEditing,
@@ -3117,9 +3403,9 @@ export function useProblemPublishing() {
         selectedIds,
         toggleRow, 
         toggleItems, 
-        replaceSelection, // [추가]
-        clearSelection,   // [추가]
-        setSelectedIds,   // [추가]
+        replaceSelection, 
+        clearSelection,   
+        setSelectedIds,   
     } = useRowSelection<string>({ allItems: problemUniqueIds });
     
     const selectedProblems = useMemo(() => displayProblems.filter(p => selectedIds.has(p.uniqueId)), [displayProblems, selectedIds]);
@@ -3145,12 +3431,13 @@ export function useProblemPublishing() {
         selectedProblems,
         
         selectedIds,
-        setSelectedIds,   // [추가]
+        setSelectedIds,   
         toggleRow,
         toggleItems,
-        replaceSelection, // [추가]
-        clearSelection,   // [추가]
+        replaceSelection, 
+        clearSelection,   
         
+        isSavingProblem: updateProblemMutation.isPending,
         handleSaveProblem,
         handleLiveProblemChange: updateDraftProblem,
         handleRevertProblem: revertSingleProblem,
@@ -3163,6 +3450,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useProblemPublishing } from './useProblemPublishing';
 import { useExamLayoutStore } from './examLayoutStore';
+import { useExamLayoutManager } from './useExamLayoutManager'; // [추가] 훅 임포트
 import type { ProcessedProblem } from './problemPublishingStore';
 import { useTableSearch } from '../../table-search/model/useTableSearch';
 import type { SuggestionGroup } from '../../table-search/ui/TableSearch';
@@ -3177,7 +3465,9 @@ export function useProblemPublishingPage() {
         selectedIds,
         setSelectedIds,
         toggleRow,
-        toggleItems, // 여전히 테이블 헤더 전체선택에 필요
+        toggleItems,
+        replaceSelection,
+        isSavingProblem,
         handleSaveProblem,
         handleLiveProblemChange,
         handleRevertProblem,
@@ -3191,7 +3481,7 @@ export function useProblemPublishingPage() {
         setItemHeight,
         baseFontSize, contentFontSizeEm, useSequentialNumbering,
         setBaseFontSize, setContentFontSizeEm, setUseSequentialNumbering,
-        forceRecalculateLayout, startLayoutCalculation, resetLayout
+        forceRecalculateLayout,
     } = useExamLayoutStore();
     
     const { setRightSidebarConfig, setSearchBoxProps, registerPageActions } = useLayoutStore.getState();
@@ -3225,17 +3515,19 @@ export function useProblemPublishingPage() {
         return filteredProblems.every(p => selectedIds.has(p.uniqueId));
     }, [filteredProblems, selectedIds, hasActiveSearchOrFilter]);
     
+    const isSelectionComplete = useMemo(() => {
+        if (!hasActiveSearchOrFilter) return false;
+        return isAllFilteredSelected && selectedIds.size === filteredProblems.length;
+    }, [isAllFilteredSelected, selectedIds.size, filteredProblems.length, hasActiveSearchOrFilter]);
+
+
     const handleToggleAllInTable = useCallback(() => {
-        toggleItems(filteredProblems.map(p => p.uniqueId));
-    }, [filteredProblems, toggleItems]);
+        toggleItems(Array.from(filteredProblemIds));
+    }, [filteredProblemIds, toggleItems]);
     
-    const handleAddAllFiltered = useCallback(() => {
-        setSelectedIds(prevSelectedIds => {
-            const newSet = new Set(prevSelectedIds);
-            filteredProblemIds.forEach(id => newSet.add(id));
-            return newSet;
-        });
-    }, [filteredProblemIds, setSelectedIds]);
+    const handleReplaceWithFiltered = useCallback(() => {
+        replaceSelection(Array.from(filteredProblemIds));
+    }, [filteredProblemIds, replaceSelection]);
 
     const suggestionGroups = useMemo((): SuggestionGroup[] => {
         const getUniqueSortedValues = (items: ProcessedProblem[], key: keyof ProcessedProblem): string[] => {
@@ -3296,11 +3588,11 @@ export function useProblemPublishingPage() {
                 onFilterChange: handleFilterChange,
                 onResetFilters: handleResetFilters,
                 suggestionGroups: JSON.stringify(suggestionGroups),
-                onToggleFiltered: handleAddAllFiltered, // [수정] 새로 만든 '추가 전용' 핸들러 전달
+                onToggleFiltered: handleReplaceWithFiltered,
                 onCreateProblemSet: undefined,
                 showActionControls: true, 
                 selectedCount: selectedIds.size,
-                isFilteredAllSelected: isAllFilteredSelected,
+                isSelectionComplete: isSelectionComplete,
                 onHide: toggleSearchBox,
             });
         } else {
@@ -3308,7 +3600,7 @@ export function useProblemPublishingPage() {
         }
     }, [
         isSearchBoxVisible, searchTerm, activeFilters, suggestionGroups, handleFilterChange, 
-        handleResetFilters, handleAddAllFiltered, setSearchBoxProps, isAllFilteredSelected,
+        handleResetFilters, handleReplaceWithFiltered, setSearchBoxProps, isSelectionComplete,
         selectedIds.size, toggleSearchBox
     ]);
     
@@ -3317,13 +3609,38 @@ export function useProblemPublishingPage() {
     const handleCloseEditor = useCallback(() => { setEditingProblemId(null); setRightSidebarConfig({ contentConfig: { type: null } }); forceRecalculateLayout(problemBoxMinHeight); }, [setEditingProblemId, setRightSidebarConfig, forceRecalculateLayout, problemBoxMinHeight]);
     const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => { await handleSaveProblem(problem); handleCloseEditor(); }, [handleSaveProblem, handleCloseEditor]);
     const handleRevertAndKeepOpen = useCallback((problemId: string) => { handleRevertProblem(problemId); }, [handleRevertProblem]);
-    const handleProblemClick = useCallback((problem: ProcessedProblem) => { startEditingProblem(); setEditingProblemId(problem.uniqueId); setRightSidebarConfig({ contentConfig: { type: 'problemEditor', props: { onProblemChange: handleLiveProblemChange, onSave: handleSaveAndClose, onRevert: handleRevertAndKeepOpen, onClose: handleCloseEditor, } }, isExtraWide: true }); }, [startEditingProblem, setEditingProblemId, setRightSidebarConfig, handleLiveProblemChange, handleSaveAndClose, handleRevertAndKeepOpen, handleCloseEditor]);
+    
+    const handleProblemClick = useCallback((problem: ProcessedProblem) => { startEditingProblem(); setEditingProblemId(problem.uniqueId); setRightSidebarConfig({ contentConfig: { type: 'problemEditor', props: { onProblemChange: handleLiveProblemChange, onSave: handleSaveAndClose, onRevert: handleRevertAndKeepOpen, onClose: handleCloseEditor, isSaving: false } }, isExtraWide: true }); }, [startEditingProblem, setEditingProblemId, setRightSidebarConfig, handleLiveProblemChange, handleSaveAndClose, handleRevertAndKeepOpen, handleCloseEditor]);
+    
     const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
     const handleOpenLatexHelpSidebar = useCallback(() => { setRightSidebarConfig({ contentConfig: { type: 'latexHelp' }, isExtraWide: false }); }, [setRightSidebarConfig]);
-    const prevSelectedIdsRef = useRef<string>('');
-    useEffect(() => { const currentSelectedIds = selectedProblems.map(p => p.uniqueId).sort().join(','); if (currentSelectedIds !== prevSelectedIdsRef.current) { prevSelectedIdsRef.current = currentSelectedIds; if (selectedProblems.length > 0) { startLayoutCalculation(selectedProblems, problemBoxMinHeight); } else { resetLayout(); } } }, [selectedProblems, startLayoutCalculation, resetLayout, problemBoxMinHeight]);
-    useEffect(() => { return () => { resetLayout(); }; }, [resetLayout]);
-    useEffect(() => { registerPageActions({ onClose: handleCloseEditor, openLatexHelpSidebar: handleOpenLatexHelpSidebar, openSearchSidebar: toggleSearchBox }); return () => { setRightSidebarConfig({ contentConfig: { type: null } }); setSearchBoxProps(null); registerPageActions({ onClose: undefined, openLatexHelpSidebar: undefined, openSearchSidebar: undefined }); }; }, [handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar, toggleSearchBox, registerPageActions, setSearchBoxProps]);
+    
+    useExamLayoutManager({ selectedProblems, problemBoxMinHeight });
+    
+    useEffect(() => {
+        const { contentConfig } = useLayoutStore.getState().rightSidebar;
+        if (contentConfig.type === 'problemEditor') {
+            setRightSidebarConfig({
+                contentConfig: {
+                    ...contentConfig,
+                    props: {
+                        ...contentConfig.props,
+                        isSaving: isSavingProblem,
+                    }
+                },
+                isExtraWide: true,
+            });
+        }
+    }, [isSavingProblem, setRightSidebarConfig]);
+    
+    useEffect(() => {
+        registerPageActions({ onClose: handleCloseEditor, openLatexHelpSidebar: handleOpenLatexHelpSidebar, openSearchSidebar: toggleSearchBox });
+        return () => {
+            setRightSidebarConfig({ contentConfig: { type: null } });
+            setSearchBoxProps(null);
+            registerPageActions({ onClose: undefined, openLatexHelpSidebar: undefined, openSearchSidebar: undefined });
+        };
+    }, [handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar, toggleSearchBox, registerPageActions, setSearchBoxProps]);
 
     return {
         allProblems: allProblemsFromSource,
@@ -3333,7 +3650,7 @@ export function useProblemPublishingPage() {
         selectedProblems,
         selectedIds,
         isAllSelected: isAllFilteredSelected,
-        toggleSelectAll: handleToggleAllInTable, // [수정] 테이블에는 토글 핸들러 전달
+        toggleSelectAll: handleToggleAllInTable,
         distributedPages,
         placementMap,
         distributedSolutionPages,
@@ -3488,9 +3805,10 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
 
 export default ProblemMetadataEditor;
 ----- ./react/features/problem-text-editing/ui/ProblemTextEditor.tsx -----
-import React, { useCallback, useEffect, useState } from 'react'; // useState 추가
+import React, { useCallback, useEffect, useState } from 'react';
 import type { Problem } from '../../../entities/problem/model/types';
 import Editor from '../../../shared/ui/codemirror-editor/Editor';
+import LoadingButton from '../../../shared/ui/loadingbutton/LoadingButton'; // ActionButton 대신 LoadingButton import
 import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
 import { LuCheck, LuUndo2 } from 'react-icons/lu';
 import ProblemMetadataEditor from './ProblemMetadataEditor';
@@ -3506,6 +3824,7 @@ type ProcessedProblem = Problem & { uniqueId: string; display_question_number: s
 
 interface ProblemTextEditorProps {
     problem: ProcessedProblem;
+    isSaving?: boolean;
     onSave: (updatedProblem: ProcessedProblem) => void;
     onRevert: (problemId: string) => void; 
     onClose: () => void;
@@ -3514,6 +3833,7 @@ interface ProblemTextEditorProps {
 
 const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({ 
     problem, 
+    isSaving = false,
     onSave, 
     onRevert,
     onProblemChange,
@@ -3570,14 +3890,20 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
             <div className="editor-header">
                 <h4 className="editor-title">{problem.display_question_number}번 문제 수정</h4>
                 <div className="editor-actions">
-                    <ActionButton onClick={handleRevert} aria-label="변경사항 초기화">
+                    <ActionButton onClick={handleRevert} aria-label="변경사항 초기화" disabled={isSaving}>
                         <LuUndo2 size={14} style={{ marginRight: '4px' }} />
                         초기화
                     </ActionButton>
-                    <ActionButton onClick={handleSave} className="primary" aria-label="변경사항 저장">
+                    <LoadingButton 
+                        onClick={handleSave} 
+                        className="primary" 
+                        aria-label="변경사항 저장"
+                        isLoading={isSaving}
+                        loadingText="저장중..."
+                    >
                         <LuCheck size={14} style={{ marginRight: '4px' }} />
                         저장
-                    </ActionButton>
+                    </LoadingButton>
                 </div>
             </div>
             
@@ -3640,20 +3966,50 @@ const defaultPrompts: Prompt[] = [
         *   모든 수학적 표현 (숫자, 변수, 기호)은 '$...$' 안에 넣습니다.
         *   분수는 기본적으로 '\\dfrac' 사용 (예: '$\\dfrac{a+b}{c}$'). 지수/첨자 등 작은 분수는 '\\frac' 사용 (예: '$e^{\\frac{1}{2}}$').
         *   모든 수식은 displaystyle로 작성합니다. 기호 앞에 '\\displaystyle'를 붙이거나 \\dfrac사용. (예: '$\\displaystyle\\lim_{n \\to \\infty}$', '$\\displaystyle\\int_{a}^{b}$')
-        *   작은 네모 박스 안 텍스트는 '\$\fbox{텍스트}$' 형식으로 작성합니다. (예: '\$\fbox{가}$')
+        *   작은 네모 박스 안 텍스트는 '$\\fbox{   텍스트   }$' 형식으로 작성합니다. (예: '$\\fbox{   (가)   }$')
     *   **이미지가 들어가야 할 위치에는 '***이미지N***' (N은 숫자) 형식으로 표시합니다.**
     *   개념 설명 등 문제 자체가 아닌 부분은 타이핑하지 않습니다.
 3.  **출력:** LaTeX 가 적용된 문제 텍스트 문자열을 반환합니다. (JSON 형식이 아님)
 
-**예시 작업:**
+**예시 작업:다음과 같은 결과물이 나오면 됩니다. 위 라텍스 규칙에 맞춰 작성하고, 문제와 보기사이는 <br> \\n 으로 띄워쓰고 보기와 보기 사이에는 띄워쓰기가 필요하면"$amp;emsp;"를 한 번 또는 두 번 입력하면 됩니다. <br> 다음에는 "//n"을 써서 <br>과 문제 사이에 빈줄이 오도록 합니다. [$3.8$점]앞에도 \\n[$3.8$점] 이런 식으로 [$3.8$점]앞에 엔터를 한 번 입력합니다.**
 
-*   **입력 (스캔 이미지 내용):**
-    > 1 \\ lim (3n²+4)/(n²+3n+5) 의 값은? [3.5점]
-    > ① 1 ② 2 ③ 3 ④ 4 ⑤ 5
 
-*   **출력 (타이핑 결과):**
-    > **2** $\\displaystyle\\lim_{n \\to \\infty} \\dfrac{3n^2+4}{n^2+3n+5}$의 값은?***이미지1*** [$3.5$점]
-① $1$ ② $2$ ③ $3$ ④ $4$ ⑤ $5$`
+1 수열 \${a_n}이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? \\n[$3.8$점]
+
+<br> \\n
+
+① $16$ 	&emsp;② $32$ 	&emsp;③ $64$ 	&emsp;④ $128$ 	&emsp;⑤ $256$
+
+2 제$2$항이 $-6$, 제$10$항이 $26$인 등차수열의 제$6$항은? \\n[$3.8$점]
+<br> \\n
+
+① $9$ &emsp;&emsp;② $10$ &emsp;&emsp;③ $11$ &emsp;&emsp;④ $12$ &emsp;&emsp;⑤ $13$
+
+
+**박스 작성 요령 : 작은 박스는 '$과 $ 사이에 라텍스 수식으로 $\\fbox{   (가)   }$' 이런 식으로 작성하면 되고 큰 글상자는 아래 라텍스 문법에 맞춰 작성해주면 됩니다.**
+
+3 다음은 $n \\ge 5$인 모든 자연수 $n$에 대하여 부등식 $2^n > n^2 \\cdots (\\star)$이 성립함을 수학적 귀납법으로 증명한 것이다.
+\\begin{tabular}{|l|}\\hline
+(i) $n=$ $\\fbox{  A  }$ 이면 (좌변)= $\\fbox{ B }$  >  $\\fbox{ C }$ $=$(우변)이므로 $(\\star)$이 성립한다.<br><br>
+ (ii) $n=k(k \\ge 5)$일 때 $(\\star)$는 성립한다고 가정하면 $2^k > k^2$이다.
+ 양변에 $\\fbox{ D }$ 를 곱하면 $2^{k+1} >  \\fbox{ D } k^2$이다.
+<br>이때, $f(k) =  \\fbox{ D } k^2 - (k+1)^2$이라 하면 $f(k)$의 최솟값은 $\\fbox{ E }$ 이므로 $f(k) > 0$이다.
+즉, $2^{k+1} > (k+1)^2$이다.
+따라서 $n=k+1$일 때도 $(\\star)$는 성립한다.<br><br>
+ (i), (ii)에 의하여 $n \\ge 5$인 모든 자연수 $n$에 대하여 $(\\star)$은 성립한다.\\\\
+ \\hline
+\\end{tabular}
+
+위의 $A, B, C, D, E$ 에 알맞은 수를 각각 $a, b, c, d, e$라 할 때, $a+b+c+d+e$의 값은? \\n[$4.6$점]
+<br> \\n
+① $64$ 	&emsp;&emsp;② $71$ 	&emsp;&amp;emsp;③ $78$ 	&emsp;&emsp;④ $82$ 	&emsp;&emsp;⑤ $86$
+
+
+**이미지가 들어갈 자리엔 다음처럼 내가 이미지 url로 바꿀꺼야 따라서 당신은 이미지가 들어갈 자리에 '***이미지N***'이라고 잘 작성해 줘야 합니다.
+
+4 똑같은 성냥개비를 사용하여 그림과 같은 모양을 계속 만들려고 한다. $n$단계의 모양을 만드는 데 필요한 성냥개비의 개수를 $a_n$이라고 할 때, $a_n$과 $a_{n+1}$ 사이의 관계식을 $a_{n+1} = a_n + f(n)$이라 하자. $f(5)$의 값은? \\n[$4.3$점] <br> \\n
+***이미지1***
+① $10$ &emsp;&emsp;② $13$ &emsp;&emsp;③ $14$ &emsp;&emsp;④ $17$ &emsp;&emsp;⑤ $18$`
     },
     {
         id: 'default-2',
@@ -3662,47 +4018,28 @@ const defaultPrompts: Prompt[] = [
 
 **지시사항:**
 
-1.  **입력:** 1단계에서 LaTeX로 변환된 문제 텍스트 문자열을 받습니다. 2.  **작업:**
+1.  **입력:** LaTeX로 변환된 문제 텍스트 json을 받습니다. 
+2.  **작업:**
     *   입력된 문제의 **정답**을 찾거나 생성합니다.
         *   객관식: 보기 번호 (예: '③') 또는 기호.
         *   주관식: 숫자, 식, 단어 등 문제에서 요구하는 형태의 답.
     *   문제에 대한 **상세하고 단계적인 해설**을 작성합니다.
-        *   해설 내의 모든 수학 기호, 숫자, 변수는 입력값과 동일한 LaTeX 규칙('$', '\dfrac', '\displaystyle' 등)을 사용하여 작성합니다.
+        *   해설 내의 모든 수학 기호, 숫자, 변수는 입력값과 동일한 LaTeX 규칙('$', '\\dfrac', '\\displaystyle' 등)을 사용하여 작성합니다. 수학 수식이 너무 가로로 길지 않게 줄바꿈을 잘 활용해서 작성해주세요. 수식 줄바꿈은 "$수식A 수식B$"라고 하면
+        "$수식A$ (여기서 엔터 누르고)
+        $수식B$" 이런 식으로 작성하면 됩니다. 그러면 수식이 두줄로 나옵니다.
         *   **수학 기호, 숫자, 변수는 즉시 LaTeX 문법으로 변환하여 '$' 기호 사이에 작성합니다. 분수는 윗첨자나 아랫 첨자가 아닌 경우에는 /dfrac으로 표현합니다.** (예: 3x + 5 -> '$3x+5$', 분수 1/2 -> '$\\dfrac{1}{2}$')
     *   LaTeX 변환 규칙:
         *   모든 수학적 표현 (숫자, 변수, 기호)은 '$...$' 안에 넣습니다.
         *   분수는 기본적으로 '\\dfrac' 사용 (예: '$\\dfrac{a+b}{c}$'). 지수/첨자 등 작은 분수는 '\\frac' 사용 (예: '$e^{\\frac{1}{2}}$').
         *   모든 수식은 displaystyle로 작성합니다. 기호 앞에 '\\displaystyle'를 붙이거나 \\dfrac사용. (예: '$\\displaystyle\\lim_{n \\to \\infty}$', '$\\displaystyle\\int_{a}^{b}$')
-        *   작은 네모 박스 안 텍스트는 '\$\fbox{텍스트}$' 형식으로 작성합니다. (예: '\$\fbox{가}$')
+        *   작은 네모 박스 안 텍스트는 '\$\\fbox{텍스트}$' 형식으로 작성합니다. (예: '\$\\fbox{가}$')
     *   만약 정답이나 해설 생성이 불가능하거나 원본에 없다면, '정답 없음' 또는 '해설 생성 불가' 와 같이 명확히 표시하거나 'null'에 해당하는 값을 준비합니다.
     * 코드블럭에 결과물을 작성합니다.
 
 **예시 작업:**
 
-*   **입력 :**
-    > '{
-  "problems": [
-    {
-      "question_number": 1,
-      "problem_type": "객관식",
-      "question_text": "수열 \\{a_n\\}이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? [$3.8$점]\\n① $16$ \\t② $32$ \\t③ $64$ \\t④ $128$ \\t⑤ $256$",
-      "answer": null,
-      "solution_text": null,
-      "page": null,
-      "grade": null,
-      "semester": null,
-      "source": null,
-      "major_chapter_id": "수열",
-      "middle_chapter_id": "등비수열",
-      "core_concept_id": "등비수열의 일반항",
-      "problem_category": "등비수열의 특정 항 구하기",
-      "difficulty": null,
-      "score": "3.8점"
-    }]
-   
-
 *   **출력:**
-    \`{
+    {
   "problems": [
     {
       "question_number": 1,
@@ -3722,7 +4059,7 @@ const defaultPrompts: Prompt[] = [
       "score": "3.8점"
     }
    ]
-}\`
+}
     `
     },
     {
@@ -3734,19 +4071,21 @@ const defaultPrompts: Prompt[] = [
 
 1.  **입력:**
     *   'problem_text_latex': 1단계에서 생성된 LaTeX 형식의 문제 텍스트.
-    *   'answer_string': 2단계에서 생성된 정답 문자열 (또는 null).
-    *   'solution_string_latex': 2단계에서 생성된 LaTeX 형식의 해설 문자열 (또는 null).
+    *   'answer_string': (null가능).
+    *   'solution_string_latex': 데이터가 있으면 쓰고 없으면 null (또는 null).
     *   (선택) 'page', 'grade', 'source' 등 파악 가능한 추가 정보.
     *   **참조:** 아래 'edit code'로 제공되는 JSON 스키마.
 
 2.  **작업:**
     *   **[중요] \`question_number\` 및 \`problem_type\` 처리:**
         *   원본 문제 번호가 "서답형 1"과 같이 텍스트와 숫자가 섞여 있으면, **JSON의 \`question_number\`에는 숫자 \`1\`만, \`problem_type\`에는 "서답형"을 입력**합니다.
-        *   원본 문제 번호가 그냥 숫자 "5.1"이면, \`question_number\`에 \`5.1\`을 입력하고, 문제에 선택지가 있으면 \`problem_type\`을 "객관식", 없으면 "주관식"으로 설정합니다.
+        *   원본 문제 번호가 그냥 숫자 "5.1"이면, \`question_number\`에 \`5.1\`을 입력하고, 문제에 선택지가 있으면 \`problem_type\`을 "객관식", 없으면 "서답형"으로 설정합니다.
     *   **[중요] \`question_text\` 필드 처리:**
         *   **\`question_text\` 필드에는 문제의 질문 본문과 객관식 선택지를 모두 포함**시켜야 합니다.
     *   **[중요] Null 값 처리:**
         *   만약 정답이나 해설이 없다면, \`answer\`와 \`solution_text\` 필드 값은 반드시 **null**로 설정해주세요. (빈 문자열 ""이 아님)
+    *   **[중요] 문제와 보기 사이에는 "\\n <br> \\n"을 넣어서 빈 줄을 만듭니다. <br> 다음에 \\n을 넣어야 줄바꿈이 제대로 입력됩니다.
+    *   **보기와 보기 사이에는 "&emsp;"를 한 번 또는 두 번 써서 적당히 여백을 만듭니다.
     *   **메타데이터 추론:** \`major_chapter_id\`, \`middle_chapter_id\`, \`core_concept_id\`, \`problem_category\` 필드는 문제 내용과 해설을 분석하여 가장 관련성 높은 **단일 문자열 값**을 추론하여 채웁니다. (예: "미적분", "이차함수")
 
 3.  **출력:** 아래 'edit code'의 JSON 스키마 **구조**를 준수하는 JSON 객체 문자열.
@@ -3758,7 +4097,7 @@ const defaultPrompts: Prompt[] = [
     {
       "question_number": 1,
       "problem_type": "객관식",
-      "question_text": "수열 \\\\{a_n\\\\}이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? [$3.8$점]\\\\n① $16$ \\\\t② $32$ \\\\t③ $64$ \\\\t④ $128$ \\\\t⑤ $256$",
+      "question_text": "수열 \${a_n}$이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? [$3.8$점]\\\\n <br> \\\\n① $16$ &emsp;&emsp;② $32$ &emsp;&emsp;③ $64$ &emsp;&emsp;④ $128$ &emsp;&emsp;⑤ $256$",
       "answer": null,
       "solution_text": null,
       "page": null,
@@ -3775,7 +4114,7 @@ const defaultPrompts: Prompt[] = [
     {
       "question_number": 8,
       "problem_type": "객관식",
-      "question_text": "다음은 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 부등식 $2^n > n^2 \\\\cdots (\\\\star)$이 성립함을 수학적 귀납법으로 증명한 것이다.\\\\n\\\\begin{tabular}{|l|}\\\\hline\\\\n(i) $n=$ $\\\\fbox{  A  }$ 이면 (좌변)= $\\\\fbox{ B }$  >  $\\\\fbox{ C }$ $=$(우변)이므로 $(\\\\star)$이 성립한다.<br><br>\\\\n (ii) $n=k(k \\\\ge 5)$일 때 $(\\\\star)$는 성립한다고 가정하면 $2^k > k^2$이다.\\\\n 양변에 $\\\\fbox{ D }$ 를 곱하면 $2^{k+1} >  \\\\fbox{ D } k^2$이다.\\\\n<br>이때, $f(k) =  \\\\fbox{ D } k^2 - (k+1)^2$이라 하면 $f(k)$의 최솟값은 $\\\\fbox{ E }$ 이므로 $f(k) > 0$이다.\\\\n즉, $2^{k+1} > (k+1)^2$이다.\\\\n따라서 $n=k+1$일 때도 $(\\\\star)$는 성립한다.<br><br>\\\\n (i), (ii)에 의하여 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 $(\\\\star)$은 성립한다.\\\\\\\\n \\\\hline\\\\n\\\\end{tabular}\\\\n\\\\n위의 $A, B, C, D, E$ 에 알맞은 수를 각각 $a, b, c, d, e$라 할 때, $a+b+c+d+e$의 값은? [$4.6$점]\\\\n<br>\\\\n① $64$ \\\\t② $71$ \\\\t③ $78$ \\\\t④ $82$ \\\\t⑤ $86$",
+      "question_text": "다음은 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 부등식 $2^n > n^2 \\\\cdots (\\\\star)$이 성립함을 수학적 귀납법으로 증명한 것이다.\\\\n\\\\begin{tabular}{|l|}\\\\hline\\\\n(i) $n=$ $\\\\fbox{  A  }$ 이면 (좌변)= $\\\\fbox{ B }$  >  $\\\\fbox{ C }$ $=$(우변)이므로 $(\\\\star)$이 성립한다.<br><br>\\\\n (ii) $n=k(k \\\\ge 5)$일 때 $(\\\\star)$는 성립한다고 가정하면 $2^k > k^2$이다.\\\\n 양변에 $\\\\fbox{ D }$ 를 곱하면 $2^{k+1} >  \\\\fbox{ D } k^2$이다.\\\\n<br>이때, $f(k) =  \\\\fbox{ D } k^2 - (k+1)^2$이라 하면 $f(k)$의 최솟값은 $\\\\fbox{ E }$ 이므로 $f(k) > 0$이다.\\\\n즉, $2^{k+1} > (k+1)^2$이다.\\\\n따라서 $n=k+1$일 때도 $(\\\\star)$는 성립한다.<br><br>\\\\n (i), (ii)에 의하여 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 $(\\\\star)$은 성립한다.\\\\\\\\n \\\\hline\\\\n\\\\end{tabular}\\\\n\\\\n위의 $A, B, C, D, E$ 에 알맞은 수를 각각 $a, b, c, d, e$라 할 때, $a+b+c+d+e$의 값은? [$4.6$점]\\\\n <br> \\\\n① $64$ &emsp;② $71$ &emsp;③ $78$ &emsp;④ $82$ &emsp;⑤ $86$",
       "answer": null,
       "solution_text": null,
       "page": null,
@@ -3940,7 +4279,11 @@ import { usePromptManager } from '../model/usePromptManager';
 import PromptMemo from './PromptMemo';
 import './PromptCollection.css';
 
-const PromptCollection: React.FC = () => {
+interface PromptCollectionProps {
+    workbenchContent?: string;
+}
+
+const PromptCollection: React.FC<PromptCollectionProps> = ({ workbenchContent }) => {
     const {
         prompts,
         editingPromptId,
@@ -3948,8 +4291,8 @@ const PromptCollection: React.FC = () => {
         setEditingTitle,
         editingContent,
         setEditingContent,
-        expandedPromptId, // [추가]
-        toggleExpand, // [추가]
+        expandedPromptId,
+        toggleExpand,
         addPrompt,
         deletePrompt,
         resetDefaultPrompt,
@@ -3976,7 +4319,7 @@ const PromptCollection: React.FC = () => {
                         key={prompt.id}
                         prompt={prompt}
                         isEditing={editingPromptId === prompt.id}
-                        isExpanded={expandedPromptId === prompt.id} // [추가]
+                        isExpanded={expandedPromptId === prompt.id}
                         editingTitle={editingTitle}
                         onSetEditingTitle={setEditingTitle}
                         editingContent={editingContent}
@@ -3986,7 +4329,8 @@ const PromptCollection: React.FC = () => {
                         onCancel={cancelEditing}
                         onDelete={deletePrompt}
                         onReset={resetDefaultPrompt}
-                        onToggleExpand={toggleExpand} // [추가]
+                        onToggleExpand={toggleExpand}
+                        workbenchContent={workbenchContent} // [추가] prop 전달
                     />
                 ))}
                 {prompts.length === 0 && (
@@ -4003,7 +4347,7 @@ const PromptCollection: React.FC = () => {
 export default PromptCollection;
 ----- ./react/features/prompt-collection/ui/PromptMemo.tsx -----
 import React, { useState } from 'react';
-import { LuCopy, LuCopyCheck, LuPencil, LuTrash2, LuSave, LuCircleX, LuRotateCcw, LuChevronDown } from 'react-icons/lu';
+import { LuCopy, LuCopyCheck, LuPencil, LuTrash2, LuSave, LuCircleX, LuRotateCcw, LuChevronDown, LuLayers } from 'react-icons/lu'; // LuLayers 추가
 import Tippy from '@tippyjs/react';
 import type { Prompt } from '../model/usePromptManager';
 import './PromptCollection.css';
@@ -4022,13 +4366,15 @@ interface PromptMemoProps {
     onDelete: (id: string) => void;
     onReset: (id: string) => void;
     onToggleExpand: (id: string) => void;
+    workbenchContent?: string; // [추가] prop 받기
 }
 
 const PromptMemo: React.FC<PromptMemoProps> = ({
     prompt, isEditing, isExpanded, editingTitle, onSetEditingTitle, editingContent, onSetEditingContent,
-    onStartEditing, onSave, onCancel, onDelete, onReset, onToggleExpand
+    onStartEditing, onSave, onCancel, onDelete, onReset, onToggleExpand, workbenchContent
 }) => {
     const [isCopied, setIsCopied] = useState(false);
+    const [isCombinedCopied, setIsCombinedCopied] = useState(false); // [추가] 새 버튼을 위한 상태
 
     const handleCopy = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -4040,6 +4386,25 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
             alert('클립보드 복사에 실패했습니다.');
         });
     };
+
+    const handleCombinedCopy = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!workbenchContent) {
+            alert('복사할 작업 내용이 없습니다.');
+            return;
+        }
+
+        const combinedText = `${prompt.content}\n${workbenchContent}`;
+        
+        navigator.clipboard.writeText(combinedText).then(() => {
+            setIsCombinedCopied(true);
+            setTimeout(() => setIsCombinedCopied(false), 2000);
+        }).catch(err => {
+            console.error('Failed to copy combined text: ', err);
+            alert('클립보드 복사에 실패했습니다.');
+        });
+    };
+
 
     const handleEditClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -4083,14 +4448,22 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
             <div className="header-bottom-row">
                 <div className="button-group">
                     <Tippy content={isCopied ? "복사 완료!" : "프롬프트 복사"} theme="custom-glass"><button onClick={handleCopy} className="prompt-action-button copy">{isCopied ? <LuCopyCheck size={16} /> : <LuCopy size={16} />}</button></Tippy>
+                    
+                    {/* [추가] '문제 개별화 작업' 프롬프트에만 특별 버튼 표시 */}
+                    {prompt.id === 'default-3' && workbenchContent && (
+                        <Tippy content={isCombinedCopied ? "복사 완료!" : "작업할 문제와 프롬프트를 한 번에 복사"} theme="custom-glass">
+                            <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
+                                {isCombinedCopied ? <LuCopyCheck size={16} /> : <LuLayers size={16} />}
+                            </button>
+                        </Tippy>
+                    )}
+
                     <Tippy content="수정" theme="custom-glass"><button onClick={handleEditClick} className="prompt-action-button edit"><LuPencil size={16} /></button></Tippy>
                     
-                    {/* [수정] ID가 'default-'로 시작하는 모든 프롬프트에 초기화 버튼 표시 */}
                     {prompt.id.startsWith('default-') && (
                          <Tippy content="기본값으로 초기화" theme="custom-glass"><button onClick={handleResetClick} className="prompt-action-button reset"><LuRotateCcw size={16} /></button></Tippy>
                     )}
                     
-                    {/* [수정] ID가 'default-'로 시작하는 모든 프롬프트의 삭제 버튼 비활성화 */}
                     <Tippy content="삭제" theme="custom-glass"><button onClick={handleDeleteClick} disabled={prompt.id.startsWith('default-')} className="prompt-action-button delete"><LuTrash2 size={16} /></button></Tippy>
                 </div>
             </div>
@@ -4975,7 +5348,7 @@ export function useTableSearch({
 }
 ----- ./react/features/table-search/ui/TableSearch.tsx -----
 import React from 'react';
-import { LuSearch, LuX, LuRotateCcw, LuCirclePlus, LuListChecks, LuEyeOff } from 'react-icons/lu'; // LuListX 제거
+import { LuSearch, LuX, LuRotateCcw, LuCirclePlus, LuListChecks, LuEyeOff } from 'react-icons/lu';
 import './TableSearch.css';
 
 export interface SuggestionGroup {
@@ -4996,7 +5369,7 @@ export interface TableSearchProps {
     onCreateProblemSet?: () => void;
     selectedCount?: number;
     showActionControls?: boolean;
-    isFilteredAllSelected?: boolean;
+    isSelectionComplete?: boolean; // [수정] isFilteredAllSelected -> isSelectionComplete
 }
 
 const TableSearch: React.FC<TableSearchProps> = ({
@@ -5011,7 +5384,7 @@ const TableSearch: React.FC<TableSearchProps> = ({
     onCreateProblemSet,
     selectedCount = 0,
     showActionControls = true,
-    isFilteredAllSelected = false,
+    isSelectionComplete = false, // [수정]
 }) => {
     const hasActiveFilters = Object.keys(activeFilters).length > 0 || searchTerm.trim() !== '';
 
@@ -5073,9 +5446,8 @@ const TableSearch: React.FC<TableSearchProps> = ({
                                 type="button"
                                 className="control-button primary"
                                 onClick={onToggleFiltered}
-                                disabled={isFilteredAllSelected}
+                                disabled={isSelectionComplete}
                             >
-                                {/* [수정] 아이콘과 텍스트 고정 */}
                                 <LuListChecks size={16} />
                                 <span>결과 선택</span>
                             </button>
@@ -5601,7 +5973,6 @@ import ImageManager from '../features/image-upload/ui/ImageManager';
 import './ProblemWorkbenchPage.css';
 import { useLayoutStore } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
-import PromptCollection from '../features/prompt-collection/ui/PromptCollection';
 import { LuCopy, LuCopyCheck, LuFilePlus } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 import CodeEditorPanel from '../shared/components/workbench/CodeEditorPanel';
@@ -5679,8 +6050,19 @@ const ProblemWorkbenchPage: React.FC = () => {
     }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     const handleOpenPromptSidebar = useCallback(() => {
+        setRightSidebarConfig({ 
+            contentConfig: { 
+                type: 'prompt',
+                props: { workbenchContent: markdownContent } 
+            },
+            isExtraWide: false
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded, markdownContent]);
+
+    const handleOpenLatexHelpSidebar = useCallback(() => {
         setRightSidebarConfig({
-            contentConfig: { type: 'prompt' },
+            contentConfig: { type: 'latexHelp' },
             isExtraWide: false
         });
         setRightSidebarExpanded(true);
@@ -5695,17 +6077,19 @@ const ProblemWorkbenchPage: React.FC = () => {
         registerPageActions({
             openSettingsSidebar: handleOpenSettingsSidebar,
             openPromptSidebar: handleOpenPromptSidebar,
+            openLatexHelpSidebar: handleOpenLatexHelpSidebar,
             onClose: handleCloseSidebar,
         });
         return () => {
             registerPageActions({
                 openSettingsSidebar: undefined,
                 openPromptSidebar: undefined,
+                openLatexHelpSidebar: undefined, // [수정] 클린업
                 onClose: undefined,
             });
             handleCloseSidebar();
         };
-    }, [registerPageActions, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleCloseSidebar]);
+    }, [registerPageActions, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleOpenLatexHelpSidebar, handleCloseSidebar]);
 
     const handleApplyUrls = useCallback(() => {
         const { extractedImages, uploadedUrls, canApply } = imageManager;
@@ -6662,6 +7046,7 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
   '/problem-workbench': {
     sidebarButtons: {
       prompt: { tooltip: '프롬프트 모음' },
+      latexHelp: { tooltip: 'LaTeX 문법 도움말' },
       settings: { tooltip: '문제 작업 설정' },
     },
   },
@@ -6679,7 +7064,6 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
   }
 };
 ----- ./react/shared/store/layoutStore.ts -----
-
 import { create } from 'zustand';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
@@ -6695,7 +7079,7 @@ export interface StoredSearchProps {
     onCreateProblemSet?: () => void;
     selectedCount?: number;
     showActionControls?: boolean;
-    isFilteredAllSelected?: boolean;
+    isSelectionComplete?: boolean; // [수정] isFilteredAllSelected를 isSelectionComplete로 변경
     onHide?: () => void;
 }
 
@@ -11493,6 +11877,47 @@ const GlassTable = forwardRef(GlassTableInner) as <T extends { id: string | numb
 ) => React.ReactElement;
 
 export default GlassTable;
+----- ./react/shared/ui/loadingbutton/LoadingButton.tsx -----
+import React, { forwardRef } from 'react';
+import '../actionbutton/ActionButton.css'; // ActionButton의 CSS를 재활용
+import './LoadingButton.css'; // LoadingButton 전용 CSS
+
+interface LoadingButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+    isLoading: boolean;
+    loadingText?: string;
+    children: React.ReactNode;
+}
+
+const LoadingButton = forwardRef<HTMLButtonElement, LoadingButtonProps>(({
+    isLoading,
+    loadingText = '처리 중...',
+    children,
+    className,
+    ...props
+}, ref) => {
+    const combinedClassName = `action-button ${className || ''} ${isLoading ? 'loading' : ''}`.trim();
+
+    return (
+        <button
+            ref={ref}
+            className={combinedClassName}
+            disabled={props.disabled || isLoading}
+            {...props}
+        >
+            {isLoading ? (
+                <>
+                    <span className="spinner" />
+                    <span className="loading-text">{loadingText}</span>
+                </>
+            ) : (
+                children
+            )}
+        </button>
+    );
+});
+LoadingButton.displayName = 'LoadingButton';
+
+export default LoadingButton;
 ----- ./react/shared/ui/MathpixRenderer.tsx -----
 import React, { useState, useEffect, useMemo } from 'react';
 
@@ -12546,6 +12971,7 @@ const LatexHelpIcon = () => <LuBookMarked size={20} />;
 const SearchIcon = () => <LuSearch size={20} />;
 
 interface ProblemEditorWrapperProps {
+    isSaving?: boolean;
     onSave: (problem: ProcessedProblem) => void;
     onRevert: (problemId: string) => void;
     onClose: () => void;
@@ -12574,12 +13000,13 @@ const SidebarContentRenderer: React.FC = () => {
 
     switch(contentConfig.type) {
         case 'problemEditor': {
-            const { onSave, onRevert, onClose, onProblemChange } = contentConfig.props || {};
+            const { onSave, onRevert, onClose, onProblemChange, isSaving } = contentConfig.props || {};
             const { editingProblemId } = useProblemPublishingStore.getState();
             if (!editingProblemId) return <div>선택된 문제가 없습니다.</div>;
             
             return (
                 <ProblemEditorWrapper
+                    isSaving={isSaving}
                     onSave={onSave}
                     onRevert={onRevert}
                     onClose={onClose}
@@ -12610,7 +13037,7 @@ const SidebarContentRenderer: React.FC = () => {
         }
 
         case 'prompt':
-            return <PromptCollection />;
+            return <PromptCollection {...(contentConfig.props as any)} />;
         
         case 'latexHelp':
             return <LatexHelpPanel />;

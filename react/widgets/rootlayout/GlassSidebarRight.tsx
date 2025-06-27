@@ -11,7 +11,6 @@ import PromptCollection from '../../features/prompt-collection/ui/PromptCollecti
 import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
 import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel';
-// [삭제] import ProblemSearchPanel from '../../features/problem-publishing/ui/ProblemSearchPanel';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -22,6 +21,7 @@ const LatexHelpIcon = () => <LuBookMarked size={20} />;
 const SearchIcon = () => <LuSearch size={20} />;
 
 interface ProblemEditorWrapperProps {
+    isSaving?: boolean;
     onSave: (problem: ProcessedProblem) => void;
     onRevert: (problemId: string) => void;
     onClose: () => void;
@@ -49,14 +49,14 @@ const SidebarContentRenderer: React.FC = () => {
     }
 
     switch(contentConfig.type) {
-        // [삭제] case 'problemSearch' 블록 전체 삭제
         case 'problemEditor': {
-            const { onSave, onRevert, onClose, onProblemChange } = contentConfig.props || {};
+            const { onSave, onRevert, onClose, onProblemChange, isSaving } = contentConfig.props || {};
             const { editingProblemId } = useProblemPublishingStore.getState();
             if (!editingProblemId) return <div>선택된 문제가 없습니다.</div>;
             
             return (
                 <ProblemEditorWrapper
+                    isSaving={isSaving}
                     onSave={onSave}
                     onRevert={onRevert}
                     onClose={onClose}
@@ -87,7 +87,7 @@ const SidebarContentRenderer: React.FC = () => {
         }
 
         case 'prompt':
-            return <PromptCollection />;
+            return <PromptCollection {...(contentConfig.props as any)} />;
         
         case 'latexHelp':
             return <LatexHelpPanel />;
