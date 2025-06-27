@@ -1,3 +1,5 @@
+/* ./react/features/student-status-changer/ui/StudentStatusChanger.css */
+
 .status-changer-container {
     display: flex;
     align-items: center;
@@ -15,14 +17,6 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.status-delete {
-    background-color: #f56565; /* 붉은 계열 */
-    color: white;
-}
-.status-delete:hover {
-    background-color: #e53e3e;
-}
-
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -37,21 +31,20 @@
 .cancel-button {
     padding: 4px;
     border-radius: 50%;
-    color: var(--text-color-secondary, #666);
+    color: var(--text-secondary, #666);
     transition: background-color 0.2s, color 0.2s;
 }
 
 .cancel-button:hover {
-    background-color: rgba(0, 0, 0, 0.08);
-    color: var(--text-color-primary, #333);
+    background-color: var(--menu-item-hover-bg);
+    color: var(--text-primary, #333);
 }
 
-/* [추가] 아이콘과 Badge 사이의 시각적 분리를 위한 선 (선택 사항) */
 .cancel-button::after {
     content: '';
     display: block;
     width: 1px;
     height: 16px;
     background-color: var(--border-color-light, rgba(0, 0, 0, 0.1));
-    margin-left: 8px; /* 아이콘과 선 사이 간격 */
+    margin-left: 8px;
 }

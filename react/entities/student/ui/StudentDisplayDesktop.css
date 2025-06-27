@@ -1,27 +1,5 @@
 /* ./react/entities/student/ui/StudentDisplayDesktop.css */
-/* 재원 상태 */
-.badge.status-enroll {
-    background-color: #28a745;
-    color: white;
-}
-
-/* 휴원 상태 */
-.badge.status-pause {
-    background-color: #ffc107;
-    color: #212529;
-}
-
-/* 퇴원 상태 */
-.badge.status-leave {
-    background-color: #6c757d;
-    color: white;
-}
-
-/* 기본 또는 알 수 없는 상태 */
-.badge.status-default {
-    background-color: #adb5bd;
-    color: white;
-}
+/* Badge 관련 스타일은 shared/ui/Badge/Badge.css 로 이동되었습니다. */
 
 .table-cell-checkbox-td {
     border-bottom: none;
@@ -51,7 +29,7 @@
 }
 
 .header-icon-button:hover:not(:disabled) {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: var(--menu-item-hover-bg);
     color: var(--accent-color);
 }
 

@@ -11,6 +11,7 @@
   --text-secondary: #576574;
   --text-placeholder: #a5b1c2;
   --text-on-accent: #ffffff;
+  --text-disabled: #bdc3c7;
 
   /* --- 악센트 컬러 --- */
   --accent-color: #e67e22;
@@ -18,14 +19,11 @@
   --accent-color-darker: #d35400;
 
   /* --- Glassmorphism UI 공통 스타일 --- */
+  --glass-base-bg: rgba(255, 253, 250, 0.8);
   --glass-base-bg-rgb: 255, 253, 250;
-  /* 기본 유리 배경 RGB (약간 더 밝게) */
   --glass-bg-opacity-navbar: 0.5;
-  /* 네비바 투명도 */
   --glass-bg-opacity-sidebar: 0.5;
-  /* 사이드바 투명도 */
   --glass-bg-opacity-mobile-sidebar: 0.90;
-  /* 모바일 사이드바는 더 불투명하게 */
   --glass-blur-effect: blur(10px) saturate(150%);
 
   /* Navbar, Sidebar Glass 배경 (공통 변수 사용) */
@@ -40,19 +38,15 @@
   --sidebar-collapsed-width: 65px;
   --sidebar-right-width: 60px;
   --sidebar-right-expanded-width: 280px;
-   --sidebar-right-extra-expanded-width: 450px;
+  --sidebar-right-extra-expanded-width: 450px;
   --mobile-sidebar-width-ratio: 78vw;
-  /* 화면 너비의 78% (약간 넓힘) */
   --mobile-sidebar-max-width: 330px;
-  /* 최대 너비 제한 */
   --main-content-border-radius: 18px;
   --main-content-bg-color: #fefefe;
 
   /* --- 메뉴 아이템 색상 --- */
   --menu-item-hover-bg: rgba(0, 0, 0, 0.04);
-  /* 호버 배경 약간 더 연하게 */
   --menu-item-active-bg: rgba(var(--accent-color-rgb), 0.12);
-  /* 활성 배경 약간 더 연하게 */
   --menu-item-active-text: var(--accent-color-darker);
   --icon-color: var(--text-secondary);
   --icon-active-color: var(--accent-color-darker);
@@ -63,13 +57,10 @@
 
   /* --- 툴팁 스타일 변수 --- */
   --tooltip-bg-rgb: 35, 35, 45;
-  /* 툴팁 배경 RGB (더 어둡게) */
   --tooltip-bg-opacity: 0.96;
   --tooltip-text-color: #e8e8e8;
-  /* 툴팁 텍스트 약간 더 밝게 */
   --tooltip-border-radius: 6px;
   --tooltip-padding: 8px 12px;
-  /* 툴팁 패딩 약간 넓힘 */
   --tooltip-font-size: 12px;
   --tooltip-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   --tooltip-arrow-size: 7px;
@@ -78,9 +69,10 @@
   /* --- 모바일 오버레이 --- */
   --mobile-overlay-bg-rgb: 255, 255, 255;
   --mobile-overlay-bg-opacity: 0.25;
-  /* 이전 0.3에서 약간 더 투명하게 */
   --mobile-overlay-blur: 2.5px;
-  /* 블러 강도 약간 줄임 */
+
+  /* --- 기타 공통 UI --- */
+  --border-color-light: rgba(0, 0, 0, 0.1);
 }
 
 body {
@@ -91,16 +83,13 @@ body {
   background-color: var(--app-bg-color);
   color: var(--text-primary);
   overflow: hidden;
-  /* 전역 스크롤 방지 */
   line-height: 1.5;
-  /* 기본 줄 간격 */
 }
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-  /* 모든 요소에 box-sizing 적용 */
 }
 
 /* --- Tippy.js 커스텀 테마: custom-glass --- */
@@ -115,7 +104,6 @@ body {
   padding: var(--tooltip-padding);
   box-shadow: var(--tooltip-shadow);
   backdrop-filter: blur(var(--tooltip-backdrop-blur)) saturate(110%);
-  /* 채도 조정 */
   -webkit-backdrop-filter: blur(var(--tooltip-backdrop-blur)) saturate(110%);
 }
 
@@ -125,7 +113,7 @@ body {
   height: calc(var(--tooltip-arrow-size) * 2);
 }
 
-/* 스크롤바 기본 스타일 (선택적) */
+/* 스크롤바 기본 스타일 */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -140,7 +128,6 @@ body {
   background: rgba(0, 0, 0, 0.18);
   border-radius: 4px;
   border: 2px solid transparent;
-  /* 트랙과의 간격처럼 보이게 */
   background-clip: padding-box;
 }
 
@@ -154,14 +141,12 @@ body {
   scrollbar-color: rgba(0, 0, 0, 0.18) rgba(0, 0, 0, 0.03);
 }
 
-/* [추가] 콘텐츠 렌더링을 위한 전역 prose 클래스 */
+/* 콘텐츠 렌더링을 위한 전역 prose 클래스 */
 .prose::after {
     content: "";
     display: table;
     clear: both;
 }
-
-/* 1. 기본 이미지 스타일 (가운데 정렬) */
 .prose img:not([src*="#left"]):not([src*="#right"]):not([src*="#align"]) {
     display: block;
     margin-left: auto;
@@ -170,8 +155,6 @@ body {
     border-radius: 8px;
     clear: both;
 }
-
-/* 2. 단순 왼쪽 정렬 (float 아님) */
 .prose img[src*="#left"] {
     display: block;
     margin-right: auto;
@@ -180,8 +163,6 @@ body {
     border-radius: 8px;
     clear: both;
 }
-
-/* 3. 단순 오른쪽 정렬 (float 아님) */
 .prose img[src*="#right"] {
     display: block;
     margin-left: auto;
@@ -190,7 +171,6 @@ body {
     border-radius: 8px;
     clear: both;
 }
-
 .prose img[src*="#inline-right"] {
     display: block;
     margin-left: auto;

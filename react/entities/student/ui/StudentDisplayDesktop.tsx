@@ -1,5 +1,3 @@
-// ./react/entities/student/ui/StudentDisplayDesktop.tsx
-
 import React, { forwardRef, useMemo } from 'react';
 import GlassTable, { type TableColumn, type SortConfig } from '../../../shared/ui/glasstable/GlassTable';
 import Badge from '../../../shared/ui/Badge/Badge';
@@ -16,14 +14,14 @@ type StudentDisplayProps = {
     sortConfig?: SortConfig | null;
     onSort?: (key: string) => void;
     selectedIds: Set<string>;
-    onToggleRow: (studentId: string) => void; // 이 prop이 중요합니다!
+    onToggleRow: (studentId: string) => void;
     isHeaderChecked: boolean;
     onToggleHeader: () => void;
     isHeaderDisabled?: boolean;
     editingStatusRowId: string | null;
     onEdit: (student: Student) => void;
     onNavigate: (studentId: string) => void;
-    onToggleStatusEditor: (studentId: string) => void; // 이 prop도 중요합니다!
+    onToggleStatusEditor: (studentId: string) => void;
     onStatusUpdate: (studentId: string, status: Student['status'] | 'delete') => void;
     onCancel: () => void;
     scrollContainerProps?: React.HTMLAttributes<HTMLDivElement>;
@@ -33,14 +31,11 @@ const StudentDisplayDesktop = forwardRef<HTMLDivElement, StudentDisplayProps>((p
     const {
         students, isLoading, sortConfig, onSort, selectedIds, onToggleRow,
         isHeaderChecked, onToggleHeader, isHeaderDisabled, scrollContainerProps,
-        // [수정] props에서 필요한 함수들을 모두 구조분해 할당합니다.
         onEdit, onNavigate, onToggleStatusEditor, onStatusUpdate, onCancel, editingStatusRowId
     } = props;
     
     const visibleColumns = useVisibleColumns();
     
-    // [수정] useMemo를 사용하여 props가 변경될 때만 columns 배열이 재생성되도록 합니다.
-    // 이렇게 하면 불필요한 리렌더링을 방지하고, 의존성 관리가 명확해집니다.
     const columns = useMemo(() => {
         const allColumns: TableColumn<Student>[] = [
             {
@@ -49,7 +44,6 @@ const StudentDisplayDesktop = forwardRef<HTMLDivElement, StudentDisplayProps>((p
                 render: (student) => (
                     <TableCellCheckbox
                         isChecked={selectedIds.has(student.id)}
-                        // [수정] props로 받은 onToggleRow를 직접 사용합니다.
                         onToggle={() => onToggleRow(student.id)}
                         ariaLabel={`학생 ${student.student_name} 선택`}
                     />
@@ -89,7 +83,6 @@ const StudentDisplayDesktop = forwardRef<HTMLDivElement, StudentDisplayProps>((p
                         studentId={student.id} 
                         studentName={student.student_name} 
                         isEditing={editingStatusRowId === student.id}
-                        // [수정] props로 받은 함수들을 직접 전달합니다.
                         onEdit={() => onEdit(student)}
                         onNavigate={() => onNavigate(student.id)}
                         onToggleStatusEditor={() => onToggleStatusEditor(student.id)}
@@ -104,8 +97,6 @@ const StudentDisplayDesktop = forwardRef<HTMLDivElement, StudentDisplayProps>((p
         return allColumns.filter(col => visibleColumns[col.key as string]);
 
     }, [
-        // [수정] 의존성 배열을 명확하게 선언합니다.
-        // 이 배열에 있는 값이 변경될 때만 columns가 재계산됩니다.
         students,
         selectedIds,
         editingStatusRowId,
@@ -126,7 +117,7 @@ const StudentDisplayDesktop = forwardRef<HTMLDivElement, StudentDisplayProps>((p
             ref={ref} 
             scrollContainerProps={scrollContainerProps}
             columns={columns}
-            data={students} // [수정] 정렬은 상위 컴포넌트(StudentTableWidget)에서 하므로 여기서는 받은 students를 그대로 사용합니다.
+            data={students}
             isLoading={isLoading}
             emptyMessage="표시할 학생 정보가 없습니다."
             sortConfig={sortConfig}

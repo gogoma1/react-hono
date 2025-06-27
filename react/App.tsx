@@ -2,7 +2,6 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import './App.css';
 
 import RootLayout from './widgets/rootlayout/RootLayout';
 import ProtectedRoute from './shared/lib/ProtectedRoute';

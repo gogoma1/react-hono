@@ -209,7 +209,6 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 import profileRoutes from './routes/profiles/profiles';
-import exampleRoute from './routes/example/selectpg_tables';
 import studentRoutes from './routes/manage/student';
 import { supabaseMiddleware } from './routes/middleware/auth.middleware';
 import problemRoutes from './routes/manage/problems';
@@ -239,7 +238,6 @@ app.use('*', cors({
 
 app.use(supabaseMiddleware());
 
-app.route('/example', exampleRoute); 
 app.route('/profiles', profileRoutes); 
 app.route('/manage/student', studentRoutes);
 app.route('/manage/problems', problemRoutes); 
@@ -250,37 +248,6 @@ app.route('/r2', r2ImageRoutes);
 app.get('/', (c) => c.text('Hono API is running!'));
 
 export default app;
------ ./api/routes/example/selectpg_tables.ts -----
-
-import { Hono } from 'hono';
-import postgres from 'postgres';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { sql } from 'drizzle-orm';
-
-const exampleRoutes = new Hono<{ Bindings: Env }>();
-
-exampleRoutes.get('/pgtables', async (c) => {
-  const sqlConnection = postgres(c.env.HYPERDRIVE.connectionString, {
-    max: 5,
-    fetch_types: false,
-  });
-
-  try {
-    const db = drizzle(sqlConnection);
-
-    const result = await db.execute(sql`SELECT * FROM pg_tables`);
-
-
-    c.executionCtx.waitUntil(sqlConnection.end());
-
-    return c.json({ success: true, result });
-  } catch (e: any) {
-    console.error('Database error:', e.message);
-    return c.json({ success: false, error: e.message }, 500);
-  }
-});
-
-export default exampleRoutes;
 ----- ./api/routes/manage/problems.ts -----
 import { Hono } from 'hono';
 import postgres from 'postgres';

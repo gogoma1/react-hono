@@ -1,10 +1,5 @@
 /* ./react/entities/student/ui/StudentDisplayMobile.css */
-/* 모바일 상태 뱃지 클래스 이름 일치시키기 (소문자) */
-.badge.status-재원, .badge.status-enroll { background-color: #28a745; color: white; }
-.badge.status-휴원, .badge.status-pause { background-color: #ffc107; color: #212529; }
-.badge.status-퇴원, .badge.status-leave { background-color: #6c757d; color: white; }
-.badge.status-delete { background-color: #f56565; color: white; }
-
+/* Badge 관련 스타일은 shared/ui/Badge/Badge.css 로 이동되었습니다. */
 
 .mobile-student-list-container {
     padding: 5px;
@@ -33,17 +28,15 @@
     box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.15);
 }
 
-/* [추가됨] 선택된 카드에 대한 강조 스타일 */
 .mobile-student-card.selected {
     border-color: var(--accent-color);
-    background-color: rgba(var(--accent-color-rgb), 0.05); /* 은은한 배경색 추가 */
+    background-color: rgba(var(--accent-color-rgb), 0.05);
 }
 
-/* 활성화(클릭)된 카드는 선택된 카드보다 더 강한 강조 효과를 줌 */
 .mobile-student-card.active {
     border-color: var(--accent-color-darker);
     box-shadow: 0 5px 15px rgba(var(--accent-color-rgb), 0.25);
-    transform: scale(1.01); /* 클릭 시 약간 커지는 효과 */
+    transform: scale(1.01);
 }
 
 .card-content-wrapper {
@@ -64,7 +57,7 @@
 .main-info-name-status {
     display: flex;
     align-items: center;
-    gap: 0.75rem; /* 이름과 뱃지 사이 간격 */
+    gap: 0.75rem;
 }
 
 .main-info-name {

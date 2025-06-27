@@ -7,7 +7,6 @@ import './App.css';
 import RootLayout from './widgets/rootlayout/RootLayout';
 import ProtectedRoute from './shared/lib/ProtectedRoute';
 import HomePage from './pages/HomePage';
-import ExamplePage from './pages/example';
 import LoginPage from './pages/LoginPage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
 import DashBoard from './pages/DashBoard';
@@ -49,7 +48,6 @@ function App() {
                             <Route element={<RootLayout />}>
                                 <Route path="/" element={<HomePage />} />
                                 <Route path="/dashboard" element={<DashBoard />} />
-                                <Route path="/exampleget" element={<ExamplePage />} />
                                 <Route path="/problem-workbench" element={<ProblemWorkbenchPage />} />
                                 <Route path="/problem-publishing" element={<ProblemPublishingPage />} /> {/* [추가] */}
                                 <Route path="/json-renderer" element={<JsonRendererPage />} /> 
@@ -840,7 +838,7 @@ import type {
     CreateStudentInput,
     UpdateStudentInput,
     UpdateStudentInputBody
-} from '../model/types'; // [수정] types.ts에서 타입 import
+} from '../model/useStudentDataWithRQ';
 import { handleApiResponse } from '../../../shared/api/api.utils';
 
 const API_BASE = '/api/manage/student';
@@ -899,32 +897,14 @@ export const deleteStudentAPI = async (id: string): Promise<{ message: string; i
     });
     return handleApiResponse<{ message: string; id: string }>(res);
 };
------ ./react/entities/student/model/studentUtils.ts -----
-
-/**
- * 객체 배열에서 특정 키에 해당하는 값들의 고유한 목록을 추출합니다.
- * @param items - 처리할 객체 배열
- * @param key - 값을 추출할 객체의 키
- * @returns 고유한 값들의 배열 (문자 또는 숫자)
- */
-export const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K): (string | number)[] => {
-    if (!items || items.length === 0) {
-        return [];
-    }
-
-    const uniqueValues = items.reduce((acc: Set<string | number>, item) => {
-        const value = item[key];
-        if (typeof value === 'string' && value.trim() !== '') {
-            acc.add(value);
-        } else if (typeof value === 'number') {
-            acc.add(value);
-        }
-        return acc;
-    }, new Set<string | number>());
-
-    return Array.from(uniqueValues);
-};
------ ./react/entities/student/model/types.ts -----
+----- ./react/entities/student/model/useStudentDataWithRQ.ts -----
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    fetchStudentsAPI,
+    addStudentAPI,
+    updateStudentAPI,
+    deleteStudentAPI,
+} from '../api/studentApi';
 
 export interface CreateStudentInput {
     student_name: string;
@@ -991,19 +971,6 @@ export const GRADE_LEVELS = [
     '중1', '중2', '중3',
     '고1', '고2', '고3',
 ];
------ ./react/entities/student/model/useStudentDataWithRQ.ts -----
-
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-    fetchStudentsAPI,
-    addStudentAPI,
-    updateStudentAPI,
-    deleteStudentAPI,
-} from '../api/studentApi';
-import type { Student, CreateStudentInput, UpdateStudentInput, MutationStatus } from './types'; // [수정] types.ts에서 타입 import
-
-export type { Student, CreateStudentInput, UpdateStudentInput, MutationStatus }; // [추가] 다른 파일에서 import할 수 있도록 re-export
-export { GRADE_LEVELS } from './types'; // [추가] GRADE_LEVELS 상수 re-export
 
 export const STUDENTS_QUERY_KEY = 'students';
 
@@ -1094,9 +1061,8 @@ export function useStudentDataWithRQ() {
     };
 }
 ----- ./react/entities/student/ui/StudentDisplay.tsx -----
-
 import React, { forwardRef } from 'react';
-import type { Student } from '../model/types'; // [수정] model/types에서 직접 가져옵니다.
+import type { Student } from '../model/useStudentDataWithRQ';
 import { useUIStore } from '../../../shared/store/uiStore';
 import StudentDisplayDesktop from './StudentDisplayDesktop';
 import StudentDisplayMobile from './StudentDisplayMobile';
@@ -1143,7 +1109,7 @@ import GlassTable, { type TableColumn, type SortConfig } from '../../../shared/u
 import Badge from '../../../shared/ui/Badge/Badge';
 import { LuListChecks } from 'react-icons/lu';
 import TableCellCheckbox from '../../../shared/ui/TableCellCheckbox/TableCellCheckbox';
-import type { Student } from '../model/types'; // [수정] 분리된 types.ts에서 가져옵니다.
+import type { Student } from '../model/useStudentDataWithRQ';
 import StudentActionButtons from '../../../features/student-actions/ui/StudentActionButtons';
 import { useVisibleColumns } from '../../../shared/hooks/useVisibleColumns';
 import './StudentDisplayDesktop.css';
@@ -1154,14 +1120,14 @@ type StudentDisplayProps = {
     sortConfig?: SortConfig | null;
     onSort?: (key: string) => void;
     selectedIds: Set<string>;
-    onToggleRow: (studentId: string) => void;
+    onToggleRow: (studentId: string) => void; // 이 prop이 중요합니다!
     isHeaderChecked: boolean;
     onToggleHeader: () => void;
     isHeaderDisabled?: boolean;
     editingStatusRowId: string | null;
     onEdit: (student: Student) => void;
     onNavigate: (studentId: string) => void;
-    onToggleStatusEditor: (studentId: string) => void;
+    onToggleStatusEditor: (studentId: string) => void; // 이 prop도 중요합니다!
     onStatusUpdate: (studentId: string, status: Student['status'] | 'delete') => void;
     onCancel: () => void;
     scrollContainerProps?: React.HTMLAttributes<HTMLDivElement>;
@@ -1237,7 +1203,7 @@ const StudentDisplayDesktop = forwardRef<HTMLDivElement, StudentDisplayProps>((p
         return allColumns.filter(col => visibleColumns[col.key as string]);
 
     }, [
-        students.length, // [수정] students 배열 전체 대신 length를 의존성에 추가하여 불필요한 재계산을 방지합니다.
+        students,
         selectedIds,
         editingStatusRowId,
         isHeaderChecked,
@@ -1257,7 +1223,7 @@ const StudentDisplayDesktop = forwardRef<HTMLDivElement, StudentDisplayProps>((p
             ref={ref} 
             scrollContainerProps={scrollContainerProps}
             columns={columns}
-            data={students} 
+            data={students} // [수정] 정렬은 상위 컴포넌트(StudentTableWidget)에서 하므로 여기서는 받은 students를 그대로 사용합니다.
             isLoading={isLoading}
             emptyMessage="표시할 학생 정보가 없습니다."
             sortConfig={sortConfig}
@@ -1402,7 +1368,6 @@ const StudentDisplayMobile: React.FC<StudentDisplayProps> = (props) => {
 
 export default StudentDisplayMobile;
 ----- ./react/features/exam-header-editing/ui/ExamHeaderEditPopover.tsx -----
-
 import React from 'react';
 import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
 import { LuCheck, LuUndo2 } from 'react-icons/lu';
@@ -4098,7 +4063,6 @@ const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
 
 export default StudentActionButtons;
 ----- ./react/features/student-editing/ui/StudentEditForm.tsx -----
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     useStudentDataWithRQ, 
@@ -4106,7 +4070,6 @@ import {
     type UpdateStudentInput, 
     GRADE_LEVELS 
 } from '../../../entities/student/model/useStudentDataWithRQ';
-import { getUniqueValues } from '../../../entities/student/model/studentUtils'; // [수정] 유틸리티 함수 import
 import CategoryInput from '../../student-registration/ui/CategoryInput';
 import '../../student-registration/ui/StudentRegistrationForm.css';
 
@@ -4116,6 +4079,24 @@ interface StudentEditFormProps {
 }
 
 const statusOptions: Student['status'][] = ['재원', '휴원', '퇴원'];
+
+const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K): (string | number)[] => {
+    if (!items || items.length === 0) { // 오타 수정
+        return [];
+    }
+
+    const uniqueValues = items.reduce((acc: Set<string | number>, item) => {
+        const value = item[key];
+        if (typeof value === 'string' && value.trim() !== '') {
+            acc.add(value);
+        } else if (typeof value === 'number') {
+            acc.add(value);
+        }
+        return acc;
+    }, new Set<string | number>());
+
+    return Array.from(uniqueValues);
+};
 
 
 const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess }) => {
@@ -4327,17 +4308,34 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
 
 export default CategoryInput;
 ----- ./react/features/student-registration/ui/StudentRegistrationForm.tsx -----
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudentDataWithRQ, type CreateStudentInput, GRADE_LEVELS } from '../../../entities/student/model/useStudentDataWithRQ';
 import CategoryInput from './CategoryInput';
 import './StudentRegistrationForm.css';
 import { LuUserPlus } from 'react-icons/lu';
-import { getUniqueValues } from '../../../entities/student/model/studentUtils'; // [수정] 유틸리티 함수 import
 
 interface StudentRegistrationFormProps {
     onSuccess?: () => void;
 }
+
+const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K): (string | number)[] => {
+    if (!items || items.length === 0) { // 오타 수정
+        return [];
+    }
+
+    const uniqueValues = items.reduce((acc: Set<string | number>, item) => {
+        const value = item[key];
+        if (typeof value === 'string' && value.trim() !== '') {
+            acc.add(value);
+        } else if (typeof value === 'number') {
+            acc.add(value);
+        }
+        return acc;
+    }, new Set<string | number>());
+
+    return Array.from(uniqueValues);
+};
+
 
 const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuccess }) => {
     const { students, addStudent, addStudentStatus } = useStudentDataWithRQ();
@@ -5159,6 +5157,109 @@ const LoginPage: React.FC = () => {
 };
 
 export default LoginPage;
+----- ./react/pages/LoginPageWithErrorDisplay.tsx -----
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router'; // react-router-dom 훅 사용
+import { useAuthStore, selectAuthError, selectIsAuthenticated, selectIsLoadingAuth } from '../shared/store/authStore';
+
+const LoginPageWithErrorDisplay: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const [urlErrorDescription, setUrlErrorDescription] = useState<string | null>(null);
+
+  const authStoreError = useAuthStore(selectAuthError);
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const isLoadingAuth = useAuthStore(selectIsLoadingAuth);
+  const clearAuthStoreError = useAuthStore.getState().clearAuthError; // 에러 클리어 액션
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const errorParam = params.get('error');
+    const errorDescriptionParam = params.get('error_description');
+
+    if (errorParam) {
+      setUrlError(decodeURIComponent(errorParam));
+    }
+    if (errorDescriptionParam) {
+      setUrlErrorDescription(decodeURIComponent(errorDescriptionParam));
+    }
+
+  }, [location.search /*, authStoreError, clearAuthStoreError */]);
+
+
+  useEffect(() => {
+    if (!isLoadingAuth && isAuthenticated) {
+      navigate('/'); // 또는 이전 페이지나 대시보드로 리다이렉트
+    }
+  }, [isLoadingAuth, isAuthenticated, navigate]);
+
+
+  const handleRetryLogin = () => {
+    navigate('/test-auth'); // 또는 로그인 시도 페이지
+  };
+
+  const displayError = urlError || authStoreError;
+  const displayErrorDescription = urlErrorDescription;
+
+
+  if (isLoadingAuth) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <p>인증 상태를 확인 중입니다...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '20px', maxWidth: '600px', margin: '40px auto', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' }}>
+      <h1>로그인</h1>
+
+      {displayError && (
+        <div style={{ backgroundColor: '#ffebee', color: '#c62828', padding: '15px', margin: '20px 0', borderRadius: '4px' }}>
+          <h2>로그인 오류</h2>
+          <p><strong>오류 코드:</strong> {displayError}</p>
+          {displayErrorDescription && <p><strong>상세 정보:</strong> {displayErrorDescription}</p>}
+          <p>로그인 과정에서 문제가 발생했습니다.</p>
+        </div>
+      )}
+
+      {!displayError && !isAuthenticated && (
+        <p style={{ margin: '20px 0' }}>
+          로그인이 필요한 서비스입니다.
+        </p>
+      )}
+
+      {/* 사용자가 이미 로그인되어 있다면 이 페이지를 볼 이유가 별로 없음 */}
+      {/* isAuthenticated 상태에 따라 다른 UI를 보여줄 수도 있음 */}
+
+      <div style={{ marginTop: '30px' }}>
+        <button
+          onClick={handleRetryLogin}
+          style={{ padding: '10px 20px', marginRight: '10px', cursor: 'pointer' }}
+        >
+          로그인 페이지로 돌아가기
+        </button>
+        <Link to="/" style={{ textDecoration: 'none' }}>
+          <button style={{ padding: '10px 20px', cursor: 'pointer' }}>
+            홈으로 이동
+          </button>
+        </Link>
+      </div>
+
+      {/* authStore의 에러를 명시적으로 클리어하고 싶다면 버튼 추가 가능
+      {authStoreError && (
+        <button onClick={clearAuthStoreError} style={{ marginTop: '10px' }}>
+          스토어 에러 메시지 지우기
+        </button>
+      )}
+      */}
+    </div>
+  );
+};
+
+export default LoginPageWithErrorDisplay;
 ----- ./react/pages/ProblemPublishingPage.tsx -----
 import React, { useState, useCallback, useEffect } from 'react';
 import { useLayoutStore } from '../shared/store/layoutStore';
@@ -6160,6 +6261,33 @@ const AuthInitializer: React.FC = () => {
 };
 
 export default AuthInitializer;
+----- ./react/shared/lib/axiosInstance.ts -----
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:8787'; // 환경 변수로 설정 가능, 예: process.env.REACT_APP_API_BASE_URL
+
+const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000, // 요청 타임아웃 10초
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true, // Supabase 쿠키 인증을 위해 필요할 수 있음 (CORS 설정과 함께 확인)
+});
+
+
+axiosInstance.interceptors.response.use(
+  (response) => {
+    return response; // 성공적인 응답은 그대로 반환
+  },
+  (error) => {
+    if (error.response && error.response.status === 401) {
+    }
+    return Promise.reject(error); // 에러를 계속 전파하여 React Query가 처리하도록 함
+  }
+);
+
+export default axiosInstance;
 ----- ./react/shared/lib/ProtectedRoute.tsx -----
 import { Navigate, Outlet } from 'react-router';
 import { useAuthStore, selectIsAuthenticated } from '../store/authStore'; // authStore 경로 확인
@@ -11994,7 +12122,7 @@ import { useUIStore } from '../../shared/store/uiStore'; // UI 상태 관리 스
 import {
     LuLayoutDashboard, LuCheck, LuLibrary, LuHeart, LuActivity,
     LuChartBar, LuFileText, LuChevronLeft, LuChevronRight,
-    LuTestTubes, LuMove, LuFile, LuPrinter // 추가 아이콘
+    LuMove, LuFile, LuPrinter // 추가 아이콘
 } from 'react-icons/lu';
 
 interface MenuItemData {
@@ -12008,7 +12136,6 @@ interface MenuItemData {
 const DashboardIcon = () => <LuLayoutDashboard size={18} />;
 const ProblemIcon = () => <LuFile size={18} />;
 const ProblemPublishingIcon = () => <LuPrinter size={18} />;
-const ExampleIcon = () => <LuTestTubes size={18} />; 
 const MoveIcon = () => <LuMove size={18} />; 
 const ActivityIcon = () => <LuActivity size={18} />;
 const StatisticIcon = () => <LuChartBar size={18} />;
@@ -12041,12 +12168,6 @@ export const allMenuItems: MenuItemData[] = [
         path: '/json-renderer',
         name: 'JSON 렌더러',
         icon: <JsonIcon />
-    },
-   
-     { 
-        path: '/exampleget', 
-        name: 'DB 예제', 
-        icon: <ExampleIcon /> 
     },
 ];
 

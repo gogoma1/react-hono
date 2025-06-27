@@ -8,7 +8,29 @@
     line-height: 1.2;
     text-align: center;
     white-space: nowrap;
-    /* 기본 배경색이나 글자색은 여기서 정의하지 않거나, 매우 중립적인 색으로 정의 */
-    /* background-color: #e9ecef; */
-    /* color: #495057; */
+}
+
+/* 특정 상태에 따른 색상 스타일 */
+.badge.status-enroll, .badge.status-재원 {
+    background-color: #28a745;
+    color: white;
+}
+.badge.status-pause, .badge.status-휴원 {
+    background-color: #ffc107;
+    color: #212529;
+}
+.badge.status-leave, .badge.status-퇴원 {
+    background-color: #6c757d;
+    color: white;
+}
+.badge.status-delete {
+    background-color: #f56565;
+    color: white;
+}
+.badge.status-delete:hover {
+    background-color: #e53e3e;
+}
+.badge.status-default {
+    background-color: #adb5bd;
+    color: white;
 }

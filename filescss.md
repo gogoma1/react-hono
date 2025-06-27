@@ -2063,6 +2063,366 @@ body {
     clear: both;
     float: inline-start;
 }
+----- ./react/pages/JsonRendererPage.css -----
+/* react/pages/JsonRendererPage.css */
+
+/* ==========================================================================
+   1. 페이지 및 위젯 레이아웃
+   ========================================================================== */
+
+.json-renderer-page {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.json-importer-widget {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    width: 100%;
+    height: 100%;
+}
+
+/* ==========================================================================
+   2. 패널 공통 스타일 (헤더, 콘텐츠 영역)
+   ========================================================================== */
+
+.json-importer-widget .panel {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--glass-base-bg, rgba(255, 255, 255, 0.8));
+    border: 1px solid var(--border-color-light, rgba(255, 255, 255, 0.2));
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.json-importer-widget .panel-header {
+    padding: 12px 16px;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid #e0e0e0; 
+    flex-shrink: 0;
+    background-color: rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.json-importer-widget .panel-content {
+    padding: 1rem;
+    flex-grow: 1;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==========================================================================
+   3. 왼쪽/오른쪽 패널 구조
+   ========================================================================== */
+
+.json-importer-widget .left-panel {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.json-importer-widget .right-panel {
+    flex: 3;
+}
+
+/* ==========================================================================
+   4. 왼쪽 패널 내부 요소 (JSON 입력, 공통 정보)
+   ========================================================================== */
+
+.json-input-panel {
+    flex-grow: 1;
+}
+.json-input-panel .panel-content {
+    padding: 0.5rem;
+}
+
+.common-data-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+}
+.common-data-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.common-data-form label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+.common-data-form .action-button {
+    margin-top: auto;
+}
+
+/* ==========================================================================
+   5. 공통 Input / Textarea 스타일
+   ========================================================================== */
+
+.json-input-textarea,
+.common-data-form input {
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.07); 
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    font-family: var(--base-font-family);
+    box-sizing: border-box;
+}
+
+.json-input-textarea {
+    font-family: monospace;
+    resize: none;
+    height: 100%;
+}
+
+.common-data-form input:focus,
+.json-input-textarea:focus {
+    background-color: transparent; 
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+
+.error-display {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid #e53e3e;
+    background-color: rgba(229, 62, 62, 0.1);
+    color: #e53e3e;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+.error-display pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ==========================================================================
+   6. 오른쪽 패널 테이블 스타일
+   ========================================================================== */
+
+.table-wrapper {
+    overflow: auto;
+    height: 100%;
+}
+.problem-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+.problem-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--glass-base-bg, rgba(255, 255, 255, 0.8));
+    backdrop-filter: blur(5px);
+}
+
+.problem-table th, .problem-table td {
+    padding: 0.4rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+    vertical-align: middle;
+}
+.problem-table th {
+    font-weight: 600;
+}
+
+.cell-edit-trigger {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 1.8rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    font-size: inherit;
+    color: inherit;
+}
+.cell-edit-trigger:not(:disabled):hover {
+    background-color: var(--menu-item-hover-bg, rgba(0, 0, 0, 0.05));
+}
+.cell-edit-trigger[disabled] {
+    cursor: default;
+    color: var(--text-placeholder);
+}
+.cell-edit-trigger-content {
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+.cell-edit-trigger .chevron-icon {
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+    opacity: 0.5;
+}
+
+/* ==========================================================================
+   7. Popover 및 내부 요소 스타일
+   ========================================================================== */
+
+.edit-popover-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: auto; 
+    min-width: 320px;
+    max-height: 80vh;
+    overflow-y: auto;
+    resize: none; 
+}
+
+/* Textarea가 포함된 Popover (large) */
+.glass-popover.large .edit-popover-content {
+    width: 600px;
+    height: 400px;
+    resize: both;
+    overflow: hidden;
+    padding-bottom: 0;
+    /* [핵심 수정] 사용자가 조절할 수 있는 최소 크기를 지정합니다. */
+    min-width: 600px;
+    min-height: 300px;
+}
+
+/* Textarea와 버튼을 감싸는 컨테이너 */
+.textarea-container {
+    flex-grow: 1;
+    position: relative;
+    display: flex;
+    min-height: 0;
+    background-color: rgba(0, 0, 0, 0.07);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+.textarea-container:focus-within {
+    background-color: transparent; 
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+
+/* Textarea 자체 */
+.popover-textarea {
+    resize: none; 
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    padding-bottom: 50px;
+    box-sizing: border-box;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: var(--base-font-family);
+    outline: none;
+    border: none;
+    background-color: transparent;
+    min-width: 0; /* 부모 너비에 맞춰 줄어들 수 있도록 함 */
+}
+
+.edit-popover-content label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+.edit-popover-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    flex-shrink: 0;
+}
+
+.edit-popover-actions.on-textarea {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    margin-top: 0;
+    z-index: 10;
+}
+
+.edit-popover-content.combobox-content {
+    padding: 0.5rem;
+    gap: 0.25rem;
+    width: auto;
+    min-width: 180px;
+}
+.combobox-label {
+    padding: 0.5rem 0.5rem 0.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.combobox-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    background-color: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+.combobox-option:hover {
+    background-color: var(--menu-item-hover-bg);
+    color: var(--text-primary);
+}
+.combobox-option[aria-selected="true"] {
+    background-color: var(--menu-item-active-bg);
+    color: var(--menu-item-active-text);
+    font-weight: 500;
+}
+.combobox-option .check-icon {
+    color: var(--menu-item-active-text);
+    flex-shrink: 0;
+}
+.combobox-option .option-label {
+    flex-grow: 1;
+}
+
+/* ==========================================================================
+   8. 반응형 레이아웃
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+    .json-importer-widget {
+        flex-direction: column;
+        height: auto;
+    }
+    .json-importer-widget .left-panel,
+    .json-importer-widget .right-panel {
+        flex: none;
+        width: 100%;
+        min-height: 50vh;
+    }
+}
 ----- ./react/pages/LoginPage.css -----
 /* filepath: react/pages/LoginPage.css */
 
@@ -3045,8 +3405,7 @@ body {
   box-shadow: -4px 0 8px -4px rgba(0, 0, 0, 0.15);
 }
 ----- ./react/shared/ui/popover-content/PopoverContent.css -----
-/* react/shared/ui/popover-content/PopoverContent.css */
-/* 이 파일은 Popover 내부에 들어가는 다양한 콘텐츠(input, textarea, combobox)의 스타일을 중앙에서 관리합니다. */
+/* react-hono\react\shared\ui\popover-content\PopoverContent.css */
 
 /* Popover 내용물의 기본 컨테이너 스타일 */
 .edit-popover-content {
@@ -3054,11 +3413,11 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    width: auto;
+    width: auto; 
     min-width: 320px; /* 기본 최소 너비 */
     max-height: 80vh; /* 화면을 넘지 않도록 최대 높이 제한 */
     overflow-y: auto; /* 내용이 많아지면 스크롤 */
-    resize: none;
+    resize: none; 
 }
 
 /* Popover 내부의 폼 그룹 (라벨 + 입력 필드) */
@@ -3079,10 +3438,10 @@ body {
 /* Popover 내부 입력 필드 공통 스타일 */
 .popover-input {
     width: 100%;
-    background-color: rgba(0, 0, 0, 0.07);
+    background-color: rgba(0, 0, 0, 0.07); 
     border: 1px solid transparent;
     border-radius: 10px;
-    padding: 12px 16px;
+    padding: 12px 16px; /* [핵심 수정] input 자체의 내부 좌우 패딩을 다시 적용합니다. */
     font-size: 0.95rem;
     color: var(--text-primary);
     outline: none;
@@ -3092,7 +3451,7 @@ body {
 }
 
 .popover-input:focus {
-    background-color: transparent;
+    background-color: transparent; 
     border-color: var(--accent-color);
     box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
 }
@@ -3132,14 +3491,14 @@ body {
 }
 
 .textarea-container:focus-within {
-    background-color: transparent;
+    background-color: transparent; 
     border-color: var(--accent-color);
     box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
 }
 
 /* Textarea 자체 스타일 */
 .popover-textarea {
-    resize: none;
+    resize: none; 
     width: 100%;
     height: 100%;
     padding: 12px;
