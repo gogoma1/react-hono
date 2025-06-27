@@ -20,7 +20,6 @@ interface ExamPreviewWidgetProps {
     baseFontSize: string;
     contentFontSizeEm: number;
     contentFontFamily: string;
-    problemBoxMinHeight: number;
     
     onHeightUpdate: (uniqueId: string, height: number) => void;
     onProblemClick: (problem: ProcessedProblem) => void;
@@ -33,14 +32,13 @@ const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
     const { 
         distributedPages = [],
         distributedSolutionPages = [],
-        allProblems, // [핵심] 최신 데이터가 담긴 이 배열을 사용합니다.
+        allProblems,
         selectedProblems = [],
         placementMap, 
         solutionPlacementMap,
         onHeightUpdate,
     } = props;
     
-    // [추가] 최신 문제 데이터를 빠르게 찾기 위한 Map을 생성합니다.
     const latestProblemsMap = useMemo(() => 
         new Map(allProblems.map(p => [p.uniqueId, p])),
         [allProblems]
@@ -77,7 +75,6 @@ const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
             <>
                 {/* 1. 문제 페이지 렌더링 */}
                 {distributedPages.map((pageItems, pageIndex) => {
-                    // [수정] 레이아웃의 ID를 이용해 최신 문제 데이터를 찾아옵니다.
                     const pageProblems = pageItems
                         .filter((item): item is Extract<LayoutItem, { type: 'problem' }> => item.type === 'problem')
                         .map(item => latestProblemsMap.get(item.data.uniqueId))
@@ -104,12 +101,10 @@ const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
                 {distributedSolutionPages.map((pageItems, pageIndex) => {
                     const pageNumber = totalProblemPages + totalAnswerPages + pageIndex + 1;
 
-                    // [수정] 해설 아이템의 부모 문제 데이터를 최신 버전으로 교체합니다.
                     const updatedPageItems = pageItems.map(item => {
                         if (item.type === 'solutionChunk') {
                             const latestParentProblem = latestProblemsMap.get(item.data.parentProblem.uniqueId);
                             if (latestParentProblem) {
-                                // 새로운 부모 문제 데이터로 교체한 새 아이템 객체 반환
                                 return {
                                     ...item,
                                     data: {
@@ -129,7 +124,7 @@ const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
                                 allProblems={allProblems}
                                 pageNumber={pageNumber} 
                                 totalPages={totalPages} 
-                                items={updatedPageItems} // 업데이트된 아이템 사용
+                                items={updatedPageItems}
                                 placementMap={solutionPlacementMap}
                                 onHeightUpdate={onHeightUpdate} 
                             />

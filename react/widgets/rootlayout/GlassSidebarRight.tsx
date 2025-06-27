@@ -3,21 +3,23 @@ import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked } from 'react-icons/lu'; // LuBookMarked 추가
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch } from 'react-icons/lu';
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
 import PromptCollection from '../../features/prompt-collection/ui/PromptCollection';
 import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
 import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
-import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel'; // [추가]
+import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel';
+// [삭제] import ProblemSearchPanel from '../../features/problem-publishing/ui/ProblemSearchPanel';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
 const CloseIcon = () => <LuCircleX size={22} />;
 const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
-const LatexHelpIcon = () => <LuBookMarked size={20} />; // [추가]
+const LatexHelpIcon = () => <LuBookMarked size={20} />;
+const SearchIcon = () => <LuSearch size={20} />;
 
 interface ProblemEditorWrapperProps {
     onSave: (problem: ProcessedProblem) => void;
@@ -47,6 +49,7 @@ const SidebarContentRenderer: React.FC = () => {
     }
 
     switch(contentConfig.type) {
+        // [삭제] case 'problemSearch' 블록 전체 삭제
         case 'problemEditor': {
             const { onSave, onRevert, onClose, onProblemChange } = contentConfig.props || {};
             const { editingProblemId } = useProblemPublishingStore.getState();
@@ -86,7 +89,6 @@ const SidebarContentRenderer: React.FC = () => {
         case 'prompt':
             return <PromptCollection />;
         
-        // [추가] LaTeX 도움말 패널 렌더링
         case 'latexHelp':
             return <LatexHelpPanel />;
 
@@ -102,7 +104,7 @@ const SidebarContentRenderer: React.FC = () => {
 
 const GlassSidebarRight: React.FC = () => {
     const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, onClose } = useSidebarTriggers(); // latexHelpTrigger 추가
+    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, onClose } = useSidebarTriggers();
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
     const isRightSidebarExpanded = contentConfig.type !== null;
@@ -137,6 +139,18 @@ const GlassSidebarRight: React.FC = () => {
                                 </Tippy>
                             )}
                             
+                            {searchTrigger && (
+                                <Tippy content={searchTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                                    <button
+                                        onClick={searchTrigger.onClick}
+                                        className="settings-toggle-button"
+                                        aria-label={searchTrigger.tooltip}
+                                    >
+                                        <SearchIcon />
+                                    </button>
+                                </Tippy>
+                            )}
+
                             {promptTrigger && (
                                 <Tippy content={promptTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
                                     <button
@@ -149,7 +163,6 @@ const GlassSidebarRight: React.FC = () => {
                                 </Tippy>
                             )}
 
-                            {/* [추가] LaTeX 도움말 버튼 */}
                             {latexHelpTrigger && (
                                 <Tippy content={latexHelpTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
                                     <button

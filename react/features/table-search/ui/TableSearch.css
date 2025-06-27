@@ -2,8 +2,6 @@
 
 .table-search-panel {
     width: 100%;
-    /* [수정] 최대 너비 제한을 제거하여 컨테이너에 꽉 차도록 합니다. */
-    /* max-width: 960px; */
     background: var(--navbar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
     -webkit-backdrop-filter: var(--glass-blur-effect);
@@ -56,8 +54,7 @@
 /* 필터와 액션 영역을 감싸는 Flex 컨테이너 */
 .filter-actions-container {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start; /* 상단 정렬 */
+    align-items: flex-start;
     gap: 20px;
 }
 
@@ -66,8 +63,8 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    flex-grow: 1; /* 남는 공간을 모두 차지 */
-    min-width: 0; /* flex item이 줄어들 수 있도록 */
+    flex-grow: 1;
+    min-width: 0;
 }
 
 .suggestion-group {
@@ -78,12 +75,12 @@
 
 .suggestion-buttons-wrapper {
     display: flex;
-    flex-wrap: wrap; /* 버튼이 많아지면 줄바꿈 처리 */
+    flex-wrap: wrap;
     gap: 8px;
 }
 
 .suggestion-chip {
-    padding: 5px 14px; /* 패딩 살짝 조정 */
+    padding: 5px 14px;
     border: 1px solid var(--text-placeholder, #d1d5db);
     background-color: transparent;
     color: var(--text-secondary);
@@ -121,18 +118,18 @@
 /* 오른쪽 액션 컨트롤 영역 */
 .action-controls-area {
     display: flex;
-    flex-direction: column; /* [핵심] 버튼을 항상 세로로 정렬 */
+    flex-direction: column;
     gap: 8px;
-    flex-shrink: 0; /* 너비가 줄어들지 않도록 고정 */
+    flex-shrink: 0;
 }
 
 .control-button {
     display: inline-flex;
     align-items: center;
-    justify-content: flex-start; /* 텍스트를 왼쪽 정렬 */
+    justify-content: flex-start;
     gap: 8px;
     width: 100%;
-    min-width: 160px; /* 버튼의 최소 너비 설정 */
+    min-width: 160px;
     padding: 8px 12px;
     border-radius: 8px;
     border: 1px solid rgba(0,0,0,0.1);
@@ -169,22 +166,27 @@
     .search-input { padding: 12px 16px 12px 45px; font-size: 1rem; }
     
     .filter-actions-container {
-        flex-direction: row;
-        align-items: flex-start; /* 세로 정렬을 start로 유지 */
+        /* [수정] 모바일에서는 필터와 버튼 그룹이 세로로 쌓이도록 변경 */
+        flex-direction: column; 
+        align-items: stretch; /* 전체 너비를 사용하도록 변경 */
         gap: 12px;
     }
     
-    /* [수정] 모바일에서도 세로로 쌓이도록 별도의 flex-direction 변경을 하지 않습니다. */
     .action-controls-area {
-        gap: 6px; /* 모바일에서 버튼 간격을 살짝 줄임 */
+        /* [수정] 모바일에서는 버튼들이 가로로 배치되도록 변경 (공간 효율성) */
+        flex-direction: row;
+        flex-wrap: wrap; /* 버튼이 많아지면 줄바꿈 */
+        gap: 8px;
     }
     
-    /* [수정] 버튼 스타일을 모바일에 맞게 조정하되, 가로/세로 길이는 유지 */
     .control-button {
-        min-width: 120px; /* 모바일에서 버튼의 최소 너비를 살짝 줄임 */
-        padding: 8px 10px;
+        /* [수정] 가로 배치에 맞게 너비를 자동으로 조절하도록 변경 */
+        flex-grow: 1;
+        width: auto;
+        min-width: 0; /* 최소 너비 제한 해제 */
+        justify-content: center; /* 아이콘/텍스트 중앙 정렬 */
         font-size: 13px;
-        justify-content: center; /* 모바일에선 아이콘/텍스트 중앙 정렬 */
+        padding: 8px 10px;
     }
 
     .control-button span {

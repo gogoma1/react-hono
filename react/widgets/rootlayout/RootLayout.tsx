@@ -1,8 +1,7 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useUIStore } from '../../shared/store/uiStore';
-// [수정] import 경로 변경
-import { useLayoutStore, selectStudentSearchProps, selectRightSidebarConfig } from '../../shared/store/layoutStore'; 
+import { useLayoutStore, selectSearchBoxProps, selectRightSidebarConfig, StoredSearchProps } from '../../shared/store/layoutStore';
 import BackgroundBlobs from '../rootlayout/BackgroundBlobs';
 import GlassNavbar from '../rootlayout/GlassNavbar';
 import GlassSidebar from '../rootlayout/GlassSidebar';
@@ -26,21 +25,48 @@ const RootLayout = () => {
     } = useUIStore();
     
     const { contentConfig, isExtraWide: isRightSidebarExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const studentSearchProps = useLayoutStore(selectStudentSearchProps);
+    const searchBoxProps = useLayoutStore(selectSearchBoxProps);
     
+    const [isSearchBoxVisible, setIsSearchBoxVisible] = useState(false);
+    const [searchPropsForRender, setSearchPropsForRender] = useState<StoredSearchProps | null>(null);
+
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (searchBoxProps) {
+            // 1. DOM에 렌더링할 준비
+            setSearchPropsForRender(searchBoxProps);
+            // 2. [수정] setTimeout으로 짧은 지연을 주어 브라우저가 초기 상태를 그리도록 강제
+            timer = setTimeout(() => {
+                setIsSearchBoxVisible(true);
+            }, 20); // 20ms 정도의 짧은 지연
+        } else {
+            // 사라질 때: 애니메이션 시작
+            setIsSearchBoxVisible(false);
+        }
+        
+        return () => clearTimeout(timer); // 클린업
+    }, [searchBoxProps]);
+    
+    const handleTransitionEnd = () => {
+        // 사라지는 애니메이션이 끝났을 때만 DOM에서 제거
+        if (!isSearchBoxVisible) {
+            setSearchPropsForRender(null);
+        }
+    };
+
     const isRightSidebarExpanded = contentConfig.type !== null;
 
     const parsedSuggestionGroups = useMemo(() => {
-        if (studentSearchProps?.suggestionGroups) {
+        if (searchPropsForRender?.suggestionGroups) {
             try {
-                return JSON.parse(studentSearchProps.suggestionGroups);
+                return JSON.parse(searchPropsForRender.suggestionGroups);
             } catch (e) {
                 console.error("Failed to parse suggestionGroups JSON", e);
                 return [];
             }
         }
         return [];
-    }, [studentSearchProps?.suggestionGroups]);
+    }, [searchPropsForRender?.suggestionGroups]);
 
     const showOverlay = currentBreakpoint === 'mobile' && mobileSidebarType !== null;
     
@@ -52,6 +78,11 @@ const RootLayout = () => {
 
     const isWorkbenchPage = location.pathname === '/problem-workbench';
     const mainContentClasses = `main-content ${isWorkbenchPage ? 'main-content--compact-padding' : ''}`;
+
+    const bottomContentAreaClasses = `
+        bottom-content-area 
+        ${isSearchBoxVisible ? 'visible' : ''}
+    `.trim();
 
     return (
         <div className={`app-container ${sidebarStateClass} ${showOverlay ? 'mobile-sidebar-active' : ''}`}>
@@ -73,10 +104,13 @@ const RootLayout = () => {
                     {currentBreakpoint !== 'mobile' && <GlassSidebarRight />}
                 </div>
 
-                {studentSearchProps && (
-                    <div className="bottom-content-area">
+                {searchPropsForRender && (
+                    <div 
+                        className={bottomContentAreaClasses}
+                        onTransitionEnd={handleTransitionEnd}
+                    >
                         <TableSearch
-                            {...studentSearchProps}
+                            {...searchPropsForRender}
                             suggestionGroups={parsedSuggestionGroups}
                         />
                     </div>

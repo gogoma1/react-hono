@@ -100,11 +100,27 @@
   z-index: 95;
   padding: 0 25px 20px 30px;
   box-sizing: border-box;
-  pointer-events: none;
-  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none; /* [수정] 기본적으로는 이벤트 통과, visible 클래스에서 제어 */
   display: flex;
   height: auto;
+
+  /* [수정] Fade & Slide 효과를 위한 기본 상태 설정 */
+  opacity: 0;
+  transform: translateY(20px);
+  transition: 
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+    width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* [추가] 검색창이 보일 때의 스타일 */
+.bottom-content-area.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto; /* 보일 때만 클릭 등 이벤트 허용 */
+}
+
 
 /* --- 사이드바 상태에 따른 너비 계산 --- */
 .app-container.left-sidebar-expanded.right-sidebar-collapsed .bottom-content-area {

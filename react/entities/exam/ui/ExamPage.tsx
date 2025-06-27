@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-// useShallow와 useProblemPublishingStore import 제거
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
 import ExamHeader from './ExamHeader';
@@ -10,32 +9,24 @@ import { useHeightMeasurer } from '../../../features/problem-publishing/hooks/us
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
 
 interface ProblemItemProps {
-    problem: ProcessedProblem; // uniqueId 대신 problem 객체 전체를 받음
+    problem: ProcessedProblem;
     allProblems: ProcessedProblem[];
     onRenderComplete: (uniqueId: string, height: number) => void;
     useSequentialNumbering: boolean;
-    problemBoxMinHeight: number;
     contentFontSizeEm: number;
     contentFontFamily: string;
     onProblemClick: (problem: ProcessedProblem) => void;
     onDeselectProblem: (uniqueId: string) => void;
     measuredHeight?: number; 
 }
-const ProblemItem: React.FC<ProblemItemProps> = React.memo(({ problem, allProblems, onRenderComplete, useSequentialNumbering, problemBoxMinHeight, contentFontSizeEm, contentFontFamily, onProblemClick, onDeselectProblem, measuredHeight }) => {
+const ProblemItem: React.FC<ProblemItemProps> = React.memo(({ problem, allProblems, onRenderComplete, useSequentialNumbering, contentFontSizeEm, contentFontFamily, onProblemClick, onDeselectProblem, measuredHeight }) => {
     
-    // [핵심] 렌더링 로그 위치 변경
-    // console.log(`[LOG] ProblemItem: 🎨 렌더링 시작. 문제 ID: ${problem.uniqueId}`);
-
-    // [핵심] store 구독 제거
-    // const problem = useProblemPublishingStore(...)
-
     const globalProblemIndex = useMemo(() => allProblems.findIndex(p => p.uniqueId === problem.uniqueId) + 1, [allProblems, problem.uniqueId]);
     const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onProblemClick(problem); } };
     
     const measureRef = useHeightMeasurer(onRenderComplete, problem.uniqueId);
 
-    // 이제 problem이 null일 수 없으므로 관련 체크 제거
-    if (!problem) return null; // 안전 장치로 남겨둘 수는 있음
+    if (!problem) return null;
 
     return (
         <div ref={measureRef} className="problem-container" data-unique-id={problem.uniqueId}>
@@ -51,7 +42,7 @@ const ProblemItem: React.FC<ProblemItemProps> = React.memo(({ problem, allProble
                         <LuCircleX size={18} />
                     </button>
                 </div>
-                <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily, minHeight: `${problemBoxMinHeight}em` }}>
+                <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily }}>
                     <div className="mathpix-wrapper prose">
                         <MathpixRenderer text={problem.question_text ?? ''} />
                     </div>
@@ -75,7 +66,6 @@ interface ExamPageProps {
     baseFontSize: string;
     contentFontSizeEm: number;
     contentFontFamily: string;
-    problemBoxMinHeight: number;
     headerInfo: any;
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
     onDeselectProblem: (uniqueId: string) => void;
@@ -86,12 +76,10 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
     const {
         pageNumber, totalPages, problems, allProblems, placementMap, onHeightUpdate,
         useSequentialNumbering, baseFontSize, contentFontSizeEm, contentFontFamily,
-        problemBoxMinHeight, headerInfo, onHeaderUpdate, onProblemClick, onDeselectProblem,
+        headerInfo, onHeaderUpdate, onProblemClick, onDeselectProblem,
         measuredHeights, 
     } = props;
     
-    // [로그 삭제]
-    // console.log(`[LOG] ExamPage: 🎨 렌더링 시작. 페이지 번호: ${pageNumber}`);
     
     const leftColumnProblems = useMemo(() => 
         problems.filter(p => placementMap.get(p.uniqueId)?.column === 1),
@@ -107,11 +95,10 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
         return problemList.map((problem) => (
             <ProblemItem
                 key={problem.uniqueId}
-                problem={problem} // [핵심] problem 객체 직접 전달
+                problem={problem}
                 allProblems={allProblems}
                 onRenderComplete={onHeightUpdate}
                 useSequentialNumbering={useSequentialNumbering}
-                problemBoxMinHeight={problemBoxMinHeight}
                 contentFontSizeEm={contentFontSizeEm}
                 contentFontFamily={contentFontFamily}
                 onProblemClick={onProblemClick}

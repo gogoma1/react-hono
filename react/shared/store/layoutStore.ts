@@ -1,36 +1,42 @@
+// ./react/shared/store/layoutStore.ts
+
 import { create } from 'zustand';
-import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
 
-interface StoredSearchProps {
+// [수정] export 추가
+export interface StoredSearchProps {
     searchTerm: string;
     onSearchTermChange: (value: string) => void;
-    activeFilters: Record<string, string>;
+    activeFilters: Record<string, Set<string>>;
     onFilterChange: (key: string, value: string) => void;
     onResetFilters: () => void;
     suggestionGroups: string;
-    onToggleFiltered: () => void;
-    onCreateProblemSet: () => void;
-    selectedCount: number;
+    onToggleFiltered?: () => void;
+    onCreateProblemSet?: () => void;
+    selectedCount?: number;
+    showActionControls?: boolean;
+    isFilteredAllSelected?: boolean;
+    onHide?: () => void;
 }
 
 interface RegisteredPageActions {
   openRegisterSidebar: () => void;
   openSettingsSidebar: () => void;
   openPromptSidebar: () => void;
-  openLatexHelpSidebar: () => void; // [추가]
+  openLatexHelpSidebar: () => void;
+  openSearchSidebar: () => void; 
   openEditSidebar: (student: any) => void;
   onClose: () => void;
 }
 
 interface SidebarContentConfig {
-    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | null; // [추가]
-    props?: Record<string, any>; // problemId, student 등을 전달하기 위한 props
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | null;
+    props?: Record<string, any>;
 }
 
 interface RightSidebarState {
-    contentConfig: SidebarContentConfig; // ReactNode 대신 contentConfig를 사용합니다.
+    contentConfig: SidebarContentConfig;
     isExtraWide: boolean;
 }
 
@@ -38,32 +44,33 @@ interface LayoutState {
   rightSidebar: RightSidebarState; 
   currentPageConfig: PageLayoutConfig;
   pageActions: Partial<RegisteredPageActions>;
-  studentSearchProps: StoredSearchProps | null;
+  searchBoxProps: StoredSearchProps | null;
 }
 
 interface LayoutActions {
   setRightSidebarConfig: (config: { contentConfig: SidebarContentConfig, isExtraWide?: boolean }) => void;
   updateLayoutForPath: (path: string) => void;
   registerPageActions: (actions: Partial<RegisteredPageActions>) => void;
-  setStudentSearchProps: (props: StoredSearchProps | null) => void;
+  setSearchBoxProps: (props: StoredSearchProps | null) => void;
 }
 
 const initialPageActions: Partial<RegisteredPageActions> = {
     openRegisterSidebar: () => console.warn('openRegisterSidebar action not registered.'),
     openSettingsSidebar: () => console.warn('openSettingsSidebar action not registered.'),
     openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
-    openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'), // [추가]
+    openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'),
+    openSearchSidebar: () => console.warn('openSearchSidebar action not registered.'),
     onClose: () => console.warn('onClose action not registered.'),
 };
 
 export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => ({
   rightSidebar: {
-    contentConfig: { type: null }, // 초기 상태 변경
+    contentConfig: { type: null },
     isExtraWide: false,
   },
   currentPageConfig: {},
   pageActions: initialPageActions,
-  studentSearchProps: null,
+  searchBoxProps: null,
   
   setRightSidebarConfig: (config) => {
     const currentState = get().rightSidebar;
@@ -101,12 +108,12 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
     }));
   },
   
-  setStudentSearchProps: (props) => set({ studentSearchProps: props }),
+  setSearchBoxProps: (props) => set({ searchBoxProps: props }),
 }));
 
 
 export const selectRightSidebarConfig = (state: LayoutState) => state.rightSidebar;
-export const selectStudentSearchProps = (state: LayoutState) => state.studentSearchProps;
+export const selectSearchBoxProps = (state: LayoutState) => state.searchBoxProps;
 
 
 export const useSidebarTriggers = () => {
@@ -122,6 +129,12 @@ export const useSidebarTriggers = () => {
                 tooltip: currentPageConfig.sidebarButtons.register.tooltip,
             };
         }
+        if (currentPageConfig.sidebarButtons?.search) {
+            result.searchTrigger = {
+                onClick: pageActions.openSearchSidebar,
+                tooltip: currentPageConfig.sidebarButtons.search.tooltip,
+            };
+        }
         if (currentPageConfig.sidebarButtons?.settings) {
             result.settingsTrigger = {
                 onClick: pageActions.openSettingsSidebar,
@@ -134,7 +147,6 @@ export const useSidebarTriggers = () => {
                 tooltip: currentPageConfig.sidebarButtons.prompt.tooltip,
             };
         }
-        // [추가] latexHelpTrigger 생성
         if (currentPageConfig.sidebarButtons?.latexHelp) {
             result.latexHelpTrigger = {
                 onClick: pageActions.openLatexHelpSidebar,

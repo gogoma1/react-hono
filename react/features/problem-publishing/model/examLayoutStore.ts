@@ -7,7 +7,6 @@ let itemHeightsMap = new Map<string, number>();
 let debounceTimer: number | null = null;
 
 interface ExamUIOptions {
-    problemBoxMinHeight: number;
     baseFontSize: string;
     contentFontSizeEm: number;
     useSequentialNumbering: boolean;
@@ -25,14 +24,13 @@ interface ExamLayoutState extends ExamUIOptions {
 
 interface ExamLayoutActions {
     setItemHeight: (uniqueId: string, height: number) => void;
-    startLayoutCalculation: (selectedProblems: ProcessedProblem[]) => void;
+    startLayoutCalculation: (selectedProblems: ProcessedProblem[], problemBoxMinHeight: number) => void;
     resetLayout: () => void;
-    updateMinHeightAndRecalculate: (height: number) => void;
     setBaseFontSize: (size: string) => void;
     setContentFontSizeEm: (size: number) => void;
     setUseSequentialNumbering: (use: boolean) => void;
     setDraggingControl: (isDragging: boolean) => void;
-    forceRecalculateLayout: () => void;
+    forceRecalculateLayout: (minHeight: number) => void;
 }
 
 const logLayoutResult = (problems: ProcessedProblem[], problemPlacements: Map<string, ProblemPlacementInfo>, solutionPlacements: Map<string, ProblemPlacementInfo>) => {
@@ -62,51 +60,23 @@ const logLayoutResult = (problems: ProcessedProblem[], problemPlacements: Map<st
     console.groupEnd();
 };
 
-const runDebouncedRecalculation = (get: () => ExamLayoutState & ExamLayoutActions, set: (partial: Partial<ExamLayoutState & ExamLayoutActions>) => void) => {
+const runDebouncedRecalculation = (get: () => ExamLayoutState & ExamLayoutActions) => {
     if (debounceTimer) clearTimeout(debounceTimer);
 
     debounceTimer = window.setTimeout(() => {
-        // [수정] 이 함수는 디바운스된 재계산만 담당하므로, 상태 체크는 호출하는 쪽에서 처리하는 것이 더 명확합니다.
-        // 또는 get()을 통해 항상 최신 상태를 가져와야 합니다.
         const state = get();
         const isEditing = !!useProblemPublishingStore.getState().editingProblemId;
 
         if (state.isLayoutFinalized || state.isDraggingControl || isEditing) {
-             console.log("[LOG] examLayoutStore: 레이아웃이 확정되었거나, 드래그 중이거나, 편집 중이므로 디바운스된 재계산을 건너뜁니다.", {
-                isLayoutFinalized: state.isLayoutFinalized,
-                isDraggingControl: state.isDraggingControl,
-                isEditing
-            });
+             console.log("[LOG] examLayoutStore: 레이아웃이 확정되었거나, 드래그 중이거나, 편집 중이므로 디바운스된 재계산을 건너뜁니다.");
             return;
         }
 
-        console.log("[LOG] examLayoutStore: ⏳ 디바운스 타이머 실행! 레이아웃 재계산 시작.");
-        const { problemsForLayout, problemBoxMinHeight } = state;
-        if (problemsForLayout.length === 0) {
-            console.log("[LOG] examLayoutStore: problemsForLayout이 비어있어 재계산 중단.");
-            return;
-        }
-
-        console.log("[LOG] examLayoutStore: 🚀 Debounced: RE-calculating ALL layouts based on new heights.");
-
-        const problemResult = recalculateProblemLayout(problemsForLayout, itemHeightsMap, problemBoxMinHeight);
-        const solutionResult = recalculateSolutionLayout(problemsForLayout, itemHeightsMap);
-
-        set({
-            distributedPages: problemResult.pages,
-            placementMap: problemResult.placements,
-            distributedSolutionPages: solutionResult.pages,
-            solutionPlacementMap: solutionResult.placements,
-            isLayoutFinalized: true, // 재계산 후에는 레이아웃을 확정합니다.
-        });
-
-        logLayoutResult(problemsForLayout, problemResult.placements, solutionResult.placements);
-    }, 500); // 디바운스 시간
+    }, 500);
 };
 
-
+// [수정] export const useLayoutStore -> export const useExamLayoutStore
 export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((set, get) => ({
-    problemBoxMinHeight: 31,
     baseFontSize: '12px',
     contentFontSizeEm: 1,
     useSequentialNumbering: false,
@@ -122,20 +92,21 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
     setDraggingControl: (isDragging) => set({ isDraggingControl: isDragging }),
 
     setItemHeight: (uniqueId, height) => {
-        // [핵심 수정] isLayoutFinalized 체크를 제거합니다.
-        // ResizeObserver가 주는 높이 정보는 항상 최신이고 유효하므로, 무조건 맵에 저장하고 재계산을 시도합니다.
-        // 재계산 실행 여부는 runDebouncedRecalculation 내부에서 최신 상태를 보고 결정합니다.
-        itemHeightsMap.set(uniqueId, height);
-        runDebouncedRecalculation(get, set);
+        const oldHeight = itemHeightsMap.get(uniqueId);
+        if (oldHeight !== height) {
+            itemHeightsMap.set(uniqueId, height);
+        }
     },
     
-    forceRecalculateLayout: () => {
+    forceRecalculateLayout: (minHeight) => {
+        if (get().isDraggingControl) return;
         if (debounceTimer) clearTimeout(debounceTimer);
-        console.log("[LOG] examLayoutStore: ⚡️ 강제 레이아웃 재계산을 시작합니다.");
-        const { problemsForLayout, problemBoxMinHeight } = get();
+
+        console.log(`[LOG] examLayoutStore: ⚡️ 강제 레이아웃 재계산 (minHeight: ${minHeight})`);
+        const { problemsForLayout } = get();
         if (problemsForLayout.length === 0) return;
 
-        const problemResult = recalculateProblemLayout(problemsForLayout, itemHeightsMap, problemBoxMinHeight);
+        const problemResult = recalculateProblemLayout(problemsForLayout, itemHeightsMap, minHeight);
         const solutionResult = recalculateSolutionLayout(problemsForLayout, itemHeightsMap);
 
         set({
@@ -161,10 +132,9 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
         });
     },
 
-    startLayoutCalculation: (selectedProblems) => {
+    startLayoutCalculation: (selectedProblems, problemBoxMinHeight) => {
         if (debounceTimer) clearTimeout(debounceTimer);
-        const { problemBoxMinHeight } = get();
-
+        
         const newHeightsMap = new Map<string, number>();
         const selectedIds = new Set(selectedProblems.map(p => p.uniqueId));
         itemHeightsMap.forEach((height, id) => {
@@ -183,26 +153,19 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
             placementMap: problems.placements,
             distributedSolutionPages: solutions.pages,
             solutionPlacementMap: solutions.placements,
-            isLayoutFinalized: false, // 최초 계산 시작 시 플래그를 false로 설정
+            isLayoutFinalized: false,
         });
 
         logLayoutResult(selectedProblems, problems.placements, solutions.placements);
     },
-    
-    // [핵심 수정] 사용자가 컨트롤 패널에서 값을 변경하면, isLayoutFinalized를 false로 만들어
-    // 높이 측정이 다시 동작하도록 유도합니다.
-    updateMinHeightAndRecalculate: (height) => {
-        set({ problemBoxMinHeight: height, isLayoutFinalized: false });
-        runDebouncedRecalculation(get, set);
-    },
 
     setBaseFontSize: (size) => {
         set({ baseFontSize: size, isLayoutFinalized: false });
-        runDebouncedRecalculation(get, set);
+        runDebouncedRecalculation(get);
     },
     setContentFontSizeEm: (size) => {
         set({ contentFontSizeEm: size, isLayoutFinalized: false });
-        runDebouncedRecalculation(get, set);
+        runDebouncedRecalculation(get);
     },
     setUseSequentialNumbering: (use) => set({ useSequentialNumbering: use }),
 }));

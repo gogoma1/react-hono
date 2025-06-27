@@ -1,0 +1,1 @@
+export { useStudentDashboard } from './model/useStudentDashboard';

@@ -1,5 +1,3 @@
-// ./react/features/table-search/model/useTableSearch.ts
-
 import { useMemo } from 'react';
 
 type DataItem = Record<string, any>;
@@ -7,8 +5,8 @@ type DataItem = Record<string, any>;
 interface UseTableSearchOptions {
     data: DataItem[];
     searchTerm: string; 
+    activeFilters: Record<string, Set<string>>; // [수정] 타입을 Set<string>으로 변경
     searchableKeys: string[];
-    activeFilters: Record<string, string>; 
 }
 
 export function useTableSearch({
@@ -18,25 +16,28 @@ export function useTableSearch({
     activeFilters,
 }: UseTableSearchOptions): DataItem[] {
     
-    // [핵심 수정] 데이터가 아직 없을 경우, 오류를 발생시키는 대신 빈 배열을 반환합니다.
     if (!data) {
         return [];
     }
     
     const filteredData = useMemo(() => {
-        let items = [...data]; // 이제 data는 항상 배열이므로 이 코드는 안전합니다.
+        let items = [...data];
 
-        // 카테고리 필터링
+        // [수정] 필터링 로직을 Set에 값이 포함되어 있는지 확인하도록 변경
         const filterKeys = Object.keys(activeFilters);
         if (filterKeys.length > 0) {
             items = items.filter(item => {
                 return filterKeys.every(key => {
-                    return item[key] != null && String(item[key]) === String(activeFilters[key]);
+                    const filterValues = activeFilters[key]; // Set
+                    if (!filterValues || filterValues.size === 0) {
+                        return true; 
+                    }
+                    const itemValue = item[key];
+                    return itemValue != null && filterValues.has(String(itemValue));
                 });
             });
         }
 
-        // 텍스트 검색 필터링
         const terms = searchTerm.trim().toLowerCase().split(/\s+/).filter(Boolean);
         if (terms.length > 0) {
             items = items.filter(item => {
