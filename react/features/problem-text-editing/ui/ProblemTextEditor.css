@@ -33,6 +33,11 @@
     gap: 8px;
 }
 
+/* [추가] 아이콘 스타일 */
+.action-icon {
+    margin-right: 4px;
+}
+
 /* [추가] 파괴적인(destructive) 액션 버튼 스타일 */
 .editor-actions .action-button.destructive,
 .editor-actions .loading-button.destructive {

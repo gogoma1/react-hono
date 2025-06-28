@@ -1,5 +1,4 @@
 ----- ./react/App.tsx -----
-
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -14,7 +13,8 @@ import AuthInitializer from './shared/lib/AuthInitializer';
 import { useAuthStore, selectIsLoadingAuth } from './shared/store/authStore';
 import ProblemWorkbenchPage from './pages/ProblemWorkbenchPage';
 import JsonRendererPage from './pages/JsonRendererPage';
-import ProblemPublishingPage from './pages/ProblemPublishingPage'; // [추가]
+import ProblemPublishingPage from './pages/ProblemPublishingPage'; 
+import './App.css'; // [추가]
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,7 +33,7 @@ function App() {
         <QueryClientProvider client={queryClient}>
             <AuthInitializer />
             {isLoadingAuth ? (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <div className="app-loading-container">
                     <h1>애플리케이션 로딩 중...</h1>
                 </div>
             ) : (
@@ -48,7 +48,7 @@ function App() {
                                 <Route path="/" element={<HomePage />} />
                                 <Route path="/dashboard" element={<DashBoard />} />
                                 <Route path="/problem-workbench" element={<ProblemWorkbenchPage />} />
-                                <Route path="/problem-publishing" element={<ProblemPublishingPage />} /> {/* [추가] */}
+                                <Route path="/problem-publishing" element={<ProblemPublishingPage />} />
                                 <Route path="/json-renderer" element={<JsonRendererPage />} /> 
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
                             </Route>
@@ -69,6 +69,12 @@ import GlassPopover from '../../../shared/components/GlassPopover';
 import ExamHeaderEditPopover from '../../../features/exam-header-editing/ui/ExamHeaderEditPopover';
 
 type EditableTarget = 'title' | 'school' | 'subject' | 'simplifiedGrade' | 'simplifiedSubject';
+
+type ExamUpdateValue = {
+    text: string;
+    fontSize?: number;
+    fontFamily?: string;
+};
 
 interface EditableAreaProps {
     targetId: EditableTarget;
@@ -111,6 +117,7 @@ const EditableArea: React.FC<EditableAreaProps> = ({
 
 interface ExamHeaderProps {
     page: number;
+    totalPages?: number; // [수정] 누락된 prop 추가
     title: string;
     titleFontSize: number;
     titleFontFamily: string;
@@ -125,7 +132,7 @@ interface ExamHeaderProps {
     simplifiedSubjectFontSize: number;
     simplifiedSubjectFontFamily: string;
     simplifiedGradeText: string;
-    onUpdate: (targetId: string, field: string, value: any) => void;
+    onUpdate: (targetId: EditableTarget, field: string, value: ExamUpdateValue) => void; // [수정] 타입 구체화
 }
 
 
@@ -147,7 +154,6 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
     const [editingText, setEditingText] = useState('');
     const [editingFontSize, setEditingFontSize] = useState(1);
     
-    const notoSerifKR = "'Noto Serif KR', serif";
     const triggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
     const handleStartEdit = (e: React.MouseEvent<HTMLButtonElement>, target: EditableTarget) => {
@@ -177,7 +183,7 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
     const handleSaveEdit = () => {
         if (!editingTarget) return;
         
-        let value: any = { text: editingText };
+        const value: ExamUpdateValue = { text: editingText };
         if (editingTarget !== 'simplifiedGrade') {
             value.fontSize = editingFontSize;
         }
@@ -210,7 +216,6 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
             <>
                 <div className="exam-header-simplified-container">
                     <div className={`simplified-item-wrapper order-${page % 2 !== 0 ? 1 : 3}`}>
-                        {/* [수정 5] 분리된 EditableArea 컴포넌트를 props와 함께 사용합니다. */}
                         <EditableArea 
                             targetId="simplifiedGrade" 
                             buttonClassName="simplified-grade-button"
@@ -233,13 +238,19 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                             isEditing={editingTarget === 'simplifiedSubject'}
                             label={getTargetLabel('simplifiedSubject')}
                         >
-                           <span style={{ fontSize: `${simplifiedSubjectFontSize}em`, fontFamily: simplifiedSubjectFontFamily }}>
+                           <span 
+                                className="simplified-subject-text"
+                                style={{
+                                    '--font-size-em': simplifiedSubjectFontSize,
+                                    '--font-family': simplifiedSubjectFontFamily,
+                                } as React.CSSProperties}
+                            >
                                 {simplifiedSubjectText}
                             </span>
                         </EditableArea>
                     </div>
                     <div className={`simplified-item-wrapper order-${page % 2 !== 0 ? 3 : 1}`}>
-                        <span className="simplified-page-number" style={{ fontFamily: notoSerifKR }}>{page}</span>
+                        <span className="simplified-page-number">{page}</span>
                     </div>
                 </div>
                 <GlassPopover isOpen={!!editingTarget} onClose={handleCancelEdit} anchorEl={popoverAnchor} placement="bottom-start">
@@ -273,11 +284,17 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                         isEditing={editingTarget === 'title'}
                         label={getTargetLabel('title')}
                      >
-                        <span style={{ fontSize: `${initialTitleFontSize}em`, fontFamily: initialTitleFontFamily }}>
+                        <span 
+                            className="exam-header-title"
+                            style={{
+                                '--font-size-em': initialTitleFontSize,
+                                '--font-family': initialTitleFontFamily,
+                            } as React.CSSProperties}
+                        >
                             {initialTitle}
                         </span>
                     </EditableArea>
-                    <div className="exam-header-page-number" style={{ fontFamily: notoSerifKR }}>{page}</div>
+                    <div className="exam-header-page-number">{page}</div>
                 </div>
                 <div className="exam-header-info-section">
                     <EditableArea 
@@ -289,7 +306,13 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                         isEditing={editingTarget === 'school'}
                         label={getTargetLabel('school')}
                     >
-                        <span style={{ fontSize: `${initialSchoolFontSize}em`, fontFamily: initialSchoolFontFamily }}>
+                        <span
+                            className="exam-header-school-text"
+                            style={{
+                                '--font-size-em': initialSchoolFontSize,
+                                '--font-family': initialSchoolFontFamily,
+                            } as React.CSSProperties}
+                        >
                            {initialSchool}
                         </span>
                     </EditableArea>
@@ -303,7 +326,13 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                             isEditing={editingTarget === 'subject'}
                             label={getTargetLabel('subject')}
                         >
-                             <span style={{ fontSize: `${initialSubjectFontSize}em`, fontFamily: initialSubjectFontFamily }}>
+                            <span 
+                                className="exam-header-subject-text"
+                                style={{
+                                    '--font-size-em': initialSubjectFontSize,
+                                    '--font-family': initialSubjectFontFamily,
+                                } as React.CSSProperties}
+                            >
                                 {initialSubject}
                             </span>
                         </EditableArea>
@@ -378,7 +407,13 @@ const ProblemItem: React.FC<ProblemItemProps> = React.memo(({ problem, allProble
                         <LuCircleX size={18} />
                     </button>
                 </div>
-                <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily }}>
+                <div 
+                    className="problem-content-wrapper" 
+                    style={{ 
+                        '--content-font-size-em': `${contentFontSizeEm}em`, 
+                        '--content-font-family': contentFontFamily 
+                    } as React.CSSProperties}
+                >
                     <div className="mathpix-wrapper prose">
                         <MathpixRenderer text={problem.question_text ?? ''} />
                     </div>
@@ -389,6 +424,21 @@ const ProblemItem: React.FC<ProblemItemProps> = React.memo(({ problem, allProble
 });
 ProblemItem.displayName = 'ProblemItem';
 
+type ExamHeaderInfo = Pick<React.ComponentProps<typeof ExamHeader>, 
+    | 'title' 
+    | 'titleFontSize' 
+    | 'titleFontFamily' 
+    | 'school' 
+    | 'schoolFontSize' 
+    | 'schoolFontFamily' 
+    | 'subject' 
+    | 'subjectFontSize' 
+    | 'subjectFontFamily' 
+    | 'simplifiedSubjectText'
+    | 'simplifiedSubjectFontSize'
+    | 'simplifiedSubjectFontFamily'
+    | 'simplifiedGradeText'
+>;
 
 interface ExamPageProps {
     pageNumber: number;
@@ -402,7 +452,7 @@ interface ExamPageProps {
     baseFontSize: string;
     contentFontSizeEm: number;
     contentFontFamily: string;
-    headerInfo: any;
+    headerInfo: ExamHeaderInfo; // [수정] any -> ExamHeaderInfo
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
     onDeselectProblem: (uniqueId: string) => void;
     measuredHeights: Map<string, number>; 
@@ -445,7 +495,10 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
     };
 
     return (
-        <div className="exam-page-component" style={{ fontSize: baseFontSize }}>
+        <div 
+            className="exam-page-component" 
+            style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
+        >
             <div className="exam-paper">
                 <ExamHeader 
                     page={pageNumber}
@@ -501,8 +554,13 @@ const QuickAnswerPage: React.FC<QuickAnswerPageProps> = ({
 }) => {
     const QuickAnswerHeader: React.FC<{ title: string; page: number }> = ({ title, page }) => (
         <div className="quick-answer-header">
-            <h1 className="quick-answer-title" style={{ fontFamily: headerInfo.titleFontFamily }}>{title}</h1>
-            <div className="exam-header-page-number" style={{ fontFamily: "'Noto Serif KR', serif" }}>{page}</div>
+            <h1 
+                className="quick-answer-title" 
+                style={{ '--title-font-family': headerInfo.titleFontFamily } as React.CSSProperties}
+            >
+                {title}
+            </h1>
+            <div className="exam-header-page-number quick-answer-page-number">{page}</div>
         </div>
     );
     
@@ -530,7 +588,10 @@ const QuickAnswerPage: React.FC<QuickAnswerPageProps> = ({
     );
 
     return (
-        <div className="exam-page-component" style={{ fontSize: baseFontSize }}>
+        <div 
+            className="exam-page-component" 
+            style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
+        >
             <div className="exam-paper">
                 <QuickAnswerHeader title="빠른 정답" page={pageNumber} />
                 <div className="quick-answer-columns-container">
@@ -569,7 +630,6 @@ interface SolutionChunkItemProps {
 }
 const SolutionChunkItem: React.FC<SolutionChunkItemProps> = React.memo(({ item, allProblems, onRenderComplete, useSequentialNumbering, contentFontSizeEm, contentFontFamily, isFirstChunk, parentProblem }) => {
     
-
     const globalProblemIndex = useMemo(() => allProblems.findIndex(p => p.uniqueId === item.data.parentProblem.uniqueId) + 1, [allProblems, item.data.parentProblem.uniqueId]);
     
     const measureRef = useHeightMeasurer(onRenderComplete, item.uniqueId);
@@ -581,7 +641,13 @@ const SolutionChunkItem: React.FC<SolutionChunkItemProps> = React.memo(({ item, 
     return (
         <div ref={measureRef} className="solution-item-container" data-solution-id={item.uniqueId}>
             {isFirstChunk && (<div className="solution-header"><span className="solution-number">{displayNumber}.</span></div>)}
-            <div className="solution-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily }}>
+            <div 
+                className="solution-content-wrapper" 
+                style={{ 
+                    '--content-font-size-em': `${contentFontSizeEm}em`, 
+                    '--content-font-family': contentFontFamily 
+                } as React.CSSProperties}
+            >
                 <div className="mathpix-wrapper prose">
                     <MathpixRenderer text={item.data.text} />
                 </div>
@@ -590,6 +656,22 @@ const SolutionChunkItem: React.FC<SolutionChunkItemProps> = React.memo(({ item, 
     );
 });
 SolutionChunkItem.displayName = 'SolutionChunkItem';
+
+type ExamHeaderInfo = Pick<React.ComponentProps<typeof ExamHeader>, 
+    | 'title' 
+    | 'titleFontSize' 
+    | 'titleFontFamily' 
+    | 'school' 
+    | 'schoolFontSize' 
+    | 'schoolFontFamily' 
+    | 'subject' 
+    | 'subjectFontSize' 
+    | 'subjectFontFamily' 
+    | 'simplifiedSubjectText'
+    | 'simplifiedSubjectFontSize'
+    | 'simplifiedSubjectFontFamily'
+    | 'simplifiedGradeText'
+>;
 
 
 interface SolutionPageProps {
@@ -603,7 +685,7 @@ interface SolutionPageProps {
     baseFontSize: string;
     contentFontSizeEm: number;
     contentFontFamily: string;
-    headerInfo: any;
+    headerInfo: ExamHeaderInfo; // [수정] any -> ExamHeaderInfo
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
 }
 
@@ -645,7 +727,10 @@ const SolutionPage: React.FC<SolutionPageProps> = (props) => {
     const solutionHeaderInfo = { ...headerInfo, title: "정답 및 해설", subject: headerInfo.subject + " (해설)" };
 
     return (
-        <div className="exam-page-component solution-page" style={{ fontSize: baseFontSize }}>
+        <div 
+            className="exam-page-component solution-page" 
+            style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
+        >
             <div className="exam-paper">
                 <ExamHeader 
                     page={pageNumber}
@@ -672,14 +757,13 @@ export default React.memo(SolutionPage);
 import { handleApiResponse } from '../../../shared/api/api.utils';
 import type { Problem } from '../model/types';
 
-const API_BASE_FETCH = '/api/manage/problems';
-const API_BASE_UPLOAD = '/api/manage/problems/upload'; 
+const API_BASE_URL = '/api/manage/problems';
 
 interface UploadPayload {
     problems: Problem[];
 }
 
-interface UploadResponse {
+export interface UploadResponse {
     success: boolean;
     count: number;
 }
@@ -688,7 +772,7 @@ interface UploadResponse {
  * 모든 문제 목록을 가져옵니다.
  */
 export const fetchProblemsAPI = async (): Promise<Problem[]> => {
-    const res = await fetch(API_BASE_FETCH, {
+    const res = await fetch(API_BASE_URL, {
         method: 'GET',
         credentials: 'include',
     });
@@ -696,19 +780,14 @@ export const fetchProblemsAPI = async (): Promise<Problem[]> => {
 };
 
 /**
- * [수정] 특정 문제를 업데이트하는 API 함수입니다.
- * @param problemId - 업데이트할 문제의 problem_id (UUID)
- * @param updatedFields - 업데이트할 필드들
- * @returns 업데이트된 문제 객체
+ * 특정 문제를 업데이트하는 API 함수입니다.
  */
 export const updateProblemAPI = async (problemId: string, updatedFields: Partial<Problem>): Promise<Problem> => {
     const { problem_id, ...payload } = updatedFields;
 
-    const res = await fetch(`${API_BASE_FETCH}/${problemId}`, {
+    const res = await fetch(`${API_BASE_URL}/${problemId}`, {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(payload)
     });
@@ -716,17 +795,28 @@ export const updateProblemAPI = async (problemId: string, updatedFields: Partial
 };
 
 /**
+ * [신규] 여러 문제를 영구적으로 삭제하는 API 함수입니다.
+ * @param problemIds - 삭제할 문제 ID의 배열
+ * @returns 성공 메시지와 삭제된 개수
+ */
+export const deleteProblemsAPI = async (problemIds: string[]): Promise<{ message: string; deleted_count: number }> => {
+    const res = await fetch(API_BASE_URL, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ problem_ids: problemIds })
+    });
+    return handleApiResponse<{ message: string; deleted_count: number }>(res);
+};
+
+/**
  * 문제 목록을 서버에 업로드합니다.
- * @param problems - 업로드할 문제 객체 배열
- * @returns 업로드 결과
  */
 export const uploadProblemsAPI = async (problems: Problem[]): Promise<UploadResponse> => {
     const payload: UploadPayload = { problems };
-    const res = await fetch(API_BASE_UPLOAD, {
+    const res = await fetch(`${API_BASE_URL}/upload`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(payload)
     });
@@ -766,27 +856,27 @@ export type ComboboxOption = {
 };
 ----- ./react/entities/problem/model/useProblemMutations.ts -----
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { uploadProblemsAPI, updateProblemAPI } from '../api/problemApi';
+import { uploadProblemsAPI, updateProblemAPI, deleteProblemsAPI } from '../api/problemApi';
 import type { Problem } from './types';
 import { PROBLEMS_QUERY_KEY } from './useProblemsQuery';
 
+import type { UploadResponse } from '../api/problemApi';
+
 interface UpdateProblemVariables {
-  id: string; // [수정] ID는 항상 string (UUID)
+  id: string; 
   fields: Partial<Problem>;
 }
 
 /**
- * [수정] 문제 수정을 위한 React Query Mutation
+ * 문제 수정을 위한 React Query Mutation
  */
 export function useUpdateProblemMutation() {
     const queryClient = useQueryClient();
     return useMutation<Problem, Error, UpdateProblemVariables>({
         mutationFn: (variables) => updateProblemAPI(variables.id, variables.fields),
-        
-        onSuccess: (updatedProblem) => {
+        onSuccess: (_updatedProblem) => {
             queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
         },
-        
         onError: (error) => {
             alert(`문제 업데이트 실패: ${error.message}`);
             console.error('Update failed:', error);
@@ -795,10 +885,31 @@ export function useUpdateProblemMutation() {
 }
 
 /**
+ * [수정] 단일/다중 문제 영구 삭제를 위한 React Query Mutation
+ * (기존 useDeleteProblemMutation을 이 훅으로 통합)
+ */
+export function useDeleteProblemsMutation() {
+    const queryClient = useQueryClient();
+    return useMutation<{ message: string, deleted_count: number }, Error, string[]>({
+        mutationFn: (problemIds) => deleteProblemsAPI(problemIds),
+        
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
+            alert(data.message || '문제가 삭제되었습니다.');
+        },
+        
+        onError: (error) => {
+            alert(`문제 삭제 실패: ${error.message}`);
+            console.error('Problem delete failed:', error);
+        },
+    });
+}
+
+/**
  * 문제 업로드를 위한 React Query Mutation
  */
 export function useUploadProblemsMutation() {
-    return useMutation<unknown, Error, Problem[]>({
+    return useMutation<UploadResponse, Error, Problem[]>({
         mutationFn: (problems) => uploadProblemsAPI(problems),
         onSuccess: () => {
             alert('문제가 성공적으로 업로드되었습니다.');
@@ -1389,7 +1500,7 @@ const ExamHeaderEditPopover: React.FC<ExamHeaderEditPopoverProps> = ({
         <div className="edit-popover-content">
             <label htmlFor={`edit-${targetLabel}`}>{targetLabel} 수정</label>
             
-            <div className="form-group" style={{gap: '1rem'}}>
+            <div className="form-group form-group-gapped">
                 <input 
                     id={`edit-${targetLabel}`}
                     type="text"
@@ -1416,11 +1527,11 @@ const ExamHeaderEditPopover: React.FC<ExamHeaderEditPopoverProps> = ({
 
             <div className="edit-popover-actions">
                 <ActionButton onClick={onCancel} aria-label="취소">
-                    <LuUndo2 size={14} style={{ marginRight: '4px' }} />
+                    <LuUndo2 size={14} className="popover-icon" />
                     취소
                 </ActionButton>
                 <ActionButton onClick={onSave} className="primary" aria-label="저장">
-                    <LuCheck size={14} style={{ marginRight: '4px' }} />
+                    <LuCheck size={14} className="popover-icon" />
                     저장
                 </ActionButton>
             </div>
@@ -1784,7 +1895,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                 
                 {isApplied ? (
                     <button onClick={onRevertUrls} className="action-button secondary">
-                        <LuUndo2 size={14} style={{ marginRight: '4px' }}/>
+                        <LuUndo2 size={14} className="action-button-icon"/>
                         적용 취소
                     </button>
                 ) : (
@@ -2180,11 +2291,11 @@ export const PopoverInput: React.FC<PopoverInputProps> = ({ label, onSave, onCan
         <input id={`edit-${label}`} {...inputProps} className="popover-input" autoFocus />
         <div className="edit-popover-actions">
             <ActionButton onClick={onCancel} aria-label="취소">
-                <LuUndo2 size={14} style={{ marginRight: '4px' }} />
+                <LuUndo2 size={14} className="popover-icon" />
                 취소
             </ActionButton>
             <ActionButton onClick={onSave} className="primary" aria-label="저장">
-                <LuCheck size={14} style={{ marginRight: '4px' }} />
+                <LuCheck size={14} className="popover-icon" />
                 저장
             </ActionButton>
         </div>
@@ -2203,11 +2314,11 @@ export const PopoverTextarea: React.FC<PopoverTextareaProps> = ({ label, onSave,
             {/* [핵심] 버튼 그룹을 textarea와 같은 컨테이너 안으로 이동 */}
             <div className="edit-popover-actions on-textarea">
                 <ActionButton onClick={onCancel} aria-label="취소">
-                    <LuUndo2 size={14} style={{ marginRight: '4px' }} />
+                    <LuUndo2 size={14} className="popover-icon" />
                     취소
                 </ActionButton>
                 <ActionButton onClick={onSave} className="primary" aria-label="저장">
-                    <LuCheck size={14} style={{ marginRight: '4px' }} />
+                    <LuCheck size={14} className="popover-icon" />
                     저장
                 </ActionButton>
             </div>
@@ -2233,471 +2344,16 @@ export const PopoverCombobox: React.FC<PopoverComboboxProps> = ({ label, value, 
         </div>
     );
 };
------ ./react/features/kakaologin/ui/SignInPanel.tsx -----
-import React from 'react';
-import { useAuthStore } from '../../../shared/store/authStore'; // authStore import
-
-export const SignInPanel: React.FC = () => {
-  const signInWithKakao = useAuthStore(state => state.signInWithKakao);
-  const isLoadingAuth = useAuthStore(state => state.isLoadingAuth);
-  const authError = useAuthStore(state => state.authError);
-  const clearAuthError = useAuthStore.getState().clearAuthError;
-
-
-  const handleSignIn = async () => {
-    if (authError) { // 이전 에러가 있다면 클리어
-      clearAuthError();
-    }
-    await signInWithKakao();
-  };
-
-
-
-  return (
-    <div style={{ padding: '10px', border: '1px solid #eee', borderRadius: '4px', marginTop: '10px' }}>
-      <h4>로그인</h4>
-      <p>
-        아직 로그인하지 않으셨습니다. <br/>
-        아래 버튼을 통해 카카오 계정으로 로그인할 수 있습니다.
-      </p>
-      <button
-        type="button"
-        onClick={handleSignIn}
-        style={{ padding: '8px 12px' }}
-        disabled={isLoadingAuth} // 로딩 중에는 비활성화
-      >
-        {isLoadingAuth ? '처리 중...' : '카카오 계정으로 로그인 (Supabase SDK)'}
-      </button>
-      {/* authError를 여기서 직접 보여줄 수도 있습니다. */}
-      {authError && !isLoadingAuth && ( // 로딩 중이 아닐 때만 에러 표시
-        <p style={{ color: 'red', marginTop: '10px' }}>
-          로그인 오류: {authError}
-        </p>
-      )}
-    </div>
-  );
-};
-
------ ./react/features/kakaologin/ui/SignOutButton.tsx -----
-import React from 'react';
-import { useAuthStore } from '../../../shared/store/authStore'; // authStore import
-
-export const SignOutButton: React.FC = () => {
-  const signOut = useAuthStore(state => state.signOut);
-  const isLoadingAuth = useAuthStore(state => state.isLoadingAuth);
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
-  return (
-    <div style={{ padding: '10px', border: '1px solid #eee', borderRadius: '4px', marginTop: '10px' }}>
-      <h4>로그아웃</h4>
-      {/* {user && <p>환영합니다, {user.email || '사용자'}님!</p>} */}
-      <button
-        type="button"
-        onClick={handleSignOut}
-        disabled={isLoadingAuth} // 로딩 중에는 비활성화
-        style={{ padding: '8px 12px' }}
-      >
-        {isLoadingAuth ? '처리 중...' : '로그아웃'}
-      </button>
-    </div>
-  );
-};
-
------ ./react/features/latex-help/model/useLatexHelpManager.ts -----
-import { useState, useEffect, useCallback } from 'react';
-import { produce } from 'immer';
-
-export interface LatexHelpItem {
-    id: string;
-    title: string;
-    content: string;
-}
-
-const oldHelpData = [
-    { category: '기본 문법', items: [ { syntax: '$...$', description: '인라인 수학 수식' }, { syntax: '$$...$$', description: '블록 수학 수식 (가운데 정렬)' }, { syntax: '\\\\', description: '줄바꿈' }, { syntax: '\\{ \\}', description: '중괄호 { } 표시' } ] },
-    { category: '분수 및 지수/첨자', items: [ { syntax: '\\dfrac{a}{b}', description: '분수 (크게 표시)' }, { syntax: '\\frac{a}{b}', description: '분수 (작게 표시)' }, { syntax: 'x^{...}', description: '윗첨자 (지수)' }, { syntax: 'x_{...}', description: '아래첨자' } ] },
-    { category: '기호 및 연산자', items: [ { syntax: '\\pm', description: '± 기호' }, { syntax: '\\times', description: '× 곱셈 기호' }, { syntax: '\\div', description: '÷ 나눗셈 기호' }, { syntax: '\\le', description: '≤ (작거나 같다)' }, { syntax: '\\ge', description: '≥ (크거나 같다)' }, { syntax: '\\neq', description: '≠ (같지 않다)' }, { syntax: '\\approx', description: '≈ (근사값)' } ] },
-    { category: '루트, 합/곱, 극한, 적분', items: [ { syntax: '\\sqrt{...}', description: '제곱근' }, { syntax: '\\sqrt[n]{...}', description: 'n제곱근' }, { syntax: '\\sum_{i=1}^{n}', description: '합 (시그마)' }, { syntax: '\\prod_{i=1}^{n}', description: '곱 (프로덕트)' }, { syntax: '\\lim_{x \\to \\infty}', description: '극한' }, { syntax: '\\int_{a}^{b}', description: '적분' } ] },
-    { category: '행렬 (matrix)', items: [ { syntax: '\\begin{matrix} a & b \\\\ c & d \\end{matrix}', description: '기본 행렬 (괄호 없음)' }, { syntax: '\\begin{pmatrix} ... \\end{pmatrix}', description: '괄호 () 행렬' }, { syntax: '\\begin{bmatrix} ... \\end{bmatrix}', description: '대괄호 [] 행렬' }, { syntax: '\\begin{vmatrix} ... \\end{vmatrix}', description: '수직선 | | 행렬' } ] }
-];
-
-const oldHelpContent = oldHelpData.map(section => {
-    const itemsText = section.items.map(item => `\`${item.syntax}\`  -  ${item.description}`).join('\n');
-    return `### ${section.category}\n\n${itemsText}`;
-}).join('\n\n');
-
-
-const defaultLatexHelpItems: LatexHelpItem[] = [
-    {
-        id: 'default-latex-1',
-        title: '글상자',
-        content: `\\begin{tabular}{|l|}\\hline
-ㄱ. 이 부분에 글을 작성해 주세요.\\\\
-ㄴ. 다음줄로 넘어가려면 백슬래쉬"\\\\"를 문장의 마지막에 두 번 입력하면 됩니다.\\\\
-ㄷ. 더 필요한 기능을 요청해 주시면 만들겠습니다.\\\\
-ㄹ. 문장이 끝나는 마지막 줄에도 백슬래쉬를 두 번 입력해주세요.\\\\
- \\hline
-\\end{tabular}`
-    },
-    {
-        id: 'default-latex-2',
-        title: '보기 상자',
-        content: `\\begin{tabular}{|c@{}c@{}c|}
-\\multicolumn{1}{c}{} & \\multirow{2}{73px}{<보기>} & \\multicolumn{1}{} \\\\
-\\cline{1-1}\\cline{3-3}
-\\multicolumn{1}{|c}{} && \\multicolumn{1}{c|}{}\\\\
-\\multicolumn{3}{|l|}{
-    \\parbox{400px}{ 
-    ㄱ. 상단에 화살표 보기가 있는 상자입니다. 이 텍스트가 400px 너비 안에서 자동으로 줄바꿈됩니다.\\\\
-    ㄴ. 보기 상자에서는 enter를 이용해서 줄바꿈을 합니다.\\\\
-    ㄷ. 더 필요한 기능을 요청해 주세요.
-    }
-} \\\\
-\\hline
-\\end{tabular}`
-    },
-    {
-        id: 'default-latex-3',
-        title: '기본 LaTeX 문법 모음',
-        content: oldHelpContent,
-    },
-    {
-        id: 'default-latex-4',
-        title: '수식 강조',
-        content: `$$
-\\int_0^1 x^2 dx = \\frac{1}{3}
-$$`
-    }
-];
-
-const STORAGE_KEY = 'latexHelpCollection';
-
-export function useLatexHelpManager() {
-    const [helpItems, setHelpItems] = useState<LatexHelpItem[]>([]);
-    const [editingItemId, setEditingItemId] = useState<string | null>(null);
-    const [editingTitle, setEditingTitle] = useState('');
-    const [editingContent, setEditingContent] = useState('');
-    const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
-
-    useEffect(() => {
-        let initialItems: LatexHelpItem[] = [];
-        try {
-            const storedData = localStorage.getItem(STORAGE_KEY);
-            if (storedData) {
-                initialItems = JSON.parse(storedData);
-                defaultLatexHelpItems.forEach(defaultItem => {
-                    if (!initialItems.some((p: LatexHelpItem) => p.id === defaultItem.id)) {
-                        initialItems.unshift(defaultItem);
-                    }
-                });
-            } else {
-                initialItems = [...defaultLatexHelpItems];
-            }
-        } catch (error) {
-            console.error("Failed to load LaTeX help items from localStorage", error);
-            initialItems = [...defaultLatexHelpItems];
-        }
-        
-        setHelpItems(initialItems);
-        setExpandedItemId(null);
-    }, []);
-
-    useEffect(() => {
-        if (helpItems.length > 0) {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(helpItems));
-            } catch (error) {
-                console.error("Failed to save LaTeX help items to localStorage", error);
-            }
-        } else {
-             localStorage.removeItem(STORAGE_KEY);
-        }
-    }, [helpItems]);
-
-    const addHelpItem = useCallback(() => {
-        const newItem: LatexHelpItem = {
-            id: `latex-help-${Date.now()}`,
-            title: '새 도움말',
-            content: '여기에 LaTeX 코드를 작성하세요.'
-        };
-        const nextItems = produce(helpItems, draft => {
-            draft.push(newItem);
-        });
-        setHelpItems(nextItems);
-        setEditingItemId(newItem.id);
-        setEditingTitle(newItem.title);
-        setEditingContent(newItem.content);
-        setExpandedItemId(newItem.id);
-    }, [helpItems]);
-
-    const deleteHelpItem = useCallback((idToDelete: string) => {
-        if (idToDelete.startsWith('default-')) {
-            alert('기본 도움말은 삭제할 수 없습니다.');
-            return;
-        }
-        if (window.confirm("정말로 이 도움말을 삭제하시겠습니까?")) {
-            setHelpItems(prev => prev.filter(p => p.id !== idToDelete));
-        }
-    }, []);
-    
-    const resetDefaultHelpItem = useCallback((idToReset: string) => {
-        const originalItem = defaultLatexHelpItems.find(p => p.id === idToReset);
-        if (!originalItem || !window.confirm('이 도움말을 기본값으로 되돌리시겠습니까? 변경사항은 사라집니다.')) {
-            return;
-        }
-        
-        const nextItems = produce(helpItems, draft => {
-            const itemToReset = draft.find(p => p.id === idToReset);
-            if (itemToReset) {
-                itemToReset.title = originalItem.title;
-                itemToReset.content = originalItem.content;
-            }
-        });
-        setHelpItems(nextItems);
-    }, [helpItems]);
-    
-    const startEditing = useCallback((item: LatexHelpItem) => {
-        setEditingItemId(item.id);
-        setEditingTitle(item.title);
-        setEditingContent(item.content);
-        setExpandedItemId(item.id);
-    }, []);
-
-    const cancelEditing = useCallback(() => {
-        setEditingItemId(null);
-        setEditingTitle('');
-        setEditingContent('');
-    }, []);
-
-    const saveEditing = useCallback(() => {
-        if (!editingItemId) return;
-        
-        const nextItems = produce(helpItems, draft => {
-            const itemToUpdate = draft.find(p => p.id === editingItemId);
-            if (itemToUpdate) {
-                itemToUpdate.title = editingTitle.trim() || '제목 없음';
-                itemToUpdate.content = editingContent;
-            }
-        });
-        setHelpItems(nextItems);
-        cancelEditing();
-    }, [editingItemId, editingTitle, editingContent, helpItems, cancelEditing]);
-
-    const toggleExpand = useCallback((id: string) => {
-        if (editingItemId && editingItemId !== id) return;
-        setExpandedItemId(prevId => (prevId === id ? null : id));
-    }, [editingItemId]);
-
-    return {
-        helpItems,
-        editingItemId,
-        editingTitle,
-        setEditingTitle,
-        editingContent,
-        setEditingContent,
-        expandedItemId,
-        toggleExpand,
-        addHelpItem,
-        deleteHelpItem,
-        resetDefaultHelpItem,
-        startEditing,
-        cancelEditing,
-        saveEditing,
-    };
-}
------ ./react/features/latex-help/ui/LatexHelpPanel.tsx -----
-import React, { useState, useCallback } from 'react';
-import { LuCopy, LuChevronDown, LuPencil, LuTrash2, LuSave, LuCircleX, LuRotateCcw, LuCirclePlus } from 'react-icons/lu';
-import Tippy from '@tippyjs/react';
-import { useLatexHelpManager, type LatexHelpItem } from '../model/useLatexHelpManager';
-import '../../prompt-collection/ui/PromptCollection.css';
-
-interface HelpItemMemoProps {
-    item: LatexHelpItem;
-    isEditing: boolean;
-    isExpanded: boolean;
-    editingTitle: string;
-    onSetEditingTitle: (title: string) => void;
-    editingContent: string;
-    onSetEditingContent: (content: string) => void;
-    onStartEditing: (item: LatexHelpItem) => void;
-    onSave: () => void;
-    onCancel: () => void;
-    onDelete: (id: string) => void;
-    onReset: (id: string) => void;
-    onToggleExpand: (id: string) => void;
-}
-
-const HelpItemMemo: React.FC<HelpItemMemoProps> = ({
-    item, isEditing, isExpanded, editingTitle, onSetEditingTitle, editingContent, onSetEditingContent,
-    onStartEditing, onSave, onCancel, onDelete, onReset, onToggleExpand
-}) => {
-    const [isCopied, setIsCopied] = useState(false);
-
-    const handleCopy = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(item.content).then(() => {
-            setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
-        }).catch(err => {
-            console.error('클립보드 복사 실패:', err);
-            alert('클립보드 복사에 실패했습니다.');
-        });
-    }, [item.content]);
-
-    const handleEditClick = (e: React.MouseEvent) => { e.stopPropagation(); onStartEditing(item); };
-    const handleDeleteClick = (e: React.MouseEvent) => { e.stopPropagation(); onDelete(item.id); };
-    const handleResetClick = (e: React.MouseEvent) => { e.stopPropagation(); onReset(item.id); };
-    
-    const editModeHeader = (
-        <div className="prompt-memo-header non-clickable">
-            <input 
-                type="text" 
-                value={editingTitle} 
-                onChange={(e) => onSetEditingTitle(e.target.value)} 
-                className="title-input"
-                placeholder="도움말 제목"
-            />
-            <div className="button-group">
-                <Tippy content="저장" theme="custom-glass"><button onClick={onSave} className="prompt-action-button save"><LuSave size={16} /></button></Tippy>
-                <Tippy content="취소" theme="custom-glass"><button onClick={onCancel} className="prompt-action-button cancel"><LuCircleX size={16} /></button></Tippy>
-            </div>
-        </div>
-    );
-    
-    const viewModeHeader = (
-        <div className="prompt-memo-header" onClick={() => onToggleExpand(item.id)}>
-            <div className="header-top-row">
-                <button className="expand-toggle-button" aria-expanded={isExpanded}>
-                    <LuChevronDown size={18} className="chevron-icon" />
-                </button>
-                <h5 className="prompt-memo-title">{item.title}</h5>
-            </div>
-            <div className="header-bottom-row">
-                <div className="button-group">
-                    <Tippy content={isCopied ? "복사 완료!" : "내용 복사"} theme="custom-glass"><button onClick={handleCopy} className="prompt-action-button copy"><LuCopy size={16} /></button></Tippy>
-                    <Tippy content="수정" theme="custom-glass"><button onClick={handleEditClick} className="prompt-action-button edit"><LuPencil size={16} /></button></Tippy>
-                    {item.id.startsWith('default-') && (
-                         <Tippy content="기본값으로 초기화" theme="custom-glass"><button onClick={handleResetClick} className="prompt-action-button reset"><LuRotateCcw size={16} /></button></Tippy>
-                    )}
-                    <Tippy content="삭제" theme="custom-glass"><button onClick={handleDeleteClick} disabled={item.id.startsWith('default-')} className="prompt-action-button delete"><LuTrash2 size={16} /></button></Tippy>
-                </div>
-            </div>
-        </div>
-    );
-
-    if (isEditing) {
-        return (
-            <div className="prompt-memo-card editing expanded"> 
-                {editModeHeader}
-                <div className="prompt-memo-content">
-                    <textarea 
-                        value={editingContent} 
-                        onChange={(e) => onSetEditingContent(e.target.value)} 
-                        className="content-textarea"
-                        placeholder="LaTeX 내용"
-                    />
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className={`prompt-memo-card ${isExpanded ? 'expanded' : ''}`}>
-            {viewModeHeader}
-            <div className="prompt-memo-content">
-                <pre>{item.content}</pre>
-            </div>
-        </div>
-    );
-};
-
-
-const LatexHelpPanel: React.FC = () => {
-    const {
-        helpItems,
-        editingItemId,
-        editingTitle,
-        setEditingTitle,
-        editingContent,
-        setEditingContent,
-        expandedItemId,
-        toggleExpand,
-        addHelpItem,
-        deleteHelpItem,
-        resetDefaultHelpItem,
-        startEditing,
-        cancelEditing,
-        saveEditing
-    } = useLatexHelpManager();
-
-    return (
-        <div className="prompt-collection-container">
-            <div className="prompt-collection-header">
-                <h4 className="prompt-collection-title">LaTeX 도우미</h4>
-            </div>
-            <div className="add-prompt-section">
-                <button onClick={addHelpItem} className="add-prompt-button">
-                    <LuCirclePlus size={16} />
-                    <span>새 도움말 추가</span>
-                </button>
-            </div>
-            <div className="prompt-list">
-                {helpItems.map(item => (
-                    <HelpItemMemo
-                        key={item.id}
-                        item={item}
-                        isEditing={editingItemId === item.id}
-                        isExpanded={expandedItemId === item.id}
-                        editingTitle={editingTitle}
-                        onSetEditingTitle={setEditingTitle}
-                        editingContent={editingContent}
-                        onSetEditingContent={setEditingContent}
-                        onStartEditing={startEditing}
-                        onSave={saveEditing}
-                        onCancel={cancelEditing}
-                        onDelete={deleteHelpItem}
-                        onReset={resetDefaultHelpItem}
-                        onToggleExpand={toggleExpand}
-                    />
-                ))}
-                {helpItems.length === 0 && (
-                    <div className="empty-prompt-list">
-                        <p>저장된 도움말이 없습니다.</p>
-                        <p>'새 도움말 추가' 버튼을 눌러 시작하세요.</p>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-export default LatexHelpPanel;
 ----- ./react/features/popovermenu/ProfileMenuContent.tsx -----
 import React from 'react';
-import { Link, useNavigate } from 'react-router'; // react-router-dom에서 useNavigate 가져오기
+import { Link, useNavigate } from 'react-router'; //이게 올바른 import로 바뀜.
 import { LuUser, LuSettings, LuLogIn, LuLogOut } from 'react-icons/lu';
 import { useAuthStore, selectIsAuthenticated, selectUser, selectIsLoadingAuth } from '../../shared/store/authStore';
+import './ProfileMenuContent.css';
 
 interface ProfileMenuContentProps {
     onClose?: () => void;
 }
-
-const styles = {
-    popoverContent: { minWidth: '200px', backgroundColor: 'var(--glass-base-bg, rgba(255, 255, 255, 0.8))', backdropFilter: 'blur(10px)', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', overflow: 'hidden', } as React.CSSProperties,
-    userInfoSection: { padding: '12px 16px', borderBottom: '1px solid var(--border-color-light, rgba(0, 0, 0, 0.1))', } as React.CSSProperties,
-    userName: { margin: 0, fontWeight: 600, fontSize: '15px', color: 'var(--text-color-primary, #333)', } as React.CSSProperties,
-    userEmail: { margin: '4px 0 0', fontSize: '13px', color: 'var(--text-color-secondary, #777)', } as React.CSSProperties,
-    menuList: { listStyle: 'none', margin: 0, padding: '8px 0', } as React.CSSProperties,
-    menuItemLi: { padding: '0', } as React.CSSProperties,
-    commonMenuItem: { display: 'flex', alignItems: 'center', width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--text-color-primary, #333)', textDecoration: 'none', } as React.CSSProperties,
-    menuItemIcon: { marginRight: '12px', flexShrink: 0, } as React.CSSProperties,
-    menuItemText: { flexGrow: 1, } as React.CSSProperties,
-};
-
 
 const ProfileMenuContent: React.FC<ProfileMenuContentProps> = ({ onClose }) => {
     const navigate = useNavigate();
@@ -2705,9 +2361,7 @@ const ProfileMenuContent: React.FC<ProfileMenuContentProps> = ({ onClose }) => {
     const isAuthenticated = useAuthStore(selectIsAuthenticated);
     const user = useAuthStore(selectUser);
     const isLoading = useAuthStore(selectIsLoadingAuth);
-    const signOut = useAuthStore((state) => state.signOut); // signOut 액션을 가져옵니다.
-
-    const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
+    const signOut = useAuthStore((state) => state.signOut);
 
     const handleClose = () => {
         if (onClose) {
@@ -2722,60 +2376,51 @@ const ProfileMenuContent: React.FC<ProfileMenuContentProps> = ({ onClose }) => {
 
     const handleLogoutClick = async () => {
         try {
-            await signOut(); // 스토어의 signOut 함수 호출 (내부적으로 supabase.auth.signOut() 실행)
-            
-            navigate('/login', { replace: true }); // 로그인 페이지로 이동
+            await signOut();
+            navigate('/login', { replace: true });
         } catch (error) {
             console.error("[ProfileMenuContent] Error during sign out:", error);
             navigate('/login', { replace: true });
         } finally {
-            handleClose(); // 팝오버 닫기
+            handleClose();
         }
     };
-
-    const getMenuItemStyle = (itemName: string): React.CSSProperties => ({
-        ...styles.commonMenuItem,
-        backgroundColor: hoveredItem === itemName ? 'var(--hover-bg-color-light, rgba(0, 0, 0, 0.05))' : 'transparent',
-        transition: 'background-color 0.2s ease-in-out',
-    });
-
+    
     if (isLoading) {
-        return <div style={{ ...styles.popoverContent, padding: '20px', textAlign: 'center' }}><p>로딩 중...</p></div>;
+        return <div className="profile-popover-content loading-state"><p>로딩 중...</p></div>;
     }
 
     return (
-        <div style={styles.popoverContent}>
-            {/* [수정 5] 인증 상태 확인 로직을 새로운 상태값으로 변경합니다. */}
+        <div className="profile-popover-content">
             {isAuthenticated && user ? (
                 <>
-                    <div style={styles.userInfoSection}>
-                        {/* [수정 6] Supabase user 객체 구조에 맞게 사용자 이름 접근 방식을 수정합니다. */}
-                        <p style={styles.userName}>{user.user_metadata?.name || user.user_metadata?.full_name || '사용자'}</p>
-                        <p style={styles.userEmail}>{user.email}</p>
+                    <div className="profile-user-info">
+                        <p className="profile-user-name">{user.user_metadata?.name || user.user_metadata?.full_name || '사용자'}</p>
+                        <p className="profile-user-email">{user.email}</p>
                     </div>
-                    <ul style={styles.menuList}>
-                        <li style={styles.menuItemLi}>
-                            <Link to="/profile" style={getMenuItemStyle('profile')} onClick={handleClose} onMouseEnter={() => setHoveredItem('profile')} onMouseLeave={() => setHoveredItem(null)} aria-label="내 프로필 보기" >
-                                <LuUser size={16} style={styles.menuItemIcon} /> <span style={styles.menuItemText}>내 프로필</span>
+                    <ul className="profile-menu-list">
+                        <li className="profile-menu-item-li">
+                            <Link to="/profile" className="profile-menu-item" onClick={handleClose} aria-label="내 프로필 보기" >
+                                <LuUser size={16} className="profile-menu-icon" /> <span className="profile-menu-text">내 프로필</span>
                             </Link>
                         </li>
-                        <li style={styles.menuItemLi}>
-                            <Link to="/settings/account" style={getMenuItemStyle('settings')} onClick={handleClose} onMouseEnter={() => setHoveredItem('settings')} onMouseLeave={() => setHoveredItem(null)} aria-label="계정 설정으로 이동" >
-                                <LuSettings size={16} style={styles.menuItemIcon} /> <span style={styles.menuItemText}>계정 설정</span>
+                        <li className="profile-menu-item-li">
+                            <Link to="/settings/account" className="profile-menu-item" onClick={handleClose} aria-label="계정 설정으로 이동" >
+                                <LuSettings size={16} className="profile-menu-icon" /> <span className="profile-menu-text">계정 설정</span>
                             </Link>
                         </li>
-                        <li style={styles.menuItemLi}>
-                            <button type="button" style={getMenuItemStyle('logout')} onClick={handleLogoutClick} onMouseEnter={() => setHoveredItem('logout')} onMouseLeave={() => setHoveredItem(null)} aria-label="로그아웃" >
-                                <LuLogOut size={16} style={styles.menuItemIcon} /> <span style={styles.menuItemText}>로그아웃</span>
+                        <li className="profile-menu-item-li">
+                            <button type="button" className="profile-menu-item" onClick={handleLogoutClick} aria-label="로그아웃" >
+                                <LuLogOut size={16} className="profile-menu-icon" /> <span className="profile-menu-text">로그아웃</span>
                             </button>
                         </li>
                     </ul>
                 </>
             ) : (
-                <ul style={styles.menuList}>
-                    <li style={styles.menuItemLi}>
-                        <button type="button" style={getMenuItemStyle('login')} onClick={handleLoginClick} onMouseEnter={() => setHoveredItem('login')} onMouseLeave={() => setHoveredItem(null)} aria-label="로그인" >
-                            <LuLogIn size={16} style={styles.menuItemIcon} /> <span style={styles.menuItemText}>로그인</span>
+                <ul className="profile-menu-list">
+                    <li className="profile-menu-item-li">
+                        <button type="button" className="profile-menu-item" onClick={handleLoginClick} aria-label="로그인" >
+                            <LuLogIn size={16} className="profile-menu-icon" /> <span className="profile-menu-text">로그인</span>
                         </button>
                     </li>
                 </ul>
@@ -3023,8 +2668,8 @@ import { calculateInitialLayout, recalculateProblemLayout, recalculateSolutionLa
 import { useProblemPublishingStore } from './problemPublishingStore';
 
 let itemHeightsMap = new Map<string, number>();
-let debounceTimer: number | null = null;
-let recalculateTimer: NodeJS.Timeout | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let recalculateTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface ExamUIOptions {
     baseFontSize: string;
@@ -3083,7 +2728,7 @@ const logLayoutResult = (problems: ProcessedProblem[], problemPlacements: Map<st
 const runDebouncedRecalculation = (get: () => ExamLayoutState & ExamLayoutActions) => {
     if (debounceTimer) clearTimeout(debounceTimer);
 
-    debounceTimer = window.setTimeout(() => {
+    debounceTimer = setTimeout(() => {
         const state = get();
         const isEditing = !!useProblemPublishingStore.getState().editingProblemId;
 
@@ -3404,7 +3049,7 @@ export function useProblemPublishing() {
         toggleRow, 
         toggleItems, 
         replaceSelection, 
-        clearSelection,   
+        clearSelection, // [수정] clearSelection을 받아옴
         setSelectedIds,   
     } = useRowSelection<string>({ allItems: problemUniqueIds });
     
@@ -3435,7 +3080,7 @@ export function useProblemPublishing() {
         toggleRow,
         toggleItems,
         replaceSelection, 
-        clearSelection,   
+        clearSelection,   // [수정] clearSelection을 반환
         
         isSavingProblem: updateProblemMutation.isPending,
         handleSaveProblem,
@@ -3450,14 +3095,12 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useProblemPublishing } from './useProblemPublishing';
 import { useExamLayoutStore } from './examLayoutStore';
-import { useExamLayoutManager } from './useExamLayoutManager'; // [추가] 훅 임포트
+import { useExamLayoutManager } from './useExamLayoutManager';
 import type { ProcessedProblem } from './problemPublishingStore';
 import { useTableSearch } from '../../table-search/model/useTableSearch';
 import type { SuggestionGroup } from '../../table-search/ui/TableSearch';
+import { useDeleteProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
 
-/**
- * 문제 출제 페이지의 모든 상태와 로직을 관리하는 커스텀 훅
- */
 export function useProblemPublishingPage() {
     const {
         allProblems: allProblemsFromSource,
@@ -3467,6 +3110,7 @@ export function useProblemPublishingPage() {
         toggleRow,
         toggleItems,
         replaceSelection,
+        clearSelection,
         isSavingProblem,
         handleSaveProblem,
         handleLiveProblemChange,
@@ -3500,6 +3144,27 @@ export function useProblemPublishingPage() {
     });
     const previewAreaRef = useRef<HTMLDivElement>(null);
 
+    const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+    const { mutate: deleteSelectedProblems, isPending: isDeletingProblems } = useDeleteProblemsMutation();
+
+    const handleDeleteSelected = () => {
+        if (selectedIds.size > 0) {
+            setIsBulkDeleteModalOpen(true);
+        }
+    };
+
+    const handleConfirmBulkDelete = () => {
+        deleteSelectedProblems(Array.from(selectedIds), {
+            onSuccess: () => {
+                clearSelection();
+                setIsBulkDeleteModalOpen(false);
+            },
+            onError: () => {
+                 setIsBulkDeleteModalOpen(true);
+            }
+        });
+    };
+    
     const filteredProblems = useTableSearch({
         data: allProblemsFromSource,
         searchTerm,
@@ -3562,7 +3227,7 @@ export function useProblemPublishingPage() {
                 if (currentSet.size === 0) {
                     delete newFilters[key];
                 } else {
-                    newFilters[key] = currentSet;
+                    newFilters[key] = currentSet; // [수정] 버그 수정
                 }
                 return newFilters;
             });
@@ -3672,6 +3337,12 @@ export function useProblemPublishingPage() {
         onProblemClick: handleProblemClick,
         onHeaderUpdate: handleHeaderUpdate,
         onDeselectProblem: toggleRow,
+
+        onDeleteSelected: handleDeleteSelected,
+        isBulkDeleteModalOpen,
+        onCloseBulkDeleteModal: () => setIsBulkDeleteModalOpen(false),
+        onConfirmBulkDelete: handleConfirmBulkDelete,
+        isDeletingProblems
     };
 }
 ----- ./react/features/problem-text-editing/ui/ProblemMetadataEditor.tsx -----
@@ -3808,10 +3479,12 @@ export default ProblemMetadataEditor;
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Problem } from '../../../entities/problem/model/types';
 import Editor from '../../../shared/ui/codemirror-editor/Editor';
-import LoadingButton from '../../../shared/ui/loadingbutton/LoadingButton'; // ActionButton 대신 LoadingButton import
+import LoadingButton from '../../../shared/ui/loadingbutton/LoadingButton';
 import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
-import { LuCheck, LuUndo2 } from 'react-icons/lu';
+import { LuCheck, LuUndo2, LuTrash2 } from 'react-icons/lu';
 import ProblemMetadataEditor from './ProblemMetadataEditor';
+import Modal from '../../../shared/ui/modal/Modal';
+import { useDeleteProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
 import './ProblemTextEditor.css';
 
 const EDITABLE_METADATA_FIELDS: (keyof Problem)[] = [
@@ -3836,12 +3509,16 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     isSaving = false,
     onSave, 
     onRevert,
+    onClose,
     onProblemChange,
 }) => {
-
     const [localQuestionText, setLocalQuestionText] = useState(problem.question_text ?? '');
     const [localSolutionText, setLocalSolutionText] = useState(problem.solution_text ?? '');
     const [localProblemData, setLocalProblemData] = useState(problem);
+    
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    
+    const { mutate: deleteProblem, isPending: isDeleting } = useDeleteProblemsMutation();
 
     useEffect(() => {
         setLocalQuestionText(problem.question_text ?? '');
@@ -3852,21 +3529,19 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     useEffect(() => {
         const handler = setTimeout(() => {
             if (problem.question_text !== localQuestionText || problem.solution_text !== localSolutionText) {
-                console.log('[LOG] Debounced update 실행! 상위 컴포넌트로 변경사항 전파');
                 onProblemChange({ 
                     ...localProblemData, 
                     question_text: localQuestionText,
                     solution_text: localSolutionText
                 });
             }
-        }, 300); // 300ms 디바운스
+        }, 300);
 
         return () => {
             clearTimeout(handler);
         };
     }, [localQuestionText, localSolutionText, onProblemChange, problem, localProblemData]);
     
-
     const handleMetadataChange = useCallback((field: keyof Problem, value: string | number) => {
         const updatedProblem = { ...localProblemData, [field]: value };
         setLocalProblemData(updatedProblem);
@@ -3885,56 +3560,104 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
         onRevert(problem.uniqueId);
     };
 
+    const handleDeleteClick = () => {
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleConfirmDelete = () => {
+        deleteProblem([problem.problem_id], {
+            onSuccess: () => {
+                setIsDeleteModalOpen(false);
+                onClose(); 
+            },
+            onError: () => {
+                setIsDeleteModalOpen(true); 
+            }
+        });
+    };
+
     return (
-        <div className="problem-text-editor-container">
-            <div className="editor-header">
-                <h4 className="editor-title">{problem.display_question_number}번 문제 수정</h4>
-                <div className="editor-actions">
-                    <ActionButton onClick={handleRevert} aria-label="변경사항 초기화" disabled={isSaving}>
-                        <LuUndo2 size={14} style={{ marginRight: '4px' }} />
-                        초기화
-                    </ActionButton>
-                    <LoadingButton 
-                        onClick={handleSave} 
-                        className="primary" 
-                        aria-label="변경사항 저장"
-                        isLoading={isSaving}
-                        loadingText="저장중..."
-                    >
-                        <LuCheck size={14} style={{ marginRight: '4px' }} />
-                        저장
-                    </LoadingButton>
-                </div>
-            </div>
-            
-            <div className="editor-body-wrapper">
-                <div className="editor-section">
-                    <h5 className="editor-section-title">문제 본문</h5>
-                    <div className="editor-wrapper-body">
-                        <Editor 
-                            initialContent={localQuestionText}
-                            onContentChange={setLocalQuestionText}
-                        />
+        <>
+            <div className="problem-text-editor-container">
+                <div className="editor-header">
+                    <h4 className="editor-title">{problem.display_question_number}번 문제 수정</h4>
+                    <div className="editor-actions">
+                        <ActionButton onClick={handleRevert} aria-label="변경사항 초기화" disabled={isSaving || isDeleting}>
+                            <LuUndo2 size={14} className="action-icon" />
+                            초기화
+                        </ActionButton>
+                        
+                        <LoadingButton
+                            onClick={handleDeleteClick}
+                            className="destructive"
+                            aria-label="문제 영구 삭제"
+                            isLoading={isDeleting}
+                            disabled={isSaving}
+                            loadingText="삭제중..."
+                        >
+                            <LuTrash2 size={14} className="action-icon" />
+                            영구 삭제
+                        </LoadingButton>
+
+                        <LoadingButton 
+                            onClick={handleSave} 
+                            className="primary" 
+                            aria-label="변경사항 저장"
+                            isLoading={isSaving}
+                            disabled={isDeleting}
+                            loadingText="저장중..."
+                        >
+                            <LuCheck size={14} className="action-icon" />
+                            저장
+                        </LoadingButton>
                     </div>
                 </div>
+                
+                <div className="editor-body-wrapper">
+                    <div className="editor-section">
+                        <h5 className="editor-section-title">문제 본문</h5>
+                        <div className="editor-wrapper-body">
+                            <Editor 
+                                initialContent={localQuestionText}
+                                onContentChange={setLocalQuestionText}
+                            />
+                        </div>
+                    </div>
 
-                <ProblemMetadataEditor
-                    fields={EDITABLE_METADATA_FIELDS}
-                    problemData={localProblemData}
-                    onDataChange={handleMetadataChange}
-                />
+                    <ProblemMetadataEditor
+                        fields={EDITABLE_METADATA_FIELDS}
+                        problemData={localProblemData}
+                        onDataChange={handleMetadataChange}
+                    />
 
-                <div className="editor-section">
-                    <h5 className="editor-section-title">해설</h5>
-                    <div className="editor-wrapper-body">
-                        <Editor
-                            initialContent={localSolutionText}
-                            onContentChange={setLocalSolutionText}
-                        />
+                    <div className="editor-section">
+                        <h5 className="editor-section-title">해설</h5>
+                        <div className="editor-wrapper-body">
+                            <Editor
+                                initialContent={localSolutionText}
+                                onContentChange={setLocalSolutionText}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            <Modal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleConfirmDelete}
+                isConfirming={isDeleting}
+                title="문제 영구 삭제 확인"
+                confirmText="삭제"
+                size="small"
+            >
+                <p>
+                    정말로 이 문제를 영구적으로 삭제하시겠습니까?
+                    <br />
+                    이 작업은 되돌릴 수 없습니다.
+                </p>
+            </Modal>
+        </>
     );
 };
 
@@ -4086,6 +3809,7 @@ const defaultPrompts: Prompt[] = [
         *   만약 정답이나 해설이 없다면, \`answer\`와 \`solution_text\` 필드 값은 반드시 **null**로 설정해주세요. (빈 문자열 ""이 아님)
     *   **[중요] 문제와 보기 사이에는 "\\n <br> \\n"을 넣어서 빈 줄을 만듭니다. <br> 다음에 \\n을 넣어야 줄바꿈이 제대로 입력됩니다.
     *   **보기와 보기 사이에는 "&emsp;"를 한 번 또는 두 번 써서 적당히 여백을 만듭니다.
+    *   ** score를 필드에 입력했으면 문제 텍스트의 점수부분은 제거합니다.(문제 텍스트는 무결성이 중요하니까 다른 부분은 건드리지 않습니다.)
     *   **메타데이터 추론:** \`major_chapter_id\`, \`middle_chapter_id\`, \`core_concept_id\`, \`problem_category\` 필드는 문제 내용과 해설을 분석하여 가장 관련성 높은 **단일 문자열 값**을 추론하여 채웁니다. (예: "미적분", "이차함수")
 
 3.  **출력:** 아래 'edit code'의 JSON 스키마 **구조**를 준수하는 JSON 객체 문자열.
@@ -4097,7 +3821,7 @@ const defaultPrompts: Prompt[] = [
     {
       "question_number": 1,
       "problem_type": "객관식",
-      "question_text": "수열 \${a_n}$이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? [$3.8$점]\\\\n <br> \\\\n① $16$ &emsp;&emsp;② $32$ &emsp;&emsp;③ $64$ &emsp;&emsp;④ $128$ &emsp;&emsp;⑤ $256$",
+      "question_text": "수열 \${a_n}$이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? \\\\n <br> \\\\n① $16$ &emsp;&emsp;② $32$ &emsp;&emsp;③ $64$ &emsp;&emsp;④ $128$ &emsp;&emsp;⑤ $256$",
       "answer": null,
       "solution_text": null,
       "page": null,
@@ -4114,7 +3838,7 @@ const defaultPrompts: Prompt[] = [
     {
       "question_number": 8,
       "problem_type": "객관식",
-      "question_text": "다음은 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 부등식 $2^n > n^2 \\\\cdots (\\\\star)$이 성립함을 수학적 귀납법으로 증명한 것이다.\\\\n\\\\begin{tabular}{|l|}\\\\hline\\\\n(i) $n=$ $\\\\fbox{  A  }$ 이면 (좌변)= $\\\\fbox{ B }$  >  $\\\\fbox{ C }$ $=$(우변)이므로 $(\\\\star)$이 성립한다.<br><br>\\\\n (ii) $n=k(k \\\\ge 5)$일 때 $(\\\\star)$는 성립한다고 가정하면 $2^k > k^2$이다.\\\\n 양변에 $\\\\fbox{ D }$ 를 곱하면 $2^{k+1} >  \\\\fbox{ D } k^2$이다.\\\\n<br>이때, $f(k) =  \\\\fbox{ D } k^2 - (k+1)^2$이라 하면 $f(k)$의 최솟값은 $\\\\fbox{ E }$ 이므로 $f(k) > 0$이다.\\\\n즉, $2^{k+1} > (k+1)^2$이다.\\\\n따라서 $n=k+1$일 때도 $(\\\\star)$는 성립한다.<br><br>\\\\n (i), (ii)에 의하여 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 $(\\\\star)$은 성립한다.\\\\\\\\n \\\\hline\\\\n\\\\end{tabular}\\\\n\\\\n위의 $A, B, C, D, E$ 에 알맞은 수를 각각 $a, b, c, d, e$라 할 때, $a+b+c+d+e$의 값은? [$4.6$점]\\\\n <br> \\\\n① $64$ &emsp;② $71$ &emsp;③ $78$ &emsp;④ $82$ &emsp;⑤ $86$",
+      "question_text": "다음은 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 부등식 $2^n > n^2 \\\\cdots (\\\\star)$이 성립함을 수학적 귀납법으로 증명한 것이다.\\\\n\\\\begin{tabular}{|l|}\\\\hline\\\\n(i) $n=$ $\\\\fbox{  A  }$ 이면 (좌변)= $\\\\fbox{ B }$  >  $\\\\fbox{ C }$ $=$(우변)이므로 $(\\\\star)$이 성립한다.<br><br>\\\\n (ii) $n=k(k \\\\ge 5)$일 때 $(\\\\star)$는 성립한다고 가정하면 $2^k > k^2$이다.\\\\n 양변에 $\\\\fbox{ D }$ 를 곱하면 $2^{k+1} >  \\\\fbox{ D } k^2$이다.\\\\n<br>이때, $f(k) =  \\\\fbox{ D } k^2 - (k+1)^2$이라 하면 $f(k)$의 최솟값은 $\\\\fbox{ E }$ 이므로 $f(k) > 0$이다.\\\\n즉, $2^{k+1} > (k+1)^2$이다.\\\\n따라서 $n=k+1$일 때도 $(\\\\star)$는 성립한다.<br><br>\\\\n (i), (ii)에 의하여 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 $(\\\\star)$은 성립한다.\\\\\\\\n \\\\hline\\\\n\\\\end{tabular}\\\\n\\\\n위의 $A, B, C, D, E$ 에 알맞은 수를 각각 $a, b, c, d, e$라 할 때, $a+b+c+d+e$의 값은? \\\\n <br> \\\\n① $64$ &emsp;② $71$ &emsp;③ $78$ &emsp;④ $82$ &emsp;⑤ $86$",
       "answer": null,
       "solution_text": null,
       "page": null,
@@ -4792,8 +4516,8 @@ export function useStudentDashboard() {
             onCreateProblemSet: handleCreateProblemSet,
             selectedCount: selectedIds.size,
             showActionControls: true,
-            isFilteredAllSelected,
-            onHide: undefined, // [수정] 대시보드에서는 숨기기 기능 없음
+            isSelectionComplete: isFilteredAllSelected, // [수정] prop 이름 변경
+            onHide: undefined,
         });
         return () => useLayoutStore.getState().setSearchBoxProps(null);
     }, [
@@ -5506,6 +5230,7 @@ createRoot(rootElement).render(
 import React from 'react';
 import StudentTableWidget from '../widgets/student-table/StudentTableWidget';
 import { useStudentDashboard } from '../features/student-dashboard';
+import './DashBoard.css';
 
 const DashBoard: React.FC = () => {
     const {
@@ -5522,7 +5247,7 @@ const DashBoard: React.FC = () => {
     
     if (isError) {
         return (
-            <div style={{ padding: '20px', color: 'red', textAlign: 'center' }}>
+            <div className="dashboard-error-container">
                 <h2>학생 데이터 로딩 오류</h2>
                 <p>{error?.message || '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'}</p>
             </div>
@@ -5530,7 +5255,7 @@ const DashBoard: React.FC = () => {
     }
 
     return (
-        <div style={{ position: 'relative', height: '100%' }}>
+        <div className="dashboard-container">
             <StudentTableWidget 
                 students={students} 
                 isLoading={isLoading}
@@ -5547,7 +5272,6 @@ const DashBoard: React.FC = () => {
 export default DashBoard;
 ----- ./react/pages/HomePage.tsx -----
 import React from "react";
-
 import {
   useAuthStore,
   selectUser,
@@ -5555,11 +5279,10 @@ import {
   selectIsLoadingAuth,
   selectAuthError,
 } from "../shared/store/authStore";
-
 import { SignInPanel } from "../features/kakaologin/ui/SignInPanel";
 import { SignOutButton } from "../features/kakaologin/ui/SignOutButton";
-
 import { UserDetailsButton } from "../widgets/UserDetailsButton";
+import './HomePage.css';
 
 const HomePage: React.FC = () => {
   const user = useAuthStore(selectUser);
@@ -5569,7 +5292,7 @@ const HomePage: React.FC = () => {
 
   if (isLoadingAuth) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
+      <div className="homepage-container homepage-loading">
         <h2>인증 상태를 확인 중입니다...</h2>
         <p>잠시만 기다려주세요.</p>
       </div>
@@ -5577,38 +5300,37 @@ const HomePage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <header style={{ textAlign: 'center', marginBottom: '30px' }}>
+    <div className="homepage-container">
+      <header className="homepage-header">
         <h1>Hono Supabase Auth Example!</h1>
-        {user && <p>환영합니다11, <strong>{user.email || '사용자'}</strong>님!</p>}
+        {user && <p>환영합니다, <strong>{user.email || '사용자'}</strong>님!</p>}
       </header>
 
-      <hr style={{ margin: '30px 0' }} />
+      <hr className="homepage-divider" />
 
-      <section style={{ marginBottom: '30px' }}>
-        <h2 style={{ marginBottom: '15px' }}>Sign in / Sign out</h2>
+      <section className="homepage-section">
+        <h2 className="section-title">Sign in / Sign out</h2>
         {!isAuthenticated ? <SignInPanel /> : <SignOutButton />}
         {authError && !isLoadingAuth && (
-            <p style={{ color: 'red', marginTop: '10px' }}>
+            <p className="auth-error-message">
                 인증 오류: {authError}
             </p>
         )}
       </section>
 
-      <hr style={{ margin: '30px 0' }} />
+      <hr className="homepage-divider" />
 
       {isAuthenticated && user && (
         <>
-          <section style={{ marginBottom: '30px' }}>
-            <h2 style={{ marginBottom: '15px' }}>Example of API fetch() (Hono Client)</h2>
+          <section className="homepage-section">
+            <h2 className="section-title">Example of API fetch() (Hono Client)</h2>
             <UserDetailsButton />
           </section>
-
         </>
       )}
 
       {!isAuthenticated && (
-        <p style={{ marginTop: '30px', fontStyle: 'italic', textAlign: 'center' }}>
+        <p className="login-prompt">
           더 많은 예제를 보거나 데이터를 가져오려면 로그인해주세요.
         </p>
       )}
@@ -5683,9 +5405,9 @@ import {
   selectIsAuthenticated,
   selectIsLoadingAuth,
   selectAuthError,
-} from '../shared/store/authStore'; // authStore 경로 수정
-import BackgroundBlobs from '../widgets/rootlayout/BackgroundBlobs'; // 경로 확인
-import './LoginPage.css'; // CSS 파일 경로 확인
+} from '../shared/store/authStore';
+import BackgroundBlobs from '../widgets/rootlayout/BackgroundBlobs';
+import './LoginPage.css';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -5696,7 +5418,7 @@ const LoginPage: React.FC = () => {
   const authStoreError = useAuthStore(selectAuthError);
   const { signInWithKakao, clearAuthError } = useAuthStore.getState();
 
-  const [isKakaoLoginLoading, setIsKakaoLoginLoading] = useState(false); // 카카오 로그인 버튼 전용 로딩 상태
+  const [isKakaoLoginLoading, setIsKakaoLoginLoading] = useState(false);
   const [urlErrorMessage, setUrlErrorMessage] = useState('');
 
   useEffect(() => {
@@ -5731,7 +5453,6 @@ const LoginPage: React.FC = () => {
       await signInWithKakao();
     } catch (e: any) {
       console.error("Kakao login initiation error in component:", e);
-    } finally {
     }
   };
 
@@ -5741,7 +5462,7 @@ const LoginPage: React.FC = () => {
   if (isLoadingAuthGlobal && !displayError && !isKakaoLoginLoading) {
     return (
       <div className="login-page-wrapper">
-        <div className="login-page-container" style={{ textAlign: 'center' }}>
+        <div className="login-page-container loading-state">
           <p>인증 정보를 확인 중입니다...</p>
         </div>
       </div>
@@ -5772,10 +5493,9 @@ const LoginPage: React.FC = () => {
                 {isKakaoLoginLoading || (isLoadingAuthGlobal && !isKakaoLoginLoading) ? '처리 중...' : '카카오 계정으로 로그인'}
               </span>
             </button>
-            {/* Google 로그인 버튼 제거됨 */}
           </div>
           {displayError && (
-            <p className="login-error-message" style={{ color: 'red', marginTop: '15px' }}>{displayError}</p>
+            <p className="login-error-message">{displayError}</p>
           )}
           <p className="login-terms">
             로그인 시 <a href="/terms" target="_blank" rel="noopener noreferrer">이용약관</a> 및 <a href="/privacy" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>에 동의하는 것으로 간주됩니다.
@@ -5789,8 +5509,9 @@ const LoginPage: React.FC = () => {
 export default LoginPage;
 ----- ./react/pages/LoginPageWithErrorDisplay.tsx -----
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router'; // react-router-dom 훅 사용
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useAuthStore, selectAuthError, selectIsAuthenticated, selectIsLoadingAuth } from '../shared/store/authStore';
+import './LoginPageWithErrorDisplay.css';
 
 const LoginPageWithErrorDisplay: React.FC = () => {
   const location = useLocation();
@@ -5802,89 +5523,67 @@ const LoginPageWithErrorDisplay: React.FC = () => {
   const authStoreError = useAuthStore(selectAuthError);
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const isLoadingAuth = useAuthStore(selectIsLoadingAuth);
-  const clearAuthStoreError = useAuthStore.getState().clearAuthError; // 에러 클리어 액션
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const errorParam = params.get('error');
     const errorDescriptionParam = params.get('error_description');
 
-    if (errorParam) {
-      setUrlError(decodeURIComponent(errorParam));
-    }
-    if (errorDescriptionParam) {
-      setUrlErrorDescription(decodeURIComponent(errorDescriptionParam));
-    }
-
-  }, [location.search /*, authStoreError, clearAuthStoreError */]);
-
+    if (errorParam) setUrlError(decodeURIComponent(errorParam));
+    if (errorDescriptionParam) setUrlErrorDescription(decodeURIComponent(errorDescriptionParam));
+  }, [location.search]);
 
   useEffect(() => {
     if (!isLoadingAuth && isAuthenticated) {
-      navigate('/'); // 또는 이전 페이지나 대시보드로 리다이렉트
+      navigate('/');
     }
   }, [isLoadingAuth, isAuthenticated, navigate]);
 
-
   const handleRetryLogin = () => {
-    navigate('/test-auth'); // 또는 로그인 시도 페이지
+    navigate('/login');
   };
 
   const displayError = urlError || authStoreError;
   const displayErrorDescription = urlErrorDescription;
 
-
   if (isLoadingAuth) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
+      <div className="login-error-page loading">
         <p>인증 상태를 확인 중입니다...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '40px auto', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' }}>
-      <h1>로그인</h1>
+    <div className="login-error-page">
+      <div className="error-card">
+        <h1>로그인</h1>
+        {displayError && (
+          <div className="error-details">
+            <h2>로그인 오류</h2>
+            <p><strong>오류 코드:</strong> {displayError}</p>
+            {displayErrorDescription && <p><strong>상세 정보:</strong> {displayErrorDescription}</p>}
+            <p>로그인 과정에서 문제가 발생했습니다.</p>
+          </div>
+        )}
 
-      {displayError && (
-        <div style={{ backgroundColor: '#ffebee', color: '#c62828', padding: '15px', margin: '20px 0', borderRadius: '4px' }}>
-          <h2>로그인 오류</h2>
-          <p><strong>오류 코드:</strong> {displayError}</p>
-          {displayErrorDescription && <p><strong>상세 정보:</strong> {displayErrorDescription}</p>}
-          <p>로그인 과정에서 문제가 발생했습니다.</p>
-        </div>
-      )}
+        {!displayError && !isAuthenticated && (
+          <p className="login-needed-message">
+            로그인이 필요한 서비스입니다.
+          </p>
+        )}
 
-      {!displayError && !isAuthenticated && (
-        <p style={{ margin: '20px 0' }}>
-          로그인이 필요한 서비스입니다.
-        </p>
-      )}
-
-      {/* 사용자가 이미 로그인되어 있다면 이 페이지를 볼 이유가 별로 없음 */}
-      {/* isAuthenticated 상태에 따라 다른 UI를 보여줄 수도 있음 */}
-
-      <div style={{ marginTop: '30px' }}>
-        <button
-          onClick={handleRetryLogin}
-          style={{ padding: '10px 20px', marginRight: '10px', cursor: 'pointer' }}
-        >
-          로그인 페이지로 돌아가기
-        </button>
-        <Link to="/" style={{ textDecoration: 'none' }}>
-          <button style={{ padding: '10px 20px', cursor: 'pointer' }}>
-            홈으로 이동
+        <div className="action-buttons">
+          <button onClick={handleRetryLogin} className="action-button retry-button">
+            로그인 페이지로 돌아가기
           </button>
-        </Link>
+          <Link to="/" className="action-button-link">
+            <button className="action-button home-button">
+              홈으로 이동
+            </button>
+          </Link>
+        </div>
       </div>
-
-      {/* authStore의 에러를 명시적으로 클리어하고 싶다면 버튼 추가 가능
-      {authStoreError && (
-        <button onClick={clearAuthStoreError} style={{ marginTop: '10px' }}>
-          스토어 에러 메시지 지우기
-        </button>
-      )}
-      */}
     </div>
   );
 };
@@ -5893,6 +5592,7 @@ export default LoginPageWithErrorDisplay;
 ----- ./react/pages/ProblemPublishingPage.tsx -----
 import React from 'react';
 import { useProblemPublishingPage } from '../features/problem-publishing';
+import Modal from '../shared/ui/modal/Modal'; // [신규] Modal 임포트
 
 import ProblemSelectionWidget from '../widgets/ProblemSelectionWidget';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
@@ -5908,60 +5608,85 @@ const ProblemPublishingPage: React.FC = () => {
         measuredHeights, problemBoxMinHeight, previewAreaRef,
         toggleRow, toggleSelectAll, onToggleSequentialNumbering, onBaseFontSizeChange,
         onContentFontSizeEmChange, onDownloadPdf, setProblemBoxMinHeight,
-        onHeightUpdate, onProblemClick, onHeaderUpdate, onDeselectProblem
+        onHeightUpdate, onProblemClick, onHeaderUpdate, onDeselectProblem,
+        onDeleteSelected,
+        isBulkDeleteModalOpen,
+        onCloseBulkDeleteModal,
+        onConfirmBulkDelete,
+        isDeletingProblems,
     } = useProblemPublishingPage();
 
     return (
-        <div className="problem-publishing-page">
-            <div className="sticky-top-container">
-                <div className="selection-widget-container">
-                    <ProblemSelectionWidget 
-                        problems={allProblems} 
-                        isLoading={isLoadingProblems} 
-                        selectedIds={selectedIds} 
-                        onToggleRow={toggleRow} 
-                        onToggleAll={toggleSelectAll} // 이 함수는 이제 필터링된 결과에 대해 동작합니다.
-                        isAllSelected={isAllSelected} // 이 값은 이제 필터링된 결과의 선택 상태를 나타냅니다.
+        <>
+            <div className="problem-publishing-page">
+                <div className="sticky-top-container">
+                    <div className="selection-widget-container">
+                        <ProblemSelectionWidget 
+                            problems={allProblems} 
+                            isLoading={isLoadingProblems} 
+                            selectedIds={selectedIds} 
+                            onToggleRow={toggleRow} 
+                            onToggleAll={toggleSelectAll}
+                            isAllSelected={isAllSelected}
+                            onDeleteSelected={onDeleteSelected} // [신규] prop 전달
+                        />
+                    </div>
+                    <PublishingToolbarWidget 
+                        useSequentialNumbering={useSequentialNumbering}
+                        onToggleSequentialNumbering={onToggleSequentialNumbering}
+                        baseFontSize={baseFontSize}
+                        onBaseFontSizeChange={onBaseFontSizeChange}
+                        contentFontSizeEm={contentFontSizeEm}
+                        onContentFontSizeEmChange={onContentFontSizeEmChange} 
+                        onDownloadPdf={onDownloadPdf}
+                        previewAreaRef={previewAreaRef}
+                        problemBoxMinHeight={problemBoxMinHeight}
+                        setProblemBoxMinHeight={setProblemBoxMinHeight}
                     />
                 </div>
-                <PublishingToolbarWidget 
-                    useSequentialNumbering={useSequentialNumbering}
-                    onToggleSequentialNumbering={onToggleSequentialNumbering}
-                    baseFontSize={baseFontSize}
-                    onBaseFontSizeChange={onBaseFontSizeChange}
-                    contentFontSizeEm={contentFontSizeEm}
-                    onContentFontSizeEmChange={onContentFontSizeEmChange} 
-                    onDownloadPdf={onDownloadPdf}
-                    previewAreaRef={previewAreaRef}
-                    problemBoxMinHeight={problemBoxMinHeight}
-                    setProblemBoxMinHeight={setProblemBoxMinHeight}
-                />
+                <div 
+                    ref={previewAreaRef}
+                    className="scrollable-content-area"
+                    style={{ '--problem-box-min-height-em': `${problemBoxMinHeight}em` } as React.CSSProperties}
+                >
+                    <ExamPreviewWidget 
+                        distributedPages={distributedPages} 
+                        distributedSolutionPages={distributedSolutionPages}
+                        allProblems={allProblems} 
+                        selectedProblems={selectedProblems}
+                        placementMap={placementMap} 
+                        solutionPlacementMap={solutionPlacementMap}
+                        headerInfo={headerInfo} 
+                        useSequentialNumbering={useSequentialNumbering} 
+                        baseFontSize={baseFontSize} 
+                        contentFontSizeEm={contentFontSizeEm} 
+                        contentFontFamily={headerInfo.titleFontFamily} 
+                        onHeightUpdate={onHeightUpdate}
+                        onProblemClick={onProblemClick} 
+                        onHeaderUpdate={onHeaderUpdate} 
+                        onDeselectProblem={onDeselectProblem} 
+                        measuredHeights={measuredHeights}
+                    />
+                </div>
             </div>
-            <div 
-                ref={previewAreaRef}
-                className="scrollable-content-area"
-                style={{ '--problem-box-min-height-em': `${problemBoxMinHeight}em` } as React.CSSProperties}
+
+            {/* [신규] 다중 삭제 확인 모달 */}
+            <Modal
+                isOpen={isBulkDeleteModalOpen}
+                onClose={onCloseBulkDeleteModal}
+                onConfirm={onConfirmBulkDelete}
+                isConfirming={isDeletingProblems}
+                title="선택한 문제 영구 삭제"
+                confirmText={`삭제 (${selectedIds.size}개)`}
+                size="small"
             >
-                <ExamPreviewWidget 
-                    distributedPages={distributedPages} 
-                    distributedSolutionPages={distributedSolutionPages}
-                    allProblems={allProblems} 
-                    selectedProblems={selectedProblems}
-                    placementMap={placementMap} 
-                    solutionPlacementMap={solutionPlacementMap}
-                    headerInfo={headerInfo} 
-                    useSequentialNumbering={useSequentialNumbering} 
-                    baseFontSize={baseFontSize} 
-                    contentFontSizeEm={contentFontSizeEm} 
-                    contentFontFamily={headerInfo.titleFontFamily} 
-                    onHeightUpdate={onHeightUpdate}
-                    onProblemClick={onProblemClick} 
-                    onHeaderUpdate={onHeaderUpdate} 
-                    onDeselectProblem={onDeselectProblem} 
-                    measuredHeights={measuredHeights}
-                />
-            </div>
-        </div>
+                <p>
+                    선택한 <strong>{selectedIds.size}개</strong>의 문제를 영구적으로 삭제하시겠습니까?
+                    <br />
+                    이 작업은 되돌릴 수 없습니다.
+                </p>
+            </Modal>
+        </>
     );
 };
 
@@ -6372,12 +6097,13 @@ export default ProfileSetupPage;
 ----- ./react/pages/StudentDetailPage.tsx -----
 import React from 'react';
 import { useParams } from 'react-router';
+import './StudentDetailPage.css';
 
 const StudentDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
 
     return (
-        <div style={{ padding: '20px' }}>
+        <div className="student-detail-page">
             <h1>학생 상세 정보</h1>
             <p>선택된 학생의 ID는 <strong>{id}</strong> 입니다.</p>
             <br />
@@ -6655,7 +6381,7 @@ const ACCELERATION = 0.95;    // 95%씩 간격 감소 (조금 더 부드러운 �
  */
 export function useContinuousChange(onChange: (updater: (prev: number) => number) => void, step: number) {
     const intervalRef = useRef<number | null>(null);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const currentIntervalRef = useRef(INITIAL_INTERVAL);
 
     const stopChanging = useCallback(() => {
@@ -6823,33 +6549,6 @@ const AuthInitializer: React.FC = () => {
 };
 
 export default AuthInitializer;
------ ./react/shared/lib/axiosInstance.ts -----
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:8787'; // 환경 변수로 설정 가능, 예: process.env.REACT_APP_API_BASE_URL
-
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000, // 요청 타임아웃 10초
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // Supabase 쿠키 인증을 위해 필요할 수 있음 (CORS 설정과 함께 확인)
-});
-
-
-axiosInstance.interceptors.response.use(
-  (response) => {
-    return response; // 성공적인 응답은 그대로 반환
-  },
-  (error) => {
-    if (error.response && error.response.status === 401) {
-    }
-    return Promise.reject(error); // 에러를 계속 전파하여 React Query가 처리하도록 함
-  }
-);
-
-export default axiosInstance;
 ----- ./react/shared/lib/ProtectedRoute.tsx -----
 import { Navigate, Outlet } from 'react-router';
 import { useAuthStore, selectIsAuthenticated } from '../store/authStore'; // authStore 경로 확인
@@ -7067,6 +6766,7 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
 import { create } from 'zustand';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
+import type { Student } from '../../entities/student/model/useStudentDataWithRQ';
 
 export interface StoredSearchProps {
     searchTerm: string;
@@ -7079,7 +6779,7 @@ export interface StoredSearchProps {
     onCreateProblemSet?: () => void;
     selectedCount?: number;
     showActionControls?: boolean;
-    isSelectionComplete?: boolean; // [수정] isFilteredAllSelected를 isSelectionComplete로 변경
+    isSelectionComplete?: boolean; // [수정] Prop 이름 변경
     onHide?: () => void;
 }
 
@@ -7089,7 +6789,7 @@ interface RegisteredPageActions {
   openPromptSidebar: () => void;
   openLatexHelpSidebar: () => void;
   openSearchSidebar: () => void; 
-  openEditSidebar: (student: any) => void;
+  openEditSidebar: (student: Student) => void;
   onClose: () => void;
 }
 
@@ -7123,6 +6823,7 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
     openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'),
     openSearchSidebar: () => console.warn('openSearchSidebar action not registered.'),
+    openEditSidebar: (student: Student) => console.warn('openEditSidebar action not registered for student:', student.id),
     onClose: () => console.warn('onClose action not registered.'),
 };
 
@@ -7178,13 +6879,26 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
 export const selectRightSidebarConfig = (state: LayoutState) => state.rightSidebar;
 export const selectSearchBoxProps = (state: LayoutState) => state.searchBoxProps;
 
+interface SidebarTrigger {
+    onClick: (() => void) | undefined;
+    tooltip: string;
+}
 
-export const useSidebarTriggers = () => {
+interface SidebarTriggers {
+    onClose: (() => void) | undefined;
+    registerTrigger?: SidebarTrigger;
+    searchTrigger?: SidebarTrigger;
+    settingsTrigger?: SidebarTrigger;
+    promptTrigger?: SidebarTrigger;
+    latexHelpTrigger?: SidebarTrigger;
+}
+
+export const useSidebarTriggers = (): SidebarTriggers => {
     const currentPageConfig = useLayoutStore(state => state.currentPageConfig);
     const pageActions = useLayoutStore(state => state.pageActions);
 
     const triggers = useMemo(() => {
-        const result: any = { onClose: pageActions.onClose };
+        const result: SidebarTriggers = { onClose: pageActions.onClose };
 
         if (currentPageConfig.sidebarButtons?.register) {
             result.registerTrigger = {
@@ -7427,4337 +7141,6 @@ const Badge: React.FC<BadgeProps> = ({ children, className = '', ...props }) => 
 };
 
 export default Badge;
------ ./react/shared/ui/codemirror-editor/codemirror-setup/auto-complete/auto-completions.ts -----
-import {
-  blockDelimiters,
-  inlineDelimiters,
-  blockLatexOperators,
-  inlineTextLatexCommands,
-  blockTextLatexCommands,
-  inlineMathLatexCommands,
-} from "./dictionary";
-
-import { AutoCompleteMode } from "./dictionary";
-
-export { AutoCompleteMode, AutoCompleteEnv } from "./dictionary";
-
-const autoCompletions = {
-  delimiters: {
-    [AutoCompleteMode.BLOCK]: blockDelimiters,
-    [AutoCompleteMode.INLINE]: inlineDelimiters,
-  },
-
-  latexOperators: {
-    [AutoCompleteMode.BLOCK]: blockLatexOperators,
-  },
-
-  /** LaTeX commands in Text mode/environment */
-  textLatexCommands: {
-    [AutoCompleteMode.BLOCK]: blockTextLatexCommands,
-    [AutoCompleteMode.INLINE]: inlineTextLatexCommands,
-  },
-
-  /** LaTeX commands in Math mode/environment */
-  mathLatexCommands: {
-    [AutoCompleteMode.INLINE]: inlineMathLatexCommands,
-  },
-};
-export default autoCompletions;
------ ./react/shared/ui/codemirror-editor/codemirror-setup/auto-complete/configure.ts -----
-import { CompletionContext, snippet } from "@codemirror/autocomplete";
-import { markdownLanguage } from "../markdown-parser/markdown";
-import { TEX_LANGUAGE } from "../markdown-parser/consts";
-import autoCompletions, { AutoCompleteMode } from "./auto-completions";
-import { type Extension } from "@codemirror/state";
-
-const isAtInlineMath = (line: string, cur: number) => {
-  const ahead = line.substring(0, cur);
-  const openTagExists = ahead.lastIndexOf("\\)") < ahead.lastIndexOf("\\(");
-  
-  const closeTagBehind = line.indexOf("\\)", cur);
-  const openTagBehind = line.indexOf("\\(", cur);
-  const closeTagExists = (closeTagBehind === -1 ? Infinity : closeTagBehind) < 
-    (openTagBehind === -1 ? Infinity : openTagBehind);
-  
-  return openTagExists && closeTagExists;
-};
-
-const configureMmdAutoCompleteForCodeMirror = (extensions: Extension[]) => {
-  const mmdACSource = (context: CompletionContext) => {
-    const word = context.matchBefore(/(\\[\w\[\{\(\*]*)/);
-    if (!word || (word.from === word.to && !context.explicit)) {
-      return null;
-    }
-    const atLineStart: boolean = Boolean(context.matchBefore(/^(\\[\w\[\{\(\*]*)/));
-    const line = context.state.doc.lineAt(context.pos);
-    const cur = context.pos - line.from;
-    const atInlineMath = isAtInlineMath(line.text, cur);
-
-    const options: unknown[] = [];
-    atLineStart && autoCompletions.delimiters[AutoCompleteMode.BLOCK].forEach(item => {
-      options.push({ label: item.label, apply: snippet(item.template), boost: 80 + item.rank });
-    });
-    atInlineMath || autoCompletions.delimiters[AutoCompleteMode.INLINE].forEach(item => {
-      options.push({ label: item.label, apply: snippet(item.template), boost: 80 });
-    });
-    atLineStart && autoCompletions.latexOperators[AutoCompleteMode.BLOCK].forEach(item => {
-      options.push({ label: item.label, apply: snippet(item.template), boost: 70 });
-    });
-    atLineStart && autoCompletions.textLatexCommands[AutoCompleteMode.BLOCK].forEach(item => {
-      options.push({ label: item.label, apply: snippet(item.template), boost: 60 });
-    });
-    atInlineMath || autoCompletions.textLatexCommands[AutoCompleteMode.INLINE].forEach(item => {
-      options.push({ label: item.label, apply: snippet(item.template), boost: 50 });
-    });
-    atInlineMath && autoCompletions.mathLatexCommands[AutoCompleteMode.INLINE].forEach(item => {
-      options.push({ label: item.label, apply: snippet(item.template) });
-    });
-    return {
-      from: word.from,
-      options
-    };
-  };
-
-  const latexACSource = (context: CompletionContext) => {
-    let word = context.matchBefore(/(\\[\w\{]*)/);
-    if (!word || (word.from === word.to && !context.explicit)) {
-      return null;
-    }
-    const endOfDoubleBackslash = context.matchBefore(/(\\\\)/);
-    if (endOfDoubleBackslash) {
-      return null;
-    }
-    const atLineStart: boolean = Boolean(context.matchBefore(/^(\\[\w\{]*)/));
-
-    const options: unknown[] = [];
-    atLineStart && autoCompletions.latexOperators[AutoCompleteMode.BLOCK].forEach(item => {
-      options.push({ label: item.label, apply: snippet(item.template), boost: 10 });
-    });
-    autoCompletions.mathLatexCommands[AutoCompleteMode.INLINE].forEach(item => {
-      options.push({ label: item.label, apply: snippet(item.template) });
-    });
-    return {
-      from: word.from,
-      options
-    };
-  };
-
-  extensions.push(markdownLanguage.data.of({
-    autocomplete: mmdACSource,
-    closeBrackets: { brackets: ["'", '"'] }
-  }));
-  extensions.push(TEX_LANGUAGE.data.of({
-    autocomplete: latexACSource
-  }));
-};
-
-export default configureMmdAutoCompleteForCodeMirror
------ ./react/shared/ui/codemirror-editor/codemirror-setup/auto-complete/dictionary.ts -----
-export enum AutoCompleteMode {
-  BLOCK = 'block',
-  INLINE = 'inline'  
-};
-
-export enum AutoCompleteEnv {
-  MATH = 'math',
-  TEXT = 'text'
-};
-
-export const blockDelimiters = [
-  {
-    label: "\\[...\\]",
-    template: "\\[\n${}\n\\]",
-    mode: AutoCompleteMode.BLOCK,
-    rank: 9
-  },
-  {
-    label: "\\begin{equation}...\\end{equation}",
-    template: "\\begin{equation}\n${}\n\\end{equation}",
-    mode: AutoCompleteMode.BLOCK,
-    rank: 8
-  },
-  {
-    label: "\\begin{equation*}...\\end{equation*}",
-    template: "\\begin{equation*}\n${}\n\\end{equation*}",
-    mode: AutoCompleteMode.BLOCK,
-    rank: 7
-  }
-];
-
-export const inlineDelimiters = [
-  {
-    label: "\\(...\\)",
-    template: "\\(${}\\)",
-    mode: AutoCompleteMode.INLINE
-  }
-];
-
-export const blockLatexOperators = [
-  {
-    label: "\\begin{tabular}...\\end{tabular}",
-    template: "\\begin{tabular}{${}}\n${}\n\\end{tabular}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{array}{}...\\end{array}",
-    template: "\\begin{array}{${}}\n${}\n\\end{array}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{subarray}...\\end{subarray}",
-    template: "\\begin{subarray}\n${}\n\\end{subarray}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{align}...\\end{align}",
-    template: "\\begin{align}\n${}\n\\end{align}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{align*}...\\end{align*}",
-    template: "\\begin{align*}\n${}\n\\end{align*}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{split}...\\end{split}",
-    template: "\\begin{split}\n${}\n\\end{split}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{gather}...\\end{gather}",
-    template: "\\begin{gather}\n${}\n\\end{gather}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{gather*}...\\end{gather*}",
-    template: "\\begin{gather*}\n${}\n\\end{gather*}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{itemize}...\\end{itemize}",
-    template: "\\begin{itemize}\n\\item ${}\n\\item ${}\n\\end{itemize}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{figure}[h]...\\end{figure}",
-    template: "\\begin{figure}[h]\n\\includegraphics[width=0.5\\textwidth, center]{${URL}}\n\\end{figure}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{enumerate}...\\end{enumerate}",
-    template: "\\begin{enumerate}\n\\item ${}\n\\end{enumerate}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{aligned}...\\end{aligned}",
-    template: "\\begin{aligned}\n${}\n\\end{aligned}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{matrix}...\\end{matrix}",
-    template: "\\begin{matrix}\n${}\n\\end{matrix}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{pmatrix}...\\end{pmatrix}",
-    template: "\\begin{pmatrix}\n${}\n\\end{pmatrix}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{bmatrix}...\\end{bmatrix}",
-    template: "\\begin{bmatrix}\n${}\n\\end{bmatrix}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{Bmatrix}...\\end{Bmatrix}",
-    template: "\\begin{Bmatrix}\n${}\n\\end{Bmatrix}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{vmatrix}...\\end{vmatrix}",
-    template: "\\begin{vmatrix}\n${}\n\\end{vmatrix}",
-    mode: AutoCompleteMode.BLOCK
-  },
-  {
-    label: "\\begin{Vmatrix}...\\end{Vmatrix}",
-    template: "\\begin{Vmatrix}\n${}\n\\end{Vmatrix}",
-    mode: AutoCompleteMode.BLOCK
-  }
-];
-
-export const blockTextLatexCommands = [
-  {
-    label: "\\section{...}",
-    template: "\\section{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\subsection{...}",
-    template: "\\subsection{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\subsubsection{...}",
-    template: "\\subsubsection{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\title{...}",
-    template: "\\title{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\author{...}",
-    template: "\\author{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\begin{abstract}...\\end{abstract}",
-    template: "\\begin{abstract}\n${}\n\\end{abstract}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\begin{theorem}...\\end{theorem}",
-    template: "\\begin{theorem}\n${}\n\\end{theorem}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\begin{lemma}...\\end{lemma}",
-    template: "\\begin{lemma}\n${}\n\\end{lemma}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\begin{proof}...\\end{proof}",
-    template: "\\begin{proof}\n${}\n\\end{proof}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\begin{corollary}...\\end{corollary}",
-    template: "\\begin{corollary}\n${}\n\\end{corollary}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  }
-];
-
-export const inlineTextLatexCommands = [
-  {
-    label: "\\pagebreak",
-    template: "\\pagebreak",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\eqref{...}",
-    template: "\\eqref{${}}",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.TEXT
-  },  
-  {
-    label: "\\ref{...}",
-    template: "\\ref{${}}",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\newtheorem{...}{...}",
-    template: "\\newtheorem{${}}{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\newtheorem*{...}{...}",
-    template: "\\newtheorem*{${}}{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\setcounter{...}{...}",
-    template: "\\setcounter{${}}{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\theoremstyle{...}",
-    template: "\\theoremstyle{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\footnote{...}",
-    template: "\\footnote{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\footnotetext{...}",
-    template: "\\footnotetext{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\footnotemark{}",
-    template: "\\footnotemark{}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\textit{...}",
-    template: "\\textit{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\textbf{...}",
-    template: "\\textbf{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\texttt{...}",
-    template: "\\texttt{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },  
-  {
-    label: "\\text{...}",
-    template: "\\text{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\underline{...}",
-    template: "\\underline{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\uline{...}",
-    template: "\\uline{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\uuline{...}",
-    template: "\\uuline{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\uwave{...}",
-    template: "\\uwave{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\dashuline{...}",
-    template: "\\dashuline{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\dotuline{...}",
-    template: "\\dotuline{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\sout{...}",
-    template: "\\sout{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  },
-  {
-    label: "\\xout{...}",
-    template: "\\xout{${}}",
-    mode: AutoCompleteMode.BLOCK,
-    env: AutoCompleteEnv.TEXT
-  }
-];
-
-export const inlineMathLatexCommands = [
-  {
-    label: "\\AA",
-    template: "\\AA",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\aleph",
-    template: "\\aleph",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\alpha",
-    template: "\\alpha",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\angle",
-    template: "\\angle",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\approx",
-    template: "\\approx",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\asymp",
-    template: "\\asymp",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\atop",
-    template: "\\atop",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\backslash",
-    template: "\\backslash",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\because",
-    template: "\\because",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\beta",
-    template: "\\beta",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\beth",
-    template: "\\beth",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\bigcap",
-    template: "\\bigcap",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\bigcirc",
-    template: "\\bigcirc",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\bigcup",
-    template: "\\bigcup",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\bigoplus",
-    template: "\\bigoplus",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\bigotimes",
-    template: "\\bigotimes",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\bigvee",
-    template: "\\bigvee",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\bigwedge",
-    template: "\\bigwedge",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\boldsymbol",
-    template: "\\boldsymbol",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\bot",
-    template: "\\bot",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\bowtie",
-    template: "\\bowtie",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\breve",
-    template: "\\breve",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\bullet",
-    template: "\\bullet",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\cap",
-    template: "\\cap",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\cdot",
-    template: "\\cdot",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\cdots",
-    template: "\\cdots",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\check",
-    template: "\\check",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\chi",
-    template: "\\chi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\circ",
-    template: "\\circ",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\circlearrowleft",
-    template: "\\circlearrowleft",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\circlearrowright",
-    template: "\\circlearrowright",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\cline",
-    template: "\\cline",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\complement",
-    template: "\\complement",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\cong",
-    template: "\\cong",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\coprod",
-    template: "\\coprod",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\cup",
-    template: "\\cup",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\curlyvee",
-    template: "\\curlyvee",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\curlywedge",
-    template: "\\curlywedge",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\dagger",
-    template: "\\dagger",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\dashv",
-    template: "\\dashv",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ddot",
-    template: "\\ddot",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ddots",
-    template: "\\ddots",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Delta",
-    template: "\\Delta",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\delta",
-    template: "\\delta",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\diamond",
-    template: "\\diamond",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\div",
-    template: "\\div",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\dot",
-    template: "\\dot",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\doteq",
-    template: "\\doteq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\dots",
-    template: "\\dots",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\downarrow",
-    template: "\\downarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ell",
-    template: "\\ell",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\emptyset",
-    template: "\\emptyset",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\epsilon",
-    template: "\\epsilon",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\equiv",
-    template: "\\equiv",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\eta",
-    template: "\\eta",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\exists",
-    template: "\\exists",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\forall",
-    template: "\\forall",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\frac",
-    template: "\\frac",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\frown",
-    template: "\\frown",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Gamma",
-    template: "\\Gamma",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\gamma",
-    template: "\\gamma",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\geq",
-    template: "\\geq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\geqq",
-    template: "\\geqq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\geqslant",
-    template: "\\geqslant",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\gg",
-    template: "\\gg",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ggg",
-    template: "\\ggg",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\gtrsim",
-    template: "\\gtrsim",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\hat",
-    template: "\\hat",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\hbar",
-    template: "\\hbar",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\hline",
-    template: "\\hline",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\hookleftarrow",
-    template: "\\hookleftarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\hookrightarrow",
-    template: "\\hookrightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Im",
-    template: "\\Im",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\imath",
-    template: "\\imath",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\in",
-    template: "\\in",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\infty",
-    template: "\\infty",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\int",
-    template: "\\int",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\iota",
-    template: "\\iota",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\jmath",
-    template: "\\jmath",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\kappa",
-    template: "\\kappa",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Lambda",
-    template: "\\Lambda",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\lambda",
-    template: "\\lambda",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\langle",
-    template: "\\langle",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\lceil",
-    template: "\\lceil",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ldots",
-    template: "\\ldots",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\leadsto",
-    template: "\\leadsto",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Leftarrow",
-    template: "\\Leftarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\leftarrow",
-    template: "\\leftarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\leftleftarrows",
-    template: "\\leftleftarrows",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Leftrightarrow",
-    template: "\\Leftrightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\leftrightarrow",
-    template: "\\leftrightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\leftrightarrows",
-    template: "\\leftrightarrows",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\leftrightharpoons",
-    template: "\\leftrightharpoons",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\leq",
-    template: "\\leq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\leqq",
-    template: "\\leqq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\leqslant",
-    template: "\\leqslant",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\lessdot",
-    template: "\\lessdot",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\lesseqgtr",
-    template: "\\lesseqgtr",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\lessgtr",
-    template: "\\lessgtr",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\lesssim",
-    template: "\\lesssim",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\lfloor",
-    template: "\\lfloor",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ll",
-    template: "\\ll",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\llbracket",
-    template: "\\llbracket",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\llcorner",
-    template: "\\llcorner",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\lll",
-    template: "\\lll",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\longdiv",
-    template: "\\longdiv",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\longleftarrow",
-    template: "\\longleftarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Longleftarrow",
-    template: "\\Longleftarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\longleftrightarrow",
-    template: "\\longleftrightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Longleftrightarrow",
-    template: "\\Longleftrightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\longmapsto",
-    template: "\\longmapsto",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\longrightarrow",
-    template: "\\longrightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Longrightarrow",
-    template: "\\Longrightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\lrcorner",
-    template: "\\lrcorner",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ltimes",
-    template: "\\ltimes",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\mapsto",
-    template: "\\mapsto",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\mathbb",
-    template: "\\mathbb",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\mathbf",
-    template: "\\mathbf",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\mathcal",
-    template: "\\mathcal",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\mathfrak",
-    template: "\\mathfrak",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\mathrm",
-    template: "\\mathrm",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\mathscr",
-    template: "\\mathscr",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\mho",
-    template: "\\mho",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\models",
-    template: "\\models",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\mp",
-    template: "\\mp",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\mu",
-    template: "\\mu",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\multicolumn",
-    template: "\\multicolumn",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\multimap",
-    template: "\\multimap",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\multirow",
-    template: "\\multirow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nabla",
-    template: "\\nabla",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\natural",
-    template: "\\natural",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nearrow",
-    template: "\\nearrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\neg",
-    template: "\\neg",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\neq",
-    template: "\\neq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\newline",
-    template: "\\newline",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nexists",
-    template: "\\nexists",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ngtr",
-    template: "\\ngtr",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ni",
-    template: "\\ni",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nleftarrow",
-    template: "\\nleftarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nLeftarrow",
-    template: "\\nLeftarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nless",
-    template: "\\nless",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nmid",
-    template: "\\nmid",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\not",
-    template: "\\not",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\notin",
-    template: "\\notin",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nprec",
-    template: "\\nprec",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\npreceq",
-    template: "\\npreceq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nrightarrow",
-    template: "\\nrightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nRightarrow",
-    template: "\\nRightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nsim",
-    template: "\\nsim",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nsubseteq",
-    template: "\\nsubseteq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nsucc",
-    template: "\\nsucc",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nsucceq",
-    template: "\\nsucceq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nsupseteq",
-    template: "\\nsupseteq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nu",
-    template: "\\nu",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nVdash",
-    template: "\\nVdash",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nvdash",
-    template: "\\nvdash",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\nwarrow",
-    template: "\\nwarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\odot",
-    template: "\\odot",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\oiiint",
-    template: "\\oiiint",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\oiint",
-    template: "\\oiint",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\oint",
-    template: "\\oint",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\omega",
-    template: "\\omega",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Omega",
-    template: "\\Omega",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ominus",
-    template: "\\ominus",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\operatorname",
-    template: "\\operatorname",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\oplus",
-    template: "\\oplus",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\oslash",
-    template: "\\oslash",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\otimes",
-    template: "\\otimes",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\overbrace",
-    template: "\\overbrace",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\overleftarrow",
-    template: "\\overleftarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\overleftrightarrow",
-    template: "\\overleftrightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\overline",
-    template: "\\overline",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\overparen",
-    template: "\\overparen",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\parallel",
-    template: "\\parallel",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\partial",
-    template: "\\partial",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\perp",
-    template: "\\perp",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Perp",
-    template: "\\Perp",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\phi",
-    template: "\\phi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Phi",
-    template: "\\Phi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\pi",
-    template: "\\pi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Pi",
-    template: "\\Pi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\pitchfork",
-    template: "\\pitchfork",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\pm",
-    template: "\\pm",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\prec",
-    template: "\\prec",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\preccurlyeq",
-    template: "\\preccurlyeq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\preceq",
-    template: "\\preceq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\precsim",
-    template: "\\precsim",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\prime",
-    template: "\\prime",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\prod",
-    template: "\\prod",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\propto",
-    template: "\\propto",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\psi",
-    template: "\\psi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Psi",
-    template: "\\Psi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\qquad",
-    template: "\\qquad",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\quad",
-    template: "\\quad",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rangle",
-    template: "\\rangle",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rceil",
-    template: "\\rceil",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Re",
-    template: "\\Re",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rfloor",
-    template: "\\rfloor",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rho",
-    template: "\\rho",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rightarrow",
-    template: "\\rightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Rightarrow",
-    template: "\\Rightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Rightarrow",
-    template: "\\Rightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rightleftarrows",
-    template: "\\rightleftarrows",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rightleftharpoons",
-    template: "\\rightleftharpoons",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rightrightarrows",
-    template: "\\rightrightarrows",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rightsquigarrow",
-    template: "\\rightsquigarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\risingdotseq",
-    template: "\\risingdotseq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rrbracket",
-    template: "\\rrbracket",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\rtimes",
-    template: "\\rtimes",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\S",
-    template: "\\S",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\searrow",
-    template: "\\searrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sharp",
-    template: "\\sharp",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sigma",
-    template: "\\sigma",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Sigma",
-    template: "\\Sigma",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sim",
-    template: "\\sim",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\simeq",
-    template: "\\simeq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\smile",
-    template: "\\smile",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sqcap",
-    template: "\\sqcap",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sqcup",
-    template: "\\sqcup",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sqrt",
-    template: "\\sqrt",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sqsubset",
-    template: "\\sqsubset",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sqsubseteq",
-    template: "\\sqsubseteq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sqsupset",
-    template: "\\sqsupset",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sqsupseteq",
-    template: "\\sqsupseteq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\square",
-    template: "\\square",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\stackrel",
-    template: "\\stackrel",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\star",
-    template: "\\star",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\subset",
-    template: "\\subset",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\subseteq",
-    template: "\\subseteq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\subsetneq",
-    template: "\\subsetneq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\succ",
-    template: "\\succ",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\succcurlyeq",
-    template: "\\succcurlyeq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\succeq",
-    template: "\\succeq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\succsim",
-    template: "\\succsim",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\sum",
-    template: "\\sum",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\supset",
-    template: "\\supset",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\supseteq",
-    template: "\\supseteq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\supseteqq",
-    template: "\\supseteqq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\supsetneq",
-    template: "\\supsetneq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\supsetneqq",
-    template: "\\supsetneqq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\swarrow",
-    template: "\\swarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\tau",
-    template: "\\tau",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\textrm",
-    template: "\\textrm",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\therefore",
-    template: "\\therefore",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\theta",
-    template: "\\theta",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Theta",
-    template: "\\Theta",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\tilde",
-    template: "\\tilde",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\times",
-    template: "\\times",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\top",
-    template: "\\top",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\triangle",
-    template: "\\triangle",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\triangleleft",
-    template: "\\triangleleft",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\triangleq",
-    template: "\\triangleq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\triangleright",
-    template: "\\triangleright",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\ulcorner",
-    template: "\\ulcorner",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\underbrace",
-    template: "\\underbrace",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\underline",
-    template: "\\underline",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\underset",
-    template: "\\underset",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\unlhd",
-    template: "\\unlhd",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\unrhd",
-    template: "\\unrhd",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\uparrow",
-    template: "\\uparrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\uplus",
-    template: "\\uplus",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Upsilon",
-    template: "\\Upsilon",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\urcorner",
-    template: "\\urcorner",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varangle",
-    template: "\\varangle",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Varangle",
-    template: "\\Varangle",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varepsilon",
-    template: "\\varepsilon",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varkappa",
-    template: "\\varkappa",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varliminf",
-    template: "\\varliminf",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varlimsup",
-    template: "\\varlimsup",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varnothing",
-    template: "\\varnothing",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varphi",
-    template: "\\varphi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varpi",
-    template: "\\varpi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varrho",
-    template: "\\varrho",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varsigma",
-    template: "\\varsigma",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\varsubsetneqq",
-    template: "\\varsubsetneqq",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\vartheta",
-    template: "\\vartheta",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\vDash",
-    template: "\\vDash",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\vdash",
-    template: "\\vdash",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\vdots",
-    template: "\\vdots",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\vec",
-    template: "\\vec",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\vee",
-    template: "\\vee",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\wedge",
-    template: "\\wedge",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\widehat",
-    template: "\\widehat",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\widetilde",
-    template: "\\widetilde",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\wp",
-    template: "\\wp",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\xi",
-    template: "\\xi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\Xi",
-    template: "\\Xi",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\xrightarrow",
-    template: "\\xrightarrow",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\zeta",
-    template: "\\zeta",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\left[...\\right]",
-    template: "\\left[${}\\right]",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  },
-  {
-    label: "\\left(...\\right)",
-    template: "\\left(${}\\right)",
-    mode: AutoCompleteMode.INLINE,
-    env: AutoCompleteEnv.MATH
-  }
-];
------ ./react/shared/ui/codemirror-editor/codemirror-setup/basic-setup.ts -----
-
-import {
-  EditorView, KeyBinding, lineNumbers, highlightActiveLineGutter,
-  highlightSpecialChars, drawSelection, dropCursor, rectangularSelection,
-  crosshairCursor, highlightActiveLine, keymap
-} from "@codemirror/view";
-import { EditorState, Extension } from "@codemirror/state";
-import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
-import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap, Completion } from "@codemirror/autocomplete";
-import { foldGutter, codeFolding, indentOnInput, syntaxHighlighting, defaultHighlightStyle, HighlightStyle, bracketMatching, foldKeymap, indentUnit } from "@codemirror/language";
-import { lintKeymap } from "@codemirror/lint";
-import { tags } from "@lezer/highlight";
-import { markdown } from "@codemirror/lang-markdown";
-import { GFM } from "@lezer/markdown";
-import { vim } from "@replit/codemirror-vim";
-
-import { MarkdownMathExtension } from "./markdown-parser";
-import { defaultThemeOption, defaultLightThemeOption, defaultDarkThemeOption } from "./theme";
-import { decorationsExtension } from "./decorations";
-import { type BasicSetupOptions } from "./interfaces";
-
-const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-export const customLineNumbers = lineNumbers();
-export const customCodeFolding = [foldGutter({ openText: "▾", closedText: "▸" }), codeFolding({ placeholderText: "* click to edit *" })] as const;
-
-export const customMarkdown = markdown({ extensions: [GFM, ...MarkdownMathExtension] });
-
-export const customSyntaxHighlighting = (darkMode: boolean) => {
-  const extension1 = syntaxHighlighting(defaultHighlightStyle, { fallback: false });
-  const highlightStyle = HighlightStyle.define([{ tag: [tags.atom, tags.bool, tags.url, tags.contentSeparator, tags.labelName], color: darkMode ? "#8080FF" : "#4960FF" }]);
-  const extension2 = syntaxHighlighting(highlightStyle, { fallback: false });
-  return [extension1, extension2] as const;
-};
-export const customSpellCheck = EditorView.contentAttributes.of({ spellcheck: "true" });
-
-export const basicSetupOptionsDef: BasicSetupOptions = {
-  readOnly: false, lineNumbers: false, lineWrapping: true, darkMode: false,
-  keyMap: "sublime", foldGutter: false, autocapitalize: true,
-  highlightActiveLineGutter: false, highlightSpecialChars: true, history: true,
-  drawSelection: true, dropCursor: true, allowMultipleSelections: false,
-  indentOnInput: false, syntaxHighlighting: true, bracketMatching: false,
-  closeBrackets: true, autocompletion: true, rectangularSelection: true,
-  crosshairCursor: true, highlightActiveLine: false, highlightSelectionMatches: true,
-  closeBracketsKeymap: true, defaultKeymap: true, searchKeymap: true,
-  historyKeymap: true, foldKeymap: true, completionKeymap: true,
-  lintKeymap: true, inlineRenderingActive: true, batchChangesActive: false,
-  spellcheck: true,
-};
-
-export const basicSetup = (options: Partial<BasicSetupOptions> = {}): Extension[] => {
-  const finalOptions = { ...basicSetupOptionsDef, ...options };
-  const extensions: Extension[] = [];
-  const keymaps: KeyBinding[][] = [];
-
-  if (finalOptions.keyMap === "vim") {
-    extensions.push(vim());
-  } else {
-    if (finalOptions.closeBracketsKeymap) keymaps.push([...closeBracketsKeymap]);
-    if (finalOptions.defaultKeymap) keymaps.push([...defaultKeymap]);
-    if (finalOptions.searchKeymap) keymaps.push([...searchKeymap]);
-    if (finalOptions.historyKeymap) keymaps.push([...historyKeymap]);
-    if (finalOptions.foldKeymap) keymaps.push([...foldKeymap]);
-    if (finalOptions.completionKeymap) keymaps.push([...completionKeymap]);
-    if (finalOptions.lintKeymap) keymaps.push([...lintKeymap]);
-    
-    if (finalOptions.onSave) {
-      keymaps.push([
-        { 
-          key: "Mod-s", 
-          preventDefault: true, 
-          run: () => { 
-            finalOptions.onSave?.();
-            return true; 
-          } 
-        },
-      ]);
-    }
-
-    extensions.push(keymap.of([indentWithTab, ...keymaps.flat()]));
-  }
-
-  const fontSize: string = isIOS ? "16px" : "14px";
-  const paddingTop = typeof finalOptions.cmContentPaddingTop === 'number' ? finalOptions.cmContentPaddingTop : 50;
-  extensions.push(defaultThemeOption(paddingTop, fontSize));
-
-  if (finalOptions.darkMode) {
-    extensions.push(defaultDarkThemeOption);
-  } else {
-    extensions.push(defaultLightThemeOption);
-  }
-
-  if (finalOptions.lineNumbers) extensions.push(customLineNumbers);
-  if (finalOptions.highlightActiveLineGutter) extensions.push(highlightActiveLineGutter());
-  if (finalOptions.highlightSpecialChars) extensions.push(highlightSpecialChars());
-  if (finalOptions.history) extensions.push(history());
-  if (finalOptions.foldGutter) extensions.push(customCodeFolding as unknown as Extension);
-  if (finalOptions.drawSelection) extensions.push(drawSelection());
-  if (finalOptions.dropCursor) extensions.push(dropCursor());
-  if (finalOptions.allowMultipleSelections) extensions.push(EditorState.allowMultipleSelections.of(true));
-  if (finalOptions.indentOnInput) extensions.push(indentOnInput());
-  if (finalOptions.syntaxHighlighting) extensions.push(customSyntaxHighlighting(finalOptions.darkMode) as unknown as Extension);
-  if (finalOptions.bracketMatching) extensions.push(bracketMatching());
-  if (finalOptions.closeBrackets) extensions.push(closeBrackets());
-  if (finalOptions.autocompletion) extensions.push(autocompletion({ optionClass: (c: Completion) => c.type ? "" : "auto-complete-option-noicon" }));
-  if (finalOptions.rectangularSelection) extensions.push(rectangularSelection());
-  if (finalOptions.crosshairCursor) extensions.push(crosshairCursor());
-  if (finalOptions.highlightActiveLine) extensions.push(highlightActiveLine());
-  if (finalOptions.highlightSelectionMatches) extensions.push(highlightSelectionMatches());
-  if (finalOptions.readOnly) extensions.push(EditorState.readOnly.of(true));
-  if (finalOptions.autocapitalize) extensions.push(EditorView.contentAttributes.of({ autocapitalize: "on" }));
-  if (finalOptions.spellcheck) extensions.push(customSpellCheck);
-  if (finalOptions.tabSize) extensions.push(indentUnit.of("".padEnd(finalOptions.tabSize, " ")));
-  
-  extensions.push(customMarkdown);
-  extensions.push(decorationsExtension);
-
-  if (finalOptions.lineWrapping) {
-    extensions.push(EditorView.lineWrapping);
-  }
-  
-  return extensions.filter(Boolean);
-};
------ ./react/shared/ui/codemirror-editor/codemirror-setup/decorations/index.ts -----
-import { mathDecorations } from "./math-decorations";
-import { markText } from "./mark-text";
-
-export const decorationsExtension = [
-  mathDecorations,
-  markText
-];
------ ./react/shared/ui/codemirror-editor/codemirror-setup/decorations/mark-text.ts -----
-import { StateField, StateEffect } from "@codemirror/state";
-import { EditorView, Decoration } from "@codemirror/view";
-
-/** Effects can be attached to transactions to communicate with the extension */
-export const addMarks = StateEffect.define();
-export const filterMarks = StateEffect.define();
-
-/** This value must be added to the set of extensions to enable this */
-export const markText = StateField.define({
-  create() { 
-    return Decoration.none 
-  },
-  update(value, tr) {
-    value = value.map(tr.changes);
-    /** If this transaction adds or removes decorations, apply those changes */
-    for (let effect of tr.effects) {
-      if (effect.is(addMarks)) {
-        value = value.update({
-          add: effect.value, 
-          sort: true
-        });
-      } else {
-        if (effect.is(filterMarks)) {
-          value = value.update({
-            filter: effect.value
-          })
-        }
-      }
-    }
-    return value
-  },
-  provide: f => EditorView.decorations.from(f)
-});
------ ./react/shared/ui/codemirror-editor/codemirror-setup/decorations/math-decorations.ts -----
-
-import { ensureSyntaxTree } from "@codemirror/language";
-import { RangeSetBuilder } from "@codemirror/state";
-import {
-  Decoration,
-  DecorationSet,
-  EditorView
-} from "@codemirror/view";
-import { ViewPlugin,  ViewUpdate } from "@codemirror/view";
-import {
-  BLOCK_MATH,
-  BLOCK_MULTI_MATH,
-  BLOCK_DISPLAY_MATH,
-  BLOCK_MATH_CONTENT_TAG,
-  BLOCK_MULTI_MATH_CONTENT_TAG,
-  BLOCK_MULTI_MATH_DELIMITER,
-  EQUATION_MATH_NOT_NUMBER,
-  EQUATION_MATH,
-  INLINE_MATH,
-  INLINE_MATH_CONTENT_TAG,
-  INLINE_MATH_START_DELIMITER,
-  INLINE_MATH_STOP_DELIMITER,
-  INLINE_MULTI_MATH_CONTENT_TAG,
-  INLINE_MULTI_MATH,
-  INLINE_MULTI_MATH_START_DELIMITER,
-  INLINE_MULTI_MATH_STOP_DELIMITER,
-  textLatexCommands, latexEnvironments, mathEnvironments
-} from "../markdown-parser/consts";
-import { inlineMathLatexCommands } from "../auto-complete/dictionary";
-
-const isLatexCommand = (command: string) => {
-  if (textLatexCommands.findIndex(item => item === command) !== -1) {
-    return true;
-  }
-  return inlineMathLatexCommands.findIndex(item => item.label === command) !== -1;
-};
-
-const isLatexEnvironment = (command: string) => {
-  if (latexEnvironments.findIndex(item => item === command) !== -1) {
-    return true;
-  }
-  return mathEnvironments.findIndex(item => item === command) !== -1;
-};
-
-const regionStartDecoration = Decoration.line({
-  attributes: { class: 'cm-regionFirstLine' },
-});
-
-const regionStopDecoration = Decoration.line({
-  attributes: { class: 'cm-regionLastLine' },
-});
-
-
-const inlineCodeDecoration = Decoration.mark({
-  attributes: { class: 'cm-inlineCode' },
-});
-
-const ignoreSpellCheck = Decoration.mark({
-  attributes: { 
-    class: 'cm-ignoreSpellCheck', 
-    spellcheck: "false",
-    style: "display: inline-block"
-  },
-});
-
-const blockMathDecoration = Decoration.line({
-  attributes: { class: 'cm-blockMath' },
-});
-
-const blockMathContentDecoration = Decoration.line({
-  attributes: { class: 'cm-blockMathContent' },
-});
-
-const blockMathtDelimiterDecoration = Decoration.mark({
-  attributes: { class: 'cm-blockMathDelimiter' },
-});
-
-const inlineMathDecoration = Decoration.mark({
-  attributes: { class: 'cm-inlineMath' },
-});
-
-const inlineMathContentDecoration = Decoration.mark({
-  attributes: { class: 'cm-inlineMathContent' },
-});
-
-const inlineMathStartDelimiterDecoration = Decoration.mark({
-  attributes: { class: 'cm-inlineMathStartDelimiter' },
-});
-
-const inlineMathStopDelimiterDecoration = Decoration.mark({
-  attributes: { class: 'cm-inlineMathStopDelimiter' },
-});
-
-const inlineMultiMathDecoration = Decoration.mark({
-  attributes: { class: 'cm-inlineMultiMath' },
-});
-
-const inlineMultiMathContentDecoration = Decoration.line({
-  attributes: { class: 'cm-inlineMultiMathContent' },
-});
-
-const blockQuoteDecoration = Decoration.line({
-  attributes: { class: 'cm-blockQuote' },
-});
-
-function computeDecorations(view: EditorView) {
-  const decorations: {
-    pos: number;
-    length?: number;
-    decoration: Decoration
-  }[] = [];
-
-  const addDecorationToLines = (from: number, to: number, decoration: Decoration, asMark = false) => {
-    let pos = from;
-    while (pos <= to) {
-      const line = view.state.doc.lineAt(pos);
-      if (asMark) {
-        decorations.push({
-          pos: line.from,
-          length: line.to - line.from,
-          decoration,
-        });
-      } else {
-        decorations.push({
-          pos: line.from,
-          decoration,
-        });
-      }
-      pos = line.to + 1;
-    }
-  };
-
-  const addDecorationToRange = (from: number, to: number, decoration: Decoration) => {
-    decorations.push({
-      pos: from,
-      length: to - from,
-      decoration,
-    });
-  };
-
-  for (const { from, to } of view.visibleRanges) {
-    ensureSyntaxTree(view.state, to)?.iterate({
-      from, to,
-      enter: node => {
-        let blockDecorated = false;
-        const viewFrom = Math.max(from, node.from);
-        const viewTo = Math.min(to, node.to);
-        let content = '';
-        switch (node.name) {
-          
-          case BLOCK_MATH:
-          case BLOCK_MULTI_MATH:
-          case BLOCK_DISPLAY_MATH:
-          case EQUATION_MATH_NOT_NUMBER:
-          case EQUATION_MATH:
-            addDecorationToLines(viewFrom, viewTo, blockMathDecoration);
-            blockDecorated = true;
-            break;
-          case BLOCK_MATH_CONTENT_TAG:
-          case BLOCK_MULTI_MATH_CONTENT_TAG:
-            addDecorationToLines(viewFrom, viewTo, blockMathContentDecoration);
-            blockDecorated = true;
-            break;
-          
-          case BLOCK_MULTI_MATH_DELIMITER:
-            addDecorationToRange(viewFrom, viewTo, blockMathtDelimiterDecoration);
-            break;
-          case "BLOCK_MULTI_MATH_VERBOSE_DELIMITER": // This case name is a string, not a constant
-            break;
-
-          case 'Blockquote':
-            addDecorationToLines(viewFrom, viewTo, blockQuoteDecoration);
-            blockDecorated = true;
-            break;
-          case INLINE_MULTI_MATH:
-            addDecorationToRange(viewFrom, viewTo, inlineMultiMathDecoration);
-            break;
-          case INLINE_MULTI_MATH_CONTENT_TAG:
-            addDecorationToRange(viewFrom, viewTo, inlineMultiMathContentDecoration);
-            break;
-          case INLINE_MATH:
-            addDecorationToRange(viewFrom, viewTo, inlineMathDecoration);
-            break;
-          case INLINE_MATH_CONTENT_TAG:
-            addDecorationToRange(viewFrom, viewTo, inlineMathContentDecoration);
-            break;
-          case INLINE_MATH_START_DELIMITER:
-          case INLINE_MULTI_MATH_START_DELIMITER:
-            addDecorationToRange(viewFrom, viewTo, inlineMathStartDelimiterDecoration);
-            break;
-          case INLINE_MATH_STOP_DELIMITER:
-          case INLINE_MULTI_MATH_STOP_DELIMITER:
-            addDecorationToRange(viewFrom, viewTo, inlineMathStopDelimiterDecoration);
-            break;
-          case 'InlineCode':
-            addDecorationToRange(viewFrom, viewTo, inlineCodeDecoration);
-            break;
-          case 'tagName':
-            content = view.state.doc.sliceString(viewFrom, viewTo);
-            if (isLatexCommand(content)) {
-              addDecorationToRange(viewFrom, viewTo, ignoreSpellCheck);
-            }
-            break;          
-          case 'variableName.special':
-            content = view.state.doc.sliceString(viewTo, viewTo);
-            if (isLatexEnvironment(content)) {
-              addDecorationToRange(viewFrom, viewTo, ignoreSpellCheck);
-            }
-            break;
-        }
-
-        if (blockDecorated) {
-          if (viewFrom === node.from) {
-            addDecorationToLines(viewFrom, viewFrom, regionStartDecoration);
-          }
-          if (viewTo === node.to) {
-            addDecorationToLines(viewTo, viewTo, regionStopDecoration);
-          }
-        }
-      },
-    });
-  }
-  const decorationBuilder = new RangeSetBuilder<Decoration>();
-  try {
-    decorations.sort((a, b) => a.pos - b.pos);
-    for (const { pos, length, decoration } of decorations) {
-      if (decoration.spec.line) {
-         decorationBuilder.add(pos, pos, decoration);
-      } else if (length && length > 0) {
-        decorationBuilder.add(pos, pos + length, decoration);
-      }
-    }
-  } catch (err) {
-    console.error(err);
-  }
-  return decorationBuilder.finish();
-}
-
-export const mathDecorations = ViewPlugin.fromClass(class {
-  public decorations: DecorationSet;
-
-  public constructor(view: EditorView) {
-    this.decorations = computeDecorations(view);
-  }
-
-  public update(viewUpdate: ViewUpdate) {
-    if (viewUpdate.docChanged || viewUpdate.viewportChanged || viewUpdate.geometryChanged) {
-      this.decorations = computeDecorations(viewUpdate.view);
-    }
-  }
-}, {
-  decorations: pluginVal => pluginVal.decorations,
-});
------ ./react/shared/ui/codemirror-editor/codemirror-setup/helpers.ts -----
-
-
-
-/**
- * mathpix-markdown-it/lib/markdown/common 의 isSpace 함수를 대체합니다.
- * @param code 문자 코드
- */
-export const isSpace = (code: number): boolean => {
-  switch (code) {
-    case 0x09: // \t
-    case 0x0a: // \n
-    case 0x0b:
-    case 0x0c: // \f
-    case 0x0d: // \r
-    case 0x20: // ' '
-    case 0xa0:
-    case 0x1680:
-    case 0x2000:
-    case 0x2001:
-    case 0x2002:
-    case 0x2003:
-    case 0x2004:
-    case 0x2005:
-    case 0x2006:
-    case 0x2007:
-    case 0x2008:
-    case 0x2009:
-    case 0x200a:
-    case 0x202f:
-    case 0x205f:
-    case 0x3000:
-      return true;
-  }
-  return false;
-}
-
-/**
- * mathpix-markdown-it/lib/markdown/utils의 헬퍼 함수들을 대체합니다.
- */
-export const beginTag = (ch: string, encode = false) => {
-  const c = encode ? `\\\\${ch}` : ch; // 💡 정규식에 사용되므로 백슬래시 이스케이프
-  return new RegExp(`\\\\begin\\s*{${c}}`);
-};
-
-export const endTag = (ch: string, encode = false) => {
-  const c = encode ? `\\\\${ch}` : ch; // 💡 정규식에 사용되므로 백슬래시 이스케이프
-  return new RegExp(`\\\\end\\s*{${c}}`);
-};
-
-/**
- * 💡💡💡 BUG FIX: 이 함수가 문제의 핵심이었습니다. 
- * 4번째 인자를 받도록 하고, 인라인 코드 블록(```) 상태를 추적하는 로직으로 강화합니다.
- */
-export const findOpenCloseTags = (str: string, openTag: RegExp, closeTag: RegExp, pending: string = '') => {
-    const arrOpen: { posStart: number, posEnd: number }[] = [];
-    const arrClose: { posStart: number, posEnd: number }[] = [];
-    
-    let openCode = pending ? 1 : 0; 
-    
-    for (let i = 0; i < str.length; i++) {
-        if (str[i] === '`') {
-            openCode = 1 - openCode;
-            continue; 
-        }
-
-        if (openCode) {
-            continue;
-        }
-        
-        const sub = str.substring(i);
-        const matchOpen = sub.match(openTag);
-        if (matchOpen && matchOpen.index === 0) {
-            const end = i + matchOpen[0].length;
-            arrOpen.push({ posStart: i, posEnd: end });
-            i = end - 1; 
-            continue;
-        }
-
-        const matchClose = sub.match(closeTag);
-        if (matchClose && matchClose.index === 0) {
-            const end = i + matchClose[0].length;
-            arrClose.push({ posStart: i, posEnd: end });
-            i = end - 1;
-            continue;
-        }
-    }
-
-    return { arrOpen, arrClose, pending: openCode ? '`' : '' };
-};
-
-
-export const findOpenCloseTagsMathEnvironment = (str: string, openTag: RegExp, closeTag: RegExp) => {
-    return findOpenCloseTags(str, openTag, closeTag);
-}
-
-/**
- * 짝이 맞는 괄호를 찾아 그 사이의 내용을 반환합니다.
- */
-export const findEndMarker = (str: string, startPos: number = 0, beginMarker: string = "{", endMarker: string = "}", onlyEnd = false) => {
-  if (startPos >= str.length) return { res: false, content: '' };
-  
-  if (str[startPos] !== beginMarker && !onlyEnd) {
-    return { res: false, content: '' };
-  }
-  
-  let content: string = '';
-  let nextPos: number = startPos;
-  let openBrackets = 1;
-  let openCode = 0;
-
-  for (let i = startPos + 1; i < str.length; i++) {
-    const chr = str[i];
-    nextPos = i;
-    if (chr === '`') {
-      openCode = 1 - openCode;
-    }
-    if (openCode === 0) {
-      if (chr === beginMarker) {
-        openBrackets++;
-      } else if (chr === endMarker) {
-        openBrackets--;
-        if (openBrackets === 0) {
-          break;
-        }
-      }
-    }
-    content += chr;
-  }
-
-  if (openBrackets > 0) {
-    return { res: false, content: content };
-  }
-
-  return {
-    res: true,
-    content: content,
-    nextPos: nextPos + endMarker.length
-  };
-};
------ ./react/shared/ui/codemirror-editor/codemirror-setup/interfaces.ts -----
-
-export interface BasicSetupOptions {
-  readOnly: boolean;
-  lineNumbers: boolean;
-  lineWrapping: boolean;
-  darkMode: boolean;
-  keyMap: 'sublime' | 'vim';
-  foldGutter: boolean;
-  autocapitalize: boolean;
-  highlightActiveLineGutter: boolean;
-  highlightSpecialChars: boolean;
-  history: boolean;
-  drawSelection: boolean;
-  dropCursor: boolean;
-  allowMultipleSelections: boolean;
-  indentOnInput: boolean;
-  syntaxHighlighting: boolean;
-  bracketMatching: boolean;
-  closeBrackets: boolean;
-  autocompletion: boolean;
-  rectangularSelection: boolean;
-  crosshairCursor: boolean;
-  highlightActiveLine: boolean;
-  highlightSelectionMatches: boolean;
-  closeBracketsKeymap: boolean;
-  defaultKeymap: boolean;
-  searchKeymap: boolean;
-  historyKeymap: boolean;
-  foldKeymap: boolean;
-  completionKeymap: boolean;
-  lintKeymap: boolean;
-  inlineRenderingActive: boolean;
-  batchChangesActive: boolean;
-  spellcheck: boolean;
-  tabSize?: number;
-  cmContentPaddingTop?: number;
-  onSave?: () => void;
-}
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/block-math-config.ts -----
-import { foldNodeProp } from "@codemirror/language";
-import {
-  MarkdownConfig,
-  BlockContext, Line, LeafBlock,
-} from '@lezer/markdown';
-import { wrappedTeXParser } from "./wrapped-TeXParser";
-import {
-  FOLDE_BLOCKS,
-  BLOCK_MATH,
-  BLOCK_MATH_CONTENT_TAG, 
-  MATH_BLOCK_START_REGEX,
-  MATH_BLOCK_STOP_REGEX,
-  mathTag
-} from "./consts";
-
-export const BlockMathConfig: MarkdownConfig = {
-  props: [
-    foldNodeProp.add({
-      Block: (node) => {
-        if (FOLDE_BLOCKS.indexOf(node.name) === -1) {
-          return null;
-        }
-      },
-      BlockMath: (node) => ({ from: node.from + 2, to: node.to - 2 }),
-      BlockMathContent: () => null
-    })
-  ],
-  defineNodes: [
-    {
-      name: BLOCK_MATH,
-      block: true,
-      style: mathTag,
-    },
-    {
-      name: BLOCK_MATH_CONTENT_TAG,
-    },
-
-  ],
-  parseBlock: [{
-    name: BLOCK_MATH,
-    before: 'HorizontalRule',
-
-    parse(cx: BlockContext, line: Line): boolean {
-      const lineLength = line.text.length;
-      const delimLen = 2;
-      const mathStartMatch = MATH_BLOCK_START_REGEX.exec(line.text);
-      if (mathStartMatch) {
-        const start = cx.lineStart + mathStartMatch[0].length;
-        let stop: number;
-        let endMatch = MATH_BLOCK_STOP_REGEX.exec(
-          line.text.substring(mathStartMatch[0].length)
-        );
-        if (endMatch) {
-          stop = cx.lineStart + lineLength - endMatch[0].length;
-        } else {
-          let hadNextLine = false;
-          do {
-            hadNextLine = cx.nextLine();
-            if (!line.text) {
-              break;
-            }
-            endMatch = hadNextLine ? MATH_BLOCK_STOP_REGEX.exec(line.text) : null;
-          }
-          while (hadNextLine && endMatch == null);
-          
-          if (!endMatch) {
-            return false;
-          }
-          if (hadNextLine && endMatch) {
-            stop = cx.lineStart + line.text.length - endMatch[0].length;
-          } else {
-            stop = cx.lineStart;
-          }
-        }
-        const contentElem = cx.elt(BLOCK_MATH_CONTENT_TAG, start, stop);
-        cx.addElement(
-          cx.elt(BLOCK_MATH, start - delimLen, stop + delimLen, [contentElem])
-        );
-        cx.nextLine();
-        return true;
-      }
-      return false;
-    },
-    endLeaf(_cx: BlockContext, line: Line, _leaf: LeafBlock): boolean {
-      return MATH_BLOCK_START_REGEX.exec(line.text) != null;
-    },
-  }],
-  wrap: wrappedTeXParser(BLOCK_MATH_CONTENT_TAG),
-};
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/block-multiMath-config.ts -----
-
-import {
-  type MarkdownConfig,
-  type BlockContext, type Line, type LeafBlock,
-} from '@lezer/markdown';
-import { foldNodeProp } from "@codemirror/language";
-import { wrappedTeXParser } from "./wrapped-TeXParser";
-import {
-  BLOCK_DISPLAY_MATH,
-  EQUATION_MATH,
-  EQUATION_MATH_NOT_NUMBER,
-  MULTI_MATH_START_REGEX,
-  BLOCK_TABLE,
-  BLOCK_TABULAR,
-  BLOCK_FIGURE,
-  BLOCK_CENTER,
-  BLOCK_LEFT,
-  BLOCK_RIGHT,
-  BLOCK_LIST,
-  BLOCK_TEXT,
-  BLOCK_MULTI_MATH,
-  BLOCK_MULTI_MATH_CONTENT_TAG,
-  BLOCK_TEXT_LATEX_CONTENT_TAG,
-  BLOCK_MULTI_MATH_VERBOSE_DELIMITER,
-  BLOCK_MULTI_MATH_DELIMITER,
-  BLOCK_MULTI_MATH_DELIMITER_COMMAND,
-  BLOCK_MULTI_MATH_DELIMITER_BRACE,
-  BLOCK_MULTI_MATH_DELIMITER_TYPE,
-  mathTag,
-  latexTag,
-  delimiterBraceTag,
-  aquaTag,
-  contentTag,
-  latexEnvironments,
-  mathEnvironments,
-  EQUATION_MATH_START_REGEX
-} from "./consts";
-import { type SyntaxNode } from '@lezer/common';
-import { type EditorState } from '@codemirror/state';
-
-const getFoldData = (node: SyntaxNode, state: EditorState) => {
-  const content = state.doc.sliceString(node.from, node.to);
-  const match = content.match(EQUATION_MATH_START_REGEX);
-  
-  if (!match || !match[1]) return null;
-  
-  const endMarker = `\\end{${match[1]}}`;
-  const from = match.index !== undefined ? node.from + match.index + match[0].length : node.from;
-  const toIndex = content.lastIndexOf(endMarker);
-  
-  if (toIndex === -1) return null;
-  
-  const to = node.from + toIndex;
-  
-  return from < to ? { from, to } : null;
-};
-
-
-export const BlockMultiMathConfig: MarkdownConfig = {
-  props: [
-    foldNodeProp.add({
-      EquationMath: getFoldData,
-      EquationMathNotNumber: getFoldData,
-      BlockTabular: getFoldData,
-      BlockTable: getFoldData,
-      BlockFigure: getFoldData,
-    }),
-  ],
-  defineNodes: [
-    { name: BLOCK_MULTI_MATH, block: true, style: mathTag },
-    { name: BLOCK_DISPLAY_MATH, block: true, style: mathTag },
-    { name: EQUATION_MATH_NOT_NUMBER, block: true, style: mathTag },
-    { name: EQUATION_MATH, block: true, style: mathTag },
-    { name: BLOCK_TABLE, block: true, style: mathTag },
-    { name: BLOCK_TABULAR, block: true, style: mathTag },
-    { name: BLOCK_FIGURE, block: true, style: mathTag },
-    { name: BLOCK_CENTER, block: true, style: mathTag },
-    { name: BLOCK_LEFT, block: true, style: mathTag },
-    { name: BLOCK_RIGHT, block: true, style: mathTag },
-    { name: BLOCK_LIST, block: true, style: mathTag },
-    { name: BLOCK_TEXT, block: true, style: mathTag },
-    { name: BLOCK_MULTI_MATH_CONTENT_TAG, style: contentTag },
-    { name: BLOCK_TEXT_LATEX_CONTENT_TAG, style: contentTag },
-    { name: BLOCK_MULTI_MATH_VERBOSE_DELIMITER, style: latexTag },
-    { name: BLOCK_MULTI_MATH_DELIMITER, style: latexTag },
-    { name: BLOCK_MULTI_MATH_DELIMITER_COMMAND, style: latexTag },
-    { name: BLOCK_MULTI_MATH_DELIMITER_BRACE, style: delimiterBraceTag },
-    { name: BLOCK_MULTI_MATH_DELIMITER_TYPE, style: aquaTag },
-  ],
-  parseBlock: [{
-    name: "MultiMath",
-    parse(cx: BlockContext, line: Line): boolean {
-      const startMatch = line.text.slice(line.pos).match(MULTI_MATH_START_REGEX);
-      if (!startMatch) return false;
-
-      const environment = startMatch[1] || (startMatch[0] === "\\[" || startMatch[0] === "\\\\[" ? "display" : null);
-      if (!environment) return false;
-
-      const endTagStr = environment === 'display' ? (startMatch[0] === "\\[" ? "\\]" : "\\\\]") : `\\end{${environment}}`;
-      const endRegex = new RegExp(endTagStr.replace(/\\/g, '\\\\'));
-
-      const startPos = cx.lineStart + line.pos + (startMatch.index || 0);
-      const startDelimLen = startMatch[0].length;
-      
-      let endMatch = line.text.substring(line.pos + (startMatch.index || 0) + startDelimLen).match(endRegex);
-
-      if (!endMatch) {
-          let hadNextLine = false;
-          do {
-            hadNextLine = cx.nextLine();
-            if (!hadNextLine) break; // 문서 끝에 도달
-            endMatch = line.text.match(endRegex);
-          } while (!endMatch);
-      }
-      
-      if (!endMatch) return false; // 문서 끝까지 닫는 태그를 찾지 못함
-
-      const stopPos = cx.lineStart + (endMatch.index || 0);
-
-      let nodeType: string = BLOCK_MULTI_MATH;
-       if (environment === 'display') {
-        nodeType = BLOCK_DISPLAY_MATH;
-      } else if (mathEnvironments.includes(environment)) {
-        nodeType = environment.endsWith('*') ? EQUATION_MATH_NOT_NUMBER : EQUATION_MATH;
-      } else if (latexEnvironments.includes(environment)) {
-          switch(environment) {
-              case "table": nodeType = BLOCK_TABLE; break;
-              case "tabular": nodeType = BLOCK_TABULAR; break;
-              case "figure": nodeType = BLOCK_FIGURE; break;
-              case "center": nodeType = BLOCK_CENTER; break;
-              case "left": nodeType = BLOCK_LEFT; break;
-              case "right": nodeType = BLOCK_RIGHT; break;
-              case "itemize": case "enumerate": nodeType = BLOCK_LIST; break;
-              default: nodeType = BLOCK_TEXT;
-          }
-      } else {
-        nodeType = BLOCK_TEXT;
-      }
-      
-      const children = [];
-
-      if (startMatch[1]) {
-        const startDelimContent = [];
-        startDelimContent.push(cx.elt(BLOCK_MULTI_MATH_DELIMITER_COMMAND, startPos, startPos + 6)); // \begin
-        startDelimContent.push(cx.elt(BLOCK_MULTI_MATH_DELIMITER_BRACE, startPos + 6, startPos + 7)); // {
-        startDelimContent.push(cx.elt(BLOCK_MULTI_MATH_DELIMITER_TYPE, startPos + 7, startPos + 7 + startMatch[1].length));
-        startDelimContent.push(cx.elt(BLOCK_MULTI_MATH_DELIMITER_BRACE, startPos + 7 + startMatch[1].length, startPos + startDelimLen)); // }
-        children.push(cx.elt(BLOCK_MULTI_MATH_VERBOSE_DELIMITER, startPos, startPos + startDelimLen, startDelimContent));
-      } else {
-        children.push(cx.elt(BLOCK_MULTI_MATH_DELIMITER, startPos, startPos + startDelimLen));
-      }
-
-      const contentTagType = nodeType === BLOCK_TEXT ? BLOCK_TEXT_LATEX_CONTENT_TAG : BLOCK_MULTI_MATH_CONTENT_TAG;
-      children.push(cx.elt(contentTagType, startPos + startDelimLen, stopPos));
-
-      const endDelimLen = endMatch[0].length;
-      if (startMatch[1]) { // \begin으로 시작했다면 \end로 끝나야 함
-        const endDelimContent = [];
-        endDelimContent.push(cx.elt(BLOCK_MULTI_MATH_DELIMITER_COMMAND, stopPos, stopPos + 4)); // \end
-        endDelimContent.push(cx.elt(BLOCK_MULTI_MATH_DELIMITER_BRACE, stopPos + 4, stopPos + 5)); // {
-        endDelimContent.push(cx.elt(BLOCK_MULTI_MATH_DELIMITER_TYPE, stopPos + 5, stopPos + 5 + startMatch[1].length));
-        endDelimContent.push(cx.elt(BLOCK_MULTI_MATH_DELIMITER_BRACE, stopPos + 5 + startMatch[1].length, stopPos + endDelimLen)); // }
-        children.push(cx.elt(BLOCK_MULTI_MATH_VERBOSE_DELIMITER, stopPos, stopPos + endDelimLen, endDelimContent));
-      } else {
-        children.push(cx.elt(BLOCK_MULTI_MATH_DELIMITER, stopPos, stopPos + endDelimLen));
-      }
-
-      cx.addElement(cx.elt(nodeType, startPos, stopPos + endDelimLen, children));
-      
-      cx.nextLine();
-      return true;
-    },
-    endLeaf(_cx: BlockContext, line: Line, _leaf: LeafBlock): boolean {
-      return MULTI_MATH_START_REGEX.test(line.text.slice(line.pos));
-    },
-  }],
-  wrap: wrappedTeXParser(BLOCK_MULTI_MATH_CONTENT_TAG),
-};
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/block-yaml-config.ts -----
-import { MarkdownConfig } from "@lezer/markdown";
-import { yaml } from "@codemirror/legacy-modes/mode/yaml";
-import { foldInside, StreamLanguage, foldNodeProp } from "@codemirror/language";
-import { styleTags, tags } from "@lezer/highlight"; 
-
-const frontMatterFence = /^-------\s*$/m;
-
-const yamlNodes = [
-  "YAMLatom",
-  { name: "YAMLmeta", block: true },
-  "YAMLnumber",
-  "YAMLkeyword",
-  "YAMLdef",
-  "YAMLcomment",
-  "YAMLstring",
-];
-
-/**
- * Lezer Markdown extension for YAML frontmatter support. This includes support
- * for parsing, syntax highlighting and folding.
- */
-export const blockYamlConfig: MarkdownConfig = {
-  props: [
-    styleTags({
-      YAMLnumber: tags.number,
-      YAMLkeyword: tags.keyword,
-      YAMLdef: tags.definition(tags.labelName),
-      YAMLcomment: tags.comment,
-      YAMLstring: tags.string,
-      YAMLatom: tags.atom,
-      YAMLmeta: tags.meta,
-      FrontmatterMark: tags.processingInstruction,
-    }),
-    foldNodeProp.add({
-      Frontmatter: foldInside,
-      FrontmatterMark: () => null,
-    }),
-  ],
-  defineNodes: [
-    { name: "Frontmatter", block: true },
-    "FrontmatterMark",
-    ...yamlNodes,
-  ],
-  parseBlock: [
-    {
-      name: "Frontmatter",
-      before: "HorizontalRule",
-      parse: (cx, line) => {
-        let matter = "";
-        const yamlParser = StreamLanguage.define(yaml).parser;
-        const startPos = cx.lineStart;
-        let endPos: number;
-        if (startPos !== 0) return false;
-        if (!frontMatterFence.test(line.text)) return false;
-        while (cx.nextLine()) {
-          if (frontMatterFence.test(line.text)) {
-            const parsedYaml = yamlParser.parse(matter);
-            const children = [];
-            children.push(cx.elt("FrontmatterMark", startPos, startPos + 8));
-            const { length } = matter;
-            parsedYaml.iterate({
-              enter: ({ type, from, to }) => {
-                if (type.name === "Document") return;
-                if (startPos + to > length) return;
-                children.push(
-                  cx.elt(
-                    "YAML" + type.name,
-                    startPos + 8 + from,
-                    startPos + 8 + to,
-                  ),
-                );
-              },
-            });
-            endPos = cx.lineStart + line.text.length;
-            children.push(cx.elt("FrontmatterMark", cx.lineStart, endPos));
-            cx.addElement(cx.elt("Frontmatter", startPos, endPos, children));
-            return false;
-          } else {
-            matter += line.text + "\n";
-          }
-        }
-        return true;
-      },
-    },
-  ],
-};
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/consts.ts -----
-import { tags, Tag } from "@lezer/highlight";
-import { StreamLanguage } from "@codemirror/language";
-import { stexMath } from "@codemirror/legacy-modes/mode/stex";
-
-export const MATH_BLOCK_START_REGEX = /^(?:\s*[>]\s*)?\$\$/; // (?:[>]\s*)?: Optionally allow block math lines to start with '> '
-export const MATH_BLOCK_STOP_REGEX = /\$\$\s*$/;
-export const MULTI_MATH_START_REGEX = /^(?:\\\[|\[|\\begin\{([^}]*)\})/;
-export const MULTI_MATH_START_REGEX_G = /(?:\\\[|\[|\\begin\{([^}]*)\})/;
-export const EQUATION_MATH_START_REGEX = /^(?:\\begin\{([^}]*)\})/;
-export const regExpMultiMath = /(?:\\\[|\[|\\begin\{([^}]*)\})/;
-export const imageRegex = /!\[.*?\]\((?<url>.*?)\)/;
-
-export const DOLLAR_SIGN_CHAR_CODE = 36;
-export const BACKSLASH_CHAR_CODE = 92;
-
-export const TEX_LANGUAGE = StreamLanguage.define(stexMath);
-
-export const EQUATION_MATH_NOT_NUMBER = "EquationMathNotNumber"; //equation_math_not_number 
-export const EQUATION_MATH = "EquationMath"; //equation_math 
-export const REFERENCE_NOTE = "ReferenceNote"; //reference_note
-export const BLOCK_DISPLAY_MATH = "BlockDisplayMath";
-export const INLINE_DISPLAY_MATH = "InlineDisplayMath";
-
-export const BLOCK_MATH = 'BlockMath';
-export const BLOCK_MATH_CONTENT_TAG = 'BlockMathContent';
-
-export const BLOCK_MULTI_MATH = "BlockMultiMath";
-export const BLOCK_MULTI_MATH_CONTENT_TAG = 'BlockMultiMathContent';
-export const BLOCK_TEXT_LATEX_CONTENT_TAG = 'BlockTextLatexContent';
-export const BLOCK_MULTI_MATH_DELIMITER = 'BlockMultiMathDelimiter';
-export const BLOCK_MULTI_MATH_VERBOSE_DELIMITER = 'BlockMultiMathVerboseDelimiter'; // \begin{...}, \end{...}
-export const BLOCK_MULTI_MATH_DELIMITER_COMMAND = 'BlockMultiMathDelimiterCommand'; // For `\begin`, `\end` in \begin{...} \end{...}
-export const BLOCK_MULTI_MATH_DELIMITER_BRACE = 'BlockMultiMathDelimiterBrace'; // For `{`, `}` in \begin{...} \end{...}
-export const BLOCK_MULTI_MATH_DELIMITER_TYPE = 'BlockMultiMathDelimiterType'; // For ... in \begin{...} \end{...}
-
-export const BLOCK_TABLE = 'BlockTable';
-export const BLOCK_CENTER = 'BlockCenter';
-export const BLOCK_LEFT = 'BlockLeft';
-export const BLOCK_RIGHT = 'BlockRight';
-
-export const BLOCK_TABULAR = 'BlockTabular';
-export const BLOCK_FIGURE = 'BlockFigure';
-export const BLOCK_LIST = 'BlockList';
-export const BLOCK_ABSTRACT = 'BlockAbstract';
-export const BLOCK_THEOREM = 'BlockTheorem';
-export const BLOCK_TEXT = 'BlockText';
-
-export const INLINE_MATH = 'InlineMath'; //inline_math
-export const INLINE_MATH_CONTENT_TAG = 'InlineMathContent';
-export const INLINE_MATH_START_DELIMITER = 'InlineMathStartDelimiter';
-export const INLINE_MATH_STOP_DELIMITER = 'InlineMathStopDelimiter';
-
-export const INLINE_MULTI_MATH = 'InlineMultiMath';
-export const INLINE_MULTI_MATH_CONTENT_TAG = 'InlineMultiMathContent';
-export const INLINE_MULTI_MATH_START_DELIMITER = 'InlineMultiMathStartDelimiter';
-export const INLINE_MULTI_MATH_STOP_DELIMITER = 'InlineMultiMathStopDelimiter';
-
-export const INLINE_IMAGE_PARAMS = 'ImageParams';
-
-export const mathTag = Tag.define(tags.keyword);
-export const latexTag = Tag.define(tags.tagName);
-export const aquaTag = Tag.define(tags.macroName);
-export const contentTag = Tag.define(tags.content);
-export const delimiterBraceTag = Tag.define(tags.contentSeparator);
-
-export const inlineMathTag = Tag.define(mathTag);
-export const inlineMathTagDelimiter = Tag.define(tags.keyword);
-
-export const FOLDE_BLOCKS = [
-  BLOCK_MULTI_MATH,
-  BLOCK_DISPLAY_MATH,
-  BLOCK_MATH,
-  EQUATION_MATH_NOT_NUMBER,
-  EQUATION_MATH
-];
-
-export const latexEnvironments = [
-  "figure",
-  "table",
-  "tabular",
-  "enumerate",
-  "itemize",
-  "center",
-  "left",
-  "right",
-];
-
-/** https://docs.mathjax.org/en/v3.0-latest/input/tex/macros/index.html#environments */
-export const mathEnvironments = [
-  "align",
-  "align*",
-  "alignat",
-  "alignat*",
-  "aligned",
-  "alignedat",
-  "array",
-  "Bmatrix",
-  "bmatrix",
-  "cases",
-  "eqnarray",
-  "eqnarray*",
-  "equation",
-  "equation*",
-  "gather",
-  "gather*",
-  "gathered",
-  "matrix",
-  "multline",
-  "multline*",
-  "pmatrix",
-  "smallmatrix",
-  "split",
-  "subarray",
-  "Vmatrix",
-  "vmatrix"
-];
-
-export const reNewTheorem: RegExp = /^\\newtheorem\s{0,}\{(?<name>[^}]*)\}\s{0,}\{(?<print>[^}]*)\}/;
-export const reNewTheoremG: RegExp = /\\newtheorem([^}]*)\s{0,}\{(?<name>[^}]*)\}/
-export const reNewTheoremNumbered: RegExp = /^\\newtheorem\s{0,}\{(?<name>[^}]*)\}\s{0,}\{(?<print>[^}]*)\}\s{0,}\[(?<numbered>[^\]]*)\]/;
-export const reNewTheoremNumbered2: RegExp = /^\\newtheorem\s{0,}\{(?<name>[^}]*)\}\s{0,}\[(?<numbered>[^\]]*)\]\s{0,}\{(?<print>[^}]*)\}/;
-export const reNewTheoremUnNumbered: RegExp = /^\\newtheorem\*\s{0,}\{(?<name>[^}]*)\}\s{0,}\{(?<print>[^}]*)\}/;
-export const reTheoremStyle: RegExp = /^\\theoremstyle\s{0,}\{(definition|plain|remark)\}/;
-export const reTheoremStyleG: RegExp = /\\theoremstyle\s{0,}\{(definition|plain|remark)\}/;
-export const reNewCommandQedSymbol: RegExp = /^\\renewcommand\s{0,}\\qedsymbol\s{0,}\{(?<qed>[^}]*)\}/;
-export const reNewCommandQedSymbolG: RegExp = /\\renewcommand\s{0,}\\qedsymbol\s{0,}\{(?<qed>[^}]*)\}/;
-export const reSetCounter: RegExp = /^\\setcounter\s{0,}\{(?<name>[^}]*)\}\s{0,}\{(?<number>[^}]*)\}/;
-export const reSetCounterG: RegExp = /\\setcounter\s{0,}\{(?<name>[^}]*)\}\s{0,}\{(?<number>[^}]*)\}/;
-export const reLatexFootnotes: RegExp = /^\\(?:footnotemark|footnotetext|footnote|blfootnotetext)/;
-export const reNumber = /^-?\d+$/;
-
-export const textLatexCommands = [
-  "\\title",
-  "\\author",
-  "\\section",
-  "\\section*",
-  "\\subsection",
-  "\\subsection*",
-  "\\subsubsection",
-  "\\subsubsection*",
-  "\\pagebreak",
-  "\\eqref",
-  "\\ref",
-  "\\label",
-  "\\theoremstyle",
-  "\\setcounter",
-  "\\newtheorem*",
-  "\\newtheorem",
-  "\\renewcommand",
-  "\\qedsymbol",
-  "\\footnotemark",
-  "\\footnotetext",
-  "\\footnote",
-  "\\footnotetext",
-  "\\textit",
-  "\\textbf",
-  "\\texttt",
-  "\\text",
-  "\\underline",
-  "\\uline",
-  "\\uuline",
-  "\\uwave",
-  "\\dashuline",
-  "\\dotuline",
-  "\\sout",
-  "\\xout",
-];
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/index.ts -----
-import { MarkdownConfig } from "@lezer/markdown";
-import { blockYamlConfig } from "./block-yaml-config";
-import { BlockMathConfig } from "./block-math-config";
-import { BlockMultiMathConfig } from "./block-multiMath-config";
-import { InlineMathConfig } from "./inline-math-config";
-import { InlineMultiMathConfig } from "./inline-multiMath-config";
-import { inlineLatexConfig } from "./inline-latex-config";
-import { InlineImageConfig } from "./inline-image-config";
-import { inlineLatexFootnotesConfig } from "./inline-latex-footnotes";
-import { markdownHighlight } from "./markdown";
-
-/** Markdown configuration for block and inline math support. */
-const MarkdownMathExtension: MarkdownConfig[] = [
-  blockYamlConfig,
-  BlockMathConfig,
-  BlockMultiMathConfig,
-  InlineMultiMathConfig,
-  InlineMathConfig,
-  inlineLatexConfig,
-  InlineImageConfig,
-  inlineLatexFootnotesConfig,
-  markdownHighlight
-];
-
-export { MarkdownMathExtension };
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/inline-image-config.ts -----
-import { MarkdownConfig } from "@lezer/markdown";
-import { INLINE_IMAGE_PARAMS, inlineMathTag } from "./consts";
-
-export const InlineImageConfig: MarkdownConfig = {
-  defineNodes: [
-    {
-      name: INLINE_IMAGE_PARAMS,
-      style: inlineMathTag,
-    },
-  ],
-  parseInline: [
-    {
-      name: INLINE_IMAGE_PARAMS,
-      after: "LinkEnd",
-
-      parse(cx: any, next: number, pos: number): number {
-        if (next !== 123 /* '{' */) {
-          return -1;
-        }
-        if (!cx.parts?.length) {
-          return -1;
-        }
-        const elBefore = cx.parts.length - 1 >= 0 ? cx.parts[cx.parts.length - 1] : null;
-        if (!elBefore || elBefore.type !== 28 /* Image */) {
-          return - 1;
-        }
-        const start = pos;
-        const end = cx.end;
-        pos++;
-        for (; pos < end && cx.char(pos) !== 125; pos++) {
-          if (cx.char(pos) === 125) {
-            break;
-          }
-        }
-        pos++;
-        const el = cx.elt(INLINE_IMAGE_PARAMS, start, pos);
-        elBefore.children.push(el);
-        elBefore.to = pos;
-        return pos;
-      }
-    },
-  ]
-}; 
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/inline-latex-config.ts -----
-
-import { MarkdownConfig, InlineContext } from "@lezer/markdown";
-import {
-  inlineMathTag,
-  latexTag,
-  contentTag,
-  delimiterBraceTag,
-  reNewTheorem,
-  reNewTheoremNumbered,
-  reNewTheoremNumbered2,
-  reNewTheoremUnNumbered,
-  reTheoremStyle,
-  reNewCommandQedSymbol,
-  reSetCounter
-} from "./consts";
-import { wrappedTeXParser } from "./wrapped-TeXParser";
-import { findEndMarker } from "../helpers";
-
-export const inlineLatexConfig: MarkdownConfig = {
-  defineNodes: [
-    {
-      name: "inlineTitle",
-      style: inlineMathTag
-    },
-    {
-      name: "inlineAuthor",
-      style: inlineMathTag
-    },
-    {
-      name: "inlineNewTheorem",
-      style: inlineMathTag
-    },
-    {
-      name: "inlineTheoremStyle",
-      style: inlineMathTag
-    },
-    {
-      name: "inlineSetCounter",
-      style: inlineMathTag
-    },
-    {
-      name: "inlineNewCommandQedSymbol",
-      style: inlineMathTag
-    },
-    {
-      name: "inlineLatexContent",
-      style: inlineMathTag
-    },
-    {
-      name: "inlineTextTypes",
-      style: inlineMathTag
-    },
-    {
-      name: "inlineLatexCommand",
-      style: latexTag
-    },
-    {
-      name: "inlineLatexBrace",
-      style: delimiterBraceTag
-    },
-    {
-      name: "inlineTextContent",
-      style: contentTag
-    }
-  ],
-  parseInline: [{
-    name: "inlineTitle",
-    after: 'InlineCode',
-    parse(cx: InlineContext, next: number, pos: number): number {
-      if (next !== 92 /* \ */) {
-        return -1;
-      }
-      const src = cx.text.slice(pos - cx.offset);
-      if (!src) {
-        return -1;
-      }
-      let startMathPos = pos;
-      const pickTag: RegExp = /\\(?:title\{([^}]*)\}|section\*?\{([^}]*)\}|subsection\*?\{([^}]*)\}|subsubsection\*?\{([^}]*)\})/;
-      const match = src.match(pickTag);
-      const contentMatch = match?.find((submatch, i) => i > 0 && submatch !== undefined);
-      if (!match || contentMatch === undefined) {
-        return -1;
-      }
-      const endMarkerPos = startMathPos + match[0].length;
-      const contentStartPos = endMarkerPos - contentMatch.length - 1;
-      const contentEndPos = endMarkerPos - 1;
-      const commandElem = cx.elt('inlineLatexCommand', startMathPos, contentStartPos - 1);
-      const brace1Elem = cx.elt('inlineLatexBrace', contentStartPos - 1, contentStartPos);
-      const brace2Elem = cx.elt('inlineLatexBrace', contentEndPos, endMarkerPos);
-      const contentElem = cx.elt("inlineTextContent", contentStartPos, contentEndPos);
-      return cx.addElement(cx.elt("inlineTitle", startMathPos, endMarkerPos, [
-        commandElem, brace1Elem, contentElem, brace2Elem
-      ]));
-    }
-  },
-  {
-    name: "inlineTextTypes",
-    after: 'InlineCode',
-    parse(cx: InlineContext, next: number, pos: number): number {
-      if (next !== 92 /* \ */) {
-        return -1;
-      }
-      const src = cx.text.slice(pos - cx.offset);
-      if (!src) {
-        return -1;
-      }
-      let startMathPos = pos;
-      const pickTag: RegExp = /\\(?:textit|textbf|texttt|text|underline|uline|uuline|uwave|dashuline|dotuline|sout|xout)/;
-      const match = src
-        .match(pickTag);
-      if (!match) {
-        return -1;
-      }
-      let { res = false, nextPos = 0, content } = findEndMarker(src, match[0].length);
-      if (!res) {
-        return -1;
-      }
-      const endMarkerPos = startMathPos + nextPos;
-      const contentStartPos = endMarkerPos - content.length - 1;
-      const contentEndPos = endMarkerPos - 1;
-      const commandElem = cx.elt('inlineLatexCommand', startMathPos, contentStartPos - 1);
-      const brace1Elem = cx.elt('inlineLatexBrace', contentStartPos - 1, contentStartPos);
-      const brace2Elem = cx.elt('inlineLatexBrace', contentEndPos, endMarkerPos);
-      const contentElem = cx.elt("inlineTextContent", contentStartPos, contentEndPos);
-      return cx.addElement(cx.elt("inlineTextTypes", startMathPos, endMarkerPos, [
-        commandElem, brace1Elem, contentElem, brace2Elem
-      ]));
-    }
-  },
-  {
-    name: "inlineAuthor",
-    after: 'InlineCode',
-    parse(cx: InlineContext, next: number, pos: number): number {
-      if (next !== 92 /* \ */) {
-        return -1;
-      }
-      const src = cx.text.slice(pos - cx.offset);
-      if (!src) {
-        return -1;
-      }
-      let startMathPos = pos;
-      const pickTag: RegExp = /\\(?:author)/;
-      const match = src
-        .match(pickTag);
-      if (!match) {
-        return -1;
-      }
-      let { res = false, nextPos = 0, content } = findEndMarker(src, match[0].length);
-      if (!res) {
-        return -1;
-      }
-      const endMarkerPos = startMathPos + nextPos;
-      const contentStartPos = endMarkerPos - content.length - 1;
-      const contentEndPos = endMarkerPos - 1;
-      const commandElem = cx.elt('inlineLatexCommand', startMathPos, contentStartPos - 1);
-      const brace1Elem = cx.elt('inlineLatexBrace', contentStartPos - 1, contentStartPos);
-      const brace2Elem = cx.elt('inlineLatexBrace', contentEndPos, endMarkerPos);
-      const contentElem = cx.elt("inlineTextContent", contentStartPos, contentEndPos);
-      return cx.addElement(cx.elt("inlineAuthor", startMathPos, endMarkerPos, [
-        commandElem, brace1Elem, contentElem, brace2Elem
-      ]));
-    }
-  },
-  {
-    name: "inlineNewTheorem",
-    after: "InlineCode",
-    parse(cx: InlineContext, next: number, pos: number): number {
-      if (next !== 92 /* \ */) {
-        return -1;
-      }
-      const src = cx.text.slice(pos - cx.offset);
-      if (!src) {
-        return -1;
-      }
-      let startMathPos = pos;
-      let match = src
-        .match(reNewTheoremNumbered);
-      if (!match) {
-        match = src
-          .match(reNewTheoremNumbered2);
-      }
-      if (!match) {
-        match = src
-          .match(reNewTheorem);
-      }
-      if (!match) {
-        match = src
-          .match(reNewTheoremUnNumbered);
-      }
-      if (!match) {
-        return -1;
-      }
-      const endMarkerPos = startMathPos + match[0].length;
-      const contentElem = cx.elt("inlineLatexContent", startMathPos, endMarkerPos);
-      return cx.addElement(cx.elt("inlineNewTheorem", startMathPos, endMarkerPos, [
-        contentElem
-      ]));
-    }
-  },
-  {
-    name: "inlineTheoremStyle",
-    after: "InlineCode",
-    parse(cx: InlineContext, next: number, pos: number): number {
-      if (next !== 92 /* \ */) {
-        return -1;
-      }
-      const src = cx.text.slice(pos - cx.offset);
-      if (!src) {
-        return -1;
-      }
-      let startMathPos = pos;
-      const match = src
-        .match(reTheoremStyle);
-      if (!match) {
-        return -1;
-      }
-      const endMarkerPos = startMathPos + match[0].length;
-      const contentElem = cx.elt("inlineLatexContent", startMathPos, endMarkerPos);
-      return cx.addElement(cx.elt("inlineTheoremStyle", startMathPos, endMarkerPos, [
-        contentElem
-      ]));
-    }
-  },
-  {
-    name: "inlineSetCounter",
-    after: "InlineCode",
-    parse(cx: InlineContext, next: number, pos: number): number {
-      if (next !== 92 /* \ */) {
-        return -1;
-      }
-      const src = cx.text.slice(pos - cx.offset);
-      if (!src) {
-        return -1;
-      }
-      let startMathPos = pos;
-      const match = src
-        .match(reSetCounter);
-      if (!match) {
-        return -1;
-      }
-      const endMarkerPos = startMathPos + match[0].length;
-      const contentElem = cx.elt("inlineLatexContent", startMathPos, endMarkerPos);
-      return cx.addElement(cx.elt("inlineSetCounter", startMathPos, endMarkerPos, [
-        contentElem
-      ]));
-    }
-  },
-  {
-    name: "inlineNewCommandQedSymbol",
-    after: "InlineCode",
-    parse(cx: InlineContext, next: number, pos: number): number {
-      if (next !== 92 /* \ */) {
-        return -1;
-      }
-      const src = cx.text.slice(pos - cx.offset);
-      if (!src) {
-        return -1;
-      }
-      let startMathPos = pos;
-      const match = src
-        .match(reNewCommandQedSymbol);
-      if (!match) {
-        return -1;
-      }
-      const endMarkerPos = startMathPos + match[0].length;
-      const contentElem = cx.elt("inlineLatexContent", startMathPos, endMarkerPos);
-      return cx.addElement(cx.elt("inlineNewCommandQedSymbol", startMathPos, endMarkerPos, [
-        contentElem
-      ]));
-    }
-  }],
-  wrap: wrappedTeXParser("inlineLatexContent")
-};
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/inline-latex-footnotes.ts -----
-
-import { MarkdownConfig, InlineContext } from "@lezer/markdown";
-import {
-  inlineMathTag,
-  reLatexFootnotes,
-  reNumber
-} from "./consts";
-import { wrappedTeXParser } from "./wrapped-TeXParser";
-import { findEndMarker, isSpace } from "../helpers";
-
-export const inlineLatexFootnotesConfig: MarkdownConfig = {
-  defineNodes: [
-    {
-      name: "latexFootnotesContent",
-      style: inlineMathTag
-    },
-    {
-      name: 'latexFootnotes',
-      style: inlineMathTag
-    }
-  ],
-  parseInline: [
-    {
-      name: "latexFootnotes",
-      after: "InlineCode",
-      parse(cx: InlineContext, next: number, pos: number): number {
-        if (next !== 92 /* \ */) {
-          return -1;
-        }
-        const src = cx.text.slice(pos - cx.offset);
-        if (!src) {
-          return -1;
-        }
-        let startMathPos = pos;
-        let nextPos: number = pos;
-        let max: number = src.length;
-        const match = src
-          .match(reLatexFootnotes);
-        if (!match) {
-          return -1;
-        }
-        nextPos = match[0].length;
-        for (; nextPos < max; nextPos++) {
-          const code = src.charCodeAt(nextPos);
-          if (!isSpace(code) && code !== 0x0A) { break; }
-        }
-        if (nextPos >= max) {
-          if (nextPos === max && match[0] === "\\footnotemark") {
-            const endMarkerPos = startMathPos + match[0].length;
-            const contentElem = cx.elt("latexFootnotesContent", startMathPos, endMarkerPos);
-            return cx.addElement(cx.elt("latexFootnotes", startMathPos, endMarkerPos, [
-              contentElem
-            ]));
-          }
-          return -1;
-        }
-        if (src.charCodeAt(nextPos) !== 123 /* { */
-          && src.charCodeAt(nextPos) !== 0x5B/* [ */) {
-          if (match[0] === "\\footnotemark") {
-            const endMarkerPos = startMathPos + match[0].length;
-            const contentElem = cx.elt("latexFootnotesContent", startMathPos, endMarkerPos);
-            return cx.addElement(cx.elt("latexFootnotes", startMathPos, endMarkerPos, [
-              contentElem
-            ]));
-          }
-          return -1;
-        }
-        let data = null;
-        let numbered = undefined;
-        if (src.charCodeAt(nextPos) === 123 /* { */) {
-          data = findEndMarker(src, nextPos);
-        } else {
-          data = null;
-          let dataNumbered = findEndMarker(src, nextPos, "[", "]");
-          if (!dataNumbered || !dataNumbered.res) {
-            return -1; /** can not find end marker */
-          }
-          numbered = dataNumbered.content;
-          if (numbered?.trim() && !reNumber.test(numbered)) {
-            return -1;
-          }
-          nextPos = dataNumbered.nextPos;
-          if (nextPos < max) {
-            for (; nextPos < max; nextPos++) {
-              const code = src.charCodeAt(nextPos);
-              if (!isSpace(code) && code !== 0x0A) { break; }
-            }
-          }
-          if (nextPos < max && src.charCodeAt(nextPos) === 123/* { */) {
-            data = findEndMarker(src, nextPos);
-            if (!data || !data.res) {
-              return -1; /** can not find end marker */
-            }
-          } else {
-            if (nextPos < max && match[0] === "\\footnotemark") {
-              const endMarkerPos = startMathPos + dataNumbered.nextPos;
-              const contentElem = cx.elt("latexFootnotesContent", startMathPos, endMarkerPos);
-              return cx.addElement(cx.elt("latexFootnotes", startMathPos, endMarkerPos, [
-                contentElem
-              ]));
-            }
-          }
-        }
-        if (!data || !data.res) {
-          return -1; /** can not find end marker */
-        }
-        const endMarkerPos = startMathPos + data.nextPos;
-        const contentElem = cx.elt("latexFootnotesContent", startMathPos, endMarkerPos);
-        return cx.addElement(cx.elt("latexFootnotes", startMathPos, endMarkerPos, [
-          contentElem
-        ]));
-      }
-    },
-  ],
-  wrap: wrappedTeXParser("latexFootnotesContent")
-};
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/inline-math-config.ts -----
-import { MarkdownConfig, InlineContext } from "@lezer/markdown";
-import { wrappedTeXParser } from "./wrapped-TeXParser";
-import {
-  BACKSLASH_CHAR_CODE,
-  DOLLAR_SIGN_CHAR_CODE,
-  INLINE_MATH,
-  INLINE_MATH_CONTENT_TAG,
-  INLINE_MATH_START_DELIMITER,
-  INLINE_MATH_STOP_DELIMITER,
-  inlineMathTag,
-  inlineMathTagDelimiter
-} from "./consts";
-
-/**
- *
- * parseInline - The parse function. Gets the next character and its position as arguments.
- * Should return -1 if it doesn't handle the character, or add some element or delimiter
- * and return the end position of the content it parsed if it can.
- * */
-export const InlineMathConfig: MarkdownConfig = {
-  defineNodes: [
-    {
-      name: INLINE_MATH,
-      style: inlineMathTag,
-    },
-    {
-      name: INLINE_MATH_CONTENT_TAG,
-      style: inlineMathTag,
-    },
-    {
-      name: INLINE_MATH_START_DELIMITER,
-      style: inlineMathTagDelimiter,
-    },
-    {
-      name: INLINE_MATH_STOP_DELIMITER,
-      style: inlineMathTagDelimiter,
-    },
-  ],
-  parseInline: [{
-    name: INLINE_MATH,
-    after: 'InlineCode',
-
-    parse(cx: InlineContext, next: number, pos: number): number {
-      const prevCharCode = pos - 1 >= 0 ? cx.char(pos - 1) : -1;
-      const nextCharCode = cx.char(pos + 1);
-      if (next !== DOLLAR_SIGN_CHAR_CODE
-        || prevCharCode === DOLLAR_SIGN_CHAR_CODE
-        || nextCharCode === DOLLAR_SIGN_CHAR_CODE) {
-        return -1;
-      }
-      let escaped = false;
-      const start = pos;
-      const end = cx.end;
-      pos++;
-      for (; pos < end && (escaped || cx.char(pos) !== DOLLAR_SIGN_CHAR_CODE); pos++) {
-        if (!escaped && cx.char(pos) === BACKSLASH_CHAR_CODE) {
-          escaped = true;
-        } else {
-          escaped = false;
-        }
-      }
-      pos++;
-      const delimiterStartElem = cx.elt(INLINE_MATH_START_DELIMITER, start, start + 1);
-      const contentElem = cx.elt(INLINE_MATH_CONTENT_TAG, start + 1, pos - 1);
-      const delimiterStopElem = cx.elt(INLINE_MATH_STOP_DELIMITER, pos - 1, pos);
-      const mathElement = cx.elt(INLINE_MATH, start, pos, [
-        delimiterStartElem,
-        contentElem,
-        delimiterStopElem
-      ]);
-      return cx.addElement(mathElement);
-    },
-  }],
-  wrap: wrappedTeXParser(INLINE_MATH_CONTENT_TAG)
-};
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/inline-multiMath-config.ts -----
-
-import { type MarkdownConfig, type InlineContext } from "@lezer/markdown";
-import { wrappedTeXParser } from "./wrapped-TeXParser";
-import {
-  INLINE_MATH,
-  INLINE_MULTI_MATH,
-  INLINE_MULTI_MATH_CONTENT_TAG,
-  INLINE_MULTI_MATH_START_DELIMITER,
-  INLINE_MULTI_MATH_STOP_DELIMITER,
-  inlineMathTagDelimiter,
-  inlineMathTag,
-  REFERENCE_NOTE,
-  INLINE_DISPLAY_MATH
-} from "./consts";
-
-import {
-  findOpenCloseTagsMathEnvironment,
-  beginTag,
-  endTag
-} from "../helpers";
-
-export const InlineMultiMathConfig: MarkdownConfig = {
-  defineNodes: [
-    { name: INLINE_MULTI_MATH, style: inlineMathTag },
-    { name: INLINE_MULTI_MATH_CONTENT_TAG, style: inlineMathTag },
-    { name: INLINE_MULTI_MATH_START_DELIMITER, style: inlineMathTagDelimiter },
-    { name: INLINE_MULTI_MATH_STOP_DELIMITER, style: inlineMathTagDelimiter },
-  ],
-  parseInline: [{
-    name: INLINE_MULTI_MATH,
-    after: 'InlineCode',
-    parse(cx: InlineContext, next: number, pos: number): number {
-      const prevCharCode = pos - 1 >= 0 ? cx.char(pos - 1) : -1;
-      const prevPrevCharCode = pos - 2 >= 0 ? cx.char(pos - 2) : -1;
-      if ((prevPrevCharCode === 92) && (prevCharCode === 40 || prevCharCode === 91)) {
-        pos = pos - 2;
-        next = 92;
-      }
-      if (next !== 92) {
-        return -1;
-      }
-      const src = cx.text.slice(pos - cx.offset);
-      if (!src) {
-        return -1;
-      }
-      
-      const match = src.match(/^(?:\\\[|\[|\\\(|\(|\\begin\{([^}]*)\}|\\eqref\{([^}]*)\}|\\ref\{([^}]*)\})/);
-      if (!match) {
-        return -1;
-      }
-
-      let type: string = '';
-      let endMarker: string = '';
-      let endMarkerPos = -1;
-
-      const matchIndex = match.index || 0;
-      const startMathPos = matchIndex + match[0].length;
-      
-      if (match[0] === "\\\\[") {
-        type = INLINE_DISPLAY_MATH;
-        endMarker = "\\\\]";
-      } else if (match[0] === "\\[") {
-        type = INLINE_DISPLAY_MATH;
-        endMarker = "\\]";
-      } else if (match[0] === "\\\\(") {
-        type = INLINE_MATH;
-        endMarker = "\\\\)";
-      } else if (match[0] === "\\(") {
-        type = INLINE_MATH;
-        endMarker = "\\)";
-      } else if (match[0].includes("eqref")) {
-        type = REFERENCE_NOTE;
-        endMarker = "}"; // 💡 eqref도 닫는 괄호가 필요합니다.
-      } else if (match[0].includes("ref")) {
-        type = REFERENCE_NOTE;
-        endMarker = "}"; // 💡 ref도 닫는 괄호가 필요합니다.
-      } else if (match[1] && match[1] !== 'abstract') {
-        if (match[1].indexOf('*') > 0) {
-          type = "equation_math_not_number";
-        } else {
-          type = "equation_math";
-        }
-        endMarker = `\\end{${match[1]}}`;
-        const environment = match[1].trim();
-        const openTag: RegExp = beginTag(environment, true);
-        const closeTag: RegExp = endTag(environment, true);
-        const data = findOpenCloseTagsMathEnvironment(src, openTag, closeTag);
-        
-        if (data?.arrClose?.length) {
-          const lastCloseTag = data.arrClose[data.arrClose.length - 1];
-          if (lastCloseTag && typeof lastCloseTag.posStart === 'number') {
-            endMarkerPos = lastCloseTag.posStart;
-          }
-        }
-      }
-
-      if (!type || !endMarker) {
-        return -1;
-      }
-
-      if (endMarkerPos === -1) {
-        endMarkerPos = src.indexOf(endMarker, startMathPos);
-      }
-      
-      if (endMarkerPos === -1) {
-        return -1;
-      }
-
-      const nextPos = endMarkerPos + endMarker.length;
-      const absoluteEndPos = pos + nextPos; 
-
-      if (type === REFERENCE_NOTE) {
-        const closingBracePos = src.indexOf("}", startMathPos);
-        if (closingBracePos === -1) return -1;
-        const refEndPos = pos + closingBracePos + 1;
-        
-        const contentElem = cx.elt("inlineLatexContent", pos, refEndPos);
-        return cx.addElement(cx.elt(REFERENCE_NOTE, pos, refEndPos, [
-          contentElem
-        ]));
-      }
-
-      const startDelimiterEnd = pos + match[0].length;
-      const endDelimiterStart = pos + endMarkerPos;
-
-      if (type === INLINE_MATH) {
-        const delimiterStartElem = cx.elt(INLINE_MULTI_MATH_START_DELIMITER, pos, startDelimiterEnd);
-        const contentElem = cx.elt(INLINE_MULTI_MATH_CONTENT_TAG, startDelimiterEnd, endDelimiterStart);
-        const delimiterStopElem = cx.elt(INLINE_MULTI_MATH_STOP_DELIMITER, endDelimiterStart, absoluteEndPos);
-        return cx.addElement(cx.elt(INLINE_MULTI_MATH, pos, absoluteEndPos, [
-          delimiterStartElem,
-          contentElem,
-          delimiterStopElem
-        ]));
-      }
-
-      const contentElem = cx.elt(INLINE_MULTI_MATH, pos, absoluteEndPos);
-      return cx.addElement(
-        cx.elt(INLINE_MULTI_MATH_CONTENT_TAG, pos, absoluteEndPos, [contentElem])
-      );
-    },
-  }],
-  wrap: wrappedTeXParser(INLINE_MULTI_MATH_CONTENT_TAG),
-};
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/markdown.ts -----
-
-import { Tag, styleTags } from "@lezer/highlight";
-export { markdownLanguage } from "@codemirror/lang-markdown";
-
-export const tags = {
-  codeinfo: Tag.define(),
-  hardbreak: Tag.define(),
-  taskmarker: Tag.define(),
-};
-
-export const markdownHighlight = {
-  props: [
-    styleTags({
-      "CodeInfo": tags.codeinfo, // FencedCode 블록의 언어 이름 부분 (예: ```javascript)
-      "HardBreak": tags.hardbreak, // 강제 줄바꿈
-      "TaskMarker": tags.taskmarker, // - [x]
-    })
-  ],
-};
-
------ ./react/shared/ui/codemirror-editor/codemirror-setup/markdown-parser/wrapped-TeXParser.ts -----
-import { parseMixed, SyntaxNodeRef, Input } from "@lezer/common";
-import {
-  TEX_LANGUAGE,
-  BLOCK_MULTI_MATH_CONTENT_TAG,
-  BLOCK_MATH_CONTENT_TAG
-} from "./consts";
-
-/**
- * Wraps a TeX math-mode parser. This removes [nodeTag] from the syntax tree
- * and replaces it with a region handled by the sTeXMath parser.
- * */
-export const wrappedTeXParser = (nodeTag: string) =>
-  parseMixed((node: SyntaxNodeRef, input: Input) => {
-    if (node.name !== nodeTag) return null;
-    let overlay = undefined;
-    if (nodeTag === BLOCK_MULTI_MATH_CONTENT_TAG || nodeTag === BLOCK_MATH_CONTENT_TAG) {
-      const from = input.read(node.from, node.from + 1) === "\n" ? node.from + 1 : node.from;
-      const to = input.read(node.to - 1, node.to) === "\n" ? node.to - 1 : node.to;
-      if (from < to) {
-        overlay = [{ from, to }];
-      }
-    }
-    return {
-      parser: TEX_LANGUAGE.parser,
-      overlay
-    };
-  });
------ ./react/shared/ui/codemirror-editor/codemirror-setup/theme/index.ts -----
-
-import { EditorView } from "@codemirror/view";
-
-export const PADDING_TOP_CM_CONTENT = 18;
-
-/** TODO: Add styling */
-export const defaultLightThemeOption = EditorView.theme(
-  {
-    "&": {
-      backgroundColor: "#FFFFFF",
-    },
-    ".ͼi": {
-      color: "#4960FF",
-    },
-    ".ͼb": {
-      color: "#DD3C71",
-    },
-    ".ͼc": {
-      color: "#4960FF",
-    },
-    ".ͼk": {
-      color: "#0093FF",
-    },
-    ".ͼd": {
-      color: "#0093FF",
-    },
-    ".ͼe": {
-      color: "#dd3c71",
-    },
-    ".ͼn": {
-      color: "#4960FF",
-    },
-    ".ͼ5": {
-      color: "#0093FF",
-    },
-    ".ͼ6": {
-      color: "#0093FF",
-    },
-  },
-  {
-    dark: false,
-  },
-);
-
-export const defaultDarkThemeOption = EditorView.theme(
-  {
-    "&": {
-      backgroundColor: "#1E1E20",
-    },
-    ".ͼi": {
-      color: "#8080FF",
-    },
-    ".ͼb": {
-      color: "#F6558B",
-    },
-    ".ͼc": {
-      color: "#8080FF",
-    },
-    ".ͼk": {
-      color: "#47BCFF",
-    },
-    ".ͼd": {
-      color: "#47BCFF",
-    },
-    ".ͼe": {
-      color: "#F6558B",
-    },
-    ".ͼn": {
-      color: "#8080FF",
-    },
-    ".ͼ5": {
-      color: "#0093FF",
-    },
-    ".ͼ6": {
-      color: "#8080FF",
-    },
-    ".cm-cursor": {
-      borderLeftColor: "#47BCFF",
-    },
-  },
-  {
-    dark: true,
-  },
-);
-
-export const defaultFocusThemeOption = EditorView.theme({
-  "&.cm-editor": {
-    "&.cm-focused": {
-      outline: "none",
-    },
-  },
-});
-
-export const defaultGuttersThemeOption = EditorView.theme({
-  ".cm-gutters": {
-    backgroundColor: "transparent",
-    borderRight: "none",
-  },
-  ".cm-gutter": {
-    "&.cm-lineNumbers": {
-      color: "#999",
-      minWidth: "20px",
-      textAlign: "right",
-      whiteSpace: "nowrap",
-      borderRight: "1px solid #ddd",
-    },
-    "&.cm-foldGutter": {},
-  },
-});
-
-export const defaultActiveLineOption = EditorView.theme({
-  ".cm-activeLineGutter": {
-    backgroundColor: "var(--activeLineGutterBackground)",
-  },
-});
-
-export const defaultFoldThemeOptions = EditorView.theme({
-  ".cm-foldPlaceholder": {
-    color: "var(--buttonPrimaryActive)",
-    backgroundColor: "transparent",
-    border: "none",
-    borderRadius: "none",
-    margin: "0",
-    padding: "0",
-    cursor: "pointer",
-    "&:hover": {
-      color: "var(--content-blue)",
-    },
-  },
-});
-
-export const defaultSelectionThemeOptions = EditorView.theme({
-  ".cm-selectionBackground": {
-    background: "var(--textHighlightColor)",
-    color: "unset",
-  },
-  "&.cm-focused .cm-selectionBackground, ::selection": {
-    background: "var(--textHighlightColor)",
-    color: "unset",
-  },
-});
-
-export const defaultInlineCodeThemeOptions = EditorView.theme({
-  ".cm-inlineCode": {
-    color: "var(--content-02)",
-  },
-});
-
-export const defaultWidgetThemeOptions = EditorView.theme({
-  ".widget-content": {
-    fontFamily: "IBM Plex Sans",
-    fontSize: "18px",
-    visibility: "visible",
-    position: "relative",
-  },
-  ".widget-content > img": {
-    minWidth: "100%",
-  },
-});
-
-/** Adds styles to the base theme */
-export const defaultThemeOption = (
-  cmContentPaddingTop: number = PADDING_TOP_CM_CONTENT,
-  fontSize: string = "14px",
-) => {
-  return [
-    defaultFocusThemeOption,
-    defaultGuttersThemeOption,
-    defaultActiveLineOption,
-    defaultFoldThemeOptions,
-    defaultSelectionThemeOptions,
-    defaultInlineCodeThemeOptions,
-    defaultWidgetThemeOptions,
-    EditorView.theme({
-      "&": {
-        height: "100%",
-        fontSize: `${fontSize}`,
-        fontFamily: '"Roboto Mono", Helvetica, Arial, sans-serif',
-      },
-      ".cm-content": {
-        paddingTop: `${cmContentPaddingTop}px`,
-        paddingBottom: "calc(100vh - 91px)",
-      },
-      ".cm-scroller": {
-        fontFamily: '"Roboto Mono", Helvetica, Arial, sans-serif',
-        lineHeight: "23px",
-        overflowY: "auto",
-      },
-      ".cm-line": {
-        padding: "0 7px",
-      },
-    }),
-  ] as const;
-};
------ ./react/shared/ui/codemirror-editor/Editor.tsx -----
-
-import React, { useRef, useEffect } from 'react';
-import { EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
-import { basicSetup } from './codemirror-setup/basic-setup';
-import configureMmdAutoCompleteForCodeMirror from './codemirror-setup/auto-complete/configure';
-import './editor-style.scss';
-
-interface EditorProps {
-  initialContent?: string;
-  onContentChange?: (content: string) => void;
-}
-
-const Editor: React.FC<EditorProps> = ({ initialContent = '', onContentChange }) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef<EditorView | null>(null);
-  
-  const onContentChangeRef = useRef(onContentChange);
-  useEffect(() => {
-    onContentChangeRef.current = onContentChange;
-  }, [onContentChange]);
-
-  useEffect(() => {
-    if (!editorRef.current || viewRef.current) return;
-
-    const extensions = [
-      basicSetup({
-        lineNumbers: true,
-        foldGutter: true,
-        lineWrapping: true,
-        darkMode: window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches,
-        onSave: () => {
-          console.log(viewRef.current?.state.doc.toString());
-        },
-      }),
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          onContentChangeRef.current?.(update.state.doc.toString());
-        }
-      })
-    ];
-
-    configureMmdAutoCompleteForCodeMirror(extensions);
-
-    const startState = EditorState.create({
-      doc: initialContent,
-      extensions: extensions,
-    });
-
-    const view = new EditorView({
-      state: startState,
-      parent: editorRef.current,
-    });
-
-    viewRef.current = view;
-
-    return () => {
-      view.destroy();
-      viewRef.current = null;
-    };
-    
-  }, []); // 이 useEffect는 마운트 시 한 번만 실행되어야 합니다.
-
-  useEffect(() => {
-    const view = viewRef.current;
-    if (view && initialContent !== view.state.doc.toString()) {
-      view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: initialContent }
-      });
-    }
-  }, [initialContent]); // initialContent가 변경될 때마다 이 효과를 실행합니다.
-
-  return <div ref={editorRef} className="editor-wrapper" />;
-};
-
-export default React.memo(Editor);
 ----- ./react/shared/ui/glasstable/GlassTable.tsx -----
 import React, { forwardRef } from 'react';
 import './GlassTable.css';
@@ -12005,6 +7388,98 @@ const MathpixRenderer: React.FC<MathpixRendererProps> = ({ text, options = {}, o
 };
 
 export default MathpixRenderer;
+----- ./react/shared/ui/modal/Modal.tsx -----
+import React, { useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { LuX } from 'react-icons/lu';
+import ActionButton from '../actionbutton/ActionButton';
+import LoadingButton from '../loadingbutton/LoadingButton';
+import './Modal.css';
+
+interface ModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm?: () => void;
+    title: string;
+    children: React.ReactNode;
+    confirmText?: string;
+    cancelText?: string;
+    isConfirming?: boolean;
+    hideFooter?: boolean;
+    size?: 'small' | 'medium' | 'large';
+}
+
+const Modal: React.FC<ModalProps> = ({
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    children,
+    confirmText = '확인',
+    cancelText = '취소',
+    isConfirming = false,
+    hideFooter = false,
+    size = 'medium'
+}) => {
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        if (isOpen) {
+            document.addEventListener('keydown', handleKeyDown);
+            document.body.style.overflow = 'hidden';
+        }
+
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            document.body.style.overflow = '';
+        };
+    }, [isOpen, onClose]);
+
+    if (!isOpen) {
+        return null;
+    }
+
+    const modalContent = (
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className={`modal-content-wrapper ${size}`} onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3 className="modal-title">{title}</h3>
+                    <button className="modal-close-button" onClick={onClose} aria-label="닫기">
+                        <LuX size={22} />
+                    </button>
+                </div>
+                <div className="modal-body">
+                    {children}
+                </div>
+                {!hideFooter && (
+                    <div className="modal-footer">
+                        <ActionButton onClick={onClose} disabled={isConfirming}>
+                            {cancelText}
+                        </ActionButton>
+                        {onConfirm && (
+                            <LoadingButton
+                                onClick={onConfirm}
+                                isLoading={isConfirming}
+                                className="primary destructive"
+                                loadingText="삭제중..."
+                            >
+                                {confirmText}
+                            </LoadingButton>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    return ReactDOM.createPortal(modalContent, document.body);
+};
+
+export default Modal;
 ----- ./react/shared/ui/TableCellCheckbox/TableCellCheckbox.tsx -----
 import React from 'react';
 import { LuCircle, LuCircleCheckBig } from 'react-icons/lu';
@@ -12338,6 +7813,8 @@ import React, { useMemo } from 'react';
 import type { Problem } from '../entities/problem/model/types';
 import GlassTable, { type TableColumn } from '../shared/ui/glasstable/GlassTable';
 import TableCellCheckbox from '../shared/ui/TableCellCheckbox/TableCellCheckbox';
+import ActionButton from '../shared/ui/actionbutton/ActionButton'; // [신규] ActionButton 임포트
+import { LuTrash2 } from 'react-icons/lu'; // [신규] 휴지통 아이콘 임포트
 import './ProblemSelectionWidget.css';
 
 type ProcessedProblem = Problem & { display_question_number: string; uniqueId: string; };
@@ -12349,6 +7826,7 @@ interface ProblemSelectionWidgetProps {
     onToggleRow: (id: string) => void;
     onToggleAll: () => void;
     isAllSelected: boolean;
+    onDeleteSelected: () => void; // [신규] 삭제 핸들러 prop 추가
 }
 
 const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
@@ -12357,7 +7835,8 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
     selectedIds,
     onToggleRow,
     onToggleAll,
-    isAllSelected
+    isAllSelected,
+    onDeleteSelected, // [신규] prop 받기
 }) => {
     const columns = useMemo((): TableColumn<ProcessedProblem & { id: string }>[] => [
         {
@@ -12387,18 +7866,18 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
         { 
             key: 'question_text', 
             header: '문제', 
-            render: (p) => <div style={{whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto'}}>{p.question_text}</div>
+            render: (p) => <div className="problem-cell-text problem-cell-text-scrollable">{p.question_text}</div>
         },
         { 
             key: 'answer', 
             header: '정답', 
             width: '100px',
-            render: (p) => <div style={{whiteSpace: 'pre-wrap'}}>{p.answer}</div>
+            render: (p) => <div className="problem-cell-text">{p.answer}</div>
         },
         { 
             key: 'solution_text', 
             header: '해설', 
-            render: (p) => <div style={{whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto'}}>{p.solution_text}</div>
+            render: (p) => <div className="problem-cell-text problem-cell-text-scrollable">{p.solution_text}</div>
         },
     ], [isAllSelected, onToggleAll, problems, selectedIds, onToggleRow]);
     
@@ -12412,7 +7891,19 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
     
     return (
         <div className="problem-selection-widget">
-            <div className="selection-header">문제 선택</div>
+            <div className="selection-header">
+                <span className="selection-header-title">문제 선택 ({selectedIds.size} / {problems.length})</span>
+                {/* [신규] 영구 삭제 버튼 */}
+                <ActionButton
+                    className="destructive"
+                    onClick={onDeleteSelected}
+                    disabled={selectedIds.size === 0 || isLoading}
+                    aria-label="선택된 문제 영구 삭제"
+                >
+                    <LuTrash2 size={14} />
+                    <span className="delete-button-text">선택 항목 삭제</span>
+                </ActionButton>
+            </div>
             <div className="selection-table-container">
                 <GlassTable<ProcessedProblem & { id: string }>
                     columns={columns}
@@ -12431,6 +7922,7 @@ import React, { useRef, useCallback, useEffect, useState } from 'react';
 import ActionButton from '../shared/ui/actionbutton/ActionButton';
 import { LuFileDown } from 'react-icons/lu';
 import { useExamLayoutStore } from '../features/problem-publishing/model/examLayoutStore';
+import './PublishingToolbarWidget.css';
 
 interface PublishingToolbarWidgetProps {
     useSequentialNumbering: boolean;
@@ -12554,7 +8046,7 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         <div className="publishing-controls-panel">
             <div className="control-group">
                 <ActionButton className="primary" onClick={onDownloadPdf}>
-                    <LuFileDown size={14} style={{ marginRight: '8px' }}/>
+                    <LuFileDown size={14} className="toolbar-icon"/>
                     PDF로 다운로드
                 </ActionButton>
                 <ActionButton onClick={onToggleSequentialNumbering}>
@@ -12626,13 +8118,13 @@ const BackgroundBlobs = () => {
 export default BackgroundBlobs;
 ----- ./react/widgets/rootlayout/GlassNavbar.tsx -----
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router'; // react-router-dom으로 수정
+import { Link } from 'react-router';
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useSidebarTriggers } from '../../shared/store/layoutStore';
 import { 
     LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, 
-    LuSettings2, LuSearch, LuClipboardList, LuBookMarked // [추가] 아이콘 임포트
+    LuSettings2, LuSearch, LuClipboardList, LuBookMarked
 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
@@ -12684,7 +8176,7 @@ const GlassNavbar: React.FC = () => {
         if (isProfilePopoverOpen && currentBreakpoint !== 'desktop') {
             handleCloseProfilePopover();
         }
-    }, [currentBreakpoint, isProfilePopoverOpen]); // 의존성 배열 정리
+    }, [currentBreakpoint, isProfilePopoverOpen]);
 
     return (
         <nav className="glass-navbar">
@@ -12709,36 +8201,35 @@ const GlassNavbar: React.FC = () => {
             <div className="navbar-right">
                 {currentBreakpoint === 'mobile' && (
                     <div className="mobile-right-actions">
-                        {/* [수정] 모든 트리거에 대해 버튼을 렌더링하도록 로직 확장 */}
-                        {registerTrigger && (
+                        {registerTrigger?.onClick && (
                             <Tippy content={registerTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={registerTrigger.onClick} className="navbar-icon-button" aria-label={registerTrigger.tooltip}>
                                     <RegisterIcon />
                                 </button>
                             </Tippy>
                         )}
-                        {searchTrigger && (
+                        {searchTrigger?.onClick && (
                              <Tippy content={searchTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={searchTrigger.onClick} className="navbar-icon-button" aria-label={searchTrigger.tooltip}>
                                     <SearchIcon />
                                 </button>
                             </Tippy>
                         )}
-                        {promptTrigger && (
+                        {promptTrigger?.onClick && (
                              <Tippy content={promptTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={promptTrigger.onClick} className="navbar-icon-button" aria-label={promptTrigger.tooltip}>
                                     <PromptIcon />
                                 </button>
                             </Tippy>
                         )}
-                        {latexHelpTrigger && (
+                        {latexHelpTrigger?.onClick && (
                              <Tippy content={latexHelpTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={latexHelpTrigger.onClick} className="navbar-icon-button" aria-label={latexHelpTrigger.tooltip}>
                                     <LatexHelpIcon />
                                 </button>
                             </Tippy>
                         )}
-                        {settingsTrigger && (
+                        {settingsTrigger?.onClick && (
                              <Tippy content={settingsTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={settingsTrigger.onClick} className="navbar-icon-button" aria-label={settingsTrigger.tooltip}>
                                     <SettingsIcon />
@@ -13195,7 +8686,7 @@ const RootLayout = () => {
     const [searchPropsForRender, setSearchPropsForRender] = useState<StoredSearchProps | null>(null);
 
     useEffect(() => {
-        let timer: NodeJS.Timeout;
+        let timer: ReturnType<typeof setTimeout>;
         if (searchBoxProps) {
             setSearchPropsForRender(searchBoxProps);
             timer = setTimeout(() => {

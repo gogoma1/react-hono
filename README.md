@@ -6,9 +6,6 @@ react-hono
 │  │  └─ schema.pg.ts
 │  ├─ index.ts
 │  └─ routes
-│     ├─ example
-│     │  ├─ memo.txt
-│     │  └─ selectpg_tables.ts
 │     ├─ manage
 │     │  ├─ problems.ts
 │     │  └─ student.ts
@@ -40,12 +37,20 @@ react-hono
 │  ├─ App.css
 │  ├─ App.tsx
 │  ├─ entities
+│  │  ├─ exam
+│  │  │  └─ ui
+│  │  │     ├─ ExamHeader.tsx
+│  │  │     ├─ ExamPage.css
+│  │  │     ├─ ExamPage.tsx
+│  │  │     ├─ QuickAnswerPage.tsx
+│  │  │     └─ SolutionPage.tsx
 │  │  ├─ problem
 │  │  │  ├─ api
 │  │  │  │  └─ problemApi.ts
 │  │  │  └─ model
 │  │  │     ├─ types.ts
-│  │  │     └─ useProblemMutations.ts
+│  │  │     ├─ useProblemMutations.ts
+│  │  │     └─ useProblemsQuery.ts
 │  │  └─ student
 │  │     ├─ api
 │  │     │  └─ studentApi.ts
@@ -58,6 +63,9 @@ react-hono
 │  │        ├─ StudentDisplayMobile.css
 │  │        └─ StudentDisplayMobile.tsx
 │  ├─ features
+│  │  ├─ exam-header-editing
+│  │  │  └─ ui
+│  │  │     └─ ExamHeaderEditPopover.tsx
 │  │  ├─ image-upload
 │  │  │  ├─ api
 │  │  │  │  └─ imageApi.ts
@@ -76,8 +84,30 @@ react-hono
 │  │  │  └─ ui
 │  │  │     ├─ SignInPanel.tsx
 │  │  │     └─ SignOutButton.tsx
+│  │  ├─ latex-help
+│  │  │  ├─ model
+│  │  │  │  └─ useLatexHelpManager.ts
+│  │  │  └─ ui
+│  │  │     ├─ LatexHelpPanel.css
+│  │  │     └─ LatexHelpPanel.tsx
 │  │  ├─ popovermenu
 │  │  │  └─ ProfileMenuContent.tsx
+│  │  ├─ problem-publishing
+│  │  │  ├─ hooks
+│  │  │  │  └─ useHeightMeasurer.ts
+│  │  │  ├─ index.ts
+│  │  │  └─ model
+│  │  │     ├─ examLayoutEngine.ts
+│  │  │     ├─ examLayoutStore.ts
+│  │  │     ├─ problemPublishingStore.ts
+│  │  │     ├─ useExamLayoutManager.ts
+│  │  │     ├─ useProblemPublishing.ts
+│  │  │     └─ useProblemPublishingPage.ts
+│  │  ├─ problem-text-editing
+│  │  │  └─ ui
+│  │  │     ├─ ProblemMetadataEditor.tsx
+│  │  │     ├─ ProblemTextEditor.css
+│  │  │     └─ ProblemTextEditor.tsx
 │  │  ├─ prompt-collection
 │  │  │  ├─ model
 │  │  │  │  └─ usePromptManager.ts
@@ -92,6 +122,10 @@ react-hono
 │  │  │  └─ ui
 │  │  │     ├─ StudentActionButtons.css
 │  │  │     └─ StudentActionButtons.tsx
+│  │  ├─ student-dashboard
+│  │  │  ├─ index.ts
+│  │  │  └─ model
+│  │  │     └─ useStudentDashboard.ts
 │  │  ├─ student-editing
 │  │  │  └─ ui
 │  │  │     └─ StudentEditForm.tsx
@@ -119,13 +153,14 @@ react-hono
 │  ├─ main.tsx
 │  ├─ pages
 │  │  ├─ DashBoard.tsx
-│  │  ├─ example.tsx
 │  │  ├─ HomePage.tsx
 │  │  ├─ JsonRendererPage.css
 │  │  ├─ JsonRendererPage.tsx
 │  │  ├─ LoginPage.css
 │  │  ├─ LoginPage.tsx
 │  │  ├─ LoginPageWithErrorDisplay.tsx
+│  │  ├─ ProblemPublishingPage.css
+│  │  ├─ ProblemPublishingPage.tsx
 │  │  ├─ ProblemWorkbenchPage.css
 │  │  ├─ ProblemWorkbenchPage.tsx
 │  │  ├─ ProfileSetupPage.css
@@ -136,9 +171,15 @@ react-hono
 │  │  │  └─ api.utils.ts
 │  │  ├─ components
 │  │  │  ├─ GlassPopover.css
-│  │  │  └─ GlassPopover.tsx
+│  │  │  ├─ GlassPopover.tsx
+│  │  │  └─ workbench
+│  │  │     ├─ CodeEditorPanel.css
+│  │  │     ├─ CodeEditorPanel.tsx
+│  │  │     ├─ PreviewPanel.css
+│  │  │     └─ PreviewPanel.tsx
 │  │  ├─ hooks
 │  │  │  ├─ useColumnPermissions.ts
+│  │  │  ├─ useContinuousChange.ts
 │  │  │  ├─ useDragToScroll.ts
 │  │  │  └─ useVisibleColumns.ts
 │  │  ├─ lib
@@ -191,12 +232,26 @@ react-hono
 │  │     ├─ glasstable
 │  │     │  ├─ GlassTable.css
 │  │     │  └─ GlassTable.tsx
+│  │     ├─ loadingbutton
+│  │     │  ├─ LoadingButton.css
+│  │     │  └─ LoadingButton.tsx
 │  │     ├─ MathpixRenderer.tsx
+│  │     ├─ modal
+│  │     │  ├─ Modal.css
+│  │     │  └─ Modal.tsx
+│  │     ├─ popover-content
+│  │     │  └─ PopoverContent.css
 │  │     └─ TableCellCheckbox
 │  │        └─ TableCellCheckbox.tsx
 │  └─ widgets
+│     ├─ ExamPreviewWidget.css
+│     ├─ ExamPreviewWidget.tsx
 │     ├─ json-problem-importer
 │     │  └─ JsonProblemImporterWidget.tsx
+│     ├─ ProblemSelectionWidget.css
+│     ├─ ProblemSelectionWidget.tsx
+│     ├─ PublishingToolbarWidget.css
+│     ├─ PublishingToolbarWidget.tsx
 │     ├─ rootlayout
 │     │  ├─ BackgroundBlobs.css
 │     │  ├─ BackgroundBlobs.tsx

@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useEffect, useState } from 'react';
 import ActionButton from '../shared/ui/actionbutton/ActionButton';
 import { LuFileDown } from 'react-icons/lu';
 import { useExamLayoutStore } from '../features/problem-publishing/model/examLayoutStore';
+import './PublishingToolbarWidget.css';
 
 interface PublishingToolbarWidgetProps {
     useSequentialNumbering: boolean;
@@ -32,7 +33,6 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
     
     const [displayHeight, setDisplayHeight] = useState(problemBoxMinHeight);
     
-    // [핵심 수정 1] displayHeight의 최신 값을 추적하기 위한 ref
     const displayHeightRef = useRef(displayHeight);
     useEffect(() => {
         displayHeightRef.current = displayHeight;
@@ -70,12 +70,10 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         
         setDraggingControl(false);
         
-        // [핵심 수정 2] 상태값 대신 ref에서 최신 값을 가져와서 사용
         setProblemBoxMinHeight(displayHeightRef.current);
         forceRecalculateLayout(displayHeightRef.current);
         
         dragStartRef.current = null;
-    // [핵심 수정 3] 의존성 배열에서 displayHeight 제거
     }, [handleMouseMove, setDraggingControl, forceRecalculateLayout, setProblemBoxMinHeight]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -128,7 +126,7 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         <div className="publishing-controls-panel">
             <div className="control-group">
                 <ActionButton className="primary" onClick={onDownloadPdf}>
-                    <LuFileDown size={14} style={{ marginRight: '8px' }}/>
+                    <LuFileDown size={14} className="toolbar-icon"/>
                     PDF로 다운로드
                 </ActionButton>
                 <ActionButton onClick={onToggleSequentialNumbering}>

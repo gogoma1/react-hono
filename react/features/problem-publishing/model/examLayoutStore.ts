@@ -4,9 +4,9 @@ import { calculateInitialLayout, recalculateProblemLayout, recalculateSolutionLa
 import { useProblemPublishingStore } from './problemPublishingStore';
 
 let itemHeightsMap = new Map<string, number>();
-let debounceTimer: number | null = null;
-// [수정] setTimeout의 반환 타입에 맞게 NodeJS.Timeout으로 변경 (또는 any)
-let recalculateTimer: NodeJS.Timeout | null = null;
+// [수정] NodeJS.Timeout 대신 브라우저 환경에 맞는 타입(number) 또는 ReturnType 사용
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let recalculateTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface ExamUIOptions {
     baseFontSize: string;
@@ -65,7 +65,7 @@ const logLayoutResult = (problems: ProcessedProblem[], problemPlacements: Map<st
 const runDebouncedRecalculation = (get: () => ExamLayoutState & ExamLayoutActions) => {
     if (debounceTimer) clearTimeout(debounceTimer);
 
-    debounceTimer = window.setTimeout(() => {
+    debounceTimer = setTimeout(() => {
         const state = get();
         const isEditing = !!useProblemPublishingStore.getState().editingProblemId;
 
@@ -107,7 +107,6 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
                 return;
             }
             
-            // [수정] allItemsToMeasure 타입을 string[]으로 명시
             const allItemsToMeasure: string[] = [];
             problemsForLayout.forEach(p => {
                 allItemsToMeasure.push(p.uniqueId);

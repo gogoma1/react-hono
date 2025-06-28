@@ -1,23 +1,29 @@
+// ./react/pages/ProblemPublishingPage.tsx
+
 import React from 'react';
 import { useProblemPublishingPage } from '../features/problem-publishing';
-import Modal from '../shared/ui/modal/Modal'; // [신규] Modal 임포트
-
+import Modal from '../shared/ui/modal/Modal';
 import ProblemSelectionWidget from '../widgets/ProblemSelectionWidget';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
 import ExamPreviewWidget from '../widgets/ExamPreviewWidget';
-
 import './ProblemPublishingPage.css';
 
 const ProblemPublishingPage: React.FC = () => {
     const {
-        allProblems, isLoadingProblems, selectedProblems, selectedIds, isAllSelected,
+        sourceProblems,
+        filteredProblems, 
+        isLoadingProblems, 
+        selectedProblems, 
+        selectedIds, 
+        isAllSelected,
         distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap,
         headerInfo, useSequentialNumbering, baseFontSize, contentFontSizeEm,
         measuredHeights, problemBoxMinHeight, previewAreaRef,
-        toggleRow, toggleSelectAll, onToggleSequentialNumbering, onBaseFontSizeChange,
+        toggleRow, 
+        onToggleAll,
+        onToggleSequentialNumbering, onBaseFontSizeChange,
         onContentFontSizeEmChange, onDownloadPdf, setProblemBoxMinHeight,
         onHeightUpdate, onProblemClick, onHeaderUpdate, onDeselectProblem,
-        // [신규] 다중 삭제 관련 props
         onDeleteSelected,
         isBulkDeleteModalOpen,
         onCloseBulkDeleteModal,
@@ -31,13 +37,13 @@ const ProblemPublishingPage: React.FC = () => {
                 <div className="sticky-top-container">
                     <div className="selection-widget-container">
                         <ProblemSelectionWidget 
-                            problems={allProblems} 
+                            problems={filteredProblems} 
                             isLoading={isLoadingProblems} 
                             selectedIds={selectedIds} 
                             onToggleRow={toggleRow} 
-                            onToggleAll={toggleSelectAll}
+                            onToggleAll={onToggleAll}
                             isAllSelected={isAllSelected}
-                            onDeleteSelected={onDeleteSelected} // [신규] prop 전달
+                            onDeleteSelected={onDeleteSelected}
                         />
                     </div>
                     <PublishingToolbarWidget 
@@ -61,7 +67,7 @@ const ProblemPublishingPage: React.FC = () => {
                     <ExamPreviewWidget 
                         distributedPages={distributedPages} 
                         distributedSolutionPages={distributedSolutionPages}
-                        allProblems={allProblems} 
+                        allProblems={sourceProblems}
                         selectedProblems={selectedProblems}
                         placementMap={placementMap} 
                         solutionPlacementMap={solutionPlacementMap}
@@ -79,7 +85,6 @@ const ProblemPublishingPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* [신규] 다중 삭제 확인 모달 */}
             <Modal
                 isOpen={isBulkDeleteModalOpen}
                 onClose={onCloseBulkDeleteModal}

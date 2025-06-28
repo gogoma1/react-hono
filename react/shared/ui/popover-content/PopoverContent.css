@@ -19,6 +19,11 @@
     flex-direction: column;
     gap: 0.5rem;
 }
+/* [추가] 폼 그룹 내 아이템 간 간격을 위한 클래스 */
+.form-group-gapped {
+    flex-direction: row !important; /* 가로 정렬 강제 */
+    gap: 1rem !important;
+}
 
 /* Popover 내부 라벨 */
 .edit-popover-content label {
@@ -56,6 +61,12 @@
     gap: 0.5rem;
     margin-top: 0.5rem;
     flex-shrink: 0;
+}
+
+/* [추가] 팝오버 내 아이콘 스타일 */
+.popover-icon {
+    margin-right: 4px;
+    vertical-align: middle;
 }
 
 /* --- Textarea 전용 스타일 --- */

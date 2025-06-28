@@ -1,3 +1,5 @@
+// ./react/features/student-dashboard/model/useStudentDashboard.ts
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useUIStore } from '../../../shared/store/uiStore';
@@ -6,22 +8,20 @@ import { useRowSelection } from '../../row-selection/model/useRowSelection';
 import { useTableSearch } from '../../table-search/model/useTableSearch';
 import type { SuggestionGroup } from '../../../features/table-search/ui/TableSearch'; 
 
-/**
- * [신규] 학생 대시보드 페이지의 모든 상태와 로직을 관리하는 커스텀 훅
- */
 export function useStudentDashboard() {
-    const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
+    const { registerPageActions, setRightSidebarConfig, setSearchBoxProps } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
     
+    // [수정] 페이지별 독립적인 상태 관리 복원
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState<Record<string, Set<string>>>({});
 
     const currentStudents = students || [];
     const studentIds = useMemo(() => currentStudents.map(s => s.id), [currentStudents]);
 
-    const { selectedIds, toggleRow, toggleItems } = useRowSelection<string>({ allItems: studentIds });
+    const { selectedIds, toggleRow, toggleItems, setSelectedIds } = useRowSelection<string>({ allItems: studentIds });
 
     const filteredStudents = useTableSearch({
         data: currentStudents,
@@ -31,7 +31,7 @@ export function useStudentDashboard() {
     }) as Student[];
     const filteredStudentIds = useMemo(() => filteredStudents.map(s => s.id), [filteredStudents]);
     
-    const isFilteredAllSelected = useMemo(() => {
+    const isAllSelected = useMemo(() => {
         if (filteredStudentIds.length === 0) return false;
         return filteredStudentIds.every(id => selectedIds.has(id));
     }, [filteredStudentIds, selectedIds]);
@@ -68,8 +68,13 @@ export function useStudentDashboard() {
         });
     }, []);
 
-    const handleResetFilters = useCallback(() => setActiveFilters({}), []);
-    const handleToggleFilteredSelection = useCallback(() => toggleItems(filteredStudentIds), [toggleItems, filteredStudentIds]);
+    const handleResetFilters = useCallback(() => {
+      setActiveFilters({});
+      setSearchTerm('');
+      setSelectedIds(new Set());
+    }, [setSelectedIds]);
+    
+    const handleToggleAll = useCallback(() => toggleItems(filteredStudentIds), [toggleItems, filteredStudentIds]);
 
     const handleCreateProblemSet = useCallback(() => {
         if (selectedIds.size === 0) return alert('선택된 학생이 없습니다.');
@@ -107,35 +112,33 @@ export function useStudentDashboard() {
             onClose: handleCloseSidebar,
         });
         return () => {
-            registerPageActions({
-                openRegisterSidebar: undefined,
-                openSettingsSidebar: undefined,
-                onClose: undefined,
-            });
+            registerPageActions({ openRegisterSidebar: undefined, openSettingsSidebar: undefined, onClose: undefined });
             handleCloseSidebar();
         };
     }, [registerPageActions, handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
     
+    // [수정] useEffect가 페이지의 상태가 변경될 때마다 searchBoxProps를 업데이트하도록 복원
     useEffect(() => {
-        useLayoutStore.getState().setSearchBoxProps({
+        setSearchBoxProps({
             searchTerm,
             onSearchTermChange: setSearchTerm,
             activeFilters,
             onFilterChange: handleFilterChange,
             onResetFilters: handleResetFilters,
             suggestionGroups: suggestionGroupsJSON,
-            onToggleFiltered: handleToggleFilteredSelection,
+            onToggleFiltered: handleToggleAll,
             onCreateProblemSet: handleCreateProblemSet,
             selectedCount: selectedIds.size,
             showActionControls: true,
-            isFilteredAllSelected,
-            onHide: undefined, // [수정] 대시보드에서는 숨기기 기능 없음
+            isSelectionComplete: isAllSelected,
+            onHide: undefined,
         });
-        return () => useLayoutStore.getState().setSearchBoxProps(null);
+
+        // 페이지가 언마운트될 때 searchBoxProps를 비웁니다.
+        return () => setSearchBoxProps(null);
     }, [
-        searchTerm, activeFilters, suggestionGroupsJSON, selectedIds.size, 
-        handleFilterChange, handleResetFilters, handleToggleFilteredSelection, handleCreateProblemSet,
-        isFilteredAllSelected
+        searchTerm, activeFilters, suggestionGroupsJSON, selectedIds.size, isAllSelected,
+        handleFilterChange, handleResetFilters, handleToggleAll, handleCreateProblemSet, setSearchBoxProps
     ]);
     
     return {
@@ -143,12 +146,10 @@ export function useStudentDashboard() {
         isLoading: isLoadingStudents,
         isError: isStudentsError,
         error: studentsError,
-        
         selectedIds,
         toggleRow,
-        isAllSelected: isFilteredAllSelected,
-        toggleSelectAll: handleToggleFilteredSelection,
-        
+        isAllSelected,
+        toggleSelectAll: handleToggleAll,
         onRequestEdit: handleRequestEdit,
     };
 }

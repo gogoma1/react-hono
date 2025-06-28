@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router'; // react-router-dom으로 수정
+import { Link } from 'react-router';
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useSidebarTriggers } from '../../shared/store/layoutStore';
 import { 
     LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, 
-    LuSettings2, LuSearch, LuClipboardList, LuBookMarked // [추가] 아이콘 임포트
+    LuSettings2, LuSearch, LuClipboardList, LuBookMarked
 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
@@ -16,7 +16,6 @@ const LogoIcon = () => <LuLayoutDashboard size={26} className="navbar-logo-icon"
 const HamburgerIcon = () => <LuMenu size={22} />;
 const ProfileIcon = () => <LuCircleUserRound size={22} />;
 
-// [수정] 모든 모바일 액션 아이콘을 컴포넌트로 정의
 const RegisterIcon = () => <LuCirclePlus size={22} />;
 const SettingsIcon = () => <LuSettings2 size={22} />;
 const SearchIcon = () => <LuSearch size={22} />;
@@ -32,7 +31,6 @@ const GlassNavbar: React.FC = () => {
         closeMobileSidebar,
     } = useUIStore();
     
-    // [수정] 모든 종류의 트리거를 가져오도록 수정
     const { 
         registerTrigger, 
         settingsTrigger, 
@@ -56,11 +54,10 @@ const GlassNavbar: React.FC = () => {
     };
 
     useEffect(() => {
-        // [수정] 훅의 의존성이 변경될 때 불필요한 호출을 막기 위해 조건 추가
         if (isProfilePopoverOpen && currentBreakpoint !== 'desktop') {
             handleCloseProfilePopover();
         }
-    }, [currentBreakpoint, isProfilePopoverOpen]); // 의존성 배열 정리
+    }, [currentBreakpoint, isProfilePopoverOpen]);
 
     return (
         <nav className="glass-navbar">
@@ -85,36 +82,35 @@ const GlassNavbar: React.FC = () => {
             <div className="navbar-right">
                 {currentBreakpoint === 'mobile' && (
                     <div className="mobile-right-actions">
-                        {/* [수정] 모든 트리거에 대해 버튼을 렌더링하도록 로직 확장 */}
-                        {registerTrigger && (
+                        {registerTrigger?.onClick && (
                             <Tippy content={registerTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={registerTrigger.onClick} className="navbar-icon-button" aria-label={registerTrigger.tooltip}>
                                     <RegisterIcon />
                                 </button>
                             </Tippy>
                         )}
-                        {searchTrigger && (
+                        {searchTrigger?.onClick && (
                              <Tippy content={searchTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={searchTrigger.onClick} className="navbar-icon-button" aria-label={searchTrigger.tooltip}>
                                     <SearchIcon />
                                 </button>
                             </Tippy>
                         )}
-                        {promptTrigger && (
+                        {promptTrigger?.onClick && (
                              <Tippy content={promptTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={promptTrigger.onClick} className="navbar-icon-button" aria-label={promptTrigger.tooltip}>
                                     <PromptIcon />
                                 </button>
                             </Tippy>
                         )}
-                        {latexHelpTrigger && (
+                        {latexHelpTrigger?.onClick && (
                              <Tippy content={latexHelpTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={latexHelpTrigger.onClick} className="navbar-icon-button" aria-label={latexHelpTrigger.tooltip}>
                                     <LatexHelpIcon />
                                 </button>
                             </Tippy>
                         )}
-                        {settingsTrigger && (
+                        {settingsTrigger?.onClick && (
                              <Tippy content={settingsTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
                                 <button onClick={settingsTrigger.onClick} className="navbar-icon-button" aria-label={settingsTrigger.tooltip}>
                                     <SettingsIcon />

@@ -1,0 +1,12 @@
+/* react/pages/DashBoard.css */
+
+.dashboard-error-container {
+    padding: 20px;
+    color: red;
+    text-align: center;
+}
+
+.dashboard-container {
+    position: relative;
+    height: 100%;
+}

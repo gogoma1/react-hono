@@ -1,13 +1,14 @@
 import { handleApiResponse } from '../../../shared/api/api.utils';
 import type { Problem } from '../model/types';
 
-const API_BASE_URL = '/api/manage/problems'; // [수정] 기본 URL 변수화
+const API_BASE_URL = '/api/manage/problems';
 
 interface UploadPayload {
     problems: Problem[];
 }
 
-interface UploadResponse {
+// [수정] export 추가
+export interface UploadResponse {
     success: boolean;
     count: number;
 }

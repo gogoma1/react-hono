@@ -1,3 +1,5 @@
+// ./react/features/table-search/ui/TableSearch.tsx
+
 import React from 'react';
 import { LuSearch, LuX, LuRotateCcw, LuCirclePlus, LuListChecks, LuEyeOff } from 'react-icons/lu';
 import './TableSearch.css';
@@ -15,12 +17,11 @@ export interface TableSearchProps {
     onFilterChange: (key: string, value: string) => void;
     onResetFilters: () => void;
     onHide?: () => void;
-    
     onToggleFiltered?: () => void;
     onCreateProblemSet?: () => void;
     selectedCount?: number;
     showActionControls?: boolean;
-    isSelectionComplete?: boolean; // [수정] isFilteredAllSelected -> isSelectionComplete
+    isSelectionComplete?: boolean;
 }
 
 const TableSearch: React.FC<TableSearchProps> = ({
@@ -35,7 +36,7 @@ const TableSearch: React.FC<TableSearchProps> = ({
     onCreateProblemSet,
     selectedCount = 0,
     showActionControls = true,
-    isSelectionComplete = false, // [수정]
+    isSelectionComplete = false,
 }) => {
     const hasActiveFilters = Object.keys(activeFilters).length > 0 || searchTerm.trim() !== '';
 
@@ -97,7 +98,6 @@ const TableSearch: React.FC<TableSearchProps> = ({
                                 type="button"
                                 className="control-button primary"
                                 onClick={onToggleFiltered}
-                                // [수정] 비활성화 조건을 새로운 prop으로 변경
                                 disabled={isSelectionComplete}
                             >
                                 <LuListChecks size={16} />

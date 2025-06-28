@@ -1,8 +1,6 @@
-// react/features/exam-header-editing/ui/ExamHeaderEditPopover.tsx
 import React from 'react';
 import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
 import { LuCheck, LuUndo2 } from 'react-icons/lu';
-// Json-importer의 스타일을 재사용합니다.
 import '../../../shared/ui/popover-content/PopoverContent.css';
 
 interface ExamHeaderEditPopoverProps {
@@ -30,7 +28,7 @@ const ExamHeaderEditPopover: React.FC<ExamHeaderEditPopoverProps> = ({
         <div className="edit-popover-content">
             <label htmlFor={`edit-${targetLabel}`}>{targetLabel} 수정</label>
             
-            <div className="form-group" style={{gap: '1rem'}}>
+            <div className="form-group form-group-gapped">
                 <input 
                     id={`edit-${targetLabel}`}
                     type="text"
@@ -57,11 +55,11 @@ const ExamHeaderEditPopover: React.FC<ExamHeaderEditPopoverProps> = ({
 
             <div className="edit-popover-actions">
                 <ActionButton onClick={onCancel} aria-label="취소">
-                    <LuUndo2 size={14} style={{ marginRight: '4px' }} />
+                    <LuUndo2 size={14} className="popover-icon" />
                     취소
                 </ActionButton>
                 <ActionButton onClick={onSave} className="primary" aria-label="저장">
-                    <LuCheck size={14} style={{ marginRight: '4px' }} />
+                    <LuCheck size={14} className="popover-icon" />
                     저장
                 </ActionButton>
             </div>

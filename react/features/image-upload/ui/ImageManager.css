@@ -142,6 +142,10 @@
     font-size: 12px;
     padding: 5px 10px;
 }
+/* [추가] 아이콘 스타일 */
+.action-button-icon {
+    margin-right: 4px;
+}
 
 .error-display {
     margin-top: 6px;

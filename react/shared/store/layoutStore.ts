@@ -1,7 +1,14 @@
+// ./react/shared/store/layoutStore.ts
+
 import { create } from 'zustand';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
+import type { Student } from '../../entities/student/model/useStudentDataWithRQ';
 
+/**
+ * [수정] TableSearch 컴포넌트가 필요로 하는 모든 props를 포함하는 완전한 인터페이스.
+ * 각 페이지의 훅은 이 인터페이스에 맞는 객체를 만들어 스토어에 저장하게 됩니다.
+ */
 export interface StoredSearchProps {
     searchTerm: string;
     onSearchTermChange: (value: string) => void;
@@ -11,10 +18,10 @@ export interface StoredSearchProps {
     suggestionGroups: string;
     onToggleFiltered?: () => void;
     onCreateProblemSet?: () => void;
-    selectedCount?: number;
     showActionControls?: boolean;
-    isSelectionComplete?: boolean; // [수정] isFilteredAllSelected를 isSelectionComplete로 변경
     onHide?: () => void;
+    selectedCount?: number;
+    isSelectionComplete?: boolean;
 }
 
 interface RegisteredPageActions {
@@ -23,7 +30,7 @@ interface RegisteredPageActions {
   openPromptSidebar: () => void;
   openLatexHelpSidebar: () => void;
   openSearchSidebar: () => void; 
-  openEditSidebar: (student: any) => void;
+  openEditSidebar: (student: Student) => void;
   onClose: () => void;
 }
 
@@ -41,6 +48,7 @@ interface LayoutState {
   rightSidebar: RightSidebarState; 
   currentPageConfig: PageLayoutConfig;
   pageActions: Partial<RegisteredPageActions>;
+  // [수정] 스토어는 props 객체를 통째로 저장하고, searchTerm을 직접 관리하지 않음.
   searchBoxProps: StoredSearchProps | null;
 }
 
@@ -57,6 +65,7 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
     openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'),
     openSearchSidebar: () => console.warn('openSearchSidebar action not registered.'),
+    openEditSidebar: (student: Student) => console.warn('openEditSidebar action not registered for student:', student.id),
     onClose: () => console.warn('onClose action not registered.'),
 };
 
@@ -68,7 +77,7 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
   currentPageConfig: {},
   pageActions: initialPageActions,
   searchBoxProps: null,
-  
+
   setRightSidebarConfig: (config) => {
     const currentState = get().rightSidebar;
     if (!config.contentConfig) {
@@ -112,39 +121,52 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
 export const selectRightSidebarConfig = (state: LayoutState) => state.rightSidebar;
 export const selectSearchBoxProps = (state: LayoutState) => state.searchBoxProps;
 
+interface SidebarTrigger {
+    onClick: () => void;
+    tooltip: string;
+}
 
-export const useSidebarTriggers = () => {
+interface SidebarTriggers {
+    onClose: (() => void) | undefined;
+    registerTrigger?: SidebarTrigger;
+    searchTrigger?: SidebarTrigger;
+    settingsTrigger?: SidebarTrigger;
+    promptTrigger?: SidebarTrigger;
+    latexHelpTrigger?: SidebarTrigger;
+}
+
+export const useSidebarTriggers = (): SidebarTriggers => {
     const currentPageConfig = useLayoutStore(state => state.currentPageConfig);
     const pageActions = useLayoutStore(state => state.pageActions);
 
     const triggers = useMemo(() => {
-        const result: any = { onClose: pageActions.onClose };
+        const result: SidebarTriggers = { onClose: pageActions.onClose };
 
-        if (currentPageConfig.sidebarButtons?.register) {
+        if (currentPageConfig.sidebarButtons?.register && pageActions.openRegisterSidebar) {
             result.registerTrigger = {
                 onClick: pageActions.openRegisterSidebar,
                 tooltip: currentPageConfig.sidebarButtons.register.tooltip,
             };
         }
-        if (currentPageConfig.sidebarButtons?.search) {
+        if (currentPageConfig.sidebarButtons?.search && pageActions.openSearchSidebar) {
             result.searchTrigger = {
                 onClick: pageActions.openSearchSidebar,
                 tooltip: currentPageConfig.sidebarButtons.search.tooltip,
             };
         }
-        if (currentPageConfig.sidebarButtons?.settings) {
+        if (currentPageConfig.sidebarButtons?.settings && pageActions.openSettingsSidebar) {
             result.settingsTrigger = {
                 onClick: pageActions.openSettingsSidebar,
                 tooltip: currentPageConfig.sidebarButtons.settings.tooltip,
             };
         }
-        if (currentPageConfig.sidebarButtons?.prompt) {
+        if (currentPageConfig.sidebarButtons?.prompt && pageActions.openPromptSidebar) {
             result.promptTrigger = {
                 onClick: pageActions.openPromptSidebar,
                 tooltip: currentPageConfig.sidebarButtons.prompt.tooltip,
             };
         }
-        if (currentPageConfig.sidebarButtons?.latexHelp) {
+        if (currentPageConfig.sidebarButtons?.latexHelp && pageActions.openLatexHelpSidebar) {
             result.latexHelpTrigger = {
                 onClick: pageActions.openLatexHelpSidebar,
                 tooltip: currentPageConfig.sidebarButtons.latexHelp.tooltip,

@@ -2,7 +2,6 @@ import React from 'react';
 import type { Problem } from '../../problem/model/types';
 import './ExamPage.css';
 
-// Type definitions
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
 interface HeaderInfo {
     title: string;
@@ -29,15 +28,18 @@ const QuickAnswerPage: React.FC<QuickAnswerPageProps> = ({
     useSequentialNumbering,
     allProblems
 }) => {
-    // A simple header for the answer page
     const QuickAnswerHeader: React.FC<{ title: string; page: number }> = ({ title, page }) => (
         <div className="quick-answer-header">
-            <h1 className="quick-answer-title" style={{ fontFamily: headerInfo.titleFontFamily }}>{title}</h1>
-            <div className="exam-header-page-number" style={{ fontFamily: "'Noto Serif KR', serif" }}>{page}</div>
+            <h1 
+                className="quick-answer-title" 
+                style={{ '--title-font-family': headerInfo.titleFontFamily } as React.CSSProperties}
+            >
+                {title}
+            </h1>
+            <div className="exam-header-page-number quick-answer-page-number">{page}</div>
         </div>
     );
     
-    // [수정] getProblemNumber 함수가 display_question_number를 직접 반환하도록 변경
     const getProblemNumber = (problem: ProcessedProblem) => {
         if (useSequentialNumbering) {
             const globalIndex = allProblems.findIndex(p => p.uniqueId === problem.uniqueId);
@@ -62,7 +64,10 @@ const QuickAnswerPage: React.FC<QuickAnswerPageProps> = ({
     );
 
     return (
-        <div className="exam-page-component" style={{ fontSize: baseFontSize }}>
+        <div 
+            className="exam-page-component" 
+            style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
+        >
             <div className="exam-paper">
                 <QuickAnswerHeader title="빠른 정답" page={pageNumber} />
                 <div className="quick-answer-columns-container">

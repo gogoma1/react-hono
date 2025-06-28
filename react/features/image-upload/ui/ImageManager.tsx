@@ -21,7 +21,6 @@ interface ImageManagerProps {
     onDragOver: (e: React.DragEvent<HTMLElement>, tag: string) => void;
     onDragLeave: (e: React.DragEvent<HTMLElement>) => void;
     onDragEnd: (e: React.DragEvent<HTMLElement>) => void;
-    // --- 추가된 props ---
     isApplied: boolean;
     onRevertUrls: () => void;
 }
@@ -31,7 +30,6 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     pendingUploadCount, canApply, draggingTag, dragOverTag,
     onUploadSingle, onUploadAll, onApplyUrls,
     onDragStart, onDrop, onDragOver, onDragLeave, onDragEnd,
-    // --- 추가된 props 받기 ---
     isApplied,
     onRevertUrls,
 }) => {
@@ -62,7 +60,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                 
                 {isApplied ? (
                     <button onClick={onRevertUrls} className="action-button secondary">
-                        <LuUndo2 size={14} style={{ marginRight: '4px' }}/>
+                        <LuUndo2 size={14} className="action-button-icon"/>
                         적용 취소
                     </button>
                 ) : (

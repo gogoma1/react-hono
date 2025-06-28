@@ -42,7 +42,13 @@ const ProblemItem: React.FC<ProblemItemProps> = React.memo(({ problem, allProble
                         <LuCircleX size={18} />
                     </button>
                 </div>
-                <div className="problem-content-wrapper" style={{ fontSize: `${contentFontSizeEm}em`, fontFamily: contentFontFamily }}>
+                <div 
+                    className="problem-content-wrapper" 
+                    style={{ 
+                        '--content-font-size-em': `${contentFontSizeEm}em`, 
+                        '--content-font-family': contentFontFamily 
+                    } as React.CSSProperties}
+                >
                     <div className="mathpix-wrapper prose">
                         <MathpixRenderer text={problem.question_text ?? ''} />
                     </div>
@@ -53,6 +59,22 @@ const ProblemItem: React.FC<ProblemItemProps> = React.memo(({ problem, allProble
 });
 ProblemItem.displayName = 'ProblemItem';
 
+// [수정] ExamHeader의 필수 Props를 포함하는 타입 정의
+type ExamHeaderInfo = Pick<React.ComponentProps<typeof ExamHeader>, 
+    | 'title' 
+    | 'titleFontSize' 
+    | 'titleFontFamily' 
+    | 'school' 
+    | 'schoolFontSize' 
+    | 'schoolFontFamily' 
+    | 'subject' 
+    | 'subjectFontSize' 
+    | 'subjectFontFamily' 
+    | 'simplifiedSubjectText'
+    | 'simplifiedSubjectFontSize'
+    | 'simplifiedSubjectFontFamily'
+    | 'simplifiedGradeText'
+>;
 
 interface ExamPageProps {
     pageNumber: number;
@@ -66,7 +88,7 @@ interface ExamPageProps {
     baseFontSize: string;
     contentFontSizeEm: number;
     contentFontFamily: string;
-    headerInfo: any;
+    headerInfo: ExamHeaderInfo; // [수정] any -> ExamHeaderInfo
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
     onDeselectProblem: (uniqueId: string) => void;
     measuredHeights: Map<string, number>; 
@@ -109,7 +131,10 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
     };
 
     return (
-        <div className="exam-page-component" style={{ fontSize: baseFontSize }}>
+        <div 
+            className="exam-page-component" 
+            style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
+        >
             <div className="exam-paper">
                 <ExamHeader 
                     page={pageNumber}

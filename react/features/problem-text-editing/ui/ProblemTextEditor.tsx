@@ -6,7 +6,6 @@ import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
 import { LuCheck, LuUndo2, LuTrash2 } from 'react-icons/lu';
 import ProblemMetadataEditor from './ProblemMetadataEditor';
 import Modal from '../../../shared/ui/modal/Modal';
-// [수정] 올바른 삭제 훅을 임포트합니다.
 import { useDeleteProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
 import './ProblemTextEditor.css';
 
@@ -41,7 +40,6 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     
-    // [수정] useDeleteProblemsMutation 훅을 사용합니다.
     const { mutate: deleteProblem, isPending: isDeleting } = useDeleteProblemsMutation();
 
     useEffect(() => {
@@ -89,7 +87,6 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     };
 
     const handleConfirmDelete = () => {
-        // [수정] 단일 ID를 배열에 담아 훅에 전달합니다.
         deleteProblem([problem.problem_id], {
             onSuccess: () => {
                 setIsDeleteModalOpen(false);
@@ -108,7 +105,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                     <h4 className="editor-title">{problem.display_question_number}번 문제 수정</h4>
                     <div className="editor-actions">
                         <ActionButton onClick={handleRevert} aria-label="변경사항 초기화" disabled={isSaving || isDeleting}>
-                            <LuUndo2 size={14} style={{ marginRight: '4px' }} />
+                            <LuUndo2 size={14} className="action-icon" />
                             초기화
                         </ActionButton>
                         
@@ -120,7 +117,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                             disabled={isSaving}
                             loadingText="삭제중..."
                         >
-                            <LuTrash2 size={14} style={{ marginRight: '4px' }} />
+                            <LuTrash2 size={14} className="action-icon" />
                             영구 삭제
                         </LoadingButton>
 
@@ -132,7 +129,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                             disabled={isDeleting}
                             loadingText="저장중..."
                         >
-                            <LuCheck size={14} style={{ marginRight: '4px' }} />
+                            <LuCheck size={14} className="action-icon" />
                             저장
                         </LoadingButton>
                     </div>

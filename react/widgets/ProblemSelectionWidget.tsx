@@ -55,18 +55,18 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
         { 
             key: 'question_text', 
             header: '문제', 
-            render: (p) => <div style={{whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto'}}>{p.question_text}</div>
+            render: (p) => <div className="problem-cell-text problem-cell-text-scrollable">{p.question_text}</div>
         },
         { 
             key: 'answer', 
             header: '정답', 
             width: '100px',
-            render: (p) => <div style={{whiteSpace: 'pre-wrap'}}>{p.answer}</div>
+            render: (p) => <div className="problem-cell-text">{p.answer}</div>
         },
         { 
             key: 'solution_text', 
             header: '해설', 
-            render: (p) => <div style={{whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto'}}>{p.solution_text}</div>
+            render: (p) => <div className="problem-cell-text problem-cell-text-scrollable">{p.solution_text}</div>
         },
     ], [isAllSelected, onToggleAll, problems, selectedIds, onToggleRow]);
     

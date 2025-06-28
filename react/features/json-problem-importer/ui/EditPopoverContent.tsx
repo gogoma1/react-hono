@@ -3,7 +3,6 @@ import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
 import type { ComboboxOption } from '../../../entities/problem/model/types';
 import { LuCheck, LuUndo2 } from 'react-icons/lu';
 
-// ... (PopoverInput, PopoverCombobox 코드는 변경 없음) ...
 interface PopoverContentProps {
     label: string;
     onSave: () => void;
@@ -25,11 +24,11 @@ export const PopoverInput: React.FC<PopoverInputProps> = ({ label, onSave, onCan
         <input id={`edit-${label}`} {...inputProps} className="popover-input" autoFocus />
         <div className="edit-popover-actions">
             <ActionButton onClick={onCancel} aria-label="취소">
-                <LuUndo2 size={14} style={{ marginRight: '4px' }} />
+                <LuUndo2 size={14} className="popover-icon" />
                 취소
             </ActionButton>
             <ActionButton onClick={onSave} className="primary" aria-label="저장">
-                <LuCheck size={14} style={{ marginRight: '4px' }} />
+                <LuCheck size={14} className="popover-icon" />
                 저장
             </ActionButton>
         </div>
@@ -37,7 +36,6 @@ export const PopoverInput: React.FC<PopoverInputProps> = ({ label, onSave, onCan
 );
 
 
-// [수정] PopoverTextarea의 구조를 완전히 변경합니다.
 export const PopoverTextarea: React.FC<PopoverTextareaProps> = ({ label, onSave, onCancel, ...textareaProps }) => (
     <div className="edit-popover-content">
         <label htmlFor={`edit-${label}`}>{label} 수정</label>
@@ -49,11 +47,11 @@ export const PopoverTextarea: React.FC<PopoverTextareaProps> = ({ label, onSave,
             {/* [핵심] 버튼 그룹을 textarea와 같은 컨테이너 안으로 이동 */}
             <div className="edit-popover-actions on-textarea">
                 <ActionButton onClick={onCancel} aria-label="취소">
-                    <LuUndo2 size={14} style={{ marginRight: '4px' }} />
+                    <LuUndo2 size={14} className="popover-icon" />
                     취소
                 </ActionButton>
                 <ActionButton onClick={onSave} className="primary" aria-label="저장">
-                    <LuCheck size={14} style={{ marginRight: '4px' }} />
+                    <LuCheck size={14} className="popover-icon" />
                     저장
                 </ActionButton>
             </div>

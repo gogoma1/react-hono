@@ -3,6 +3,9 @@ import { uploadProblemsAPI, updateProblemAPI, deleteProblemsAPI } from '../api/p
 import type { Problem } from './types';
 import { PROBLEMS_QUERY_KEY } from './useProblemsQuery';
 
+// [수정] uploadProblemsAPI의 반환 타입을 명시적으로 가져옴
+import type { UploadResponse } from '../api/problemApi';
+
 interface UpdateProblemVariables {
   id: string; 
   fields: Partial<Problem>;
@@ -50,7 +53,8 @@ export function useDeleteProblemsMutation() {
  * 문제 업로드를 위한 React Query Mutation
  */
 export function useUploadProblemsMutation() {
-    return useMutation<unknown, Error, Problem[]>({
+    // [수정] 제네릭의 unknown을 UploadResponse로 변경
+    return useMutation<UploadResponse, Error, Problem[]>({
         mutationFn: (problems) => uploadProblemsAPI(problems),
         onSuccess: () => {
             alert('문제가 성공적으로 업로드되었습니다.');

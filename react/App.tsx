@@ -1,5 +1,3 @@
-// react/App.tsx
-
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -14,7 +12,8 @@ import AuthInitializer from './shared/lib/AuthInitializer';
 import { useAuthStore, selectIsLoadingAuth } from './shared/store/authStore';
 import ProblemWorkbenchPage from './pages/ProblemWorkbenchPage';
 import JsonRendererPage from './pages/JsonRendererPage';
-import ProblemPublishingPage from './pages/ProblemPublishingPage'; // [추가]
+import ProblemPublishingPage from './pages/ProblemPublishingPage'; 
+import './App.css'; // [추가]
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,7 +32,8 @@ function App() {
         <QueryClientProvider client={queryClient}>
             <AuthInitializer />
             {isLoadingAuth ? (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                // [수정] 인라인 스타일을 className으로 변경
+                <div className="app-loading-container">
                     <h1>애플리케이션 로딩 중...</h1>
                 </div>
             ) : (
@@ -48,7 +48,7 @@ function App() {
                                 <Route path="/" element={<HomePage />} />
                                 <Route path="/dashboard" element={<DashBoard />} />
                                 <Route path="/problem-workbench" element={<ProblemWorkbenchPage />} />
-                                <Route path="/problem-publishing" element={<ProblemPublishingPage />} /> {/* [추가] */}
+                                <Route path="/problem-publishing" element={<ProblemPublishingPage />} />
                                 <Route path="/json-renderer" element={<JsonRendererPage />} /> 
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
                             </Route>

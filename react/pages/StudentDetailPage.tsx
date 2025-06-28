@@ -1,11 +1,12 @@
 import React from 'react';
 import { useParams } from 'react-router';
+import './StudentDetailPage.css';
 
 const StudentDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
 
     return (
-        <div style={{ padding: '20px' }}>
+        <div className="student-detail-page">
             <h1>학생 상세 정보</h1>
             <p>선택된 학생의 ID는 <strong>{id}</strong> 입니다.</p>
             <br />

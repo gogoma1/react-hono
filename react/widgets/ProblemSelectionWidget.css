@@ -71,6 +71,18 @@
     overflow: auto;
 }
 
+/* [추가] 테이블 셀 텍스트 스타일 */
+.problem-cell-text {
+    white-space: pre-wrap;
+}
+.problem-cell-text-scrollable {
+    max-height: 100px;
+    overflow-y: auto;
+    /* 스크롤바가 보일 때 패딩이 줄어드는 현상 방지 */
+    padding-right: 8px; 
+}
+
+
 .keyword-badge {
     display: inline-block;
     background-color: rgba(var(--accent-color-rgb), 0.1);

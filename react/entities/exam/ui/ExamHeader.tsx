@@ -3,10 +3,15 @@ import { LuPencil } from "react-icons/lu";
 import GlassPopover from '../../../shared/components/GlassPopover';
 import ExamHeaderEditPopover from '../../../features/exam-header-editing/ui/ExamHeaderEditPopover';
 
-// [수정 1] EditableTarget 타입을 컴포넌트 밖으로 이동시켜 재사용 가능하게 합니다.
 type EditableTarget = 'title' | 'school' | 'subject' | 'simplifiedGrade' | 'simplifiedSubject';
 
-// [수정 2] EditableArea 컴포넌트의 props 타입을 정의합니다.
+// [수정] onUpdate 함수의 value 타입을 구체적으로 정의
+type ExamUpdateValue = {
+    text: string;
+    fontSize?: number;
+    fontFamily?: string;
+};
+
 interface EditableAreaProps {
     targetId: EditableTarget;
     children: React.ReactNode;
@@ -18,8 +23,6 @@ interface EditableAreaProps {
     label: string;
 }
 
-// [수정 3] EditableArea 컴포넌트를 ExamHeader 바깥의 독립된 컴포넌트로 분리합니다.
-// 이렇게 하면 ExamHeader가 리렌더링 되어도 EditableArea는 재생성되지 않아 ref가 안정적으로 유지됩니다.
 const EditableArea: React.FC<EditableAreaProps> = ({
     targetId,
     children,
@@ -50,6 +53,7 @@ const EditableArea: React.FC<EditableAreaProps> = ({
 
 interface ExamHeaderProps {
     page: number;
+    totalPages?: number; // [수정] 누락된 prop 추가
     title: string;
     titleFontSize: number;
     titleFontFamily: string;
@@ -64,7 +68,7 @@ interface ExamHeaderProps {
     simplifiedSubjectFontSize: number;
     simplifiedSubjectFontFamily: string;
     simplifiedGradeText: string;
-    onUpdate: (targetId: string, field: string, value: any) => void;
+    onUpdate: (targetId: EditableTarget, field: string, value: ExamUpdateValue) => void; // [수정] 타입 구체화
 }
 
 
@@ -86,7 +90,6 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
     const [editingText, setEditingText] = useState('');
     const [editingFontSize, setEditingFontSize] = useState(1);
     
-    const notoSerifKR = "'Noto Serif KR', serif";
     const triggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
     const handleStartEdit = (e: React.MouseEvent<HTMLButtonElement>, target: EditableTarget) => {
@@ -116,7 +119,8 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
     const handleSaveEdit = () => {
         if (!editingTarget) return;
         
-        let value: any = { text: editingText };
+        // [수정] value 타입을 ExamUpdateValue에 맞게 생성
+        const value: ExamUpdateValue = { text: editingText };
         if (editingTarget !== 'simplifiedGrade') {
             value.fontSize = editingFontSize;
         }
@@ -140,7 +144,6 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
         simplifiedGrade: '학년', simplifiedSubject: '과목(2p+)',
     }[target]);
     
-    // [수정 4] 독립된 EditableArea 컴포넌트에 props를 전달하기 위한 콜백 함수
     const setTriggerRef = (targetId: EditableTarget, el: HTMLButtonElement | null) => {
         triggerRefs.current[targetId] = el;
     };
@@ -150,7 +153,6 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
             <>
                 <div className="exam-header-simplified-container">
                     <div className={`simplified-item-wrapper order-${page % 2 !== 0 ? 1 : 3}`}>
-                        {/* [수정 5] 분리된 EditableArea 컴포넌트를 props와 함께 사용합니다. */}
                         <EditableArea 
                             targetId="simplifiedGrade" 
                             buttonClassName="simplified-grade-button"
@@ -173,13 +175,19 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                             isEditing={editingTarget === 'simplifiedSubject'}
                             label={getTargetLabel('simplifiedSubject')}
                         >
-                           <span style={{ fontSize: `${simplifiedSubjectFontSize}em`, fontFamily: simplifiedSubjectFontFamily }}>
+                           <span 
+                                className="simplified-subject-text"
+                                style={{
+                                    '--font-size-em': simplifiedSubjectFontSize,
+                                    '--font-family': simplifiedSubjectFontFamily,
+                                } as React.CSSProperties}
+                            >
                                 {simplifiedSubjectText}
                             </span>
                         </EditableArea>
                     </div>
                     <div className={`simplified-item-wrapper order-${page % 2 !== 0 ? 3 : 1}`}>
-                        <span className="simplified-page-number" style={{ fontFamily: notoSerifKR }}>{page}</span>
+                        <span className="simplified-page-number">{page}</span>
                     </div>
                 </div>
                 <GlassPopover isOpen={!!editingTarget} onClose={handleCancelEdit} anchorEl={popoverAnchor} placement="bottom-start">
@@ -213,11 +221,17 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                         isEditing={editingTarget === 'title'}
                         label={getTargetLabel('title')}
                      >
-                        <span style={{ fontSize: `${initialTitleFontSize}em`, fontFamily: initialTitleFontFamily }}>
+                        <span 
+                            className="exam-header-title"
+                            style={{
+                                '--font-size-em': initialTitleFontSize,
+                                '--font-family': initialTitleFontFamily,
+                            } as React.CSSProperties}
+                        >
                             {initialTitle}
                         </span>
                     </EditableArea>
-                    <div className="exam-header-page-number" style={{ fontFamily: notoSerifKR }}>{page}</div>
+                    <div className="exam-header-page-number">{page}</div>
                 </div>
                 <div className="exam-header-info-section">
                     <EditableArea 
@@ -229,7 +243,13 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                         isEditing={editingTarget === 'school'}
                         label={getTargetLabel('school')}
                     >
-                        <span style={{ fontSize: `${initialSchoolFontSize}em`, fontFamily: initialSchoolFontFamily }}>
+                        <span
+                            className="exam-header-school-text"
+                            style={{
+                                '--font-size-em': initialSchoolFontSize,
+                                '--font-family': initialSchoolFontFamily,
+                            } as React.CSSProperties}
+                        >
                            {initialSchool}
                         </span>
                     </EditableArea>
@@ -243,7 +263,13 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                             isEditing={editingTarget === 'subject'}
                             label={getTargetLabel('subject')}
                         >
-                             <span style={{ fontSize: `${initialSubjectFontSize}em`, fontFamily: initialSubjectFontFamily }}>
+                            <span 
+                                className="exam-header-subject-text"
+                                style={{
+                                    '--font-size-em': initialSubjectFontSize,
+                                    '--font-family': initialSubjectFontFamily,
+                                } as React.CSSProperties}
+                            >
                                 {initialSubject}
                             </span>
                         </EditableArea>

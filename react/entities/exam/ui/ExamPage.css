@@ -14,6 +14,7 @@
     border: 2px solid black;
     background-color: white;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    font-size: var(--base-font-size, 12px); /* [수정] CSS 변수 사용 */
 }
 
 .exam-paper {
@@ -181,6 +182,9 @@
     overflow: hidden; 
     line-height: 1.75; 
     min-height: var(--problem-box-min-height-em, 31em);
+    /* [수정] CSS 변수 사용 */
+    font-size: var(--content-font-size-em, 1em);
+    font-family: var(--content-font-family, sans-serif);
 }
 .mathpix-wrapper { display: block; width: 100%; overflow-x: hidden; word-wrap: break-word; }
 
@@ -234,7 +238,13 @@
     font-size: 2.2em;
     font-weight: 700;
     margin: 0;
+    font-family: var(--title-font-family, sans-serif); /* [수정] CSS 변수 사용 */
 }
+/* [추가] 빠른 정답 페이지 번호 스타일 */
+.quick-answer-page-number {
+    font-family: 'Noto Serif KR', serif;
+}
+
 .quick-answer-columns-container {
     display: flex;
     flex-grow: 1;
@@ -301,4 +311,7 @@
     flex-grow: 1;
     overflow: hidden;
     line-height: 1.75;
+    /* [수정] CSS 변수 사용 */
+    font-size: var(--content-font-size-em, 1em);
+    font-family: var(--content-font-family, sans-serif);
 }

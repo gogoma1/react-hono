@@ -1,9 +1,7 @@
-// ----- ./react/shared/hooks/useContinuousChange.ts -----
 import { useRef, useCallback } from 'react';
 
 type Direction = 'increase' | 'decrease';
 
-// 기본값 설정
 const INITIAL_INTERVAL = 150; // ms
 const MIN_INTERVAL = 20;      // ms
 const ACCELERATION = 0.95;    // 95%씩 간격 감소 (조금 더 부드러운 가속)
@@ -15,7 +13,8 @@ const ACCELERATION = 0.95;    // 95%씩 간격 감소 (조금 더 부드러운 �
  */
 export function useContinuousChange(onChange: (updater: (prev: number) => number) => void, step: number) {
     const intervalRef = useRef<number | null>(null);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    // [수정] NodeJS.Timeout 대신 브라우저 환경에 맞는 타입(number) 또는 ReturnType 사용
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const currentIntervalRef = useRef(INITIAL_INTERVAL);
 
     const stopChanging = useCallback(() => {
@@ -34,11 +33,9 @@ export function useContinuousChange(onChange: (updater: (prev: number) => number
         currentIntervalRef.current = INITIAL_INTERVAL;
 
         const change = () => {
-            // 가속도 적용된 스텝 계산
             const dynamicStep = direction === 'increase' ? step : -step;
             onChange(prev => parseFloat((prev + dynamicStep * (INITIAL_INTERVAL / currentIntervalRef.current)).toFixed(2)));
             
-            // 다음 프레임 요청
             intervalRef.current = requestAnimationFrame(change);
         };
         
@@ -47,10 +44,8 @@ export function useContinuousChange(onChange: (updater: (prev: number) => number
             timeoutRef.current = setTimeout(accelerate, 50); // 50ms 마다 가속
         };
         
-        // 1. 즉시 1회 실행
         onChange(prev => parseFloat((prev + (direction === 'increase' ? step : -step)).toFixed(2)));
         
-        // 2. 400ms 후 연속 변경 및 가속 시작
         timeoutRef.current = setTimeout(() => {
             intervalRef.current = requestAnimationFrame(change);
             accelerate();

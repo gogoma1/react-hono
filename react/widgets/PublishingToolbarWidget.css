@@ -1,5 +1,9 @@
 /* ----- ./widgets/PublishingToolbarWidget.css ----- */
 
+.toolbar-icon {
+    margin-right: 8px;
+}
+
 .continuous-input-wrapper {
     display: flex;
     align-items: center;

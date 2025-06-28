@@ -1,4 +1,3 @@
-// filepath: react-hono/react/pages/LoginPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import {
@@ -6,9 +5,9 @@ import {
   selectIsAuthenticated,
   selectIsLoadingAuth,
   selectAuthError,
-} from '../shared/store/authStore'; // authStore 경로 수정
-import BackgroundBlobs from '../widgets/rootlayout/BackgroundBlobs'; // 경로 확인
-import './LoginPage.css'; // CSS 파일 경로 확인
+} from '../shared/store/authStore';
+import BackgroundBlobs from '../widgets/rootlayout/BackgroundBlobs';
+import './LoginPage.css';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,7 +18,7 @@ const LoginPage: React.FC = () => {
   const authStoreError = useAuthStore(selectAuthError);
   const { signInWithKakao, clearAuthError } = useAuthStore.getState();
 
-  const [isKakaoLoginLoading, setIsKakaoLoginLoading] = useState(false); // 카카오 로그인 버튼 전용 로딩 상태
+  const [isKakaoLoginLoading, setIsKakaoLoginLoading] = useState(false);
   const [urlErrorMessage, setUrlErrorMessage] = useState('');
 
   useEffect(() => {
@@ -52,19 +51,8 @@ const LoginPage: React.FC = () => {
 
     try {
       await signInWithKakao();
-      // 성공 시 OAuth 리다이렉션이 발생하므로, 별도 로딩 해제 코드가 필요 없을 수 있음
-      // 에러는 authStore에서 처리
     } catch (e: any) {
-      // 일반적으로 signInWithKakao 액션 내부에서 에러를 처리하고 authStoreError에 저장
       console.error("Kakao login initiation error in component:", e);
-      // 이 catch는 signInWithKakao가 reject될 경우를 대비 (현재 authStore 구현은 reject하지 않음)
-    } finally {
-      // signInWithKakao가 에러를 authStore에 기록하면, isLoadingAuthGlobal이 false로 바뀔 때까지
-      // 또는 authStoreError가 생길 때까지 버튼은 비활성화/로딩 상태 유지 가능
-      // 여기서는 개별 버튼 로딩 상태를 두었으므로, signInWithKakao 호출 후 즉시 해제는 하지 않음
-      // OAuth 리다이렉션이 발생하면 이 컴포넌트는 어차피 언마운트되거나 상태가 리셋됨
-      // 만약 에러 발생 시 명시적으로 로딩 해제가 필요하면 여기에 추가
-      // if (authStoreError) setIsKakaoLoginLoading(false);
     }
   };
 
@@ -74,7 +62,7 @@ const LoginPage: React.FC = () => {
   if (isLoadingAuthGlobal && !displayError && !isKakaoLoginLoading) {
     return (
       <div className="login-page-wrapper">
-        <div className="login-page-container" style={{ textAlign: 'center' }}>
+        <div className="login-page-container loading-state">
           <p>인증 정보를 확인 중입니다...</p>
         </div>
       </div>
@@ -105,10 +93,9 @@ const LoginPage: React.FC = () => {
                 {isKakaoLoginLoading || (isLoadingAuthGlobal && !isKakaoLoginLoading) ? '처리 중...' : '카카오 계정으로 로그인'}
               </span>
             </button>
-            {/* Google 로그인 버튼 제거됨 */}
           </div>
           {displayError && (
-            <p className="login-error-message" style={{ color: 'red', marginTop: '15px' }}>{displayError}</p>
+            <p className="login-error-message">{displayError}</p>
           )}
           <p className="login-terms">
             로그인 시 <a href="/terms" target="_blank" rel="noopener noreferrer">이용약관</a> 및 <a href="/privacy" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>에 동의하는 것으로 간주됩니다.
