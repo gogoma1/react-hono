@@ -1,0 +1,166 @@
+/* ./react/widgets/FilteredProblemHeader/FilteredProblemHeader.css */
+
+.filtered-problem-header {
+    padding: 10px 16px;
+    background-color: rgba(0, 0, 0, 0.03);
+    border-bottom: 1px solid var(--border-color-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.header-left-section {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    min-width: 0;
+}
+
+.header-right-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.summary-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.summary-badge {
+    background-color: rgba(0, 0, 0, 0.08);
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.summary-badge.number-range {
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    color: var(--accent-color-darker);
+}
+
+.selection-count {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.header-actions {
+    flex-shrink: 0;
+}
+
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* [핵심] 버튼과 입력창의 공통 스타일 */
+.filter-control-item {
+    height: 24px;
+    padding: 4px 2px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    border-bottom: 1px solid var(--text-placeholder);
+    transition: background-color 0.2s, border-bottom-color 0.2s, border-bottom-width 0.2s;
+}
+
+.filter-control-item:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.filter-control-item:focus,
+.filter-trigger-button:focus {
+    outline: none;
+    box-shadow: none;
+    border-bottom-color: var(--accent-color);
+    border-bottom-width: 2px;
+}
+
+/* 유형 선택 버튼 고유 스타일 */
+.filter-trigger-button {
+    width: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+}
+
+.trigger-text {
+    flex-grow: 1;
+    text-align: left;
+    padding-left: 6px;
+}
+
+.trigger-text.placeholder {
+    color: var(--text-placeholder);
+}
+
+.trigger-icon {
+    flex-shrink: 0;
+    color: var(--text-placeholder);
+}
+
+/* 번호 입력창 고유 스타일 */
+.filter-input {
+    width: 50px;
+    text-align: center;
+}
+
+.filter-input::placeholder {
+    color: var(--text-placeholder);
+}
+
+
+.range-separator, .range-label {
+    color: var(--text-placeholder);
+    font-size: 0.85rem;
+}
+
+.range-separator {
+    margin: 0 -4px;
+}
+
+.filter-reset-button {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--text-placeholder);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: color 0.2s, background-color 0.2s;
+}
+.filter-reset-button:hover {
+    color: var(--text-primary);
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+
+.filter-input::-webkit-outer-spin-button,
+.filter-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.filter-input[type=number] {
+  -moz-appearance: textfield;
+}

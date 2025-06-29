@@ -13,7 +13,7 @@
 .toggler-title {
   color: var(--text-primary);
   margin: 0;
-  padding: 0 0 16px 0;
+  padding: 0 0 10px 0; /* [수정] 패딩 감소 */
   font-size: 1.05em;
   font-weight: 600;
   display: flex;
@@ -23,8 +23,17 @@
   border-bottom: 1px solid rgba(129, 127, 127, 0.1);
 }
 
+/* [추가] 드래그 설명 텍스트 */
+.toggler-description {
+    font-size: 0.8rem;
+    color: var(--text-placeholder);
+    padding: 10px 0;
+    margin: 0;
+    flex-shrink: 0;
+}
+
 .toggler-list {
-  padding-top: 20px;
+  padding-top: 10px; /* [수정] 패딩 감소 */
   padding-right: 10px;
   display: flex;
   flex-direction: column;
@@ -56,11 +65,21 @@
   border-radius: 8px;
   font-size: 0.9rem;
   font-weight: 500;
-  cursor: pointer;
+  cursor: grab; /* [수정] 커서를 grab으로 변경 */
   transition: all 0.2s ease-in-out;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.toggler-button:active {
+  cursor: grabbing; /* [추가] 드래그 중 커서 변경 */
+}
+
+/* [추가] 드래그 핸들 스타일 */
+.drag-handle {
+    color: var(--text-placeholder);
+    margin-right: 12px;
+    flex-shrink: 0;
 }
 
 .toggler-button:hover:not(.active) {
@@ -84,4 +103,11 @@
 .toggler-button .button-icon {
   flex-shrink: 0;
   color: var(--text-on-accent);
+}
+
+/* [추가] 드래그 중인 항목의 스타일 */
+.toggler-button.dragging {
+  opacity: 0.4;
+  background: var(--menu-item-active-bg);
+  border-style: dashed;
 }

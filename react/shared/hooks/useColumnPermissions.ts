@@ -1,51 +1,79 @@
-// ./react/shared/hooks/useColumnPermissions.ts
 import { useMemo } from 'react';
-// import { useAuthStore } from '../store/authStore'; // 나중에 실제 역할(role)을 가져오기 위해 주석 처리
+import { useLocation } from 'react-router';
 
-// 모든 컬럼의 중앙 정의 (Source of Truth)
-export const COLUMN_CONFIG = [
-  { key: 'grade', label: '학년' },
-  { key: 'subject', label: '과목' },
-  { key: 'status', label: '상태' },
-  { key: 'teacher', label: '담당 강사' },
-  { key: 'student_phone', label: '학생 연락처' },
-  { key: 'guardian_phone', label: '학부모 연락처' },
-  { key: 'school_name', label: '학교명' },
-  { key: 'tuition', label: '수강료' },
-  { key: 'admission_date', label: '입원일' },
-  { key: 'discharge_date', label: '퇴원일' },
-] as const; // as const로 key 값을 string이 아닌 리터럴 타입으로 추론
+// [수정] 요청하신 순서대로 컬럼 설정 변경
+export const PROBLEM_PUBLISHING_COLUMN_CONFIG = [
+  { key: 'problem_category', label: '유형', defaultHidden: false },
+  { key: 'difficulty', label: '난이도', defaultHidden: false },
+  { key: 'major_chapter_id', label: '대단원', defaultHidden: false },
+  { key: 'middle_chapter_id', label: '중단원', defaultHidden: false },
+  { key: 'core_concept_id', label: '핵심개념', defaultHidden: false },
+  { key: 'source', label: '출처', defaultHidden: true },
+  { key: 'grade', label: '학년', defaultHidden: true },
+  { key: 'semester', label: '학기', defaultHidden: true },
+  { key: 'score', label: '배점', defaultHidden: false },
+  { key: 'page', label: '페이지', defaultHidden: false },
+  { key: 'problem_type', label: '객/주', defaultHidden: false },
+  { key: 'answer', label: '정답', defaultHidden: false },
+  { key: 'question_text', label: '문제', defaultHidden: true },
+  { key: 'solution_text', label: '해설', defaultHidden: true },
+] as const;
 
-// 역할별 허용된 컬럼 키 목록
+export const STUDENT_DASHBOARD_COLUMN_CONFIG = [
+  { key: 'grade', label: '학년', defaultHidden: false },
+  { key: 'subject', label: '과목', defaultHidden: false },
+  { key: 'status', label: '상태', defaultHidden: false },
+  { key: 'teacher', label: '담당 강사', defaultHidden: false },
+  { key: 'student_phone', label: '학생 연락처', defaultHidden: false },
+  { key: 'guardian_phone', label: '학부모 연락처', defaultHidden: false },
+  { key: 'school_name', label: '학교명', defaultHidden: false },
+  { key: 'tuition', label: '수강료', defaultHidden: false },
+  { key: 'admission_date', label: '입원일', defaultHidden: false },
+  { key: 'discharge_date', label: '퇴원일', defaultHidden: false },
+] as const;
+
 const ROLE_PERMISSIONS = {
-  // 원장은 모든 정보를 볼 수 있음
-  '원장': COLUMN_CONFIG.map(c => c.key),
-  // 강사는 '수강료'와 '학부모 연락처'를 볼 수 없음 (예시)
+  '원장': [...STUDENT_DASHBOARD_COLUMN_CONFIG.map(c => c.key), ...PROBLEM_PUBLISHING_COLUMN_CONFIG.map(c => c.key)],
   '강사': [
     'grade', 'subject', 'status', 'teacher', 'student_phone',
-    'school_name', 'admission_date', 'discharge_date'
+    'school_name', 'admission_date', 'discharge_date',
+    ...PROBLEM_PUBLISHING_COLUMN_CONFIG.filter(c => !c.key.includes('text')).map(c => c.key),
   ],
-  // 다른 역할 추가 가능
 } as const;
 
 type Role = keyof typeof ROLE_PERMISSIONS;
 
 export function useColumnPermissions() {
-  // const userRole = useAuthStore(state => state.user?.role); // 나중에 실제 사용자 역할 가져오기
-  const currentUserRole: Role = '원장'; // 지금은 '원장'으로 하드코딩, '강사'로 바꿔서 테스트해보세요.
+  const currentUserRole: Role = '원장';
+  const location = useLocation();
+  const currentPath = location.pathname;
 
-  const permittedColumnKeys = useMemo(() => {
-    return ROLE_PERMISSIONS[currentUserRole] || [];
-  }, [currentUserRole]);
+  const { permittedColumnsConfig, allColumnConfig } = useMemo(() => {
+    const roleAllowedKeys = ROLE_PERMISSIONS[currentUserRole] || [];
+    
+    let baseConfig;
+    if (currentPath.startsWith('/problem-publishing')) {
+      baseConfig = PROBLEM_PUBLISHING_COLUMN_CONFIG;
+    } else { 
+      baseConfig = STUDENT_DASHBOARD_COLUMN_CONFIG;
+    }
+    
+    const permittedConfig = baseConfig.filter(col => roleAllowedKeys.includes(col.key));
 
-  // 토글 UI에 필요한 설정 정보 (key, label)
-  const permittedColumnsConfig = useMemo(() => {
-    return COLUMN_CONFIG.filter(col => permittedColumnKeys.includes(col.key));
-  }, [permittedColumnKeys]);
+    return { 
+      permittedColumnsConfig: permittedConfig,
+      allColumnConfig: baseConfig
+    };
+  }, [currentUserRole, currentPath]);
+
+  const permittedColumnKeys = useMemo(() => 
+      new Set(permittedColumnsConfig.map(c => c.key)),
+      [permittedColumnsConfig]
+  );
 
   return { 
-    permittedColumnKeys,      // 허용된 컬럼 키 배열
-    permittedColumnsConfig,   // 허용된 컬럼의 설정 객체 배열 (UI용)
-    allColumnConfig: COLUMN_CONFIG, // 테이블 정의에 필요한 전체 설정
+    permittedColumnsConfig,
+    allColumnConfig,
+    permittedColumnKeys,
   };
 }

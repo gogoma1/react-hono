@@ -11,45 +11,9 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.selection-header {
-    padding: 12px 16px;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    border-bottom: 1px solid var(--border-color-light);
-    flex-shrink: 0;
-    /* [수정] flexbox로 변경하여 제목과 버튼을 양쪽으로 정렬 */
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.selection-header-title {
-    flex-grow: 1;
-}
-
-/* [신규] 삭제 버튼 스타일 */
-.selection-header .action-button.destructive {
-    padding: 6px 12px;
-    background-color: transparent;
-    border: 1px solid #ef4444;
-    color: #ef4444;
-}
-.selection-header .action-button.destructive:hover:not(:disabled) {
-    background-color: #ef4444;
-    color: white;
-}
-.selection-header .action-button.destructive:disabled {
-    background-color: transparent;
-    border-color: var(--text-placeholder);
-    color: var(--text-placeholder);
-    opacity: 0.7;
-}
-
-.delete-button-text {
-    margin-left: 8px;
-    font-size: 13px;
-}
+/* [제거] 기존 헤더 스타일 제거
+.selection-header { ... }
+*/
 
 .selection-table-container {
     flex-grow: 1;
@@ -71,14 +35,12 @@
     overflow: auto;
 }
 
-/* [추가] 테이블 셀 텍스트 스타일 */
 .problem-cell-text {
     white-space: pre-wrap;
 }
 .problem-cell-text-scrollable {
     max-height: 100px;
     overflow-y: auto;
-    /* 스크롤바가 보일 때 패딩이 줄어드는 현상 방지 */
     padding-right: 8px; 
 }
 
@@ -91,4 +53,26 @@
     border-radius: 4px;
     font-size: 0.8rem;
     margin: 2px;
+}
+
+/* ==========================================================================
+   문제 선택 위젯 내부의 테이블 헤더에만 유리 배경 적용
+   ========================================================================== */
+.problem-selection-widget .glass-table thead {
+    background: none;
+}
+
+.problem-selection-widget .glass-table th {
+    background: none;
+}
+
+.problem-selection-widget .glass-table th .cell-content {
+    background: rgba(243, 244, 246, 0.8);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+}
+
+.problem-selection-widget .glass-table th.sticky-col .cell-content {
+    background: linear-gradient(rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.02)),
+                rgba(243, 244, 246, 0.8);
 }

@@ -1,16 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import type { Problem, ComboboxOption } from '../../../entities/problem/model/types';
 import GlassPopover from '../../../shared/components/GlassPopover';
 import { PopoverCombobox } from '../../json-problem-importer/ui/EditPopoverContent';
 import { LuChevronsUpDown } from 'react-icons/lu';
 
-// 옵션 목록 정의
 const GRADE_OPTIONS: ComboboxOption[] = ['초1', '초2', '초3', '초4', '초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'].map(g => ({ value: g, label: g }));
 const SEMESTER_OPTIONS: ComboboxOption[] = ['1학기', '2학기', '공통'].map(s => ({ value: s, label: s }));
 const DIFFICULTY_OPTIONS: ComboboxOption[] = ['최상', '상', '중', '하', '최하'].map(d => ({ value: d, label: d }));
-const TYPE_OPTIONS: ComboboxOption[] = ['객관식', '주관식', '서답형', '논술형'].map(t => ({ value: t, label: t }));
+// [수정] '주관식' 제거
+const TYPE_OPTIONS: ComboboxOption[] = ['객관식', '서답형', '논술형'].map(t => ({ value: t, label: t }));
 
-// 필드와 옵션 매핑
 const SELECT_OPTIONS_MAP: Record<string, ComboboxOption[]> = {
     grade: GRADE_OPTIONS,
     semester: SEMESTER_OPTIONS,
@@ -18,7 +17,6 @@ const SELECT_OPTIONS_MAP: Record<string, ComboboxOption[]> = {
     problem_type: TYPE_OPTIONS,
 };
 
-// 라벨 정의
 const FIELD_LABELS: Record<string, string> = {
     question_number: "문제 번호",
     source: "출처",
@@ -46,7 +44,6 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
     problemData,
     onDataChange,
 }) => {
-    // [핵심 추가] 팝오버 관리를 위한 상태
     const [popoverTargetField, setPopoverTargetField] = useState<keyof Problem | null>(null);
     const [popoverAnchorEl, setPopoverAnchorEl] = useState<HTMLElement | null>(null);
 
@@ -68,7 +65,6 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
         setPopoverAnchorEl(null);
     };
     
-    // 팝오버 내부의 콤보박스에서 값을 선택했을 때 실행될 함수
     const handleComboboxSelect = (value: string) => {
         if (popoverTargetField) {
             onDataChange(popoverTargetField, value);
@@ -89,7 +85,6 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
                             {FIELD_LABELS[field] || field}
                         </label>
                         {options ? (
-                            // [핵심 수정] 드롭다운 필드를 버튼으로 렌더링
                             <button
                                 type="button"
                                 id={field}

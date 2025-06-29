@@ -27,6 +27,7 @@
     text-align: center;
     font-size: 0.9rem;
     background-color: transparent;
+    /* Non-standard property for Firefox compatibility. */
     -moz-appearance: textfield;
 }
 

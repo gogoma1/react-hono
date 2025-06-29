@@ -2,8 +2,13 @@ import React, { useMemo } from 'react';
 import type { Problem } from '../entities/problem/model/types';
 import GlassTable, { type TableColumn } from '../shared/ui/glasstable/GlassTable';
 import TableCellCheckbox from '../shared/ui/TableCellCheckbox/TableCellCheckbox';
-import ActionButton from '../shared/ui/actionbutton/ActionButton'; // [신규] ActionButton 임포트
-import { LuTrash2 } from 'react-icons/lu'; // [신규] 휴지통 아이콘 임포트
+import FilteredProblemHeader from './FilteredProblemHeader/FilteredProblemHeader';
+import { useUIStore } from '../shared/store/uiStore';
+import { PROBLEM_PUBLISHING_COLUMN_CONFIG } from '../shared/hooks/useColumnPermissions';
+import ActionButton from '../shared/ui/actionbutton/ActionButton';
+import { LuTrash2 } from 'react-icons/lu';
+import Modal from '../shared/ui/modal/Modal';
+import Badge from '../shared/ui/Badge/Badge'; // [신규] Badge 컴포넌트 임포트
 import './ProblemSelectionWidget.css';
 
 type ProcessedProblem = Problem & { display_question_number: string; uniqueId: string; };
@@ -15,8 +20,28 @@ interface ProblemSelectionWidgetProps {
     onToggleRow: (id: string) => void;
     onToggleAll: () => void;
     isAllSelected: boolean;
-    onDeleteSelected: () => void; // [신규] 삭제 핸들러 prop 추가
+    onDeleteSelected: () => void;
+    isBulkDeleteModalOpen: boolean;
+    onCloseBulkDeleteModal: () => void;
+    onConfirmBulkDelete: () => void;
+    isDeletingProblems: boolean;
+    startNumber: string;
+    onStartNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    endNumber: string;
+    onEndNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    problemTypeFilter: string;
+    onProblemTypeFilterChange: (value: string) => void;
+    onResetHeaderFilters: () => void;
 }
+
+// [신규] 난이도 텍스트를 CSS 클래스로 매핑하는 객체
+const difficultyClassMap: Record<string, string> = {
+    '최상': 'difficulty-v-hard',
+    '상': 'difficulty-hard',
+    '중': 'difficulty-medium',
+    '하': 'difficulty-easy',
+    '최하': 'difficulty-v-easy',
+};
 
 const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
     problems,
@@ -25,64 +50,104 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
     onToggleRow,
     onToggleAll,
     isAllSelected,
-    onDeleteSelected, // [신규] prop 받기
+    onDeleteSelected,
+    isBulkDeleteModalOpen,
+    onCloseBulkDeleteModal,
+    onConfirmBulkDelete,
+    isDeletingProblems,
+    startNumber,
+    onStartNumberChange,
+    endNumber,
+    onEndNumberChange,
+    problemTypeFilter,
+    onProblemTypeFilterChange,
+    onResetHeaderFilters,
 }) => {
-    const columns = useMemo((): TableColumn<ProcessedProblem & { id: string }>[] => [
-        {
-            key: 'checkbox',
-            header: <TableCellCheckbox isChecked={isAllSelected} onToggle={onToggleAll} disabled={problems.length === 0} ariaLabel="모든 문제 선택/해제" />,
-            render: (p) => <TableCellCheckbox isChecked={selectedIds.has(p.uniqueId)} onToggle={() => onToggleRow(p.uniqueId)} ariaLabel={`${p.display_question_number}번 문제 선택`} />,
-            width: '50px',
-        },
-        { 
-            key: 'question_number', 
-            header: '번호', 
-            isSortable: true, 
-            width: '100px',
-            render: (p) => p.display_question_number 
-        },
-        { key: 'source', header: '출처', isSortable: true, width: '150px' },
-        { key: 'grade', header: '학년', isSortable: true, width: '80px' },
-        { key: 'semester', header: '학기', isSortable: true, width: '80px' },
-        { key: 'major_chapter_id', header: '대단원', isSortable: true, width: '150px' },
-        { key: 'middle_chapter_id', header: '중단원', isSortable: true, width: '150px' },
-        { key: 'core_concept_id', header: '핵심개념', isSortable: true, width: '150px' },
-        { key: 'problem_category', header: '유형', isSortable: true, width: '120px' },
-        { key: 'difficulty', header: '난이도', isSortable: true, width: '80px' },
-        { key: 'score', header: '배점', isSortable: true, width: '70px' },
-        { key: 'page', header: '페이지', isSortable: true, width: '80px' },
-        { key: 'problem_type', header: '객/주', isSortable: true, width: '80px' },
-        { 
-            key: 'question_text', 
-            header: '문제', 
-            render: (p) => <div className="problem-cell-text problem-cell-text-scrollable">{p.question_text}</div>
-        },
-        { 
-            key: 'answer', 
-            header: '정답', 
-            width: '100px',
-            render: (p) => <div className="problem-cell-text">{p.answer}</div>
-        },
-        { 
-            key: 'solution_text', 
-            header: '해설', 
-            render: (p) => <div className="problem-cell-text problem-cell-text-scrollable">{p.solution_text}</div>
-        },
-    ], [isAllSelected, onToggleAll, problems, selectedIds, onToggleRow]);
-    
-    const tableData = useMemo(() => 
+    const { columnVisibility, problemPublishingColumnOrder } = useUIStore();
+
+    const columns = useMemo((): TableColumn<ProcessedProblem & { id: string }>[] => {
+        const baseColumns: TableColumn<ProcessedProblem & { id: string }>[] = [
+            {
+                key: 'checkbox',
+                header: <TableCellCheckbox isChecked={isAllSelected} onToggle={onToggleAll} disabled={problems.length === 0} ariaLabel="모든 문제 선택/해제" />,
+                render: (p) => <TableCellCheckbox isChecked={selectedIds.has(p.uniqueId)} onToggle={() => onToggleRow(p.uniqueId)} ariaLabel={`${p.display_question_number}번 문제 선택`} />,
+                width: '50px',
+            },
+            {
+                key: 'question_number',
+                header: '번호',
+                isSortable: true,
+                width: '100px',
+                render: (p) => p.display_question_number
+            },
+        ];
+
+        const columnConfigMap = new Map(
+            PROBLEM_PUBLISHING_COLUMN_CONFIG.map(col => [col.key, col])
+        );
+
+        const dynamicColumns = problemPublishingColumnOrder
+            .map((key): TableColumn<ProcessedProblem & { id: string }> | null => {
+                const config = columnConfigMap.get(key);
+                if (!config) return null;
+
+                const isVisible = columnVisibility[key] ?? !config.defaultHidden;
+                if (!isVisible) return null;
+
+                // [수정] 난이도 컬럼에 대한 특별 렌더링 로직 추가
+                if (config.key === 'difficulty') {
+                    return {
+                        key: config.key,
+                        header: config.label,
+                        isSortable: true,
+                        render: (p: ProcessedProblem & { id: string }) => {
+                            const difficulty = p.difficulty;
+                            const badgeClass = difficultyClassMap[difficulty] || '';
+                            return <Badge className={badgeClass}>{difficulty}</Badge>;
+                        }
+                    };
+                }
+
+                return {
+                    key: config.key,
+                    header: config.label,
+                    isSortable: true,
+                    render: (p: ProcessedProblem & { id: string }) => {
+                        const value = p[config.key as keyof Problem];
+                        if (config.key === 'question_text' || config.key === 'solution_text') {
+                            return <div className="problem-cell-text problem-cell-text-scrollable">{String(value ?? '')}</div>
+                        }
+                        return <div className="problem-cell-text">{String(value ?? '')}</div>
+                    }
+                };
+            })
+            .filter((col): col is TableColumn<ProcessedProblem & { id: string }> => col !== null);
+
+        return [...baseColumns, ...dynamicColumns];
+
+    }, [isAllSelected, onToggleAll, problems.length, selectedIds, onToggleRow, columnVisibility, problemPublishingColumnOrder]);
+
+    const tableData = useMemo(() =>
         problems.map(p => ({
-            ...p, 
-            id: p.uniqueId 
-        })), 
+            ...p,
+            id: p.uniqueId
+        })),
         [problems]
     );
-    
+
     return (
         <div className="problem-selection-widget">
-            <div className="selection-header">
-                <span className="selection-header-title">문제 선택 ({selectedIds.size} / {problems.length})</span>
-                {/* [신규] 영구 삭제 버튼 */}
+            <FilteredProblemHeader 
+                problems={problems} 
+                selectedCount={selectedIds.size}
+                startNumber={startNumber}
+                onStartNumberChange={onStartNumberChange}
+                endNumber={endNumber}
+                onEndNumberChange={onEndNumberChange}
+                problemTypeFilter={problemTypeFilter}
+                onProblemTypeFilterChange={onProblemTypeFilterChange}
+                onResetHeaderFilters={onResetHeaderFilters}
+            >
                 <ActionButton
                     className="destructive"
                     onClick={onDeleteSelected}
@@ -92,7 +157,7 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
                     <LuTrash2 size={14} />
                     <span className="delete-button-text">선택 항목 삭제</span>
                 </ActionButton>
-            </div>
+            </FilteredProblemHeader>
             <div className="selection-table-container">
                 <GlassTable<ProcessedProblem & { id: string }>
                     columns={columns}
@@ -101,6 +166,21 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
                     emptyMessage="표시할 문제가 없습니다."
                 />
             </div>
+            <Modal
+                isOpen={isBulkDeleteModalOpen}
+                onClose={onCloseBulkDeleteModal}
+                onConfirm={onConfirmBulkDelete}
+                isConfirming={isDeletingProblems}
+                title="선택한 문제 영구 삭제"
+                confirmText={`삭제 (${selectedIds.size}개)`}
+                size="small"
+            >
+                <p>
+                    선택한 <strong>{selectedIds.size}개</strong>의 문제를 영구적으로 삭제하시겠습니까?
+                    <br />
+                    이 작업은 되돌릴 수 없습니다.
+                </p>
+            </Modal>
         </div>
     );
 };

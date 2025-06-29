@@ -117,7 +117,7 @@ const EditableArea: React.FC<EditableAreaProps> = ({
 
 interface ExamHeaderProps {
     page: number;
-    totalPages?: number; // [수정] 누락된 prop 추가
+    totalPages?: number;
     title: string;
     titleFontSize: number;
     titleFontFamily: string;
@@ -132,7 +132,7 @@ interface ExamHeaderProps {
     simplifiedSubjectFontSize: number;
     simplifiedSubjectFontFamily: string;
     simplifiedGradeText: string;
-    onUpdate: (targetId: EditableTarget, field: string, value: ExamUpdateValue) => void; // [수정] 타입 구체화
+    onUpdate: (targetId: EditableTarget, field: string, value: ExamUpdateValue) => void;
 }
 
 
@@ -241,7 +241,7 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                            <span 
                                 className="simplified-subject-text"
                                 style={{
-                                    '--font-size-em': simplifiedSubjectFontSize,
+                                    '--font-size-em': `${simplifiedSubjectFontSize}em`,
                                     '--font-family': simplifiedSubjectFontFamily,
                                 } as React.CSSProperties}
                             >
@@ -287,7 +287,7 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                         <span 
                             className="exam-header-title"
                             style={{
-                                '--font-size-em': initialTitleFontSize,
+                                '--font-size-em': `${initialTitleFontSize}em`,
                                 '--font-family': initialTitleFontFamily,
                             } as React.CSSProperties}
                         >
@@ -309,7 +309,7 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                         <span
                             className="exam-header-school-text"
                             style={{
-                                '--font-size-em': initialSchoolFontSize,
+                                '--font-size-em': `${initialSchoolFontSize}em`,
                                 '--font-family': initialSchoolFontFamily,
                             } as React.CSSProperties}
                         >
@@ -329,7 +329,7 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                             <span 
                                 className="exam-header-subject-text"
                                 style={{
-                                    '--font-size-em': initialSubjectFontSize,
+                                    '--font-size-em': `${initialSubjectFontSize}em`,
                                     '--font-family': initialSubjectFontFamily,
                                 } as React.CSSProperties}
                             >
@@ -765,7 +765,8 @@ interface UploadPayload {
 
 export interface UploadResponse {
     success: boolean;
-    count: number;
+    created: number;
+    updated: number;
 }
 
 /**
@@ -810,7 +811,7 @@ export const deleteProblemsAPI = async (problemIds: string[]): Promise<{ message
 };
 
 /**
- * 문제 목록을 서버에 업로드합니다.
+ * 문제 목록을 서버에 업로드합니다. (Create & Update)
  */
 export const uploadProblemsAPI = async (problems: Problem[]): Promise<UploadResponse> => {
     const payload: UploadPayload = { problems };
@@ -885,8 +886,7 @@ export function useUpdateProblemMutation() {
 }
 
 /**
- * [수정] 단일/다중 문제 영구 삭제를 위한 React Query Mutation
- * (기존 useDeleteProblemMutation을 이 훅으로 통합)
+ * 단일/다중 문제 영구 삭제를 위한 React Query Mutation
  */
 export function useDeleteProblemsMutation() {
     const queryClient = useQueryClient();
@@ -906,13 +906,23 @@ export function useDeleteProblemsMutation() {
 }
 
 /**
- * 문제 업로드를 위한 React Query Mutation
+ * 문제 업로드(생성/수정)를 위한 React Query Mutation
  */
 export function useUploadProblemsMutation() {
+    const queryClient = useQueryClient();
     return useMutation<UploadResponse, Error, Problem[]>({
         mutationFn: (problems) => uploadProblemsAPI(problems),
-        onSuccess: () => {
-            alert('문제가 성공적으로 업로드되었습니다.');
+        onSuccess: (data) => {
+            let message = "작업이 완료되었습니다.";
+            if (data.created > 0 && data.updated > 0) {
+                message = `${data.created}개의 문제가 생성되었고, ${data.updated}개의 문제가 업데이트되었습니다.`;
+            } else if (data.created > 0) {
+                message = `${data.created}개의 문제가 성공적으로 생성되었습니다.`;
+            } else if (data.updated > 0) {
+                message = `${data.updated}개의 문제가 성공적으로 업데이트되었습니다.`;
+            }
+            alert(message);
+            queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
         },
         onError: (error) => {
             alert(`문제 업로드 실패: ${error.message}`);
@@ -1972,10 +1982,20 @@ const ImageManager: React.FC<ImageManagerProps> = ({
 
 export default ImageManager;
 ----- ./react/features/json-problem-importer/model/useJsonProblemImporter.ts -----
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Problem, Column, ComboboxOption } from '../../../entities/problem/model/types';
 import { useUploadProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
 import { produce } from 'immer';
+import * as jsonc from 'jsonc-parser';
+
+interface ParseErrorDetail {
+    title: string;
+    message: string;
+    suggestion: string;
+    line?: number;
+    column?: number;
+    problemIndex?: number;
+}
 
 const initialJsonInput = `{
   "problems": [
@@ -1994,28 +2014,12 @@ const initialJsonInput = `{
       "problem_category": "이차함수 최댓값 구하기",
       "difficulty": "하",
       "score": "5점"
-    },
-    {
-      "question_number": 5.2,
-      "problem_type": "객관식",
-      "question_text": "두 함수 $f(x)=3x-1$, $g(x) = \\\\sqrt{4x+1}$에 대하여 $(f \\\\circ g^{-1})(5)$의 값은?\\n① $14$ ② $15$ ③ $16$\\n④ $17$ ⑤ $18$",
-      "answer": "④",
-      "solution_text": null,
-      "page": null,
-      "grade": "고3",
-      "semester": "1학기",
-      "source": "2023년 고3 3월 모의고사",
-      "major_chapter_id": "미적분",
-      "middle_chapter_id": "함수",
-      "core_concept_id": "합성함수와 역함수",
-      "problem_category": "합성/역함수 값 계산",
-      "difficulty": "하",
-      "score": "3점"
     }
   ]
 }`;
 
 const columns: Column[] = [
+    { key: 'problem_id', label: 'ID', readonly: true }, // [추가] problem_id 컬럼
     { key: 'question_number', label: '번호', editType: 'number' },
     { key: 'problem_type', label: '유형(객/주)', editType: 'combobox' },
     { key: 'grade', label: '학년', editType: 'text' },
@@ -2037,7 +2041,7 @@ const columns: Column[] = [
 export function useJsonProblemImporter() {
     const [jsonInput, setJsonInput] = useState(initialJsonInput);
     const [problems, setProblems] = useState<Problem[]>([]);
-    const [parseError, setParseError] = useState<Error | null>(null);
+    const [parseError, setParseError] = useState<ParseErrorDetail | null>(null);
     
     const [editingCell, setEditingCell] = useState<{ rowIndex: number; colKey: keyof Problem } | null>(null);
     const [editingValue, setEditingValue] = useState<string | number | null | undefined>('');
@@ -2052,35 +2056,73 @@ export function useJsonProblemImporter() {
 
     const previousJsonInputRef = useRef('');
 
+    const getPosition = (offset: number) => {
+        const lines = jsonInput.substring(0, offset).split('\n');
+        const line = lines.length;
+        const column = lines[lines.length - 1].length + 1;
+        return { line, column };
+    };
+
+    const translateJsonError = (error: jsonc.ParseError): ParseErrorDetail => {
+        const position = getPosition(error.offset);
+        const commonSuggestions = {
+            1: "객체 멤버 사이에 쉼표(,)가 빠졌거나, 마지막 멤버 뒤에 불필요한 쉼표가 있는지 확인하세요. (예: `\"key\": \"value\",`)",
+            2: "키(key)와 값(value) 사이에 콜론(:)이 빠졌는지 확인하세요. (예: `\"key\": \"value\"`)",
+            3: "객체(Object)를 시작하는 여는 중괄호 '{'가 빠졌거나 잘못된 위치에 있는지 확인하세요.",
+            4: "객체(Object)를 닫는 닫는 중괄호 '}'가 빠졌거나 짝이 맞지 않는지 확인하세요.",
+            5: "배열(Array)을 시작하는 여는 대괄호 '['가 빠졌거나 잘못된 위치에 있는지 확인하세요.",
+            6: "배열(Array)을 닫는 닫는 대괄호 ']'가 빠졌거나 짝이 맞지 않는지 확인하세요.",
+            10: "문자열(String)은 항상 큰따옴표(\")로 감싸야 합니다. 작은따옴표(')는 사용할 수 없습니다. (예: `\"text\"`)",
+            14: "키(key)는 항상 큰따옴표(\")로 감싸진 문자열이어야 합니다. (예: `\"problems\"`)",
+            15: "JSON 데이터가 중간에 예기치 않게 끝났습니다. 모든 괄호('{}', '[]')가 제대로 닫혔는지 확인하세요.",
+            16: "숫자 형식이 올바르지 않습니다. 따옴표 없이 숫자만 입력해야 하며, `01`과 같이 0으로 시작할 수 없습니다.",
+            17: "키-값 쌍의 키(key)는 반드시 문자열이어야 합니다. (예: `\"my_key\": ...`)"
+        };
+        return {
+            title: "JSON 구문 오류",
+            message: jsonc.printParseErrorCode(error.error),
+            suggestion: commonSuggestions[error.error as keyof typeof commonSuggestions] || "JSON 문법을 다시 한번 꼼꼼히 확인해주세요.",
+            line: position.line,
+            column: position.column
+        };
+    };
+
     useEffect(() => {
         if (editingCell) return;
         if (jsonInput === previousJsonInputRef.current) return;
 
         previousJsonInputRef.current = jsonInput;
         
-        try {
-            const parsedData = JSON.parse(jsonInput);
-            
-            if (typeof parsedData !== 'object' || parsedData === null) throw new Error("JSON 데이터가 올바른 객체 형식이 아닙니다.");
-            if (!('problems' in parsedData)) throw new Error("JSON 데이터에 'problems' 키가 없습니다.");
-            if (!Array.isArray(parsedData.problems)) throw new Error("'problems' 키의 값은 배열(Array)이어야 합니다.");
+        const parseErrors: jsonc.ParseError[] = [];
+        const parsedData = jsonc.parse(jsonInput, parseErrors, { allowTrailingComma: true });
 
-            const validationErrors: string[] = [];
+        if (parseErrors.length > 0) {
+            setProblems([]);
+            setParseError(translateJsonError(parseErrors[0]));
+            return;
+        }
+
+        try {
+            if (typeof parsedData !== 'object' || parsedData === null) throw { title: "JSON 구조 오류", message: "최상위 데이터가 객체(Object)가 아닙니다.", suggestion: "데이터 전체를 중괄호 `{}`로 감싸주세요." };
+            if (!('problems' in parsedData)) throw { title: "필수 키 누락", message: "'problems' 키를 찾을 수 없습니다.", suggestion: "최상위 객체 안에 `\"problems\": [ ... ]` 형식이 포함되어야 합니다." };
+            if (!Array.isArray(parsedData.problems)) throw { title: "데이터 타입 오류", message: "'problems' 키의 값이 배열(Array)이 아닙니다.", suggestion: "'problems'의 값은 대괄호 `[]`로 감싸진 배열이어야 합니다." };
+
+            const validationErrors: ParseErrorDetail[] = [];
             
             const transformedProblems = parsedData.problems
                 .map((p: any, index: number): Problem | null => {
                     const problemIndex = index + 1;
 
                     if (typeof p !== 'object' || p === null) {
-                        validationErrors.push(`${problemIndex}번째 항목이 올바른 문제 객체(Object)가 아닙니다.`);
+                        validationErrors.push({ title: "데이터 타입 오류", message: `배열의 ${problemIndex}번째 항목이 객체(Object)가 아닙니다.`, suggestion: "각 문제는 중괄호 `{}`로 감싸야 합니다.", problemIndex });
                         return null;
                     }
                     if (!('question_number' in p)) {
-                        validationErrors.push(`${problemIndex}번째 문제에 필수 필드인 'question_number'가 없습니다.`);
+                        validationErrors.push({ title: "필수 필드 누락", message: `'question_number' 필드가 없습니다.`, suggestion: "모든 문제에는 `question_number` 필드가 반드시 포함되어야 합니다.", problemIndex });
                         return null;
                     }
                      if (!('question_text' in p)) {
-                        validationErrors.push(`${problemIndex}번째 문제에 필수 필드인 'question_text'가 없습니다.`);
+                        validationErrors.push({ title: "필수 필드 누락", message: `'question_text' 필드가 없습니다.`, suggestion: "모든 문제에는 `question_text` 필드가 반드시 포함되어야 합니다.", problemIndex });
                         return null;
                     }
 
@@ -2095,17 +2137,17 @@ export function useJsonProblemImporter() {
                             const textPart = problemNumRaw.replace(/[\d.]+/, '').trim();
                             if (textPart) parsedProblemType = textPart;
                         } else {
-                            validationErrors.push(`${problemIndex}번째 문제의 'question_number' ("${problemNumRaw}")에서 숫자를 찾을 수 없습니다.`);
+                             validationErrors.push({ title: "데이터 형식 오류", message: `'question_number' ("${problemNumRaw}")에서 숫자를 찾을 수 없습니다.`, suggestion: "문제 번호에 숫자 부분이 포함되어야 합니다. (예: '서답형 1', '5.2')", problemIndex });
                             return null;
                         }
                     } else if (typeof problemNumRaw === 'number') {
                         finalProblemNum = problemNumRaw;
                     } else {
-                        validationErrors.push(`${problemIndex}번째 문제의 'question_number'가 숫자나 문자열이 아닙니다.`);
+                        validationErrors.push({ title: "데이터 타입 오류", message: `'question_number'가 숫자나 문자열이 아닙니다.`, suggestion: "문제 번호는 숫자(예: 5) 또는 문자열(예: '서답형 1')이어야 합니다.", problemIndex });
                         return null;
                     }
 
-                    const finalProblemType = p.problem_type || parsedProblemType || '주관식';
+                    const finalProblemType = p.problem_type || parsedProblemType || '서답형';
 
                     const pageNumRaw = p.page;
                     let pageNum: number | null = null;
@@ -2115,6 +2157,7 @@ export function useJsonProblemImporter() {
                     }
                     
                     return {
+                        problem_id: p.problem_id || `new-${Date.now()}-${index}`, // ID가 있으면 사용, 없으면 임시 ID 생성
                         question_number: finalProblemNum,
                         problem_type: finalProblemType,
                         question_text: String(p.question_text ?? ''),
@@ -2137,21 +2180,36 @@ export function useJsonProblemImporter() {
             setProblems(transformedProblems);
 
             if (validationErrors.length > 0) {
-                setParseError(new Error(validationErrors.join('\n')));
+                 setParseError(validationErrors[0]);
             } else {
                 setParseError(null);
             }
 
-        } catch (e) {
+        } catch (e: any) {
             setProblems([]);
-            setParseError(e instanceof Error ? e : new Error('알 수 없는 파싱 오류'));
+            if (e.title && e.message && e.suggestion) {
+                setParseError(e);
+            } else {
+                setParseError({
+                    title: "알 수 없는 오류",
+                    message: e.message || "데이터를 처리하는 중 알 수 없는 오류가 발생했습니다.",
+                    suggestion: "JSON 구조와 내용을 다시 한번 확인해주세요."
+                });
+            }
         }
     }, [jsonInput, editingCell]);
 
     const formatValue = useCallback((value: Problem[keyof Problem] | null | undefined): string => {
         if (value === null || value === undefined) return '-';
         if (Array.isArray(value)) return value.join(', ');
-        return String(value);
+
+        const strValue = String(value);
+        if (strValue.startsWith('new-')) return '(신규)'; // 임시 ID는 '신규'로 표시
+        
+        if (strValue.length > 20 && strValue.includes('-')) {
+            return `${strValue.substring(0, 8)}...`;
+        }
+        return strValue;
     }, []);
 
     const startEdit = useCallback((rowIndex: number, colKey: keyof Problem, currentValue: any, anchorEl: HTMLElement, isReadonly?: boolean) => {
@@ -2188,7 +2246,14 @@ export function useJsonProblemImporter() {
         });
         
         setProblems(nextProblems);
-        setJsonInput(JSON.stringify({ problems: nextProblems }, null, 2));
+        const problemsForJson = nextProblems.map(p => {
+            const { ...rest } = p;
+            if (p.problem_id.startsWith('new-')) {
+                delete (rest as any).problem_id;
+            }
+            return rest;
+        });
+        setJsonInput(JSON.stringify({ problems: problemsForJson }, null, 2));
         
         cancelEdit();
     }, [editingCell, editingValue, problems, cancelEdit]);
@@ -2215,7 +2280,14 @@ export function useJsonProblemImporter() {
         });
 
         setProblems(nextProblems);
-        setJsonInput(JSON.stringify({ problems: nextProblems }, null, 2));
+        const problemsForJson = nextProblems.map(p => {
+            const { ...rest } = p;
+            if (p.problem_id.startsWith('new-')) {
+                delete (rest as any).problem_id;
+            }
+            return rest;
+        });
+        setJsonInput(JSON.stringify({ problems: problemsForJson }, null, 2));
         alert('공통 정보가 적용되었습니다.');
     }, [problems, commonSource, commonGradeLevel, commonSemester]);
 
@@ -2224,28 +2296,26 @@ export function useJsonProblemImporter() {
             alert('업로드할 문제가 없거나 데이터에 오류가 있습니다. 오류 메시지를 확인해주세요.');
             return;
         }
-        uploadMutation.mutate(problems);
+        
+        const problemsToUpload = problems.map(p => {
+            const { ...problemToSend } = p;
+
+            if (problemToSend.problem_id.startsWith('new-')) {
+                delete (problemToSend as Partial<Problem>).problem_id;
+            }
+            
+            return problemToSend;
+        });
+
+        uploadMutation.mutate(problemsToUpload as Problem[]);
+
     }, [problems, parseError, uploadMutation]);
     
-    const problemTypeOptions: ComboboxOption[] = [
-        { value: '객관식', label: '객관식' },
-        { value: '서답형', label: '서답형' },
-        { value: '논술형', label: '논술형' }
-    ];
-    const difficultyOptions: ComboboxOption[] = [
-        { value: '최상', label: '최상' },
-        { value: '상', label: '상' },
-        { value: '중', label: '중' },
-        { value: '하', label: '하' },
-        { value: '최하', label: '최하' }
-    ];
-    const answerOptions: ComboboxOption[] = [
-        { value: '①', label: '①' }, { value: '②', label: '②' }, { value: '③', label: '③' },
-        { value: '④', label: '④' }, { value: '⑤', label: '⑤' }, { value: '⑥', label: '⑥' }
-    ];
+    const problemTypeOptions: ComboboxOption[] = [ { value: '객관식', label: '객관식' }, { value: '서답형', label: '서답형' }, { value: '논술형', label: '논술형' } ];
+    const difficultyOptions: ComboboxOption[] = [ { value: '최상', label: '최상' }, { value: '상', label: '상' }, { value: '중', label: '중' }, { value: '하', label: '하' }, { value: '최하', label: '최하' } ];
+    const answerOptions: ComboboxOption[] = [ { value: '①', label: '①' }, { value: '②', label: '②' }, { value: '③', label: '③' }, { value: '④', label: '④' }, { value: '⑤', label: '⑤' }, { value: '⑥', label: '⑥' } ];
     const gradeOptions: ComboboxOption[] = ['초1', '초2', '초3', '초4', '초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'].map(g => ({ value: g, label: g }));
     const semesterOptions: ComboboxOption[] = ['1학기', '2학기', '공통'].map(s => ({ value: s, label: s }));
-
 
     return {
         jsonInput, setJsonInput,
@@ -2344,6 +2414,77 @@ export const PopoverCombobox: React.FC<PopoverComboboxProps> = ({ label, value, 
         </div>
     );
 };
+----- ./react/features/json-viewer/ui/JsonViewerPanel.tsx -----
+import React, { useMemo, useState, useCallback } from 'react';
+import { LuCopy, LuCopyCheck } from 'react-icons/lu';
+import type { ProcessedProblem } from '../../problem-publishing/model/problemPublishingStore';
+import ActionButton from '../../../shared/ui/actionbutton/ActionButton';
+import './JsonViewerPanel.css';
+
+interface JsonViewerPanelProps {
+    problems: ProcessedProblem[];
+}
+
+const JsonViewerPanel: React.FC<JsonViewerPanelProps> = ({ problems }) => {
+    const [isCopied, setIsCopied] = useState(false);
+
+    const problemsForJson = useMemo(() => {
+        return problems.map(p => {
+            return {
+                problem_id: p.problem_id, // ✨ 핵심: problem_id는 반드시 포함시켜 업데이트의 키로 사용합니다.
+                question_number: p.question_number,
+                problem_type: p.problem_type,
+                question_text: p.question_text,
+                answer: p.answer,
+                solution_text: p.solution_text,
+                page: p.page,
+                grade: p.grade,
+                semester: p.semester,
+                source: p.source,
+                major_chapter_id: p.major_chapter_id,
+                middle_chapter_id: p.middle_chapter_id,
+                core_concept_id: p.core_concept_id,
+                problem_category: p.problem_category,
+                difficulty: p.difficulty,
+                score: p.score,
+            };
+        });
+    }, [problems]);
+
+    const jsonString = useMemo(() => {
+        if (problemsForJson.length === 0) {
+            return "{\n  \"problems\": []\n}";
+        }
+        return JSON.stringify({ problems: problemsForJson }, null, 2);
+    }, [problemsForJson]);
+
+    const handleCopy = useCallback(() => {
+        navigator.clipboard.writeText(jsonString).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }).catch(err => {
+            console.error('Failed to copy JSON: ', err);
+            alert('클립보드 복사에 실패했습니다.');
+        });
+    }, [jsonString]);
+
+    return (
+        <div className="json-viewer-panel">
+            <div className="json-viewer-header">
+                <h4 className="json-viewer-title">필터링된 문제 JSON 변환</h4>
+                <ActionButton onClick={handleCopy} className="primary">
+                    {isCopied ? <LuCopyCheck size={16} /> : <LuCopy size={16} />}
+                    {isCopied ? '복사 완료!' : 'JSON 복사'}
+                </ActionButton>
+            </div>
+            <div className="json-viewer-content">
+                <pre><code>{jsonString}</code></pre>
+            </div>
+        </div>
+    );
+};
+
+export default JsonViewerPanel;
 ----- ./react/features/popovermenu/ProfileMenuContent.tsx -----
 import React from 'react';
 import { Link, useNavigate } from 'react-router'; //이게 올바른 import로 바뀜.
@@ -2480,7 +2621,8 @@ export function useHeightMeasurer(onHeightUpdate: (uniqueId: string, height: num
 export { useProblemPublishing } from './model/useProblemPublishing';
 export { useExamLayoutStore } from './model/examLayoutStore';
 export { useProblemPublishingStore } from './model/problemPublishingStore';
-export { useProblemPublishingPage } from './model/useProblemPublishingPage'; // 새로 만든 훅 export
+export { useProblemPublishingPage } from './model/useProblemPublishingPage';
+export { useProblemSelection } from './model/useProblemSelection';
 
 export type { ProcessedProblem } from './model/problemPublishingStore';
 export type { LayoutItem } from './model/examLayoutEngine';
@@ -2997,26 +3139,27 @@ export function useExamLayoutManager({ selectedProblems, problemBoxMinHeight }: 
 ----- ./react/features/problem-publishing/model/useProblemPublishing.ts -----
 import { useMemo, useCallback, useEffect } from 'react';
 import { useProblemsQuery } from '../../../entities/problem/model/useProblemsQuery';
-import { useUpdateProblemMutation } from '../../../entities/problem/model/useProblemMutations';
-import { useRowSelection } from '../../row-selection/model/useRowSelection';
+import { useUpdateProblemMutation, useDeleteProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
 import { useProblemPublishingStore, type ProcessedProblem } from './problemPublishingStore';
+import { useRowSelection } from '../../row-selection/model/useRowSelection';
 
 export type { ProcessedProblem } from './problemPublishingStore';
-export type { LayoutItem } from './examLayoutEngine'; 
+export type { LayoutItem } from './examLayoutEngine';
 
-/**
- * 문제 출제 페이지의 문제 데이터와 관련된 로직을 관리하는 훅.
- * (데이터 패칭, 선택 상태, 수정 로직 담당)
- */
 export function useProblemPublishing() {
     const { data: rawProblems = [], isLoading: isLoadingProblems } = useProblemsQuery();
     const updateProblemMutation = useUpdateProblemMutation();
     const { mutateAsync: updateProblem } = updateProblemMutation;
+    const { mutate: deleteProblems, isPending: isDeletingProblems } = useDeleteProblemsMutation();
     
     const {
-        initialProblems, draftProblems, setInitialData, startEditing,
-        updateDraftProblem, revertSingleProblem, setEditingProblemId, saveProblem,
+        initialProblems, draftProblems, setInitialData,
+        setEditingProblemId, saveProblem,
+        updateDraftProblem, revertSingleProblem, startEditing
     } = useProblemPublishingStore();
+    
+    const problemUniqueIds = useMemo(() => initialProblems.map(p => p.uniqueId), [initialProblems]);
+    const { selectedIds, toggleRow, clearSelection, setSelectedIds, toggleItems } = useRowSelection<string>({ allItems: problemUniqueIds });
     
     useEffect(() => {
         if (!isLoadingProblems && rawProblems.length > 0) {
@@ -3042,19 +3185,8 @@ export function useProblemPublishing() {
     }, [rawProblems, isLoadingProblems, setInitialData]);
 
     const displayProblems = useMemo(() => draftProblems ?? initialProblems, [draftProblems, initialProblems]);
-    const problemUniqueIds = useMemo(() => initialProblems.map(p => p.uniqueId), [initialProblems]);
-    
-    const { 
-        selectedIds,
-        toggleRow, 
-        toggleItems, 
-        replaceSelection, 
-        clearSelection, // [수정] clearSelection을 받아옴
-        setSelectedIds,   
-    } = useRowSelection<string>({ allItems: problemUniqueIds });
-    
     const selectedProblems = useMemo(() => displayProblems.filter(p => selectedIds.has(p.uniqueId)), [displayProblems, selectedIds]);
-
+    
     const handleSaveProblem = useCallback(async (updatedProblem: ProcessedProblem) => {
         const payload = { ...updatedProblem };
         delete (payload as any).uniqueId;
@@ -3074,65 +3206,70 @@ export function useProblemPublishing() {
         allProblems: displayProblems,
         isLoadingProblems,
         selectedProblems,
-        
         selectedIds,
-        setSelectedIds,   
+        setSelectedIds,
         toggleRow,
         toggleItems,
-        replaceSelection, 
-        clearSelection,   // [수정] clearSelection을 반환
-        
+        clearSelection,
         isSavingProblem: updateProblemMutation.isPending,
         handleSaveProblem,
         handleLiveProblemChange: updateDraftProblem,
         handleRevertProblem: revertSingleProblem,
         startEditingProblem: startEditing,
         setEditingProblemId,
+        deleteProblems, // [수정] 반환
+        isDeletingProblems, // [수정] 반환
     };
 }
 ----- ./react/features/problem-publishing/model/useProblemPublishingPage.ts -----
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useProblemPublishing } from './useProblemPublishing';
 import { useExamLayoutStore } from './examLayoutStore';
 import { useExamLayoutManager } from './useExamLayoutManager';
 import type { ProcessedProblem } from './problemPublishingStore';
-import { useTableSearch } from '../../table-search/model/useTableSearch';
-import type { SuggestionGroup } from '../../table-search/ui/TableSearch';
-import { useDeleteProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
+import { useUIStore } from '../../../shared/store/uiStore';
+import { useColumnPermissions } from '../../../shared/hooks/useColumnPermissions';
+
+type HeaderUpdateValue = {
+    text: string;
+    fontSize?: number;
+};
 
 export function useProblemPublishingPage() {
     const {
-        allProblems: allProblemsFromSource,
-        isLoadingProblems,
-        selectedIds,
-        setSelectedIds,
-        toggleRow,
-        toggleItems,
-        replaceSelection,
-        clearSelection,
-        isSavingProblem,
-        handleSaveProblem,
-        handleLiveProblemChange,
-        handleRevertProblem,
-        startEditingProblem,
-        setEditingProblemId,
-        selectedProblems,
+        allProblems, isSavingProblem, handleSaveProblem, handleLiveProblemChange,
+        handleRevertProblem, startEditingProblem, setEditingProblemId
     } = useProblemPublishing();
+    
+    const [selectedIds, setSelectedIds] = useState(new Set<string>());
+
+    const selectedProblems = useMemo(() => 
+        allProblems.filter(p => selectedIds.has(p.uniqueId)),
+        [allProblems, selectedIds]
+    );
 
     const {
         distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap,
-        setItemHeight,
-        baseFontSize, contentFontSizeEm, useSequentialNumbering,
+        setItemHeight, baseFontSize, contentFontSizeEm, useSequentialNumbering,
         setBaseFontSize, setContentFontSizeEm, setUseSequentialNumbering,
-        forceRecalculateLayout,
+        forceRecalculateLayout
     } = useExamLayoutStore();
     
     const { setRightSidebarConfig, setSearchBoxProps, registerPageActions } = useLayoutStore.getState();
+    const { setRightSidebarExpanded, setColumnVisibility } = useUIStore.getState();
+    const { permittedColumnsConfig } = useColumnPermissions();
 
-    const [isSearchBoxVisible, setIsSearchBoxVisible] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [activeFilters, setActiveFilters] = useState<Record<string, Set<string>>>({});
+    useEffect(() => {
+        const initialVisibility: Record<string, boolean> = {};
+        permittedColumnsConfig.forEach(col => {
+            initialVisibility[col.key] = !col.defaultHidden;
+        });
+        setColumnVisibility(initialVisibility);
+    }, [permittedColumnsConfig, setColumnVisibility]);
+
     const [problemBoxMinHeight, setProblemBoxMinHeight] = useState(31);
     const [measuredHeights, setMeasuredHeights] = useState<Map<string, number>>(new Map());
     const [headerInfo, setHeaderInfo] = useState({
@@ -3143,210 +3280,338 @@ export function useProblemPublishingPage() {
         simplifiedGradeText: '고3',
     });
     const previewAreaRef = useRef<HTMLDivElement>(null);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, message: '' });
 
-    const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
-    const { mutate: deleteSelectedProblems, isPending: isDeletingProblems } = useDeleteProblemsMutation();
+    const handleSelectionChange = useCallback((newSelectedIds: Set<string>) => {
+        setSelectedIds(newSelectedIds);
+    }, []);
 
-    const handleDeleteSelected = () => {
-        if (selectedIds.size > 0) {
-            setIsBulkDeleteModalOpen(true);
-        }
-    };
+    const handleHeightUpdate = useCallback((uniqueId: string, height: number) => { 
+        setItemHeight(uniqueId, height); 
+        setMeasuredHeights(prev => new Map(prev).set(uniqueId, height));
+    }, [setItemHeight]);
 
-    const handleConfirmBulkDelete = () => {
-        deleteSelectedProblems(Array.from(selectedIds), {
-            onSuccess: () => {
-                clearSelection();
-                setIsBulkDeleteModalOpen(false);
-            },
-            onError: () => {
-                 setIsBulkDeleteModalOpen(true);
+    const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: HeaderUpdateValue) => {
+        setHeaderInfo(prev => {
+            const newState = { ...prev };
+            const newFontSize = value.fontSize;
+
+            switch (targetId) {
+                case 'title':
+                    newState.title = value.text;
+                    if (newFontSize !== undefined) newState.titleFontSize = newFontSize;
+                    break;
+                case 'school':
+                    newState.school = value.text;
+                    if (newFontSize !== undefined) newState.schoolFontSize = newFontSize;
+                    break;
+                case 'subject':
+                    newState.subject = value.text;
+                    if (newFontSize !== undefined) newState.subjectFontSize = newFontSize;
+                    break;
+                case 'simplifiedSubject':
+                    newState.simplifiedSubjectText = value.text;
+                    if (newFontSize !== undefined) newState.simplifiedSubjectFontSize = newFontSize;
+                    break;
+                case 'simplifiedGrade':
+                    newState.simplifiedGradeText = value.text;
+                    break;
             }
+            return newState;
         });
-    };
+    }, []);
+
+    const handleDownloadPdf = useCallback(async () => {
+        if (!previewAreaRef.current || selectedProblems.length === 0) {
+            alert('PDF로 변환할 시험지 내용이 없습니다.');
+            return;
+        }
+
+        const previewElement = previewAreaRef.current;
+        const pageElements = previewElement.querySelectorAll<HTMLElement>('.exam-paper');
+        const totalPages = pageElements.length;
+
+        if (totalPages === 0) {
+            alert('PDF로 변환할 시험지 페이지(.exam-paper)를 찾을 수 없습니다.');
+            return;
+        }
+
+        setIsGeneratingPdf(true);
+        setPdfProgress({ current: 0, total: totalPages, message: 'PDF 생성을 준비하고 있습니다...' });
+        previewElement.classList.add('pdf-generating');
+
+        try {
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const A4_WIDTH_MM = 210;
+            const A4_HEIGHT_MM = 297;
+            
+            const MARGIN_X_MM = 15; // 좌우 여백
+            const MARGIN_Y_MM = 15; // 상하 여백
+
+            const contentWidth = A4_WIDTH_MM - (MARGIN_X_MM * 2);
+            const contentHeight = A4_HEIGHT_MM - (MARGIN_Y_MM * 2);
+
+            for (let i = 0; i < totalPages; i++) {
+                setPdfProgress({ current: i + 1, total: totalPages, message: `${i + 1}/${totalPages} 페이지 변환 중...` });
+
+                await new Promise<void>(resolve => setTimeout(async () => {
+                    const pageElement = pageElements[i];
+                    
+                    const canvas = await html2canvas(pageElement, {
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        onclone: (document) => {
+                            const popovers = document.querySelectorAll('.glass-popover');
+                            popovers.forEach(popover => popover.remove());
+                        }
+                    });
+
+                    const canvasWidth = canvas.width;
+                    const canvasHeight = canvas.height;
+                    
+                    const imageRatio = canvasHeight / canvasWidth;
+                    let imgWidth = contentWidth;
+                    let imgHeight = imgWidth * imageRatio;
+
+                    if (imgHeight > contentHeight) {
+                        imgHeight = contentHeight;
+                        imgWidth = imgHeight / imageRatio;
+                    }
+                    
+                    const posX = MARGIN_X_MM + (contentWidth - imgWidth) / 2;
+                    const posY = MARGIN_Y_MM + (contentHeight - imgHeight) / 2;
+
+                    if (i > 0) {
+                        pdf.addPage();
+                    }
+
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', posX, posY, imgWidth, imgHeight);
+                    resolve();
+                }, 0));
+            }
+            
+            setPdfProgress({ current: totalPages, total: totalPages, message: '파일 저장 중...' });
+            
+            const examTitle = headerInfo.title || '시험지';
+            await new Promise<void>(resolve => setTimeout(() => {
+                pdf.save(`${examTitle}.pdf`);
+                resolve();
+            }, 0));
+
+        } catch (error) {
+            console.error("PDF 생성 중 오류 발생:", error);
+            alert("PDF를 생성하는 데 실패했습니다. 콘솔을 확인해주세요.");
+        } finally {
+            setIsGeneratingPdf(false);
+            previewElement.classList.remove('pdf-generating');
+        }
+    }, [selectedProblems, headerInfo.title]);
+
+    const handleCloseSidebar = useCallback(() => { setRightSidebarConfig({ contentConfig: { type: null } }); setRightSidebarExpanded(false); }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    const handleCloseEditor = useCallback(() => { setEditingProblemId(null); handleCloseSidebar(); forceRecalculateLayout(problemBoxMinHeight); }, [setEditingProblemId, handleCloseSidebar, forceRecalculateLayout, problemBoxMinHeight]);
+    const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => { await handleSaveProblem(problem); handleCloseEditor(); }, [handleSaveProblem, handleCloseEditor]);
+    const handleRevertAndKeepOpen = useCallback((problemId: string) => { handleRevertProblem(problemId); }, [handleRevertProblem]);
+    const handleProblemClick = useCallback((problem: ProcessedProblem) => { startEditingProblem(); setEditingProblemId(problem.uniqueId); setRightSidebarConfig({ contentConfig: { type: 'problemEditor', props: { onProblemChange: handleLiveProblemChange, onSave: handleSaveAndClose, onRevert: handleRevertAndKeepOpen, onClose: handleCloseEditor, isSaving: false } }, isExtraWide: true }); }, [startEditingProblem, setEditingProblemId, setRightSidebarConfig, handleLiveProblemChange, handleSaveAndClose, handleRevertAndKeepOpen, handleCloseEditor]);
     
+    const handleOpenLatexHelpSidebar = useCallback(() => { setRightSidebarConfig({ contentConfig: { type: 'latexHelp' }}); setRightSidebarExpanded(true); }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    const handleOpenSettingsSidebar = useCallback(() => { setRightSidebarConfig({ contentConfig: { type: 'settings' }}); setRightSidebarExpanded(true); }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    
+    const jsonStringToCombine = useMemo(() => {
+        const problemsToConvert = selectedProblems.length > 0 ? selectedProblems : allProblems.slice(0, 1);
+        if (problemsToConvert.length === 0) return '';
+
+        const problemsForJson = problemsToConvert.map(p => ({
+            problem_id: p.problem_id,
+            question_number: p.question_number,
+            problem_type: p.problem_type,
+            question_text: p.question_text,
+            answer: p.answer,
+            solution_text: p.solution_text,
+            page: p.page,
+            grade: p.grade,
+            semester: p.semester,
+            source: p.source,
+            major_chapter_id: p.major_chapter_id,
+            middle_chapter_id: p.middle_chapter_id,
+            core_concept_id: p.core_concept_id,
+            problem_category: p.problem_category,
+            difficulty: p.difficulty,
+            score: p.score,
+        }));
+        return JSON.stringify({ problems: problemsForJson }, null, 2);
+    }, [selectedProblems, allProblems]);
+
+    const handleOpenPromptSidebar = useCallback(() => {
+        setRightSidebarConfig({
+            contentConfig: {
+                type: 'prompt',
+                props: { workbenchContent: jsonStringToCombine }
+            },
+            isExtraWide: false
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded, jsonStringToCombine]);
+
+    useExamLayoutManager({ selectedProblems, problemBoxMinHeight });
+    
+    useEffect(() => {
+        const { contentConfig } = useLayoutStore.getState().rightSidebar;
+        if (contentConfig.type === 'problemEditor' && contentConfig.props) {
+            setRightSidebarConfig({ contentConfig: { ...contentConfig, props: { ...contentConfig.props, isSaving: isSavingProblem } }, isExtraWide: true });
+        }
+    }, [isSavingProblem, setRightSidebarConfig]);
+    
+    useEffect(() => {
+        registerPageActions({ 
+            onClose: handleCloseSidebar, 
+            openLatexHelpSidebar: handleOpenLatexHelpSidebar, 
+            openSearchSidebar: () => {}, 
+            openSettingsSidebar: handleOpenSettingsSidebar,
+            openPromptSidebar: handleOpenPromptSidebar,
+        });
+        return () => { setRightSidebarConfig({ contentConfig: { type: null } }); setSearchBoxProps(null); };
+    }, [handleCloseSidebar, setRightSidebarConfig, handleOpenLatexHelpSidebar, registerPageActions, setSearchBoxProps, handleOpenSettingsSidebar, handleOpenPromptSidebar]);
+    
+    return {
+        handleSelectionChange,
+        allProblems, selectedProblems, distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap,
+        headerInfo, useSequentialNumbering, baseFontSize, contentFontSizeEm, measuredHeights,
+        onHeightUpdate: handleHeightUpdate, onProblemClick: handleProblemClick, onHeaderUpdate: handleHeaderUpdate,
+        onToggleSequentialNumbering: () => setUseSequentialNumbering(!useSequentialNumbering),
+        onBaseFontSizeChange: setBaseFontSize, onContentFontSizeEmChange: setContentFontSizeEm,
+        onDownloadPdf: handleDownloadPdf, 
+        isGeneratingPdf,
+        pdfProgress,
+        previewAreaRef, problemBoxMinHeight, setProblemBoxMinHeight,
+    };
+}
+----- ./react/features/problem-publishing/model/useProblemSelection.ts -----
+import { useState, useMemo, useCallback } from 'react';
+import type { ProcessedProblem } from './problemPublishingStore';
+import { useTableSearch } from '../../table-search/model/useTableSearch';
+import { useRowSelection } from '../../row-selection/model/useRowSelection';
+
+export function useProblemSelection(sourceProblems: ProcessedProblem[]) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeFilters, setActiveFilters] = useState<Record<string, Set<string>>>({});
+    
+    const [startNumber, setStartNumber] = useState('');
+    const [endNumber, setEndNumber] = useState('');
+    const [problemTypeFilter, setProblemTypeFilter] = useState('all');
+
+    const problemUniqueIds = useMemo(() => sourceProblems.map(p => p.uniqueId), [sourceProblems]);
+
+    const {
+        selectedIds,
+        setSelectedIds,
+        toggleRow,
+        toggleItems,
+        clearSelection
+    } = useRowSelection<string>({ allItems: problemUniqueIds });
+
+    const problemsFilteredByCustomControls = useMemo(() => {
+        let items = [...sourceProblems];
+
+        if (problemTypeFilter !== 'all') {
+            items = items.filter(item => item.problem_type === problemTypeFilter);
+        }
+
+        const numStart = parseInt(startNumber, 10);
+        const numEnd = parseInt(endNumber, 10);
+        const isStartValid = !isNaN(numStart);
+        const isEndValid = !isNaN(numEnd);
+
+        if (isStartValid || isEndValid) {
+            items = items.filter(item => {
+                const qNum = item.question_number;
+                if (isStartValid && isEndValid) {
+                    return qNum >= numStart && qNum <= numEnd;
+                }
+                if (isStartValid) {
+                    return qNum >= numStart;
+                }
+                if (isEndValid) {
+                    return qNum <= numEnd;
+                }
+                return true;
+            });
+        }
+        
+        return items;
+    }, [sourceProblems, startNumber, endNumber, problemTypeFilter]);
+
+
     const filteredProblems = useTableSearch({
-        data: allProblemsFromSource,
+        data: problemsFilteredByCustomControls,
         searchTerm,
         searchableKeys: ['display_question_number', 'source', 'grade', 'semester', 'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'problem_category'],
         activeFilters,
     }) as ProcessedProblem[];
 
     const filteredProblemIds = useMemo(() => new Set(filteredProblems.map(p => p.uniqueId)), [filteredProblems]);
-    const hasActiveSearchOrFilter = searchTerm.trim() !== '' || Object.keys(activeFilters).length > 0;
+    const hasActiveSearchOrFilter = searchTerm.trim() !== '' || Object.keys(activeFilters).length > 0 || startNumber !== '' || endNumber !== '' || problemTypeFilter !== 'all';
 
-    const isAllFilteredSelected = useMemo(() => {
+    const isAllSelected = useMemo(() => {
         if (!hasActiveSearchOrFilter || filteredProblems.length === 0) return false;
         return filteredProblems.every(p => selectedIds.has(p.uniqueId));
     }, [filteredProblems, selectedIds, hasActiveSearchOrFilter]);
-    
-    const isSelectionComplete = useMemo(() => {
-        if (!hasActiveSearchOrFilter) return false;
-        return isAllFilteredSelected && selectedIds.size === filteredProblems.length;
-    }, [isAllFilteredSelected, selectedIds.size, filteredProblems.length, hasActiveSearchOrFilter]);
 
-
-    const handleToggleAllInTable = useCallback(() => {
+    const handleToggleAll = useCallback(() => {
         toggleItems(Array.from(filteredProblemIds));
     }, [filteredProblemIds, toggleItems]);
-    
-    const handleReplaceWithFiltered = useCallback(() => {
-        replaceSelection(Array.from(filteredProblemIds));
-    }, [filteredProblemIds, replaceSelection]);
 
-    const suggestionGroups = useMemo((): SuggestionGroup[] => {
-        const getUniqueSortedValues = (items: ProcessedProblem[], key: keyof ProcessedProblem): string[] => {
-            if (!items || items.length === 0) return [];
-            const values = items.map(item => item[key]).filter((value): value is string => value != null && String(value).trim() !== '');
-            return Array.from(new Set(values)).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
-        };
-        return [
-            { key: 'source', suggestions: getUniqueSortedValues(allProblemsFromSource, 'source') },
-            { key: 'grade', suggestions: getUniqueSortedValues(allProblemsFromSource, 'grade') },
-            { key: 'major_chapter_id', suggestions: getUniqueSortedValues(allProblemsFromSource, 'major_chapter_id') },
-        ];
-    }, [allProblemsFromSource]);
-    
     const handleFilterChange = useCallback((key: string, value: string) => {
-        const isCurrentlyAllSelected = allProblemsFromSource.length > 0 && selectedIds.size === allProblemsFromSource.length;
-        const isNewFilter = !activeFilters[key]?.has(value);
-        
-        if (isCurrentlyAllSelected && isNewFilter) {
-            const initialFiltered = allProblemsFromSource.filter(p => p[key as keyof ProcessedProblem] === value);
-            setSelectedIds(new Set(initialFiltered.map(p => p.uniqueId)));
-            setActiveFilters({ [key]: new Set([value]) });
-        } else {
-            setActiveFilters(prev => {
-                const newFilters = { ...prev };
-                const currentSet = new Set(newFilters[key] || []);
-                if (currentSet.has(value)) {
-                    currentSet.delete(value);
-                } else {
-                    currentSet.add(value);
-                }
-                if (currentSet.size === 0) {
-                    delete newFilters[key];
-                } else {
-                    newFilters[key] = currentSet; // [수정] 버그 수정
-                }
-                return newFilters;
-            });
-        }
-    }, [activeFilters, allProblemsFromSource, selectedIds.size, setSelectedIds]);
-
-    const handleResetFilters = useCallback(() => {
-        setActiveFilters({});
-        setSearchTerm('');
-        setSelectedIds(new Set());
-    }, [setSelectedIds]);
-    
-    const toggleSearchBox = useCallback(() => {
-        setIsSearchBoxVisible(prev => !prev);
+        setActiveFilters(prev => {
+            const newFilters = { ...prev };
+            const currentSet = new Set(newFilters[key] || []);
+            currentSet.has(value) ? currentSet.delete(value) : currentSet.add(value);
+            if (currentSet.size === 0) delete newFilters[key]
+            else newFilters[key] = currentSet;
+            return newFilters;
+        });
     }, []);
 
-    useEffect(() => {
-        if (isSearchBoxVisible) {
-            setSearchBoxProps({
-                searchTerm,
-                onSearchTermChange: setSearchTerm,
-                activeFilters,
-                onFilterChange: handleFilterChange,
-                onResetFilters: handleResetFilters,
-                suggestionGroups: JSON.stringify(suggestionGroups),
-                onToggleFiltered: handleReplaceWithFiltered,
-                onCreateProblemSet: undefined,
-                showActionControls: true, 
-                selectedCount: selectedIds.size,
-                isSelectionComplete: isSelectionComplete,
-                onHide: toggleSearchBox,
-            });
-        } else {
-            setSearchBoxProps(null);
-        }
-    }, [
-        isSearchBoxVisible, searchTerm, activeFilters, suggestionGroups, handleFilterChange, 
-        handleResetFilters, handleReplaceWithFiltered, setSearchBoxProps, isSelectionComplete,
-        selectedIds.size, toggleSearchBox
-    ]);
-    
-    const handleHeightUpdate = useCallback((uniqueId: string, height: number) => { setItemHeight(uniqueId, height); setMeasuredHeights(prev => { const newMap = new Map(prev); newMap.set(uniqueId, height); return newMap; }); }, [setItemHeight]);
-    const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: any) => { setHeaderInfo(prev => { const newState = { ...prev }; switch (targetId) { case 'title': newState.title = value.text; newState.titleFontSize = value.fontSize; break; case 'school': newState.school = value.text; newState.schoolFontSize = value.fontSize; break; case 'subject': newState.subject = value.text; newState.subjectFontSize = value.fontSize; break; case 'simplifiedSubject': newState.simplifiedSubjectText = value.text; newState.simplifiedSubjectFontSize = value.fontSize; break; case 'simplifiedGrade': newState.simplifiedGradeText = value.text; break; } return newState; }); }, []);
-    const handleCloseEditor = useCallback(() => { setEditingProblemId(null); setRightSidebarConfig({ contentConfig: { type: null } }); forceRecalculateLayout(problemBoxMinHeight); }, [setEditingProblemId, setRightSidebarConfig, forceRecalculateLayout, problemBoxMinHeight]);
-    const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => { await handleSaveProblem(problem); handleCloseEditor(); }, [handleSaveProblem, handleCloseEditor]);
-    const handleRevertAndKeepOpen = useCallback((problemId: string) => { handleRevertProblem(problemId); }, [handleRevertProblem]);
-    
-    const handleProblemClick = useCallback((problem: ProcessedProblem) => { startEditingProblem(); setEditingProblemId(problem.uniqueId); setRightSidebarConfig({ contentConfig: { type: 'problemEditor', props: { onProblemChange: handleLiveProblemChange, onSave: handleSaveAndClose, onRevert: handleRevertAndKeepOpen, onClose: handleCloseEditor, isSaving: false } }, isExtraWide: true }); }, [startEditingProblem, setEditingProblemId, setRightSidebarConfig, handleLiveProblemChange, handleSaveAndClose, handleRevertAndKeepOpen, handleCloseEditor]);
-    
-    const handleDownloadPdf = useCallback(() => alert('PDF 다운로드 기능 구현 예정'), []);
-    const handleOpenLatexHelpSidebar = useCallback(() => { setRightSidebarConfig({ contentConfig: { type: 'latexHelp' }, isExtraWide: false }); }, [setRightSidebarConfig]);
-    
-    useExamLayoutManager({ selectedProblems, problemBoxMinHeight });
-    
-    useEffect(() => {
-        const { contentConfig } = useLayoutStore.getState().rightSidebar;
-        if (contentConfig.type === 'problemEditor') {
-            setRightSidebarConfig({
-                contentConfig: {
-                    ...contentConfig,
-                    props: {
-                        ...contentConfig.props,
-                        isSaving: isSavingProblem,
-                    }
-                },
-                isExtraWide: true,
-            });
-        }
-    }, [isSavingProblem, setRightSidebarConfig]);
-    
-    useEffect(() => {
-        registerPageActions({ onClose: handleCloseEditor, openLatexHelpSidebar: handleOpenLatexHelpSidebar, openSearchSidebar: toggleSearchBox });
-        return () => {
-            setRightSidebarConfig({ contentConfig: { type: null } });
-            setSearchBoxProps(null);
-            registerPageActions({ onClose: undefined, openLatexHelpSidebar: undefined, openSearchSidebar: undefined });
-        };
-    }, [handleCloseEditor, setRightSidebarConfig, handleOpenLatexHelpSidebar, toggleSearchBox, registerPageActions, setSearchBoxProps]);
+    const handleResetFilters = useCallback(() => {
+      setActiveFilters({});
+      setSearchTerm('');
+      setSelectedIds(new Set());
+      setStartNumber('');
+      setEndNumber('');
+      setProblemTypeFilter('all');
+    }, [setSelectedIds]);
+
+    const handleResetHeaderFilters = useCallback(() => {
+        setStartNumber('');
+        setEndNumber('');
+        setProblemTypeFilter('all');
+    }, []);
+
 
     return {
-        allProblems: allProblemsFromSource,
-        filteredProblemIds,
-        hasActiveSearchOrFilter,
-        isLoadingProblems,
-        selectedProblems,
+        searchTerm,
+        setSearchTerm,
+        activeFilters,
+        handleFilterChange,
+        handleResetFilters,
         selectedIds,
-        isAllSelected: isAllFilteredSelected,
-        toggleSelectAll: handleToggleAllInTable,
-        distributedPages,
-        placementMap,
-        distributedSolutionPages,
-        solutionPlacementMap,
-        headerInfo,
-        useSequentialNumbering,
-        baseFontSize,
-        contentFontSizeEm,
-        measuredHeights,
-        problemBoxMinHeight,
-        previewAreaRef,
+        clearSelection,
         toggleRow,
-        onToggleSequentialNumbering: () => setUseSequentialNumbering(!useSequentialNumbering),
-        onBaseFontSizeChange: setBaseFontSize,
-        onContentFontSizeEmChange: setContentFontSizeEm,
-        onDownloadPdf: handleDownloadPdf,
-        setProblemBoxMinHeight,
-        onHeightUpdate: handleHeightUpdate,
-        onProblemClick: handleProblemClick,
-        onHeaderUpdate: handleHeaderUpdate,
-        onDeselectProblem: toggleRow,
-
-        onDeleteSelected: handleDeleteSelected,
-        isBulkDeleteModalOpen,
-        onCloseBulkDeleteModal: () => setIsBulkDeleteModalOpen(false),
-        onConfirmBulkDelete: handleConfirmBulkDelete,
-        isDeletingProblems
+        handleToggleAll,
+        isAllSelected,
+        filteredProblems,
+        startNumber,
+        setStartNumber,
+        endNumber,
+        setEndNumber,
+        problemTypeFilter,
+        setProblemTypeFilter,
+        handleResetHeaderFilters, // [신규] 부분 초기화 함수 반환
     };
 }
 ----- ./react/features/problem-text-editing/ui/ProblemMetadataEditor.tsx -----
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import type { Problem, ComboboxOption } from '../../../entities/problem/model/types';
 import GlassPopover from '../../../shared/components/GlassPopover';
 import { PopoverCombobox } from '../../json-problem-importer/ui/EditPopoverContent';
@@ -3355,7 +3620,7 @@ import { LuChevronsUpDown } from 'react-icons/lu';
 const GRADE_OPTIONS: ComboboxOption[] = ['초1', '초2', '초3', '초4', '초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'].map(g => ({ value: g, label: g }));
 const SEMESTER_OPTIONS: ComboboxOption[] = ['1학기', '2학기', '공통'].map(s => ({ value: s, label: s }));
 const DIFFICULTY_OPTIONS: ComboboxOption[] = ['최상', '상', '중', '하', '최하'].map(d => ({ value: d, label: d }));
-const TYPE_OPTIONS: ComboboxOption[] = ['객관식', '주관식', '서답형', '논술형'].map(t => ({ value: t, label: t }));
+const TYPE_OPTIONS: ComboboxOption[] = ['객관식', '서답형', '논술형'].map(t => ({ value: t, label: t }));
 
 const SELECT_OPTIONS_MAP: Record<string, ComboboxOption[]> = {
     grade: GRADE_OPTIONS,
@@ -3745,7 +4010,7 @@ const defaultPrompts: Prompt[] = [
 2.  **작업:**
     *   입력된 문제의 **정답**을 찾거나 생성합니다.
         *   객관식: 보기 번호 (예: '③') 또는 기호.
-        *   주관식: 숫자, 식, 단어 등 문제에서 요구하는 형태의 답.
+        *   주관식: 숫자, 식, 단어 등 문제에서 요구하는 형태의 답.(수학 기호 같은 경우는 라텍스 문법으로 표현)
     *   문제에 대한 **상세하고 단계적인 해설**을 작성합니다.
         *   해설 내의 모든 수학 기호, 숫자, 변수는 입력값과 동일한 LaTeX 규칙('$', '\\dfrac', '\\displaystyle' 등)을 사용하여 작성합니다. 수학 수식이 너무 가로로 길지 않게 줄바꿈을 잘 활용해서 작성해주세요. 수식 줄바꿈은 "$수식A 수식B$"라고 하면
         "$수식A$ (여기서 엔터 누르고)
@@ -3755,34 +4020,56 @@ const defaultPrompts: Prompt[] = [
         *   모든 수학적 표현 (숫자, 변수, 기호)은 '$...$' 안에 넣습니다.
         *   분수는 기본적으로 '\\dfrac' 사용 (예: '$\\dfrac{a+b}{c}$'). 지수/첨자 등 작은 분수는 '\\frac' 사용 (예: '$e^{\\frac{1}{2}}$').
         *   모든 수식은 displaystyle로 작성합니다. 기호 앞에 '\\displaystyle'를 붙이거나 \\dfrac사용. (예: '$\\displaystyle\\lim_{n \\to \\infty}$', '$\\displaystyle\\int_{a}^{b}$')
-        *   작은 네모 박스 안 텍스트는 '\$\\fbox{텍스트}$' 형식으로 작성합니다. (예: '\$\\fbox{가}$')
+        *   작은 네모 박스 안 텍스트는 '\$\\fbox{텍스트}$' 형식으로 작성합니다. (예: '\$\\fbox{  가  }$')
+        * 난이도는 최하, 하, 중, 상, 최상 중 하나로 작성합니다. 해설을 보면 난이도도 알 수 있죠? 즉 당신이 수정할 수 있는 칼럼은 정답, 해설, 난이도입니다.
     *   만약 정답이나 해설 생성이 불가능하거나 원본에 없다면, '정답 없음' 또는 '해설 생성 불가' 와 같이 명확히 표시하거나 'null'에 해당하는 값을 준비합니다.
     * 코드블럭에 결과물을 작성합니다.
 
 **예시 작업:**
 
 *   **출력:**
-    {
+   {
   "problems": [
     {
+      "problem_id": "244919dc-a659-457f-8a5d-37a2aa89e5b5",
       "question_number": 1,
       "problem_type": "객관식",
-      "question_text": "수열 \\{a_n\\}이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? [$3.8$점]\\n① $16$ \\t② $32$ \\t③ $64$ \\t④ $128$ \\t⑤ $256$",
+      "question_text": "수열 \${a_n}$이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? [$3.8$점]<br>\n① $16$ \t&emsp;② $32$ \t&emsp;③ $64$ \t&emsp;④ $128$ \t&emsp;⑤ $256$",
       "answer": "⑤",
-      "solution_text": "수열 \\{a_n\\}은 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시키므로, 이 수열은 공비가 $2$인 등비수열입니다.\\n주어진 조건은 $a_2 = 4$이고, 구하고자 하는 값은 $a_8$입니다.\\n등비수열의 일반항 관계에 따라 $a_m = a_n \\cdot r^{m-n}$이 성립합니다.\\n따라서 $a_8 = a_2 \\cdot 2^{8-2}$ 입니다.\\n$a_8 = 4 \\cdot 2^6 = 4 \\cdot 64 = 256$ 입니다.\\n\\n(다른 풀이)\\n첫째항 $a_1$을 먼저 구할 수도 있습니다.\\n$a_2 = a_1 \\cdot 2^1 = 4$ 이므로, $a_1 = 2$ 입니다.\\n등비수열의 일반항 $a_n = a_1 \\cdot r^{n-1}$을 이용하여 $a_8$을 구하면,\\n$a_8 = 2 \\cdot 2^{8-1} = 2 \\cdot 2^7 = 2 \\cdot 128 = 256$ 입니다.\\n\\n따라서 정답은 ⑤입니다.",
+      "solution_text": "주어진 점화식 $a_{n+1} = 2a_n$은 수열 \\{a_n\\}이 공비가 $2$인 등비수열임을 의미합니다. 제$2$항 $a_2 = 4$이므로 제$8$항 $a_8$은 $a_8 = a_2 \\times r^{8-2} = a_2 \\times 2^6$으로 구할 수 있습니다. 따라서 $a_8 = 4 \\times 2^6 = 2^2 \\times 2^6 = 2^8 = 256$입니다.",
       "page": null,
-      "grade": "고등학교 2학년",
+      "grade": "고2",
       "semester": "1학기",
-      "source": "자체 제작",
+      "source": "2022학년도 계양고등학교 2학년 1학기 기말고사",
       "major_chapter_id": "수열",
       "middle_chapter_id": "등비수열",
       "core_concept_id": "등비수열의 일반항",
       "problem_category": "등비수열의 특정 항 구하기",
-      "difficulty": "하",
+      "difficulty": "중",
+      "score": "3.8점"
+    },
+    {
+      "problem_id": "3c0a9006-bdfb-4d27-ab62-f6f517dc5836",
+      "question_number": 2,
+      "problem_type": "객관식",
+      "question_text": "제$2$항이 $-6$, 제$10$항이 $26$인 등차수열의 제$6$항은? [$3.8$점]<br>\n① $9$ &emsp;&emsp;② $10$ &emsp;&emsp;③ $11$ &emsp;&emsp;④ $12$ &emsp;&emsp;⑤ $13$",
+      "answer": "②",
+      "solution_text": "등차수열 \\{a_n\\}의 첫째항을 $a$, 공차를 $d$라 하면, 제$2$항은 $a_2 = a+d = -6$이고, 제$10$항은 $a_{10} = a+9d=26$입니다. 두 식을 연립하여 풀면, $(a+9d) - (a+d) = 26 - (-6)$에서 $8d = 32$, 즉 $d=4$입니다. $a+4=-6$이므로 $a=-10$입니다. 따라서 제$6$항은 $a_6 = a+5d = -10 + 5(4) = -10 + 20 = 10$입니다.\n\n[다른 풀이]\n등차수열에서 항의 번호가 등차수열을 이루면, 그 항들도 등차수열을 이룹니다. $2, 6, 10$은 공차가 $4$인 등차수열이므로, $a_2, a_6, a_{10}$도 등차수열을 이룹니다. 따라서 $a_6$은 $a_2$와 $a_{10}$의 등차중항입니다. $a_6 = \\dfrac{a_2 + a_{10}}{2} = \\dfrac{-6+26}{2} = \\dfrac{20}{2} = 10$입니다.",
+      "page": null,
+      "grade": "고2",
+      "semester": "1학기",
+      "source": "2022학년도 계양고등학교 2학년 1학기 기말고사",
+      "major_chapter_id": "수열",
+      "middle_chapter_id": "등차수열",
+      "core_concept_id": "등차수열의 일반항",
+      "problem_category": "등차수열의 특정 항 구하기",
+      "difficulty": "중",
       "score": "3.8점"
     }
-   ]
+  ]
 }
+
+##작업할 파일은 아래에 있습니다. 문제 텍스트의 라텍스 규칙에 맞춰서 해설과 정답칸, 난이도칸을 채워주고 다른 칼럼의 데이터는 원본 그대로 보존해주세요.
     `
     },
     {
@@ -4090,7 +4377,7 @@ interface PromptMemoProps {
     onDelete: (id: string) => void;
     onReset: (id: string) => void;
     onToggleExpand: (id: string) => void;
-    workbenchContent?: string; // [추가] prop 받기
+    workbenchContent?: string; // prop 받기
 }
 
 const PromptMemo: React.FC<PromptMemoProps> = ({
@@ -4098,7 +4385,7 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
     onStartEditing, onSave, onCancel, onDelete, onReset, onToggleExpand, workbenchContent
 }) => {
     const [isCopied, setIsCopied] = useState(false);
-    const [isCombinedCopied, setIsCombinedCopied] = useState(false); // [추가] 새 버튼을 위한 상태
+    const [isCombinedCopied, setIsCombinedCopied] = useState(false); // 새 버튼을 위한 상태
 
     const handleCopy = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -4173,7 +4460,15 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
                 <div className="button-group">
                     <Tippy content={isCopied ? "복사 완료!" : "프롬프트 복사"} theme="custom-glass"><button onClick={handleCopy} className="prompt-action-button copy">{isCopied ? <LuCopyCheck size={16} /> : <LuCopy size={16} />}</button></Tippy>
                     
-                    {/* [추가] '문제 개별화 작업' 프롬프트에만 특별 버튼 표시 */}
+                    {/* [수정] '해설 작업'과 '문제 개별화 작업'에 대한 조건부 버튼 렌더링 */}
+                    {prompt.id === 'default-2' && workbenchContent && (
+                        <Tippy content={isCombinedCopied ? "복사 완료!" : "해설 프롬프트와 JSON을 함께 복사"} theme="custom-glass">
+                            <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
+                                {isCombinedCopied ? <LuCopyCheck size={16} /> : <LuLayers size={16} />}
+                            </button>
+                        </Tippy>
+                    )}
+                    
                     {prompt.id === 'default-3' && workbenchContent && (
                         <Tippy content={isCombinedCopied ? "복사 완료!" : "작업할 문제와 프롬프트를 한 번에 복사"} theme="custom-glass">
                             <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
@@ -4386,6 +4681,7 @@ export default StudentActionButtons;
 ----- ./react/features/student-dashboard/index.ts -----
 export { useStudentDashboard } from './model/useStudentDashboard';
 ----- ./react/features/student-dashboard/model/useStudentDashboard.ts -----
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useUIStore } from '../../../shared/store/uiStore';
@@ -4394,11 +4690,8 @@ import { useRowSelection } from '../../row-selection/model/useRowSelection';
 import { useTableSearch } from '../../table-search/model/useTableSearch';
 import type { SuggestionGroup } from '../../../features/table-search/ui/TableSearch'; 
 
-/**
- * [신규] 학생 대시보드 페이지의 모든 상태와 로직을 관리하는 커스텀 훅
- */
 export function useStudentDashboard() {
-    const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
+    const { registerPageActions, setRightSidebarConfig, setSearchBoxProps } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
@@ -4409,7 +4702,7 @@ export function useStudentDashboard() {
     const currentStudents = students || [];
     const studentIds = useMemo(() => currentStudents.map(s => s.id), [currentStudents]);
 
-    const { selectedIds, toggleRow, toggleItems } = useRowSelection<string>({ allItems: studentIds });
+    const { selectedIds, toggleRow, toggleItems, setSelectedIds } = useRowSelection<string>({ allItems: studentIds });
 
     const filteredStudents = useTableSearch({
         data: currentStudents,
@@ -4419,7 +4712,7 @@ export function useStudentDashboard() {
     }) as Student[];
     const filteredStudentIds = useMemo(() => filteredStudents.map(s => s.id), [filteredStudents]);
     
-    const isFilteredAllSelected = useMemo(() => {
+    const isAllSelected = useMemo(() => {
         if (filteredStudentIds.length === 0) return false;
         return filteredStudentIds.every(id => selectedIds.has(id));
     }, [filteredStudentIds, selectedIds]);
@@ -4456,8 +4749,13 @@ export function useStudentDashboard() {
         });
     }, []);
 
-    const handleResetFilters = useCallback(() => setActiveFilters({}), []);
-    const handleToggleFilteredSelection = useCallback(() => toggleItems(filteredStudentIds), [toggleItems, filteredStudentIds]);
+    const handleResetFilters = useCallback(() => {
+      setActiveFilters({});
+      setSearchTerm('');
+      setSelectedIds(new Set());
+    }, [setSelectedIds]);
+    
+    const handleToggleAll = useCallback(() => toggleItems(filteredStudentIds), [toggleItems, filteredStudentIds]);
 
     const handleCreateProblemSet = useCallback(() => {
         if (selectedIds.size === 0) return alert('선택된 학생이 없습니다.');
@@ -4495,35 +4793,31 @@ export function useStudentDashboard() {
             onClose: handleCloseSidebar,
         });
         return () => {
-            registerPageActions({
-                openRegisterSidebar: undefined,
-                openSettingsSidebar: undefined,
-                onClose: undefined,
-            });
+            registerPageActions({ openRegisterSidebar: undefined, openSettingsSidebar: undefined, onClose: undefined });
             handleCloseSidebar();
         };
     }, [registerPageActions, handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
     
     useEffect(() => {
-        useLayoutStore.getState().setSearchBoxProps({
+        setSearchBoxProps({
             searchTerm,
             onSearchTermChange: setSearchTerm,
             activeFilters,
             onFilterChange: handleFilterChange,
             onResetFilters: handleResetFilters,
             suggestionGroups: suggestionGroupsJSON,
-            onToggleFiltered: handleToggleFilteredSelection,
+            onToggleFiltered: handleToggleAll,
             onCreateProblemSet: handleCreateProblemSet,
             selectedCount: selectedIds.size,
             showActionControls: true,
-            isSelectionComplete: isFilteredAllSelected, // [수정] prop 이름 변경
+            isSelectionComplete: isAllSelected,
             onHide: undefined,
         });
-        return () => useLayoutStore.getState().setSearchBoxProps(null);
+
+        return () => setSearchBoxProps(null);
     }, [
-        searchTerm, activeFilters, suggestionGroupsJSON, selectedIds.size, 
-        handleFilterChange, handleResetFilters, handleToggleFilteredSelection, handleCreateProblemSet,
-        isFilteredAllSelected
+        searchTerm, activeFilters, suggestionGroupsJSON, selectedIds.size, isAllSelected,
+        handleFilterChange, handleResetFilters, handleToggleAll, handleCreateProblemSet, setSearchBoxProps
     ]);
     
     return {
@@ -4531,12 +4825,10 @@ export function useStudentDashboard() {
         isLoading: isLoadingStudents,
         isError: isStudentsError,
         error: studentsError,
-        
         selectedIds,
         toggleRow,
-        isAllSelected: isFilteredAllSelected,
-        toggleSelectAll: handleToggleFilteredSelection,
-        
+        isAllSelected,
+        toggleSelectAll: handleToggleAll,
         onRequestEdit: handleRequestEdit,
     };
 }
@@ -4971,33 +5263,84 @@ const StudentStatusChanger: React.FC<StudentStatusChangerProps> = ({ studentId, 
 
 export default StudentStatusChanger;
 ----- ./react/features/table-column-toggler/ui/TableColumnToggler.tsx -----
-import React from 'react';
-import { useUIStore } from '../../../shared/store/uiStore';
-import { useColumnPermissions } from '../../../shared/hooks/useColumnPermissions'; // [수정] 신규 훅 import
-import { LuEye, LuEyeOff } from 'react-icons/lu';
+import React, { useState, useMemo } from 'react';
+import { useUIStore, type ProblemPublishingColumnKey } from '../../../shared/store/uiStore';
+import { useColumnPermissions } from '../../../shared/hooks/useColumnPermissions';
+import { LuEye, LuEyeOff, LuGripVertical } from 'react-icons/lu';
 import './TableColumnToggler.css';
 
-
 const TableColumnToggler: React.FC = () => {
-  const { columnVisibility, toggleColumnVisibility } = useUIStore();
+  const {
+    columnVisibility,
+    toggleColumnVisibility,
+    problemPublishingColumnOrder,
+    setProblemPublishingColumnOrder,
+  } = useUIStore();
+  
   const { permittedColumnsConfig } = useColumnPermissions();
+
+  const columnConfigMap = useMemo(() =>
+    new Map(permittedColumnsConfig.map(c => [c.key, c]))
+  , [permittedColumnsConfig]);
+
+  const [draggedKey, setDraggedKey] = useState<ProblemPublishingColumnKey | null>(null);
+
+  const handleDragStart = (e: React.DragEvent<HTMLButtonElement>, key: ProblemPublishingColumnKey) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', key);
+    setTimeout(() => {
+      setDraggedKey(key);
+    }, 0);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedKey(null);
+  };
+  
+  const handleDrop = (e: React.DragEvent<HTMLButtonElement>, targetKey: ProblemPublishingColumnKey) => {
+    e.preventDefault();
+    const sourceKey = e.dataTransfer.getData('text/plain') as ProblemPublishingColumnKey;
+    setDraggedKey(null);
+
+    if (sourceKey && sourceKey !== targetKey) {
+        const sourceIndex = problemPublishingColumnOrder.indexOf(sourceKey);
+        const targetIndex = problemPublishingColumnOrder.indexOf(targetKey);
+
+        const newOrder: ProblemPublishingColumnKey[] = Array.from(problemPublishingColumnOrder);
+        const [removed] = newOrder.splice(sourceIndex, 1);
+        newOrder.splice(targetIndex, 0, removed);
+        
+        setProblemPublishingColumnOrder(newOrder);
+    }
+  };
 
   return (
     <div className="column-toggler-panel">
       <h4 className="toggler-title">테이블 컬럼 설정</h4>
+      <p className="toggler-description">핸들을 드래그하여 순서를 변경하세요.</p>
       <div className="toggler-list">
-        {/* [수정] permittedColumnsConfig를 순회하여 버튼 생성 */}
-        {permittedColumnsConfig.map((col) => {
-          const isVisible = columnVisibility[col.key] ?? true;
+        {problemPublishingColumnOrder.map((key) => {
+          const config = columnConfigMap.get(key);
+          if (!config) return null;
+
+          const isVisible = columnVisibility[key] ?? !config.defaultHidden;
+          const isDragging = draggedKey === key;
+          
           return (
             <button
-              key={col.key}
+              key={key}
               type="button"
-              className={`toggler-button ${isVisible ? 'active' : ''}`}
-              onClick={() => toggleColumnVisibility(col.key)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, key)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => handleDrop(e, key)}
+              onDragEnd={handleDragEnd}
+              className={`toggler-button ${isVisible ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
+              onClick={() => toggleColumnVisibility(key)}
               aria-pressed={isVisible}
             >
-              <span className="button-label">{col.label}</span>
+              <LuGripVertical className="drag-handle" size={16} />
+              <span className="button-label">{config.label}</span>
               {isVisible ? (
                 <LuEye size={16} className="button-icon" />
               ) : (
@@ -5071,6 +5414,7 @@ export function useTableSearch({
     return filteredData;
 }
 ----- ./react/features/table-search/ui/TableSearch.tsx -----
+
 import React from 'react';
 import { LuSearch, LuX, LuRotateCcw, LuCirclePlus, LuListChecks, LuEyeOff } from 'react-icons/lu';
 import './TableSearch.css';
@@ -5088,12 +5432,11 @@ export interface TableSearchProps {
     onFilterChange: (key: string, value: string) => void;
     onResetFilters: () => void;
     onHide?: () => void;
-    
     onToggleFiltered?: () => void;
     onCreateProblemSet?: () => void;
     selectedCount?: number;
     showActionControls?: boolean;
-    isSelectionComplete?: boolean; // [수정] isFilteredAllSelected -> isSelectionComplete
+    isSelectionComplete?: boolean;
 }
 
 const TableSearch: React.FC<TableSearchProps> = ({
@@ -5108,7 +5451,7 @@ const TableSearch: React.FC<TableSearchProps> = ({
     onCreateProblemSet,
     selectedCount = 0,
     showActionControls = true,
-    isSelectionComplete = false, // [수정]
+    isSelectionComplete = false,
 }) => {
     const hasActiveFilters = Object.keys(activeFilters).length > 0 || searchTerm.trim() !== '';
 
@@ -5592,101 +5935,69 @@ export default LoginPageWithErrorDisplay;
 ----- ./react/pages/ProblemPublishingPage.tsx -----
 import React from 'react';
 import { useProblemPublishingPage } from '../features/problem-publishing';
-import Modal from '../shared/ui/modal/Modal'; // [신규] Modal 임포트
-
-import ProblemSelectionWidget from '../widgets/ProblemSelectionWidget';
+import ProblemSelectionContainer from '../widgets/ProblemSelectionContainer';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
 import ExamPreviewWidget from '../widgets/ExamPreviewWidget';
-
 import './ProblemPublishingPage.css';
 
 const ProblemPublishingPage: React.FC = () => {
     const {
-        allProblems, isLoadingProblems, selectedProblems, selectedIds, isAllSelected,
-        distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap,
-        headerInfo, useSequentialNumbering, baseFontSize, contentFontSizeEm,
-        measuredHeights, problemBoxMinHeight, previewAreaRef,
-        toggleRow, toggleSelectAll, onToggleSequentialNumbering, onBaseFontSizeChange,
-        onContentFontSizeEmChange, onDownloadPdf, setProblemBoxMinHeight,
-        onHeightUpdate, onProblemClick, onHeaderUpdate, onDeselectProblem,
-        onDeleteSelected,
-        isBulkDeleteModalOpen,
-        onCloseBulkDeleteModal,
-        onConfirmBulkDelete,
-        isDeletingProblems,
+        handleSelectionChange,
+        allProblems, selectedProblems, distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap,
+        headerInfo, useSequentialNumbering, baseFontSize, contentFontSizeEm, measuredHeights,
+        onHeightUpdate, onProblemClick, onHeaderUpdate,
+        onToggleSequentialNumbering, onBaseFontSizeChange, onContentFontSizeEmChange, onDownloadPdf,
+        isGeneratingPdf,
+        pdfProgress, // [추가]
+        previewAreaRef, problemBoxMinHeight, setProblemBoxMinHeight,
     } = useProblemPublishingPage();
 
     return (
-        <>
-            <div className="problem-publishing-page">
-                <div className="sticky-top-container">
-                    <div className="selection-widget-container">
-                        <ProblemSelectionWidget 
-                            problems={allProblems} 
-                            isLoading={isLoadingProblems} 
-                            selectedIds={selectedIds} 
-                            onToggleRow={toggleRow} 
-                            onToggleAll={toggleSelectAll}
-                            isAllSelected={isAllSelected}
-                            onDeleteSelected={onDeleteSelected} // [신규] prop 전달
-                        />
-                    </div>
-                    <PublishingToolbarWidget 
-                        useSequentialNumbering={useSequentialNumbering}
-                        onToggleSequentialNumbering={onToggleSequentialNumbering}
-                        baseFontSize={baseFontSize}
-                        onBaseFontSizeChange={onBaseFontSizeChange}
-                        contentFontSizeEm={contentFontSizeEm}
-                        onContentFontSizeEmChange={onContentFontSizeEmChange} 
-                        onDownloadPdf={onDownloadPdf}
-                        previewAreaRef={previewAreaRef}
-                        problemBoxMinHeight={problemBoxMinHeight}
-                        setProblemBoxMinHeight={setProblemBoxMinHeight}
-                    />
+        <div className="problem-publishing-page">
+            <div className="sticky-top-container">
+                <div className="selection-widget-container">
+                    <ProblemSelectionContainer onSelectionChange={handleSelectionChange} />
                 </div>
-                <div 
-                    ref={previewAreaRef}
-                    className="scrollable-content-area"
-                    style={{ '--problem-box-min-height-em': `${problemBoxMinHeight}em` } as React.CSSProperties}
-                >
-                    <ExamPreviewWidget 
-                        distributedPages={distributedPages} 
-                        distributedSolutionPages={distributedSolutionPages}
-                        allProblems={allProblems} 
-                        selectedProblems={selectedProblems}
-                        placementMap={placementMap} 
-                        solutionPlacementMap={solutionPlacementMap}
-                        headerInfo={headerInfo} 
-                        useSequentialNumbering={useSequentialNumbering} 
-                        baseFontSize={baseFontSize} 
-                        contentFontSizeEm={contentFontSizeEm} 
-                        contentFontFamily={headerInfo.titleFontFamily} 
-                        onHeightUpdate={onHeightUpdate}
-                        onProblemClick={onProblemClick} 
-                        onHeaderUpdate={onHeaderUpdate} 
-                        onDeselectProblem={onDeselectProblem} 
-                        measuredHeights={measuredHeights}
-                    />
-                </div>
+                <PublishingToolbarWidget 
+                    useSequentialNumbering={useSequentialNumbering}
+                    onToggleSequentialNumbering={onToggleSequentialNumbering}
+                    baseFontSize={baseFontSize}
+                    onBaseFontSizeChange={onBaseFontSizeChange}
+                    contentFontSizeEm={contentFontSizeEm}
+                    onContentFontSizeEmChange={onContentFontSizeEmChange} 
+                    onDownloadPdf={onDownloadPdf}
+                    isGeneratingPdf={isGeneratingPdf}
+                    pdfProgressMessage={pdfProgress.message} // [추가] 진행 메시지 전달
+                    previewAreaRef={previewAreaRef}
+                    problemBoxMinHeight={problemBoxMinHeight}
+                    setProblemBoxMinHeight={setProblemBoxMinHeight}
+                />
             </div>
-
-            {/* [신규] 다중 삭제 확인 모달 */}
-            <Modal
-                isOpen={isBulkDeleteModalOpen}
-                onClose={onCloseBulkDeleteModal}
-                onConfirm={onConfirmBulkDelete}
-                isConfirming={isDeletingProblems}
-                title="선택한 문제 영구 삭제"
-                confirmText={`삭제 (${selectedIds.size}개)`}
-                size="small"
+            <div 
+                ref={previewAreaRef}
+                className="scrollable-content-area"
+                style={{ '--problem-box-min-height-em': `${problemBoxMinHeight}em` } as React.CSSProperties}
             >
-                <p>
-                    선택한 <strong>{selectedIds.size}개</strong>의 문제를 영구적으로 삭제하시겠습니까?
-                    <br />
-                    이 작업은 되돌릴 수 없습니다.
-                </p>
-            </Modal>
-        </>
+                <ExamPreviewWidget 
+                    distributedPages={distributedPages} 
+                    distributedSolutionPages={distributedSolutionPages}
+                    allProblems={allProblems}
+                    selectedProblems={selectedProblems}
+                    placementMap={placementMap} 
+                    solutionPlacementMap={solutionPlacementMap}
+                    headerInfo={headerInfo} 
+                    useSequentialNumbering={useSequentialNumbering} 
+                    baseFontSize={baseFontSize} 
+                    contentFontSizeEm={contentFontSizeEm} 
+                    contentFontFamily={headerInfo.titleFontFamily} 
+                    onHeightUpdate={onHeightUpdate}
+                    onProblemClick={onProblemClick} 
+                    onHeaderUpdate={onHeaderUpdate} 
+                    onDeselectProblem={() => { /* 컨테이너에서 처리되므로 여기선 필요 없음 */ }} 
+                    measuredHeights={measuredHeights}
+                />
+            </div>
+        </div>
     );
 };
 
@@ -6324,45 +6635,81 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
 export default React.memo(PreviewPanel);
 ----- ./react/shared/hooks/useColumnPermissions.ts -----
 import { useMemo } from 'react';
+import { useLocation } from 'react-router';
 
-export const COLUMN_CONFIG = [
-  { key: 'grade', label: '학년' },
-  { key: 'subject', label: '과목' },
-  { key: 'status', label: '상태' },
-  { key: 'teacher', label: '담당 강사' },
-  { key: 'student_phone', label: '학생 연락처' },
-  { key: 'guardian_phone', label: '학부모 연락처' },
-  { key: 'school_name', label: '학교명' },
-  { key: 'tuition', label: '수강료' },
-  { key: 'admission_date', label: '입원일' },
-  { key: 'discharge_date', label: '퇴원일' },
-] as const; // as const로 key 값을 string이 아닌 리터럴 타입으로 추론
+export const PROBLEM_PUBLISHING_COLUMN_CONFIG = [
+  { key: 'problem_category', label: '유형', defaultHidden: false },
+  { key: 'difficulty', label: '난이도', defaultHidden: false },
+  { key: 'major_chapter_id', label: '대단원', defaultHidden: false },
+  { key: 'middle_chapter_id', label: '중단원', defaultHidden: false },
+  { key: 'core_concept_id', label: '핵심개념', defaultHidden: false },
+  { key: 'source', label: '출처', defaultHidden: true },
+  { key: 'grade', label: '학년', defaultHidden: true },
+  { key: 'semester', label: '학기', defaultHidden: true },
+  { key: 'score', label: '배점', defaultHidden: false },
+  { key: 'page', label: '페이지', defaultHidden: false },
+  { key: 'problem_type', label: '객/주', defaultHidden: false },
+  { key: 'answer', label: '정답', defaultHidden: false },
+  { key: 'question_text', label: '문제', defaultHidden: true },
+  { key: 'solution_text', label: '해설', defaultHidden: true },
+] as const;
+
+export const STUDENT_DASHBOARD_COLUMN_CONFIG = [
+  { key: 'grade', label: '학년', defaultHidden: false },
+  { key: 'subject', label: '과목', defaultHidden: false },
+  { key: 'status', label: '상태', defaultHidden: false },
+  { key: 'teacher', label: '담당 강사', defaultHidden: false },
+  { key: 'student_phone', label: '학생 연락처', defaultHidden: false },
+  { key: 'guardian_phone', label: '학부모 연락처', defaultHidden: false },
+  { key: 'school_name', label: '학교명', defaultHidden: false },
+  { key: 'tuition', label: '수강료', defaultHidden: false },
+  { key: 'admission_date', label: '입원일', defaultHidden: false },
+  { key: 'discharge_date', label: '퇴원일', defaultHidden: false },
+] as const;
 
 const ROLE_PERMISSIONS = {
-  '원장': COLUMN_CONFIG.map(c => c.key),
+  '원장': [...STUDENT_DASHBOARD_COLUMN_CONFIG.map(c => c.key), ...PROBLEM_PUBLISHING_COLUMN_CONFIG.map(c => c.key)],
   '강사': [
     'grade', 'subject', 'status', 'teacher', 'student_phone',
-    'school_name', 'admission_date', 'discharge_date'
+    'school_name', 'admission_date', 'discharge_date',
+    ...PROBLEM_PUBLISHING_COLUMN_CONFIG.filter(c => !c.key.includes('text')).map(c => c.key),
   ],
 } as const;
 
 type Role = keyof typeof ROLE_PERMISSIONS;
 
 export function useColumnPermissions() {
-  const currentUserRole: Role = '원장'; // 지금은 '원장'으로 하드코딩, '강사'로 바꿔서 테스트해보세요.
+  const currentUserRole: Role = '원장';
+  const location = useLocation();
+  const currentPath = location.pathname;
 
-  const permittedColumnKeys = useMemo(() => {
-    return ROLE_PERMISSIONS[currentUserRole] || [];
-  }, [currentUserRole]);
+  const { permittedColumnsConfig, allColumnConfig } = useMemo(() => {
+    const roleAllowedKeys = ROLE_PERMISSIONS[currentUserRole] || [];
+    
+    let baseConfig;
+    if (currentPath.startsWith('/problem-publishing')) {
+      baseConfig = PROBLEM_PUBLISHING_COLUMN_CONFIG;
+    } else { 
+      baseConfig = STUDENT_DASHBOARD_COLUMN_CONFIG;
+    }
+    
+    const permittedConfig = baseConfig.filter(col => roleAllowedKeys.includes(col.key));
 
-  const permittedColumnsConfig = useMemo(() => {
-    return COLUMN_CONFIG.filter(col => permittedColumnKeys.includes(col.key));
-  }, [permittedColumnKeys]);
+    return { 
+      permittedColumnsConfig: permittedConfig,
+      allColumnConfig: baseConfig
+    };
+  }, [currentUserRole, currentPath]);
+
+  const permittedColumnKeys = useMemo(() => 
+      new Set(permittedColumnsConfig.map(c => c.key)),
+      [permittedColumnsConfig]
+  );
 
   return { 
-    permittedColumnKeys,      // 허용된 컬럼 키 배열
-    permittedColumnsConfig,   // 허용된 컬럼의 설정 객체 배열 (UI용)
-    allColumnConfig: COLUMN_CONFIG, // 테이블 정의에 필요한 전체 설정
+    permittedColumnsConfig,
+    allColumnConfig,
+    permittedColumnKeys,
   };
 }
 ----- ./react/shared/hooks/useContinuousChange.ts -----
@@ -6501,33 +6848,35 @@ export function useDragToScroll<T extends HTMLElement>() {
 ----- ./react/shared/hooks/useVisibleColumns.ts -----
 import { useMemo } from 'react';
 import { useUIStore } from '../store/uiStore';
-import { useColumnPermissions, COLUMN_CONFIG } from './useColumnPermissions';
+import { useColumnPermissions } from './useColumnPermissions';
 
 /**
  * 권한과 사용자 설정을 조합하여
  * 각 컬럼의 최종 표시 여부를 결정하는 훅
  */
 export function useVisibleColumns() {
-  const { permittedColumnKeys } = useColumnPermissions();
+  const { permittedColumnKeys, allColumnConfig } = useColumnPermissions();
   const { columnVisibility: userPreferences } = useUIStore();
 
   const finalVisibility = useMemo(() => {
     const visibilityMap: Record<string, boolean> = {};
 
-    COLUMN_CONFIG.forEach(col => {
+    allColumnConfig.forEach(col => {
       const { key } = col;
-      const hasPermission = permittedColumnKeys.includes(key);
-      const userPrefersVisible = userPreferences[key] ?? true;
+      const hasPermission = permittedColumnKeys.has(key);
+      const userPrefersVisible = userPreferences[key] ?? !col.defaultHidden; // [수정] UI 상태가 없으면 defaultHidden을 기준으로 판단
       visibilityMap[key] = hasPermission && userPrefersVisible;
     });
 
     visibilityMap['header_action_button'] = true;
     visibilityMap['student_name'] = true;
     visibilityMap['actions'] = true;
+    visibilityMap['checkbox'] = true;
+    visibilityMap['question_number'] = true;
 
     return visibilityMap;
 
-  }, [permittedColumnKeys, userPreferences]);
+  }, [permittedColumnKeys, allColumnConfig, userPreferences]);
 
   return finalVisibility;
 }
@@ -6718,7 +7067,7 @@ export const selectAuthError = (state: AuthState): string | null => state.authEr
 /**
  * 각 페이지별로 우측 사이드바에 표시될 버튼의 종류를 정의합니다.
  */
-export type SidebarButtonType = 'register' | 'settings' | 'prompt' | 'latexHelp' | 'search';
+export type SidebarButtonType = 'register' | 'settings' | 'prompt' | 'latexHelp' | 'search' | 'jsonView'; // [추가] 'jsonView'
 
 /**
  * 각 페이지의 레이아웃 설정을 정의하는 인터페이스입니다.
@@ -6757,7 +7106,10 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
   },
   '/problem-publishing': {
     sidebarButtons: {
-      search: { tooltip: '문제 검색 및 필터' }, // [추가] 검색 버튼 설정
+      search: { tooltip: '문제 검색 및 필터' },
+      jsonView: { tooltip: 'JSON으로 변환' },
+      prompt: { tooltip: '프롬프트 모음' }, // [추가] 프롬프트 버튼 설정
+      settings: { tooltip: '테이블 컬럼 설정' },
       latexHelp: { tooltip: 'LaTeX 문법 도움말' }
     }
   }
@@ -6767,7 +7119,12 @@ import { create } from 'zustand';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
 import type { Student } from '../../entities/student/model/useStudentDataWithRQ';
+import type { ProcessedProblem } from '../../features/problem-publishing'; // [추가] 타입 임포트
 
+/**
+ * [수정] TableSearch 컴포넌트가 필요로 하는 모든 props를 포함하는 완전한 인터페이스.
+ * 각 페이지의 훅은 이 인터페이스에 맞는 객체를 만들어 스토어에 저장하게 됩니다.
+ */
 export interface StoredSearchProps {
     searchTerm: string;
     onSearchTermChange: (value: string) => void;
@@ -6777,10 +7134,10 @@ export interface StoredSearchProps {
     suggestionGroups: string;
     onToggleFiltered?: () => void;
     onCreateProblemSet?: () => void;
-    selectedCount?: number;
     showActionControls?: boolean;
-    isSelectionComplete?: boolean; // [수정] Prop 이름 변경
     onHide?: () => void;
+    selectedCount?: number;
+    isSelectionComplete?: boolean;
 }
 
 interface RegisteredPageActions {
@@ -6789,12 +7146,13 @@ interface RegisteredPageActions {
   openPromptSidebar: () => void;
   openLatexHelpSidebar: () => void;
   openSearchSidebar: () => void; 
+  openJsonViewSidebar: () => void; // [추가] 파라미터 없음
   openEditSidebar: (student: Student) => void;
   onClose: () => void;
 }
 
 interface SidebarContentConfig {
-    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | null;
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | 'jsonViewer' | null; // [추가] 'jsonViewer'
     props?: Record<string, any>;
 }
 
@@ -6823,6 +7181,7 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
     openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'),
     openSearchSidebar: () => console.warn('openSearchSidebar action not registered.'),
+    openJsonViewSidebar: () => console.warn('openJsonViewSidebar action not registered.'), // [추가] 초기 액션
     openEditSidebar: (student: Student) => console.warn('openEditSidebar action not registered for student:', student.id),
     onClose: () => console.warn('onClose action not registered.'),
 };
@@ -6835,7 +7194,7 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
   currentPageConfig: {},
   pageActions: initialPageActions,
   searchBoxProps: null,
-  
+
   setRightSidebarConfig: (config) => {
     const currentState = get().rightSidebar;
     if (!config.contentConfig) {
@@ -6880,7 +7239,7 @@ export const selectRightSidebarConfig = (state: LayoutState) => state.rightSideb
 export const selectSearchBoxProps = (state: LayoutState) => state.searchBoxProps;
 
 interface SidebarTrigger {
-    onClick: (() => void) | undefined;
+    onClick: () => void;
     tooltip: string;
 }
 
@@ -6891,6 +7250,7 @@ interface SidebarTriggers {
     settingsTrigger?: SidebarTrigger;
     promptTrigger?: SidebarTrigger;
     latexHelpTrigger?: SidebarTrigger;
+    jsonViewTrigger?: SidebarTrigger; // [추가]
 }
 
 export const useSidebarTriggers = (): SidebarTriggers => {
@@ -6900,34 +7260,40 @@ export const useSidebarTriggers = (): SidebarTriggers => {
     const triggers = useMemo(() => {
         const result: SidebarTriggers = { onClose: pageActions.onClose };
 
-        if (currentPageConfig.sidebarButtons?.register) {
+        if (currentPageConfig.sidebarButtons?.register && pageActions.openRegisterSidebar) {
             result.registerTrigger = {
                 onClick: pageActions.openRegisterSidebar,
                 tooltip: currentPageConfig.sidebarButtons.register.tooltip,
             };
         }
-        if (currentPageConfig.sidebarButtons?.search) {
+        if (currentPageConfig.sidebarButtons?.search && pageActions.openSearchSidebar) {
             result.searchTrigger = {
                 onClick: pageActions.openSearchSidebar,
                 tooltip: currentPageConfig.sidebarButtons.search.tooltip,
             };
         }
-        if (currentPageConfig.sidebarButtons?.settings) {
+        if (currentPageConfig.sidebarButtons?.settings && pageActions.openSettingsSidebar) {
             result.settingsTrigger = {
                 onClick: pageActions.openSettingsSidebar,
                 tooltip: currentPageConfig.sidebarButtons.settings.tooltip,
             };
         }
-        if (currentPageConfig.sidebarButtons?.prompt) {
+        if (currentPageConfig.sidebarButtons?.prompt && pageActions.openPromptSidebar) {
             result.promptTrigger = {
                 onClick: pageActions.openPromptSidebar,
                 tooltip: currentPageConfig.sidebarButtons.prompt.tooltip,
             };
         }
-        if (currentPageConfig.sidebarButtons?.latexHelp) {
+        if (currentPageConfig.sidebarButtons?.latexHelp && pageActions.openLatexHelpSidebar) {
             result.latexHelpTrigger = {
                 onClick: pageActions.openLatexHelpSidebar,
                 tooltip: currentPageConfig.sidebarButtons.latexHelp.tooltip,
+            };
+        }
+        if (currentPageConfig.sidebarButtons?.jsonView && pageActions.openJsonViewSidebar) {
+            result.jsonViewTrigger = {
+                onClick: pageActions.openJsonViewSidebar,
+                tooltip: currentPageConfig.sidebarButtons.jsonView.tooltip,
             };
         }
         return result;
@@ -6937,7 +7303,8 @@ export const useSidebarTriggers = (): SidebarTriggers => {
 };
 ----- ./react/shared/store/uiStore.ts -----
 import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
+import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware';
+import { PROBLEM_PUBLISHING_COLUMN_CONFIG } from '../hooks/useColumnPermissions';
 
 const breakpoints = {
     mobile: 768,
@@ -6946,16 +7313,7 @@ const breakpoints = {
 
 type Breakpoint = 'mobile' | 'tablet' | 'desktop';
 
-const allStudentTableColumns: string[] = [
-    'grade', 'subject', 'status', 'teacher', 'student_phone', 
-    'guardian_phone', 'school_name', 'tuition', 'admission_date', 'discharge_date'
-];
-
-const initialColumnVisibility = allStudentTableColumns.reduce((acc, key) => {
-    acc[key] = true;
-    return acc;
-}, {} as Record<string, boolean>);
-
+export type ProblemPublishingColumnKey = typeof PROBLEM_PUBLISHING_COLUMN_CONFIG[number]['key'];
 
 const getCurrentBreakpoint = (): Breakpoint => {
     if (typeof window === 'undefined') return 'desktop';
@@ -6981,6 +7339,14 @@ export interface UIState {
     updateBreakpoint: () => void;
     columnVisibility: Record<string, boolean>;
     toggleColumnVisibility: (key: string) => void;
+    setColumnVisibility: (visibility: Record<string, boolean>) => void;
+    problemPublishingColumnOrder: ProblemPublishingColumnKey[];
+    setProblemPublishingColumnOrder: (newOrder: ProblemPublishingColumnKey[]) => void;
+}
+
+type PersistedUIState = {
+    columnVisibility: Record<string, boolean>;
+    problemPublishingColumnOrder: ProblemPublishingColumnKey[];
 }
 
 const log = (action: string, payload?: any) => {
@@ -6989,100 +7355,149 @@ const log = (action: string, payload?: any) => {
 
 
 export const useUIStore = create(
-    subscribeWithSelector<UIState>((set, get) => ({
-        isRightSidebarExpanded: false,
-        toggleRightSidebar: () => {
-            log('toggleRightSidebar');
-            const currentBp = get().currentBreakpoint;
-            if (currentBp === 'mobile') {
-                if (get().mobileSidebarType === 'right') {
-                    get().closeMobileSidebar();
-                } else {
-                    get().openMobileSidebar('right');
-                }
-            } else {
-                set((state) => ({ isRightSidebarExpanded: !state.isRightSidebarExpanded }));
-            }
-        },
-        setRightSidebarExpanded: (expanded: boolean) => {
-            log('setRightSidebarExpanded', expanded);
-            const { currentBreakpoint, openMobileSidebar, closeMobileSidebar } = get();
-            if (currentBreakpoint === 'mobile') {
-                if (expanded) {
-                    openMobileSidebar('right');
-                } else {
-                    closeMobileSidebar();
-                }
-            } else {
-                set({ isRightSidebarExpanded: expanded });
-            }
-        },
-
-        isRightSidebarExtraWide: false,
-        setRightSidebarExtraWide: (isWide) => {
-            log('setRightSidebarExtraWide', isWide);
-            set({ isRightSidebarExtraWide: isWide });
-        },
-
-        isLeftSidebarExpanded: true,
-        toggleLeftSidebar: () => {
-            log('toggleLeftSidebar');
-            const currentBp = get().currentBreakpoint;
-            if (currentBp === 'mobile') {
-                if (get().mobileSidebarType === 'left') {
-                    get().closeMobileSidebar();
-                } else {
-                    get().openMobileSidebar('left');
-                }
-            } else {
-                set((state) => ({ isLeftSidebarExpanded: !state.isLeftSidebarExpanded }));
-            }
-        },
-        setLeftSidebarExpanded: (expanded) => {
-            log('setLeftSidebarExpanded', expanded);
-            set({ isLeftSidebarExpanded: expanded });
-        },
-
-        mobileSidebarType: null,
-        openMobileSidebar: (type) => {
-            log('openMobileSidebar', type);
-            set({ mobileSidebarType: type });
-        },
-        closeMobileSidebar: () => {
-            if (get().mobileSidebarType !== null) {
-                log('closeMobileSidebar');
-                set({ mobileSidebarType: null });
-            }
-        },
+    subscribeWithSelector(
+        persist<UIState, [], [], PersistedUIState>(
+            (set, get) => ({
+                isRightSidebarExpanded: false,
+                toggleRightSidebar: () => {
+                    log('toggleRightSidebar');
+                    const currentBp = get().currentBreakpoint;
+                    if (currentBp === 'mobile') {
+                        if (get().mobileSidebarType === 'right') {
+                            get().closeMobileSidebar();
+                        } else {
+                            get().openMobileSidebar('right');
+                        }
+                    } else {
+                        set((state) => ({ isRightSidebarExpanded: !state.isRightSidebarExpanded }));
+                    }
+                },
+                setRightSidebarExpanded: (expanded: boolean) => {
+                    log('setRightSidebarExpanded', expanded);
+                    const { currentBreakpoint, openMobileSidebar, closeMobileSidebar } = get();
+                    if (currentBreakpoint === 'mobile') {
+                        if (expanded) {
+                            openMobileSidebar('right');
+                        } else {
+                            closeMobileSidebar();
+                        }
+                    } else {
+                        set({ isRightSidebarExpanded: expanded });
+                    }
+                },
         
-        currentBreakpoint: getCurrentBreakpoint(),
-        updateBreakpoint: () => {
-            const newBreakpoint = getCurrentBreakpoint();
-            const oldBreakpoint = get().currentBreakpoint;
-            if (newBreakpoint !== oldBreakpoint) {
-                log('updateBreakpoint', { from: oldBreakpoint, to: newBreakpoint });
-                set({ currentBreakpoint: newBreakpoint });
-                get().closeMobileSidebar();
+                isRightSidebarExtraWide: false,
+                setRightSidebarExtraWide: (isWide) => {
+                    log('setRightSidebarExtraWide', isWide);
+                    set({ isRightSidebarExtraWide: isWide });
+                },
+        
+                isLeftSidebarExpanded: true,
+                toggleLeftSidebar: () => {
+                    log('toggleLeftSidebar');
+                    const currentBp = get().currentBreakpoint;
+                    if (currentBp === 'mobile') {
+                        if (get().mobileSidebarType === 'left') {
+                            get().closeMobileSidebar();
+                        } else {
+                            get().openMobileSidebar('left');
+                        }
+                    } else {
+                        set((state) => ({ isLeftSidebarExpanded: !state.isLeftSidebarExpanded }));
+                    }
+                },
+                setLeftSidebarExpanded: (expanded) => {
+                    log('setLeftSidebarExpanded', expanded);
+                    set({ isLeftSidebarExpanded: expanded });
+                },
+        
+                mobileSidebarType: null,
+                openMobileSidebar: (type) => {
+                    log('openMobileSidebar', type);
+                    set({ mobileSidebarType: type });
+                },
+                closeMobileSidebar: () => {
+                    if (get().mobileSidebarType !== null) {
+                        log('closeMobileSidebar');
+                        set({ mobileSidebarType: null });
+                    }
+                },
+                
+                currentBreakpoint: getCurrentBreakpoint(),
+                updateBreakpoint: () => {
+                    const newBreakpoint = getCurrentBreakpoint();
+                    const oldBreakpoint = get().currentBreakpoint;
+                    if (newBreakpoint !== oldBreakpoint) {
+                        log('updateBreakpoint', { from: oldBreakpoint, to: newBreakpoint });
+                        set({ currentBreakpoint: newBreakpoint });
+                        get().closeMobileSidebar();
+        
+                        if (newBreakpoint === 'desktop') {
+                            get().setLeftSidebarExpanded(true);
+                        } else if (newBreakpoint === 'tablet') {
+                            get().setLeftSidebarExpanded(false);
+                        }
+                    }
+                },
+        
+                columnVisibility: {},
+                toggleColumnVisibility: (key: string) => {
+                    log('toggleColumnVisibility', key);
+                    set((state) => {
+                        const config = PROBLEM_PUBLISHING_COLUMN_CONFIG.find(c => c.key === key);
+                        const isCurrentlyVisible = state.columnVisibility[key] ?? !(config?.defaultHidden ?? false);
+                        return {
+                            columnVisibility: {
+                                ...state.columnVisibility,
+                                [key]: !isCurrentlyVisible,
+                            }
+                        };
+                    });
+                },
+                setColumnVisibility: (visibility) => {
+                    log('setColumnVisibility', visibility);
+                    set({ columnVisibility: visibility });
+                },
+        
+                problemPublishingColumnOrder: PROBLEM_PUBLISHING_COLUMN_CONFIG.map(col => col.key),
+                setProblemPublishingColumnOrder: (newOrder: ProblemPublishingColumnKey[]) => {
+                    log('setProblemPublishingColumnOrder', newOrder);
+                    set({ problemPublishingColumnOrder: newOrder });
+                },
+            }),
+            {
+                name: 'ui-settings-storage',
+                storage: createJSONStorage(() => localStorage), 
+                
+                partialize: (state): PersistedUIState => ({
+                    columnVisibility: state.columnVisibility,
+                    problemPublishingColumnOrder: state.problemPublishingColumnOrder,
+                }),
 
-                if (newBreakpoint === 'desktop') {
-                    get().setLeftSidebarExpanded(true);
-                } else if (newBreakpoint === 'tablet') {
-                    get().setLeftSidebarExpanded(false);
+                merge: (persistedState, currentState) => {
+                    const typedPersistedState = persistedState as Partial<UIState>;
+                    
+                    const persistedOrder = typedPersistedState.problemPublishingColumnOrder || [];
+                    const persistedOrderSet = new Set(persistedOrder);
+                    const newColumnsInCurrentState = currentState.problemPublishingColumnOrder.filter(
+                        key => !persistedOrderSet.has(key)
+                    );
+
+                    return {
+                        ...currentState,
+                        ...typedPersistedState,
+                        problemPublishingColumnOrder: [...persistedOrder, ...newColumnsInCurrentState],
+                    };
+                },
+
+                onRehydrateStorage: () => (state) => {
+                    if (state) {
+                        console.log('[UIStore] Hydration finished from localStorage.');
+                    }
                 }
             }
-        },
-
-        columnVisibility: initialColumnVisibility,
-        toggleColumnVisibility: (key: string) => {
-            log('toggleColumnVisibility', key);
-            set((state) => ({
-                columnVisibility: {
-                    ...state.columnVisibility,
-                    [key]: !state.columnVisibility[key],
-                }
-            }));
-        },
-    }))
+        )
+    )
 );
 
 if (typeof window !== 'undefined') {
@@ -7702,18 +8117,189 @@ const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
     );
 };
 
-export default ExamPreviewWidget;
+export default React.memo(ExamPreviewWidget);
+----- ./react/widgets/FilteredProblemHeader/FilteredProblemHeader.tsx -----
+import React, { useMemo, ReactNode, useState, useCallback } from 'react';
+import type { ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
+import Badge from '../../shared/ui/Badge/Badge';
+import GlassPopover from '../../shared/components/GlassPopover';
+import { PopoverCombobox } from '../../features/json-problem-importer/ui/EditPopoverContent';
+import type { ComboboxOption } from '../../entities/problem/model/types';
+import { LuChevronsUpDown, LuRotateCcw } from 'react-icons/lu';
+import Tippy from '@tippyjs/react';
+import './FilteredProblemHeader.css';
+
+interface FilteredProblemHeaderProps {
+    problems: ProcessedProblem[];
+    selectedCount: number;
+    children?: ReactNode;
+    startNumber: string;
+    onStartNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    endNumber: string;
+    onEndNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    problemTypeFilter: string;
+    onProblemTypeFilterChange: (value: string) => void;
+    onResetHeaderFilters: () => void;
+}
+
+const TYPE_FILTER_OPTIONS: ComboboxOption[] = [
+    { value: 'all', label: '전체 유형' },
+    { value: '객관식', label: '객관식' },
+    { value: '서답형', label: '서답형' },
+    { value: '논술형', label: '논술형' },
+];
+
+const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({ 
+    problems, 
+    selectedCount, 
+    children,
+    startNumber,
+    onStartNumberChange,
+    endNumber,
+    onEndNumberChange,
+    problemTypeFilter,
+    onProblemTypeFilterChange,
+    onResetHeaderFilters,
+}) => {
+    const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+    const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+
+    const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        setAnchorEl(event.currentTarget);
+        setIsPopoverOpen(true);
+    };
+
+    const handleClosePopover = useCallback(() => {
+        setIsPopoverOpen(false);
+        setAnchorEl(null);
+    }, []);
+
+    const handleFilterSelect = useCallback((value: string) => {
+        onProblemTypeFilterChange(value);
+        handleClosePopover();
+    }, [onProblemTypeFilterChange, handleClosePopover]);
+    
+    const currentFilterLabel = useMemo(() => {
+        if (problemTypeFilter === 'all') {
+            return '유형 선택';
+        }
+        return TYPE_FILTER_OPTIONS.find(opt => opt.value === problemTypeFilter)?.label || '유형 선택';
+    }, [problemTypeFilter]);
+
+    const summary = useMemo(() => {
+        if (problems.length === 0) {
+            return {
+                sources: [],
+                grades: [],
+                semesters: [],
+                minQuestionNumber: null,
+                maxQuestionNumber: null,
+            };
+        }
+        const sources = [...new Set(problems.map(p => p.source).filter(Boolean))];
+        const grades = [...new Set(problems.map(p => p.grade).filter(Boolean))];
+        const semesters = [...new Set(problems.map(p => p.semester).filter(Boolean))];
+        const questionNumbers = problems.map(p => p.question_number).filter(n => typeof n === 'number');
+        const minQuestionNumber = questionNumbers.length > 0 ? Math.min(...questionNumbers) : null;
+        const maxQuestionNumber = questionNumbers.length > 0 ? Math.max(...questionNumbers) : null;
+        return { sources, grades, semesters, minQuestionNumber, maxQuestionNumber };
+    }, [problems]);
+
+    const renderSourceBadges = (sources: string[]) => {
+        if (sources.length === 0) return null;
+        if (sources.length <= 3) {
+            return sources.map(source => <Badge key={source} className="summary-badge">{source}</Badge>);
+        }
+        return <Badge className="summary-badge">{`${sources.length}개 출처`}</Badge>;
+    };
+
+    const renderGenericBadge = (label: string, values: string[]) => {
+        if (values.length === 0) return null;
+        const text = values.length === 1 ? values[0] : `${values.length}개 ${label}`;
+        return <Badge className="summary-badge">{text}</Badge>;
+    };
+
+    return (
+        <div className="filtered-problem-header">
+            <div className="header-left-section">
+                <div className="summary-info">
+                    {renderSourceBadges(summary.sources)}
+                    {renderGenericBadge('학년', summary.grades)}
+                    {renderGenericBadge('학기', summary.semesters)}
+                    {summary.minQuestionNumber !== null && (
+                        <Badge className="summary-badge number-range">
+                            {summary.minQuestionNumber}번 ~ {summary.maxQuestionNumber}번
+                        </Badge>
+                    )}
+                </div>
+                <div className="filter-controls">
+                    <div className="filter-group problem-type-filter">
+                        {/* [핵심] 공통 클래스 추가 */}
+                        <button type="button" className="filter-trigger-button filter-control-item" onClick={handleTriggerClick}>
+                            <span className={`trigger-text ${problemTypeFilter === 'all' ? 'placeholder' : ''}`}>
+                                {currentFilterLabel}
+                            </span>
+                            <LuChevronsUpDown className="trigger-icon" />
+                        </button>
+                    </div>
+                    <div className="filter-group number-range-filter">
+                        {/* [핵심] 공통 클래스 추가 */}
+                        <input type="number" value={startNumber} onChange={onStartNumberChange} placeholder="시작" className="filter-input filter-control-item" aria-label="문제 시작 번호" />
+                        <span className="range-separator">~</span>
+                        {/* [핵심] 공통 클래스 추가 */}
+                        <input type="number" value={endNumber} onChange={onEndNumberChange} placeholder="끝" className="filter-input filter-control-item" aria-label="문제 끝 번호" />
+                         <span className="range-label">번</span>
+                         <Tippy content="번호/유형 필터 초기화" theme="custom-glass" placement="top">
+                            <button
+                                type="button"
+                                className="filter-reset-button"
+                                onClick={onResetHeaderFilters}
+                                aria-label="번호 및 유형 필터 초기화"
+                            >
+                                <LuRotateCcw size={14} />
+                            </button>
+                         </Tippy>
+                    </div>
+                </div>
+            </div>
+
+            <div className="header-right-section">
+                <div className="selection-count">
+                    {selectedCount}개 선택 / {problems.length}개 결과
+                </div>
+                {children && <div className="header-actions">{children}</div>}
+            </div>
+
+            <GlassPopover
+                isOpen={isPopoverOpen}
+                onClose={handleClosePopover}
+                anchorEl={anchorEl}
+                placement="bottom-start"
+            >
+                <PopoverCombobox
+                    label="유형 필터"
+                    value={problemTypeFilter}
+                    onValueChange={handleFilterSelect}
+                    options={TYPE_FILTER_OPTIONS}
+                />
+            </GlassPopover>
+        </div>
+    );
+};
+
+export default FilteredProblemHeader;
 ----- ./react/widgets/json-problem-importer/JsonProblemImporterWidget.tsx -----
 import React from 'react';
-import { LuUpload, LuCheck, LuChevronsUpDown } from 'react-icons/lu';
+import { LuUpload, LuCheck, LuChevronsUpDown, LuInfo, LuLightbulb } from 'react-icons/lu';
 import { useJsonProblemImporter } from '../../features/json-problem-importer/model/useJsonProblemImporter';
 import ActionButton from '../../shared/ui/actionbutton/ActionButton';
 import GlassPopover from '../../shared/components/GlassPopover';
-import type { Column } from '../../entities/problem/model/types';
+import type { Problem, Column } from '../../entities/problem/model/types'; // [수정] Problem 및 Column 타입 임포트
 import { PopoverCombobox, PopoverInput, PopoverTextarea } from '../../features/json-problem-importer/ui/EditPopoverContent';
+import LoadingButton from '../../shared/ui/loadingbutton/LoadingButton';
 
-const COMBOBOX_FIELDS: (keyof any)[] = ['problem_type', 'difficulty', 'grade', 'semester'];
-const ANSWER_COMBOBOX_FIELDS: (keyof any)[] = ['answer'];
+const COMBOBOX_FIELDS: (keyof Problem)[] = ['problem_type', 'difficulty', 'grade', 'semester'];
+const ANSWER_COMBOBOX_FIELDS: (keyof Problem)[] = ['answer'];
 
 const JsonProblemImporterWidget: React.FC = () => {
     const {
@@ -7740,20 +8326,44 @@ const JsonProblemImporterWidget: React.FC = () => {
         columns,
         formatValue,
         popoverAnchor,
-        problemTypeOptions, difficultyOptions, answerOptions, gradeOptions, semesterOptions // 옵션들 가져오기
+        problemTypeOptions, difficultyOptions, answerOptions, gradeOptions, semesterOptions
     } = useJsonProblemImporter();
 
     const isEditing = !!editingCell;
 
     return (
         <div className="json-importer-widget">
-            <div className="left-panel">{/* ... 이전과 동일 ... */}
+            <div className="left-panel">
                 <div className="panel json-input-panel">
                     <div className="panel-header">JSON 데이터 입력</div>
                     <div className="panel-content">
-                        <textarea value={jsonInput} onChange={(e) => setJsonInput(e.target.value)} className="json-input-textarea" placeholder="여기에 JSON 데이터를 붙여넣으세요..." spellCheck="false" readOnly={isEditing} aria-label="JSON Input Area" />
+                        <textarea 
+                            value={jsonInput} 
+                            onChange={(e) => setJsonInput(e.target.value)} 
+                            className="json-input-textarea" 
+                            placeholder="여기에 JSON 데이터를 붙여넣으세요..." 
+                            spellCheck="false" 
+                            readOnly={isEditing} 
+                            aria-label="JSON Input Area" 
+                            aria-invalid={!!parseError}
+                        />
+                        
                         {parseError && !isEditing && (
-                            <div className="error-display" role="alert"><h4>JSON 처리/업로드 오류:</h4><pre>{parseError.message}</pre></div>
+                            <div className="error-display" role="alert">
+                                <h4 className="error-title"><LuInfo size={16} /> {parseError.title}</h4>
+                                <p className="error-location">
+                                    {parseError.line && parseError.column && `위치: ${parseError.line}번째 줄, ${parseError.column}번째 칸 부근`}
+                                    {parseError.problemIndex && `위치: ${parseError.problemIndex}번째 문제 항목`}
+                                </p>
+                                <pre className="error-message">{parseError.message}</pre>
+                                <div className="error-suggestion">
+                                    <LuLightbulb size={16} />
+                                    <div>
+                                        <h5>수정 제안</h5>
+                                        <p>{parseError.suggestion}</p>
+                                    </div>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -7768,17 +8378,66 @@ const JsonProblemImporterWidget: React.FC = () => {
                 </div>
             </div>
 
-            <div className="panel right-panel">{/* ... 이전과 동일 ... */}
-                <div className="panel-header"><h2>표 미리보기 (클릭하여 수정)</h2><ActionButton onClick={uploadProblems} disabled={problems.length === 0 || parseError !== null || isUploading} className="primary"><LuUpload style={{ marginRight: '8px' }} />{isUploading ? "저장 중..." : "DB에 업로드"}</ActionButton></div>
-                <div className="table-wrapper"><table className="problem-table">
-                    <thead><tr>{columns.map(col => (<th key={col.key}>{col.label}{col.readonly && <span style={{fontSize: '0.7rem', marginLeft: '4px'}}>(읽기전용)</span>}</th>))}</tr></thead>
-                    <tbody>{problems.length > 0 ? (problems.map((problem, i) => (<tr key={`${problem.question_number}-${i}`}>{columns.map(col => {
-                        const currentValue = problem[col.key];
-                        const isReadonly = col.readonly || Array.isArray(currentValue);
-                        const isCombobox = COMBOBOX_FIELDS.includes(col.key) || (ANSWER_COMBOBOX_FIELDS.includes(col.key) && problem.problem_type === '객관식');
-                        return (<td key={col.key}><button type="button" id={`trigger-${i}-${col.key}`} className="cell-edit-trigger" onClick={(e) => startEdit(i, col.key, currentValue, e.currentTarget, isReadonly)} disabled={isReadonly} aria-label={`Edit ${col.label}`}><span className="cell-edit-trigger-content">{formatValue(currentValue)}</span>{isCombobox && !isReadonly && <LuChevronsUpDown className="chevron-icon" />}</button></td>);
-                    })}</tr>))) : (<tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: '2rem' }}>{jsonInput.trim() === '' ? "왼쪽 텍스트 영역에 JSON 데이터를 붙여넣으세요." : parseError ? "JSON 데이터 로딩 중 오류가 발생했습니다. 왼쪽 영역의 오류 메시지를 확인하세요." : "유효한 'problems' 배열이 없거나 데이터가 비어있습니다."}</td></tr>)}</tbody>
-                </table></div>
+            <div className="panel right-panel">
+                <div className="panel-header">
+                    <h2>표 미리보기 (클릭하여 수정)</h2>
+                    <LoadingButton
+                        onClick={uploadProblems}
+                        disabled={problems.length === 0 || parseError !== null}
+                        isLoading={isUploading}
+                        loadingText="저장 중..."
+                        className="primary"
+                    >
+                        <LuUpload style={{ marginRight: '8px' }} />
+                        DB에 업로드
+                    </LoadingButton>
+                </div>
+                <div className="table-wrapper">
+                    <table className="problem-table">
+                        <thead>
+                            <tr>
+                                {columns.map(col => (
+                                    <th key={col.key}>
+                                        {col.label}
+                                        {col.readonly && <span style={{fontSize: '0.7rem', marginLeft: '4px'}}>(읽기전용)</span>}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {problems.length > 0 ? (
+                                problems.map((problem, i) => (
+                                    <tr key={`${problem.problem_id}-${i}`}>
+                                        {columns.map(col => {
+                                            const currentValue = problem[col.key as keyof Problem];
+                                            const isReadonly = col.readonly || Array.isArray(currentValue);
+                                            const isCombobox = COMBOBOX_FIELDS.includes(col.key) || (ANSWER_COMBOBOX_FIELDS.includes(col.key) && problem.problem_type === '객관식');
+                                            return (
+                                                <td key={col.key}>
+                                                    <button type="button" id={`trigger-${i}-${col.key}`} className="cell-edit-trigger" onClick={(e) => startEdit(i, col.key as keyof Problem, currentValue, e.currentTarget, isReadonly)} disabled={isReadonly} aria-label={`Edit ${col.label}`}>
+                                                        <span className="cell-edit-trigger-content">{formatValue(currentValue)}</span>
+                                                        {isCombobox && !isReadonly && <LuChevronsUpDown className="chevron-icon" />}
+                                                    </button>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={columns.length} style={{ textAlign: 'center', padding: '2rem' }}>
+                                        {jsonInput.trim() === '' 
+                                            ? "왼쪽 텍스트 영역에 JSON 데이터를 붙여넣으세요." 
+                                            : parseError 
+                                                ? "JSON 데이터에 오류가 있습니다. 왼쪽 영역의 오류 메시지를 확인하세요." 
+                                                : "유효한 'problems' 배열이 없거나 데이터가 비어있습니다."
+                                        }
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
             
             <GlassPopover isOpen={isEditing} onClose={cancelEdit} anchorEl={popoverAnchor} placement="bottom-start" className={editingCell && columns.find(c => c.key === editingCell.colKey)?.editType === 'textarea' ? 'large' : ''}>
@@ -7807,14 +8466,132 @@ const JsonProblemImporterWidget: React.FC = () => {
     );
 };
 
-export default JsonProblemImporterWidget;
+export default JsonProblemImporterWidget
+----- ./react/widgets/ProblemSelectionContainer.tsx -----
+import React, { useMemo, useEffect, useCallback } from 'react';
+import { useProblemPublishing, useProblemSelection } from '../features/problem-publishing';
+import ProblemSelectionWidget from './ProblemSelectionWidget';
+import type { SuggestionGroup } from '../features/table-search/ui/TableSearch';
+import { useLayoutStore } from '../shared/store/layoutStore';
+import type { ProcessedProblem } from '../features/problem-publishing/model/problemPublishingStore';
+import { useUIStore } from '../shared/store/uiStore';
+
+interface ProblemSelectionContainerProps {
+    onSelectionChange: (selectedIds: Set<string>) => void;
+}
+
+const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({ onSelectionChange }) => {
+    const { allProblems, isLoadingProblems, deleteProblems, isDeletingProblems } = useProblemPublishing();
+    
+    const {
+        searchTerm, setSearchTerm, activeFilters, handleFilterChange, handleResetFilters,
+        selectedIds, clearSelection, toggleRow, handleToggleAll, isAllSelected,
+        filteredProblems,
+        startNumber, setStartNumber,
+        endNumber, setEndNumber,
+        problemTypeFilter, setProblemTypeFilter,
+        handleResetHeaderFilters,
+    } = useProblemSelection(allProblems);
+
+    useEffect(() => {
+        onSelectionChange(selectedIds);
+    }, [selectedIds, onSelectionChange]);
+
+    const { setSearchBoxProps, registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
+    const { setRightSidebarExpanded } = useUIStore.getState();
+    const [isSearchBoxVisible, setIsSearchBoxVisible] = React.useState(true);
+    const toggleSearchBox = React.useCallback(() => setIsSearchBoxVisible(prev => !prev), []);
+
+    const handleOpenJsonView = useCallback(() => {
+        setRightSidebarConfig({
+            contentConfig: {
+                type: 'jsonViewer',
+                props: { problems: filteredProblems }
+            },
+            isExtraWide: true
+        });
+        setRightSidebarExpanded(true);
+    }, [filteredProblems, setRightSidebarConfig, setRightSidebarExpanded]);
+
+    useEffect(() => {
+        registerPageActions({ openJsonViewSidebar: handleOpenJsonView });
+    }, [registerPageActions, handleOpenJsonView]);
+
+    const suggestionGroups = useMemo((): SuggestionGroup[] => {
+        const getUniqueSortedValues = (items: ProcessedProblem[], key: keyof ProcessedProblem): string[] => {
+            if (!items || items.length === 0) return [];
+            const values = items.map(item => item[key]).filter((value): value is string => value != null && String(value).trim() !== '');
+            return Array.from(new Set(values)).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+        };
+        return [
+            { key: 'source', suggestions: getUniqueSortedValues(allProblems, 'source') },
+            { key: 'grade', suggestions: getUniqueSortedValues(allProblems, 'grade') },
+            { key: 'major_chapter_id', suggestions: getUniqueSortedValues(allProblems, 'major_chapter_id') },
+        ];
+    }, [allProblems]);
+    
+    const suggestionGroupsJSON = useMemo(() => JSON.stringify(suggestionGroups), [suggestionGroups]);
+
+    useEffect(() => {
+        if (isSearchBoxVisible) {
+            setSearchBoxProps({
+                searchTerm, onSearchTermChange: setSearchTerm, activeFilters, onFilterChange: handleFilterChange,
+                onResetFilters: handleResetFilters, suggestionGroups: suggestionGroupsJSON, onToggleFiltered: handleToggleAll,
+                selectedCount: selectedIds.size, isSelectionComplete: isAllSelected, showActionControls: true, onHide: toggleSearchBox,
+            });
+        } else {
+            setSearchBoxProps(null);
+        }
+    }, [isSearchBoxVisible, searchTerm, setSearchTerm, activeFilters, handleFilterChange, handleResetFilters, suggestionGroupsJSON, handleToggleAll, selectedIds.size, isAllSelected, toggleSearchBox, setSearchBoxProps]);
+
+    const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = React.useState(false);
+    const handleDeleteSelected = () => {
+        if (selectedIds.size > 0) setIsBulkDeleteModalOpen(true);
+    };
+    const handleConfirmBulkDelete = () => {
+        deleteProblems(Array.from(selectedIds), {
+            onSuccess: () => { clearSelection(); setIsBulkDeleteModalOpen(false); },
+            onError: () => setIsBulkDeleteModalOpen(true)
+        });
+    };
+
+    return (
+        <ProblemSelectionWidget
+            problems={filteredProblems}
+            isLoading={isLoadingProblems}
+            selectedIds={selectedIds}
+            onToggleRow={toggleRow}
+            onToggleAll={handleToggleAll}
+            isAllSelected={isAllSelected}
+            onDeleteSelected={handleDeleteSelected}
+            isBulkDeleteModalOpen={isBulkDeleteModalOpen}
+            onCloseBulkDeleteModal={() => setIsBulkDeleteModalOpen(false)}
+            onConfirmBulkDelete={handleConfirmBulkDelete}
+            isDeletingProblems={isDeletingProblems}
+            startNumber={startNumber}
+            onStartNumberChange={(e) => setStartNumber(e.target.value)}
+            endNumber={endNumber}
+            onEndNumberChange={(e) => setEndNumber(e.target.value)}
+            problemTypeFilter={problemTypeFilter}
+            onProblemTypeFilterChange={setProblemTypeFilter}
+            onResetHeaderFilters={handleResetHeaderFilters} // [신규] 핸들러 전달
+        />
+    );
+};
+
+export default ProblemSelectionContainer;
 ----- ./react/widgets/ProblemSelectionWidget.tsx -----
 import React, { useMemo } from 'react';
 import type { Problem } from '../entities/problem/model/types';
 import GlassTable, { type TableColumn } from '../shared/ui/glasstable/GlassTable';
 import TableCellCheckbox from '../shared/ui/TableCellCheckbox/TableCellCheckbox';
-import ActionButton from '../shared/ui/actionbutton/ActionButton'; // [신규] ActionButton 임포트
-import { LuTrash2 } from 'react-icons/lu'; // [신규] 휴지통 아이콘 임포트
+import FilteredProblemHeader from './FilteredProblemHeader/FilteredProblemHeader';
+import { useUIStore } from '../shared/store/uiStore';
+import { PROBLEM_PUBLISHING_COLUMN_CONFIG } from '../shared/hooks/useColumnPermissions';
+import ActionButton from '../shared/ui/actionbutton/ActionButton';
+import { LuTrash2 } from 'react-icons/lu';
+import Modal from '../shared/ui/modal/Modal';
+import Badge from '../shared/ui/Badge/Badge'; // [신규] Badge 컴포넌트 임포트
 import './ProblemSelectionWidget.css';
 
 type ProcessedProblem = Problem & { display_question_number: string; uniqueId: string; };
@@ -7826,8 +8603,27 @@ interface ProblemSelectionWidgetProps {
     onToggleRow: (id: string) => void;
     onToggleAll: () => void;
     isAllSelected: boolean;
-    onDeleteSelected: () => void; // [신규] 삭제 핸들러 prop 추가
+    onDeleteSelected: () => void;
+    isBulkDeleteModalOpen: boolean;
+    onCloseBulkDeleteModal: () => void;
+    onConfirmBulkDelete: () => void;
+    isDeletingProblems: boolean;
+    startNumber: string;
+    onStartNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    endNumber: string;
+    onEndNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    problemTypeFilter: string;
+    onProblemTypeFilterChange: (value: string) => void;
+    onResetHeaderFilters: () => void;
 }
+
+const difficultyClassMap: Record<string, string> = {
+    '최상': 'difficulty-v-hard',
+    '상': 'difficulty-hard',
+    '중': 'difficulty-medium',
+    '하': 'difficulty-easy',
+    '최하': 'difficulty-v-easy',
+};
 
 const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
     problems,
@@ -7836,64 +8632,103 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
     onToggleRow,
     onToggleAll,
     isAllSelected,
-    onDeleteSelected, // [신규] prop 받기
+    onDeleteSelected,
+    isBulkDeleteModalOpen,
+    onCloseBulkDeleteModal,
+    onConfirmBulkDelete,
+    isDeletingProblems,
+    startNumber,
+    onStartNumberChange,
+    endNumber,
+    onEndNumberChange,
+    problemTypeFilter,
+    onProblemTypeFilterChange,
+    onResetHeaderFilters,
 }) => {
-    const columns = useMemo((): TableColumn<ProcessedProblem & { id: string }>[] => [
-        {
-            key: 'checkbox',
-            header: <TableCellCheckbox isChecked={isAllSelected} onToggle={onToggleAll} disabled={problems.length === 0} ariaLabel="모든 문제 선택/해제" />,
-            render: (p) => <TableCellCheckbox isChecked={selectedIds.has(p.uniqueId)} onToggle={() => onToggleRow(p.uniqueId)} ariaLabel={`${p.display_question_number}번 문제 선택`} />,
-            width: '50px',
-        },
-        { 
-            key: 'question_number', 
-            header: '번호', 
-            isSortable: true, 
-            width: '100px',
-            render: (p) => p.display_question_number 
-        },
-        { key: 'source', header: '출처', isSortable: true, width: '150px' },
-        { key: 'grade', header: '학년', isSortable: true, width: '80px' },
-        { key: 'semester', header: '학기', isSortable: true, width: '80px' },
-        { key: 'major_chapter_id', header: '대단원', isSortable: true, width: '150px' },
-        { key: 'middle_chapter_id', header: '중단원', isSortable: true, width: '150px' },
-        { key: 'core_concept_id', header: '핵심개념', isSortable: true, width: '150px' },
-        { key: 'problem_category', header: '유형', isSortable: true, width: '120px' },
-        { key: 'difficulty', header: '난이도', isSortable: true, width: '80px' },
-        { key: 'score', header: '배점', isSortable: true, width: '70px' },
-        { key: 'page', header: '페이지', isSortable: true, width: '80px' },
-        { key: 'problem_type', header: '객/주', isSortable: true, width: '80px' },
-        { 
-            key: 'question_text', 
-            header: '문제', 
-            render: (p) => <div className="problem-cell-text problem-cell-text-scrollable">{p.question_text}</div>
-        },
-        { 
-            key: 'answer', 
-            header: '정답', 
-            width: '100px',
-            render: (p) => <div className="problem-cell-text">{p.answer}</div>
-        },
-        { 
-            key: 'solution_text', 
-            header: '해설', 
-            render: (p) => <div className="problem-cell-text problem-cell-text-scrollable">{p.solution_text}</div>
-        },
-    ], [isAllSelected, onToggleAll, problems, selectedIds, onToggleRow]);
-    
-    const tableData = useMemo(() => 
+    const { columnVisibility, problemPublishingColumnOrder } = useUIStore();
+
+    const columns = useMemo((): TableColumn<ProcessedProblem & { id: string }>[] => {
+        const baseColumns: TableColumn<ProcessedProblem & { id: string }>[] = [
+            {
+                key: 'checkbox',
+                header: <TableCellCheckbox isChecked={isAllSelected} onToggle={onToggleAll} disabled={problems.length === 0} ariaLabel="모든 문제 선택/해제" />,
+                render: (p) => <TableCellCheckbox isChecked={selectedIds.has(p.uniqueId)} onToggle={() => onToggleRow(p.uniqueId)} ariaLabel={`${p.display_question_number}번 문제 선택`} />,
+                width: '50px',
+            },
+            {
+                key: 'question_number',
+                header: '번호',
+                isSortable: true,
+                width: '100px',
+                render: (p) => p.display_question_number
+            },
+        ];
+
+        const columnConfigMap = new Map(
+            PROBLEM_PUBLISHING_COLUMN_CONFIG.map(col => [col.key, col])
+        );
+
+        const dynamicColumns = problemPublishingColumnOrder
+            .map((key): TableColumn<ProcessedProblem & { id: string }> | null => {
+                const config = columnConfigMap.get(key);
+                if (!config) return null;
+
+                const isVisible = columnVisibility[key] ?? !config.defaultHidden;
+                if (!isVisible) return null;
+
+                if (config.key === 'difficulty') {
+                    return {
+                        key: config.key,
+                        header: config.label,
+                        isSortable: true,
+                        render: (p: ProcessedProblem & { id: string }) => {
+                            const difficulty = p.difficulty;
+                            const badgeClass = difficultyClassMap[difficulty] || '';
+                            return <Badge className={badgeClass}>{difficulty}</Badge>;
+                        }
+                    };
+                }
+
+                return {
+                    key: config.key,
+                    header: config.label,
+                    isSortable: true,
+                    render: (p: ProcessedProblem & { id: string }) => {
+                        const value = p[config.key as keyof Problem];
+                        if (config.key === 'question_text' || config.key === 'solution_text') {
+                            return <div className="problem-cell-text problem-cell-text-scrollable">{String(value ?? '')}</div>
+                        }
+                        return <div className="problem-cell-text">{String(value ?? '')}</div>
+                    }
+                };
+            })
+            .filter((col): col is TableColumn<ProcessedProblem & { id: string }> => col !== null);
+
+        return [...baseColumns, ...dynamicColumns];
+
+    }, [isAllSelected, onToggleAll, problems.length, selectedIds, onToggleRow, columnVisibility, problemPublishingColumnOrder]);
+
+    const tableData = useMemo(() =>
         problems.map(p => ({
-            ...p, 
-            id: p.uniqueId 
-        })), 
+            ...p,
+            id: p.uniqueId
+        })),
         [problems]
     );
-    
+
     return (
         <div className="problem-selection-widget">
-            <div className="selection-header">
-                <span className="selection-header-title">문제 선택 ({selectedIds.size} / {problems.length})</span>
-                {/* [신규] 영구 삭제 버튼 */}
+            <FilteredProblemHeader 
+                problems={problems} 
+                selectedCount={selectedIds.size}
+                startNumber={startNumber}
+                onStartNumberChange={onStartNumberChange}
+                endNumber={endNumber}
+                onEndNumberChange={onEndNumberChange}
+                problemTypeFilter={problemTypeFilter}
+                onProblemTypeFilterChange={onProblemTypeFilterChange}
+                onResetHeaderFilters={onResetHeaderFilters}
+            >
                 <ActionButton
                     className="destructive"
                     onClick={onDeleteSelected}
@@ -7903,7 +8738,7 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
                     <LuTrash2 size={14} />
                     <span className="delete-button-text">선택 항목 삭제</span>
                 </ActionButton>
-            </div>
+            </FilteredProblemHeader>
             <div className="selection-table-container">
                 <GlassTable<ProcessedProblem & { id: string }>
                     columns={columns}
@@ -7912,6 +8747,21 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
                     emptyMessage="표시할 문제가 없습니다."
                 />
             </div>
+            <Modal
+                isOpen={isBulkDeleteModalOpen}
+                onClose={onCloseBulkDeleteModal}
+                onConfirm={onConfirmBulkDelete}
+                isConfirming={isDeletingProblems}
+                title="선택한 문제 영구 삭제"
+                confirmText={`삭제 (${selectedIds.size}개)`}
+                size="small"
+            >
+                <p>
+                    선택한 <strong>{selectedIds.size}개</strong>의 문제를 영구적으로 삭제하시겠습니까?
+                    <br />
+                    이 작업은 되돌릴 수 없습니다.
+                </p>
+            </Modal>
         </div>
     );
 };
@@ -7919,6 +8769,7 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
 export default ProblemSelectionWidget;
 ----- ./react/widgets/PublishingToolbarWidget.tsx -----
 import React, { useRef, useCallback, useEffect, useState } from 'react';
+import LoadingButton from '../shared/ui/loadingbutton/LoadingButton';
 import ActionButton from '../shared/ui/actionbutton/ActionButton';
 import { LuFileDown } from 'react-icons/lu';
 import { useExamLayoutStore } from '../features/problem-publishing/model/examLayoutStore';
@@ -7932,6 +8783,8 @@ interface PublishingToolbarWidgetProps {
     contentFontSizeEm: number;
     onContentFontSizeEmChange: (value: number) => void;
     onDownloadPdf: () => void;
+    isGeneratingPdf: boolean;
+    pdfProgressMessage: string; // [추가] 진행 메시지 prop
     previewAreaRef: React.RefObject<HTMLDivElement | null>;
     problemBoxMinHeight: number;
     setProblemBoxMinHeight: (height: number) => void;
@@ -7943,6 +8796,8 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         baseFontSize, onBaseFontSizeChange,
         contentFontSizeEm, onContentFontSizeEmChange,
         onDownloadPdf,
+        isGeneratingPdf,
+        pdfProgressMessage, // [추가]
         previewAreaRef,
         problemBoxMinHeight,
         setProblemBoxMinHeight
@@ -8018,7 +8873,7 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
 
     const handleMinHeightInputBlur = () => {
         const clampedHeight = Math.max(5, Math.min(displayHeight, 150));
-        setDisplayHeight(clampedHeight); // UI 동기화
+        setDisplayHeight(clampedHeight);
         setProblemBoxMinHeight(clampedHeight);
         forceRecalculateLayout(clampedHeight);
         setIsEditingMinHeight(false);
@@ -8045,10 +8900,15 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
     return (
         <div className="publishing-controls-panel">
             <div className="control-group">
-                <ActionButton className="primary" onClick={onDownloadPdf}>
+                <LoadingButton 
+                    className="primary" 
+                    onClick={onDownloadPdf}
+                    isLoading={isGeneratingPdf}
+                    loadingText={pdfProgressMessage || "생성 중..."}
+                >
                     <LuFileDown size={14} className="toolbar-icon"/>
                     PDF로 다운로드
-                </ActionButton>
+                </LoadingButton>
                 <ActionButton onClick={onToggleSequentialNumbering}>
                     번호: {useSequentialNumbering ? '순차' : '원본'}
                 </ActionButton>
@@ -8444,7 +9304,7 @@ import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch } from 'react-icons/lu';
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2 } from 'react-icons/lu'; // [추가] LuFileJson2
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
@@ -8452,6 +9312,7 @@ import PromptCollection from '../../features/prompt-collection/ui/PromptCollecti
 import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
 import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel';
+import JsonViewerPanel from '../../features/json-viewer/ui/JsonViewerPanel'; // [추가]
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -8460,6 +9321,7 @@ const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
 const LatexHelpIcon = () => <LuBookMarked size={20} />;
 const SearchIcon = () => <LuSearch size={20} />;
+const JsonViewIcon = () => <LuFileJson2 size={20} />; // [추가]
 
 interface ProblemEditorWrapperProps {
     isSaving?: boolean;
@@ -8516,6 +9378,9 @@ const SidebarContentRenderer: React.FC = () => {
 
         case 'settings': {
              const currentPath = window.location.pathname;
+             if (currentPath.startsWith('/problem-publishing')) {
+                 return <TableColumnToggler />;
+             }
              if (currentPath.startsWith('/dashboard')) {
                  return <TableColumnToggler />;
              }
@@ -8532,6 +9397,12 @@ const SidebarContentRenderer: React.FC = () => {
         
         case 'latexHelp':
             return <LatexHelpPanel />;
+            
+        case 'jsonViewer': {
+            const { problems } = contentConfig.props || {};
+            if (!problems) return <div>JSON으로 변환할 데이터가 없습니다.</div>;
+            return <JsonViewerPanel problems={problems} />;
+        }
 
         default:
             return (
@@ -8545,7 +9416,7 @@ const SidebarContentRenderer: React.FC = () => {
 
 const GlassSidebarRight: React.FC = () => {
     const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, onClose } = useSidebarTriggers();
+    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, jsonViewTrigger, onClose } = useSidebarTriggers(); // [수정] jsonViewTrigger 추가
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
     const isRightSidebarExpanded = contentConfig.type !== null;
@@ -8588,6 +9459,19 @@ const GlassSidebarRight: React.FC = () => {
                                         aria-label={searchTrigger.tooltip}
                                     >
                                         <SearchIcon />
+                                    </button>
+                                </Tippy>
+                            )}
+
+                             {/* [추가] JSON 뷰어 버튼 */}
+                            {jsonViewTrigger && (
+                                <Tippy content={jsonViewTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                                    <button
+                                        onClick={jsonViewTrigger.onClick}
+                                        className="settings-toggle-button"
+                                        aria-label={jsonViewTrigger.tooltip}
+                                    >
+                                        <JsonViewIcon />
                                     </button>
                                 </Tippy>
                             )}
@@ -8653,20 +9537,25 @@ const GlassSidebarRight: React.FC = () => {
 
 export default GlassSidebarRight;
 ----- ./react/widgets/rootlayout/RootLayout.tsx -----
+
 import { useMemo, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectSearchBoxProps, selectRightSidebarConfig, StoredSearchProps } from '../../shared/store/layoutStore';
-import BackgroundBlobs from '../rootlayout/BackgroundBlobs';
-import GlassNavbar from '../rootlayout/GlassNavbar';
-import GlassSidebar from '../rootlayout/GlassSidebar';
-import GlassSidebarRight from '../rootlayout/GlassSidebarRight';
+import { useLayoutStore } from '../../shared/store/layoutStore';
+import BackgroundBlobs from './BackgroundBlobs';
+import GlassNavbar from './GlassNavbar';
+import GlassSidebar from './GlassSidebar';
+import GlassSidebarRight from './GlassSidebarRight';
 import TableSearch from '../../features/table-search/ui/TableSearch';
 import './RootLayout.css';
 
 const RootLayout = () => {
     const location = useLocation();
-    const updateLayoutForPath = useLayoutStore(state => state.updateLayoutForPath);
+    const { 
+      updateLayoutForPath, 
+      searchBoxProps,
+      rightSidebar: { contentConfig, isExtraWide: isRightSidebarExtraWide }
+    } = useLayoutStore();
     
     useEffect(() => {
         updateLayoutForPath(location.pathname);
@@ -8679,46 +9568,35 @@ const RootLayout = () => {
         isLeftSidebarExpanded, 
     } = useUIStore();
     
-    const { contentConfig, isExtraWide: isRightSidebarExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const searchBoxProps = useLayoutStore(selectSearchBoxProps);
-    
     const [isSearchBoxVisible, setIsSearchBoxVisible] = useState(false);
-    const [searchPropsForRender, setSearchPropsForRender] = useState<StoredSearchProps | null>(null);
 
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout>;
         if (searchBoxProps) {
-            setSearchPropsForRender(searchBoxProps);
             timer = setTimeout(() => {
                 setIsSearchBoxVisible(true);
-            }, 20); // 20ms 정도의 짧은 지연
+            }, 20);
         } else {
             setIsSearchBoxVisible(false);
         }
         
-        return () => clearTimeout(timer); // 클린업
+        return () => clearTimeout(timer);
     }, [searchBoxProps]);
     
-    const handleTransitionEnd = () => {
-        if (!isSearchBoxVisible) {
-            setSearchPropsForRender(null);
-        }
-    };
-
     const isRightSidebarExpanded = contentConfig.type !== null;
 
     const parsedSuggestionGroups = useMemo(() => {
-        if (searchPropsForRender?.suggestionGroups) {
+        if (searchBoxProps?.suggestionGroups) {
             try {
-                return JSON.parse(searchPropsForRender.suggestionGroups);
+                return JSON.parse(searchBoxProps.suggestionGroups);
             } catch (e) {
                 console.error("Failed to parse suggestionGroups JSON", e);
                 return [];
             }
         }
         return [];
-    }, [searchPropsForRender?.suggestionGroups]);
-
+    }, [searchBoxProps?.suggestionGroups]);
+    
     const showOverlay = currentBreakpoint === 'mobile' && mobileSidebarType !== null;
     
     const sidebarStateClass = `
@@ -8755,17 +9633,14 @@ const RootLayout = () => {
                     {currentBreakpoint !== 'mobile' && <GlassSidebarRight />}
                 </div>
 
-                {searchPropsForRender && (
-                    <div 
-                        className={bottomContentAreaClasses}
-                        onTransitionEnd={handleTransitionEnd}
-                    >
+                <div className={bottomContentAreaClasses}>
+                    {searchBoxProps && (
                         <TableSearch
-                            {...searchPropsForRender}
+                            {...searchBoxProps}
                             suggestionGroups={parsedSuggestionGroups}
                         />
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );

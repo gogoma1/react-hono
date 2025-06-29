@@ -18,7 +18,7 @@ interface PromptMemoProps {
     onDelete: (id: string) => void;
     onReset: (id: string) => void;
     onToggleExpand: (id: string) => void;
-    workbenchContent?: string; // [추가] prop 받기
+    workbenchContent?: string; // prop 받기
 }
 
 const PromptMemo: React.FC<PromptMemoProps> = ({
@@ -26,7 +26,7 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
     onStartEditing, onSave, onCancel, onDelete, onReset, onToggleExpand, workbenchContent
 }) => {
     const [isCopied, setIsCopied] = useState(false);
-    const [isCombinedCopied, setIsCombinedCopied] = useState(false); // [추가] 새 버튼을 위한 상태
+    const [isCombinedCopied, setIsCombinedCopied] = useState(false); // 새 버튼을 위한 상태
 
     const handleCopy = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -39,7 +39,6 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
         });
     };
 
-    // [추가] 새로운 결합 복사 핸들러
     const handleCombinedCopy = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!workbenchContent) {
@@ -102,7 +101,15 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
                 <div className="button-group">
                     <Tippy content={isCopied ? "복사 완료!" : "프롬프트 복사"} theme="custom-glass"><button onClick={handleCopy} className="prompt-action-button copy">{isCopied ? <LuCopyCheck size={16} /> : <LuCopy size={16} />}</button></Tippy>
                     
-                    {/* [추가] '문제 개별화 작업' 프롬프트에만 특별 버튼 표시 */}
+                    {/* [수정] '해설 작업'과 '문제 개별화 작업'에 대한 조건부 버튼 렌더링 */}
+                    {prompt.id === 'default-2' && workbenchContent && (
+                        <Tippy content={isCombinedCopied ? "복사 완료!" : "해설 프롬프트와 JSON을 함께 복사"} theme="custom-glass">
+                            <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
+                                {isCombinedCopied ? <LuCopyCheck size={16} /> : <LuLayers size={16} />}
+                            </button>
+                        </Tippy>
+                    )}
+                    
                     {prompt.id === 'default-3' && workbenchContent && (
                         <Tippy content={isCombinedCopied ? "복사 완료!" : "작업할 문제와 프롬프트를 한 번에 복사"} theme="custom-glass">
                             <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">

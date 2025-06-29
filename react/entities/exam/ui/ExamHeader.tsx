@@ -5,7 +5,6 @@ import ExamHeaderEditPopover from '../../../features/exam-header-editing/ui/Exam
 
 type EditableTarget = 'title' | 'school' | 'subject' | 'simplifiedGrade' | 'simplifiedSubject';
 
-// [수정] onUpdate 함수의 value 타입을 구체적으로 정의
 type ExamUpdateValue = {
     text: string;
     fontSize?: number;
@@ -53,7 +52,7 @@ const EditableArea: React.FC<EditableAreaProps> = ({
 
 interface ExamHeaderProps {
     page: number;
-    totalPages?: number; // [수정] 누락된 prop 추가
+    totalPages?: number;
     title: string;
     titleFontSize: number;
     titleFontFamily: string;
@@ -68,16 +67,17 @@ interface ExamHeaderProps {
     simplifiedSubjectFontSize: number;
     simplifiedSubjectFontFamily: string;
     simplifiedGradeText: string;
-    onUpdate: (targetId: EditableTarget, field: string, value: ExamUpdateValue) => void; // [수정] 타입 구체화
+    onUpdate: (targetId: EditableTarget, field: string, value: ExamUpdateValue) => void;
 }
 
 
 const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
+    // [수정] prop을 initial... 변수로 재할당하지 않고 직접 사용하도록 변경
     const { 
         page, 
-        title: initialTitle, titleFontSize: initialTitleFontSize, titleFontFamily: initialTitleFontFamily,
-        school: initialSchool, schoolFontSize: initialSchoolFontSize, schoolFontFamily: initialSchoolFontFamily,
-        subject: initialSubject, subjectFontSize: initialSubjectFontSize, subjectFontFamily: initialSubjectFontFamily,
+        title, titleFontSize, titleFontFamily,
+        school, schoolFontSize, schoolFontFamily,
+        subject, subjectFontSize, subjectFontFamily,
         additionalBoxContent, 
         simplifiedSubjectText, simplifiedSubjectFontSize, simplifiedSubjectFontFamily,
         simplifiedGradeText, 
@@ -100,10 +100,11 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
         setEditingTarget(target);
         setPopoverAnchor(e.currentTarget);
 
+        // [수정] initial... 변수 대신 직접 받은 prop 값을 사용
         switch (target) {
-            case 'title': setEditingText(initialTitle); setEditingFontSize(initialTitleFontSize); break;
-            case 'school': setEditingText(initialSchool); setEditingFontSize(initialSchoolFontSize); break;
-            case 'subject': setEditingText(initialSubject); setEditingFontSize(initialSubjectFontSize); break;
+            case 'title': setEditingText(title); setEditingFontSize(titleFontSize); break;
+            case 'school': setEditingText(school); setEditingFontSize(schoolFontSize); break;
+            case 'subject': setEditingText(subject); setEditingFontSize(subjectFontSize); break;
             case 'simplifiedGrade': setEditingText(simplifiedGradeText); break;
             case 'simplifiedSubject': setEditingText(simplifiedSubjectText); setEditingFontSize(simplifiedSubjectFontSize); break;
         }
@@ -119,15 +120,15 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
     const handleSaveEdit = () => {
         if (!editingTarget) return;
         
-        // [수정] value 타입을 ExamUpdateValue에 맞게 생성
         const value: ExamUpdateValue = { text: editingText };
         if (editingTarget !== 'simplifiedGrade') {
             value.fontSize = editingFontSize;
         }
         
-        if (editingTarget === 'title') value.fontFamily = initialTitleFontFamily;
-        if (editingTarget === 'school') value.fontFamily = initialSchoolFontFamily;
-        if (editingTarget === 'subject') value.fontFamily = initialSubjectFontFamily;
+        // [수정] initial... 변수 대신 직접 받은 prop 값을 사용
+        if (editingTarget === 'title') value.fontFamily = titleFontFamily;
+        if (editingTarget === 'school') value.fontFamily = schoolFontFamily;
+        if (editingTarget === 'subject') value.fontFamily = subjectFontFamily;
         if (editingTarget === 'simplifiedSubject') value.fontFamily = simplifiedSubjectFontFamily;
 
         onUpdate(editingTarget, editingTarget, value);
@@ -162,6 +163,7 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                             label={getTargetLabel('simplifiedGrade')}
                         >
                              <span className="simplified-grade-text">
+                                {/* [수정] initial... 변수 대신 직접 받은 prop 값을 사용 */}
                                 {simplifiedGradeText}
                             </span>
                         </EditableArea>
@@ -178,7 +180,8 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                            <span 
                                 className="simplified-subject-text"
                                 style={{
-                                    '--font-size-em': simplifiedSubjectFontSize,
+                                    // [수정] initial... 변수 대신 직접 받은 prop 값을 사용
+                                    '--font-size-em': `${simplifiedSubjectFontSize}em`,
                                     '--font-family': simplifiedSubjectFontFamily,
                                 } as React.CSSProperties}
                             >
@@ -224,11 +227,12 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                         <span 
                             className="exam-header-title"
                             style={{
-                                '--font-size-em': initialTitleFontSize,
-                                '--font-family': initialTitleFontFamily,
+                                // [수정] initial... 변수 대신 직접 받은 prop 값을 사용
+                                '--font-size-em': `${titleFontSize}em`,
+                                '--font-family': titleFontFamily,
                             } as React.CSSProperties}
                         >
-                            {initialTitle}
+                            {title}
                         </span>
                     </EditableArea>
                     <div className="exam-header-page-number">{page}</div>
@@ -246,11 +250,12 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                         <span
                             className="exam-header-school-text"
                             style={{
-                                '--font-size-em': initialSchoolFontSize,
-                                '--font-family': initialSchoolFontFamily,
+                                // [수정] initial... 변수 대신 직접 받은 prop 값을 사용
+                                '--font-size-em': `${schoolFontSize}em`,
+                                '--font-family': schoolFontFamily,
                             } as React.CSSProperties}
                         >
-                           {initialSchool}
+                           {school}
                         </span>
                     </EditableArea>
                     <div className="exam-header-subject-wrapper">
@@ -266,11 +271,12 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                             <span 
                                 className="exam-header-subject-text"
                                 style={{
-                                    '--font-size-em': initialSubjectFontSize,
-                                    '--font-family': initialSubjectFontFamily,
+                                    // [수정] initial... 변수 대신 직접 받은 prop 값을 사용
+                                    '--font-size-em': `${subjectFontSize}em`,
+                                    '--font-family': subjectFontFamily,
                                 } as React.CSSProperties}
                             >
-                                {initialSubject}
+                                {subject}
                             </span>
                         </EditableArea>
                         <div className="exam-header-additional-box">{additionalBoxContent}</div>

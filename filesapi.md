@@ -252,7 +252,7 @@ export default app;
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm'; // [수정] 'sql' 제거
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
@@ -276,8 +276,6 @@ const problemSchema = z.object({
   problem_category: z.string(),
   difficulty: z.string(),
   score: z.string(),
-  concept_keywords: z.array(z.string()).optional(), 
-  calculation_keywords: z.array(z.string()).optional(),
 });
 
 const uploadProblemsBodySchema = z.object({
@@ -301,8 +299,8 @@ problemRoutes.get('/', async (c) => {
         return c.json({ error: '인증이 필요합니다.' }, 401);
     }
     
-    const sql = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sql, { schema });
+    const sqlClient = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sqlClient, { schema });
 
     try {
         const problemsData = await db.query.problemTable.findMany({
@@ -317,9 +315,9 @@ problemRoutes.get('/', async (c) => {
 
         const transformedProblems = problemsData.map(p => ({
             ...p,
-            major_chapter_id: p.majorChapter?.name ?? 'N/A',
-            middle_chapter_id: p.middleChapter?.name ?? 'N/A',
-            core_concept_id: p.coreConcept?.name ?? 'N/A',
+            major_chapter_id: p.majorChapter?.name ?? p.major_chapter_id,
+            middle_chapter_id: p.middleChapter?.name ?? p.middle_chapter_id,
+            core_concept_id: p.coreConcept?.name ?? p.core_concept_id,
         }));
 
         return c.json(transformedProblems, 200);
@@ -328,37 +326,39 @@ problemRoutes.get('/', async (c) => {
         console.error('Failed to fetch problems:', error.message);
         return c.json({ error: '데이터베이스 조회에 실패했습니다.', details: error.message }, 500);
     } finally {
-        c.executionCtx.waitUntil(sql.end());
+        c.executionCtx.waitUntil(sqlClient.end());
     }
 });
+
 problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), async (c) => {
     const user = c.get('user')!;
     const { problems } = c.req.valid('json') as UploadProblemsInput;
 
-    const sql = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sql, { schema });
+    const sqlClient = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sqlClient, { schema });
 
     try {
-        const result = await db.transaction(async (tx) => {
-            let insertedCount = 0;
+        let createdCount = 0;
+        let updatedCount = 0;
 
+        await db.transaction(async (tx) => {
             for (const problem of problems) {
                 const [majorChapter] = await tx.insert(schema.majorChaptersTable)
                     .values({ name: problem.major_chapter_id })
                     .onConflictDoUpdate({ target: schema.majorChaptersTable.name, set: { name: problem.major_chapter_id } })
                     .returning();
-
+                
                 const [middleChapter] = await tx.insert(schema.middleChaptersTable)
                     .values({ name: problem.middle_chapter_id, major_chapter_id: majorChapter.id })
-                    .onConflictDoNothing() 
+                    .onConflictDoNothing()
                     .returning();
-
+                
                 const [coreConcept] = await tx.insert(schema.coreConceptsTable)
                     .values({ name: problem.core_concept_id })
                     .onConflictDoUpdate({ target: schema.coreConceptsTable.name, set: { name: problem.core_concept_id } })
                     .returning();
-                
-                const [insertedProblem] = await tx.insert(schema.problemTable).values({
+
+                const problemData = {
                     question_number: problem.question_number,
                     question_text: problem.question_text,
                     answer: problem.answer,
@@ -375,47 +375,46 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
                     major_chapter_id: majorChapter?.id,
                     middle_chapter_id: middleChapter?.id,
                     core_concept_id: coreConcept?.id,
-                }).returning({ id: schema.problemTable.problem_id });
-                
-                insertedCount++;
+                    updated_at: new Date(),
+                };
 
-                const allKeywords = [
-                    ...(problem.concept_keywords?.map(kw => ({ name: kw, type: 'concept' })) || []),
-                    ...(problem.calculation_keywords?.map(kw => ({ name: kw, type: 'calculation' })) || []),
-                ];
+                if (problem.problem_id) {
+                    const updatedResult = await tx.update(schema.problemTable)
+                        .set(problemData)
+                        .where(and(
+                            eq(schema.problemTable.problem_id, problem.problem_id),
+                            eq(schema.problemTable.creator_id, user.id)
+                        ))
+                        .returning({ id: schema.problemTable.problem_id }); // [수정] .returning() 사용
 
-                for (const keyword of allKeywords) {
-                    const [tag] = await tx.insert(schema.tagTable)
-                        .values({ name: keyword.name, tag_type: keyword.type })
-                        .onConflictDoUpdate({ target: schema.tagTable.name, set: { name: keyword.name } })
-                        .returning();
-
-                    if (insertedProblem && tag) {
-                        await tx.insert(schema.problemTagTable)
-                           .values({ problem_id: insertedProblem.id, tag_id: tag.tag_id })
-                           .onConflictDoNothing();
+                    if (updatedResult.length > 0) { // [수정] 반환된 배열의 길이로 확인
+                        updatedCount++;
                     }
+                } else {
+                    await tx.insert(schema.problemTable).values(problemData);
+                    createdCount++;
                 }
             }
-            return { count: insertedCount };
         });
 
-        return c.json({ success: true, count: result.count }, 201);
+        return c.json({ success: true, created: createdCount, updated: updatedCount }, 200);
 
     } catch (error: any) {
-        console.error('Failed to upload problems:', error.message);
-        return c.json({ error: 'Database query failed', details: error.message }, 500);
+        console.error('Failed to upload/update problems:', error.message);
+        return c.json({ error: '데이터베이스 작업에 실패했습니다.', details: error.message }, 500);
     } finally {
-        c.executionCtx.waitUntil(sql.end());
+        c.executionCtx.waitUntil(sqlClient.end());
     }
 });
+
+
 problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) => {
     const user = c.get('user')!;
     const problemId = c.req.param('id');
     const problemData = c.req.valid('json') as UpdateProblemInput;
 
-    const sql = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sql, { schema });
+    const sqlClient = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sqlClient, { schema });
 
     try {
         const [updatedProblem] = await db.transaction(async (tx) => {
@@ -469,7 +468,7 @@ problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c)
         console.error(`Failed to update problem ${problemId}:`, error.message);
         return c.json({ error: '데이터베이스 업데이트에 실패했습니다.', details: error.message }, 500);
     } finally {
-        c.executionCtx.waitUntil(sql.end());
+        c.executionCtx.waitUntil(sqlClient.end());
     }
 });
 
@@ -480,8 +479,8 @@ problemRoutes.delete('/', zValidator('json', deleteProblemsBodySchema), async (c
     }
 
     const { problem_ids } = c.req.valid('json');
-    const sql = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sql, { schema });
+    const sqlClient = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sqlClient, { schema });
 
     try {
         const deletedProblems = await db.delete(schema.problemTable)
@@ -504,7 +503,7 @@ problemRoutes.delete('/', zValidator('json', deleteProblemsBodySchema), async (c
         console.error(`Failed to delete problems:`, error.message);
         return c.json({ error: '데이터베이스 삭제 작업에 실패했습니다.', details: error.message }, 500);
     } finally {
-        c.executionCtx.waitUntil(sql.end());
+        c.executionCtx.waitUntil(sqlClient.end());
     }
 });
 

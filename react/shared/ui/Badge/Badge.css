@@ -10,7 +10,7 @@
     white-space: nowrap;
 }
 
-/* 특정 상태에 따른 색상 스타일 */
+/* 상태(재원/휴원 등) 관련 색상 */
 .badge.status-enroll, .badge.status-재원 {
     background-color: #28a745;
     color: white;
@@ -33,4 +33,31 @@
 .badge.status-default {
     background-color: #adb5bd;
     color: white;
+}
+
+/* 난이도별 색상 스타일 */
+.badge.difficulty-v-easy {
+    background-color: #A8E4A0; /* 중간 초록 */
+    color: #004d00; /* 짙은 초록 */
+    font-weight: 600;
+}
+.badge.difficulty-easy {
+    background-color: #8FDBA3; /* 약간 어두운 초록 */
+    color: #004d00; /* 짙은 초록 */
+    font-weight: 600;
+}
+.badge.difficulty-medium {
+    background-color: #F5E1A4; /* 따뜻한 크림 노랑 */
+    color: #6b3e00; /* 짙은 갈색 */
+    font-weight: 600;
+}
+.badge.difficulty-hard {
+    background-color: #E4A8A8; /* 중간 분홍 */
+    color: #7a1f1f; /* 짙은 빨강 */
+    font-weight: 600;
+}
+.badge.difficulty-v-hard {
+    background-color: #D88C8C; /* 어두운 파스텔 빨강 */
+    color: #7a1f1f; /* 짙은 빨강 */
+    font-weight: 600;
 }

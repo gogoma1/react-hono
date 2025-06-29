@@ -14,7 +14,7 @@
     border: 2px solid black;
     background-color: white;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    font-size: var(--base-font-size, 12px); /* [수정] CSS 변수 사용 */
+    font-size: var(--base-font-size, 12px);
 }
 
 .exam-paper {
@@ -34,9 +34,22 @@
 
 /* --- 공통 및 1페이지 헤더 --- */
 .exam-header-container, .exam-header-simplified-container { flex-shrink: 0; }
-.exam-header-title-section { position: relative; margin-bottom: 1.8em; display: flex; align-items: center; justify-content: center; }
+.exam-header-title-section { 
+    position: relative; 
+    margin-bottom: 1.8em; 
+    display: flex; 
+    align-items: center; /* [수정] 세로 중앙 정렬 추가 */
+    justify-content: center; 
+    height: 5em; /* [수정] 헤더 섹션 높이 고정 */
+}
 .exam-header-page-number { position: absolute; right: 0; top: 50%; transform: translateY(-50%); padding: 0.45em 0.9em; font-size: 3em; font-weight: 700; }
-.exam-header-info-section { margin-bottom: 1.4em; display: flex; align-items: center; gap: 1.4em; }
+.exam-header-info-section { 
+    margin-bottom: 1.4em; 
+    display: flex; 
+    align-items: center; 
+    gap: 1.4em; 
+    height: 4em; /* [수정] 헤더 섹션 높이 고정 */
+}
 .exam-header-subject-wrapper { display: flex; flex-grow: 1; align-items: center; gap: 1.4em; }
 .exam-header-subject-wrapper-inner { flex-grow: 1; }
 .exam-header-additional-box { box-sizing: border-box; display: flex; min-height: 3.6em; width: 11em; flex-shrink: 0; align-items: center; justify-content: center; border: 0.1em solid transparent; padding: 0.4em; text-align: center; font-size: 1em; }
@@ -44,13 +57,33 @@
 .exam-header-divider { height: 0.1em; min-height: 1px; width: 100%; background-color: black; }
 
 /* --- 2페이지 이상 헤더 --- */
-.exam-header-simplified-container { margin-bottom: 1.4em; display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 0.1em solid black; padding-bottom: 0.5em; padding-top: 0.25em; font-size: 1em; }
+.exam-header-simplified-container { 
+    margin-bottom: 1.4em; 
+    display: flex; 
+    align-items: flex-end; 
+    justify-content: space-between; 
+    border-bottom: 0.1em solid black; 
+    padding-bottom: 0.5em; 
+    padding-top: 0.25em; 
+    font-size: 1em; 
+    height: 4.5em; /* [수정] 헤더 섹션 높이 고정 */
+}
 .simplified-item-wrapper { display: flex; width: 6rem; flex-shrink: 0; align-items: flex-end; justify-content: center; }
 .simplified-subject-wrapper { order: 2; margin-bottom: 0.25em; display: flex; flex-grow: 1; align-items: flex-end; justify-content: center; padding: 0 1rem; text-align: center; }
 .simplified-page-number { display: inline-block; padding: 0em 0.9em; font-size: 3em; font-weight: 700; line-height: 1.2em; }
 .order-1 { order: 1; }
 .order-2 { order: 2; }
 .order-3 { order: 3; }
+
+/* 헤더 텍스트 스타일링 규칙 */
+.exam-header-title,
+.exam-header-school-text,
+.exam-header-subject-text,
+.simplified-subject-text {
+    font-size: var(--font-size-em);
+    font-family: var(--font-family);
+}
+
 
 /* ==========================================================================
    3. 헤더 수정 기능 관련 스타일 (EditableArea)
@@ -182,7 +215,6 @@
     overflow: hidden; 
     line-height: 1.75; 
     min-height: var(--problem-box-min-height-em, 31em);
-    /* [수정] CSS 변수 사용 */
     font-size: var(--content-font-size-em, 1em);
     font-family: var(--content-font-family, sans-serif);
 }
@@ -238,9 +270,8 @@
     font-size: 2.2em;
     font-weight: 700;
     margin: 0;
-    font-family: var(--title-font-family, sans-serif); /* [수정] CSS 변수 사용 */
+    font-family: var(--title-font-family, sans-serif);
 }
-/* [추가] 빠른 정답 페이지 번호 스타일 */
 .quick-answer-page-number {
     font-family: 'Noto Serif KR', serif;
 }
@@ -311,7 +342,22 @@
     flex-grow: 1;
     overflow: hidden;
     line-height: 1.75;
-    /* [수정] CSS 변수 사용 */
     font-size: var(--content-font-size-em, 1em);
     font-family: var(--content-font-family, sans-serif);
+}
+
+/* --- [추가] PDF 생성을 위한 스타일 --- */
+.pdf-generating .editable-trigger-button .edit-icon-overlay,
+.pdf-generating .problem-deselect-button,
+.pdf-generating .measured-height,
+.pdf-generating .global-index {
+    display: none !important;
+}
+
+.pdf-generating .text-trigger {
+    border-color: transparent !important;
+}
+
+.pdf-generating .problem-container {
+    border: none !important;
 }

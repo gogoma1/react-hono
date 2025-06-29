@@ -3,7 +3,6 @@ import { uploadProblemsAPI, updateProblemAPI, deleteProblemsAPI } from '../api/p
 import type { Problem } from './types';
 import { PROBLEMS_QUERY_KEY } from './useProblemsQuery';
 
-// [수정] uploadProblemsAPI의 반환 타입을 명시적으로 가져옴
 import type { UploadResponse } from '../api/problemApi';
 
 interface UpdateProblemVariables {
@@ -29,8 +28,7 @@ export function useUpdateProblemMutation() {
 }
 
 /**
- * [수정] 단일/다중 문제 영구 삭제를 위한 React Query Mutation
- * (기존 useDeleteProblemMutation을 이 훅으로 통합)
+ * 단일/다중 문제 영구 삭제를 위한 React Query Mutation
  */
 export function useDeleteProblemsMutation() {
     const queryClient = useQueryClient();
@@ -50,14 +48,24 @@ export function useDeleteProblemsMutation() {
 }
 
 /**
- * 문제 업로드를 위한 React Query Mutation
+ * 문제 업로드(생성/수정)를 위한 React Query Mutation
  */
 export function useUploadProblemsMutation() {
-    // [수정] 제네릭의 unknown을 UploadResponse로 변경
+    const queryClient = useQueryClient();
     return useMutation<UploadResponse, Error, Problem[]>({
         mutationFn: (problems) => uploadProblemsAPI(problems),
-        onSuccess: () => {
-            alert('문제가 성공적으로 업로드되었습니다.');
+        // [수정] 성공 시 더 상세한 메시지 표시 및 데이터 갱신
+        onSuccess: (data) => {
+            let message = "작업이 완료되었습니다.";
+            if (data.created > 0 && data.updated > 0) {
+                message = `${data.created}개의 문제가 생성되었고, ${data.updated}개의 문제가 업데이트되었습니다.`;
+            } else if (data.created > 0) {
+                message = `${data.created}개의 문제가 성공적으로 생성되었습니다.`;
+            } else if (data.updated > 0) {
+                message = `${data.updated}개의 문제가 성공적으로 업데이트되었습니다.`;
+            }
+            alert(message);
+            queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
         },
         onError: (error) => {
             alert(`문제 업로드 실패: ${error.message}`);

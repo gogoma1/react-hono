@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
+import LoadingButton from '../shared/ui/loadingbutton/LoadingButton';
 import ActionButton from '../shared/ui/actionbutton/ActionButton';
 import { LuFileDown } from 'react-icons/lu';
 import { useExamLayoutStore } from '../features/problem-publishing/model/examLayoutStore';
@@ -12,6 +13,8 @@ interface PublishingToolbarWidgetProps {
     contentFontSizeEm: number;
     onContentFontSizeEmChange: (value: number) => void;
     onDownloadPdf: () => void;
+    isGeneratingPdf: boolean;
+    pdfProgressMessage: string; // [추가] 진행 메시지 prop
     previewAreaRef: React.RefObject<HTMLDivElement | null>;
     problemBoxMinHeight: number;
     setProblemBoxMinHeight: (height: number) => void;
@@ -23,6 +26,8 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         baseFontSize, onBaseFontSizeChange,
         contentFontSizeEm, onContentFontSizeEmChange,
         onDownloadPdf,
+        isGeneratingPdf,
+        pdfProgressMessage, // [추가]
         previewAreaRef,
         problemBoxMinHeight,
         setProblemBoxMinHeight
@@ -98,7 +103,7 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
 
     const handleMinHeightInputBlur = () => {
         const clampedHeight = Math.max(5, Math.min(displayHeight, 150));
-        setDisplayHeight(clampedHeight); // UI 동기화
+        setDisplayHeight(clampedHeight);
         setProblemBoxMinHeight(clampedHeight);
         forceRecalculateLayout(clampedHeight);
         setIsEditingMinHeight(false);
@@ -125,10 +130,16 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
     return (
         <div className="publishing-controls-panel">
             <div className="control-group">
-                <ActionButton className="primary" onClick={onDownloadPdf}>
+                <LoadingButton 
+                    className="primary" 
+                    onClick={onDownloadPdf}
+                    isLoading={isGeneratingPdf}
+                    // [수정] 동적으로 로딩 텍스트 변경
+                    loadingText={pdfProgressMessage || "생성 중..."}
+                >
                     <LuFileDown size={14} className="toolbar-icon"/>
                     PDF로 다운로드
-                </ActionButton>
+                </LoadingButton>
                 <ActionButton onClick={onToggleSequentialNumbering}>
                     번호: {useSequentialNumbering ? '순차' : '원본'}
                 </ActionButton>

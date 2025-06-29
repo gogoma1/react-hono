@@ -7,10 +7,11 @@ interface UploadPayload {
     problems: Problem[];
 }
 
-// [수정] export 추가
+// [수정] 백엔드의 Upsert 응답 형식에 맞게 변경
 export interface UploadResponse {
     success: boolean;
-    count: number;
+    created: number;
+    updated: number;
 }
 
 /**
@@ -55,7 +56,7 @@ export const deleteProblemsAPI = async (problemIds: string[]): Promise<{ message
 };
 
 /**
- * 문제 목록을 서버에 업로드합니다.
+ * 문제 목록을 서버에 업로드합니다. (Create & Update)
  */
 export const uploadProblemsAPI = async (problems: Problem[]): Promise<UploadResponse> => {
     const payload: UploadPayload = { problems };

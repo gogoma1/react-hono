@@ -1,14 +1,14 @@
 import React from 'react';
-import { LuUpload, LuCheck, LuChevronsUpDown } from 'react-icons/lu';
+import { LuUpload, LuCheck, LuChevronsUpDown, LuInfo, LuLightbulb } from 'react-icons/lu';
 import { useJsonProblemImporter } from '../../features/json-problem-importer/model/useJsonProblemImporter';
 import ActionButton from '../../shared/ui/actionbutton/ActionButton';
 import GlassPopover from '../../shared/components/GlassPopover';
-import type { Column } from '../../entities/problem/model/types';
+import type { Problem, Column } from '../../entities/problem/model/types'; // [수정] Problem 및 Column 타입 임포트
 import { PopoverCombobox, PopoverInput, PopoverTextarea } from '../../features/json-problem-importer/ui/EditPopoverContent';
+import LoadingButton from '../../shared/ui/loadingbutton/LoadingButton';
 
-// [핵심 수정] 필드 타입을 정의합니다.
-const COMBOBOX_FIELDS: (keyof any)[] = ['problem_type', 'difficulty', 'grade', 'semester'];
-const ANSWER_COMBOBOX_FIELDS: (keyof any)[] = ['answer'];
+const COMBOBOX_FIELDS: (keyof Problem)[] = ['problem_type', 'difficulty', 'grade', 'semester'];
+const ANSWER_COMBOBOX_FIELDS: (keyof Problem)[] = ['answer'];
 
 const JsonProblemImporterWidget: React.FC = () => {
     const {
@@ -35,20 +35,44 @@ const JsonProblemImporterWidget: React.FC = () => {
         columns,
         formatValue,
         popoverAnchor,
-        problemTypeOptions, difficultyOptions, answerOptions, gradeOptions, semesterOptions // 옵션들 가져오기
+        problemTypeOptions, difficultyOptions, answerOptions, gradeOptions, semesterOptions
     } = useJsonProblemImporter();
 
     const isEditing = !!editingCell;
 
     return (
         <div className="json-importer-widget">
-            <div className="left-panel">{/* ... 이전과 동일 ... */}
+            <div className="left-panel">
                 <div className="panel json-input-panel">
                     <div className="panel-header">JSON 데이터 입력</div>
                     <div className="panel-content">
-                        <textarea value={jsonInput} onChange={(e) => setJsonInput(e.target.value)} className="json-input-textarea" placeholder="여기에 JSON 데이터를 붙여넣으세요..." spellCheck="false" readOnly={isEditing} aria-label="JSON Input Area" />
+                        <textarea 
+                            value={jsonInput} 
+                            onChange={(e) => setJsonInput(e.target.value)} 
+                            className="json-input-textarea" 
+                            placeholder="여기에 JSON 데이터를 붙여넣으세요..." 
+                            spellCheck="false" 
+                            readOnly={isEditing} 
+                            aria-label="JSON Input Area" 
+                            aria-invalid={!!parseError}
+                        />
+                        
                         {parseError && !isEditing && (
-                            <div className="error-display" role="alert"><h4>JSON 처리/업로드 오류:</h4><pre>{parseError.message}</pre></div>
+                            <div className="error-display" role="alert">
+                                <h4 className="error-title"><LuInfo size={16} /> {parseError.title}</h4>
+                                <p className="error-location">
+                                    {parseError.line && parseError.column && `위치: ${parseError.line}번째 줄, ${parseError.column}번째 칸 부근`}
+                                    {parseError.problemIndex && `위치: ${parseError.problemIndex}번째 문제 항목`}
+                                </p>
+                                <pre className="error-message">{parseError.message}</pre>
+                                <div className="error-suggestion">
+                                    <LuLightbulb size={16} />
+                                    <div>
+                                        <h5>수정 제안</h5>
+                                        <p>{parseError.suggestion}</p>
+                                    </div>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -63,28 +87,74 @@ const JsonProblemImporterWidget: React.FC = () => {
                 </div>
             </div>
 
-            <div className="panel right-panel">{/* ... 이전과 동일 ... */}
-                <div className="panel-header"><h2>표 미리보기 (클릭하여 수정)</h2><ActionButton onClick={uploadProblems} disabled={problems.length === 0 || parseError !== null || isUploading} className="primary"><LuUpload style={{ marginRight: '8px' }} />{isUploading ? "저장 중..." : "DB에 업로드"}</ActionButton></div>
-                <div className="table-wrapper"><table className="problem-table">
-                    <thead><tr>{columns.map(col => (<th key={col.key}>{col.label}{col.readonly && <span style={{fontSize: '0.7rem', marginLeft: '4px'}}>(읽기전용)</span>}</th>))}</tr></thead>
-                    <tbody>{problems.length > 0 ? (problems.map((problem, i) => (<tr key={`${problem.question_number}-${i}`}>{columns.map(col => {
-                        const currentValue = problem[col.key];
-                        const isReadonly = col.readonly || Array.isArray(currentValue);
-                        // [핵심 수정] 콤보박스인지 판단하는 로직 변경
-                        const isCombobox = COMBOBOX_FIELDS.includes(col.key) || (ANSWER_COMBOBOX_FIELDS.includes(col.key) && problem.problem_type === '객관식');
-                        return (<td key={col.key}><button type="button" id={`trigger-${i}-${col.key}`} className="cell-edit-trigger" onClick={(e) => startEdit(i, col.key, currentValue, e.currentTarget, isReadonly)} disabled={isReadonly} aria-label={`Edit ${col.label}`}><span className="cell-edit-trigger-content">{formatValue(currentValue)}</span>{isCombobox && !isReadonly && <LuChevronsUpDown className="chevron-icon" />}</button></td>);
-                    })}</tr>))) : (<tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: '2rem' }}>{jsonInput.trim() === '' ? "왼쪽 텍스트 영역에 JSON 데이터를 붙여넣으세요." : parseError ? "JSON 데이터 로딩 중 오류가 발생했습니다. 왼쪽 영역의 오류 메시지를 확인하세요." : "유효한 'problems' 배열이 없거나 데이터가 비어있습니다."}</td></tr>)}</tbody>
-                </table></div>
+            <div className="panel right-panel">
+                <div className="panel-header">
+                    <h2>표 미리보기 (클릭하여 수정)</h2>
+                    <LoadingButton
+                        onClick={uploadProblems}
+                        disabled={problems.length === 0 || parseError !== null}
+                        isLoading={isUploading}
+                        loadingText="저장 중..."
+                        className="primary"
+                    >
+                        <LuUpload style={{ marginRight: '8px' }} />
+                        DB에 업로드
+                    </LoadingButton>
+                </div>
+                <div className="table-wrapper">
+                    <table className="problem-table">
+                        <thead>
+                            <tr>
+                                {columns.map(col => (
+                                    <th key={col.key}>
+                                        {col.label}
+                                        {col.readonly && <span style={{fontSize: '0.7rem', marginLeft: '4px'}}>(읽기전용)</span>}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {problems.length > 0 ? (
+                                problems.map((problem, i) => (
+                                    <tr key={`${problem.problem_id}-${i}`}>
+                                        {columns.map(col => {
+                                            const currentValue = problem[col.key as keyof Problem];
+                                            const isReadonly = col.readonly || Array.isArray(currentValue);
+                                            const isCombobox = COMBOBOX_FIELDS.includes(col.key) || (ANSWER_COMBOBOX_FIELDS.includes(col.key) && problem.problem_type === '객관식');
+                                            return (
+                                                <td key={col.key}>
+                                                    <button type="button" id={`trigger-${i}-${col.key}`} className="cell-edit-trigger" onClick={(e) => startEdit(i, col.key as keyof Problem, currentValue, e.currentTarget, isReadonly)} disabled={isReadonly} aria-label={`Edit ${col.label}`}>
+                                                        <span className="cell-edit-trigger-content">{formatValue(currentValue)}</span>
+                                                        {isCombobox && !isReadonly && <LuChevronsUpDown className="chevron-icon" />}
+                                                    </button>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={columns.length} style={{ textAlign: 'center', padding: '2rem' }}>
+                                        {jsonInput.trim() === '' 
+                                            ? "왼쪽 텍스트 영역에 JSON 데이터를 붙여넣으세요." 
+                                            : parseError 
+                                                ? "JSON 데이터에 오류가 있습니다. 왼쪽 영역의 오류 메시지를 확인하세요." 
+                                                : "유효한 'problems' 배열이 없거나 데이터가 비어있습니다."
+                                        }
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
             
             <GlassPopover isOpen={isEditing} onClose={cancelEdit} anchorEl={popoverAnchor} placement="bottom-start" className={editingCell && columns.find(c => c.key === editingCell.colKey)?.editType === 'textarea' ? 'large' : ''}>
                 {editingCell && (() => {
                     const col = columns.find(c => c.key === editingCell.colKey) as Column;
-                    // [핵심 수정] 렌더링할 콤보박스 타입을 더 명확하게 결정
                     const isAnswerCombobox = ANSWER_COMBOBOX_FIELDS.includes(col.key) && problems[editingCell.rowIndex]?.problem_type === '객관식';
                     const isNormalCombobox = COMBOBOX_FIELDS.includes(col.key);
 
-                    // [핵심 수정] 필드에 맞는 옵션을 동적으로 선택
                     const options = 
                         col.key === 'problem_type' ? problemTypeOptions :
                         col.key === 'difficulty' ? difficultyOptions :
@@ -105,4 +175,4 @@ const JsonProblemImporterWidget: React.FC = () => {
     );
 };
 
-export default JsonProblemImporterWidget;
+export default JsonProblemImporterWidget

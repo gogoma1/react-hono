@@ -1,9 +1,8 @@
-// ./react/shared/store/layoutStore.ts
-
 import { create } from 'zustand';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
 import type { Student } from '../../entities/student/model/useStudentDataWithRQ';
+import type { ProcessedProblem } from '../../features/problem-publishing'; // [추가] 타입 임포트
 
 /**
  * [수정] TableSearch 컴포넌트가 필요로 하는 모든 props를 포함하는 완전한 인터페이스.
@@ -30,12 +29,13 @@ interface RegisteredPageActions {
   openPromptSidebar: () => void;
   openLatexHelpSidebar: () => void;
   openSearchSidebar: () => void; 
+  openJsonViewSidebar: () => void; // [추가] 파라미터 없음
   openEditSidebar: (student: Student) => void;
   onClose: () => void;
 }
 
 interface SidebarContentConfig {
-    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | null;
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | 'jsonViewer' | null; // [추가] 'jsonViewer'
     props?: Record<string, any>;
 }
 
@@ -48,7 +48,6 @@ interface LayoutState {
   rightSidebar: RightSidebarState; 
   currentPageConfig: PageLayoutConfig;
   pageActions: Partial<RegisteredPageActions>;
-  // [수정] 스토어는 props 객체를 통째로 저장하고, searchTerm을 직접 관리하지 않음.
   searchBoxProps: StoredSearchProps | null;
 }
 
@@ -65,6 +64,7 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
     openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'),
     openSearchSidebar: () => console.warn('openSearchSidebar action not registered.'),
+    openJsonViewSidebar: () => console.warn('openJsonViewSidebar action not registered.'), // [추가] 초기 액션
     openEditSidebar: (student: Student) => console.warn('openEditSidebar action not registered for student:', student.id),
     onClose: () => console.warn('onClose action not registered.'),
 };
@@ -133,6 +133,7 @@ interface SidebarTriggers {
     settingsTrigger?: SidebarTrigger;
     promptTrigger?: SidebarTrigger;
     latexHelpTrigger?: SidebarTrigger;
+    jsonViewTrigger?: SidebarTrigger; // [추가]
 }
 
 export const useSidebarTriggers = (): SidebarTriggers => {
@@ -170,6 +171,13 @@ export const useSidebarTriggers = (): SidebarTriggers => {
             result.latexHelpTrigger = {
                 onClick: pageActions.openLatexHelpSidebar,
                 tooltip: currentPageConfig.sidebarButtons.latexHelp.tooltip,
+            };
+        }
+        // [추가] JSON 뷰어 트리거 로직
+        if (currentPageConfig.sidebarButtons?.jsonView && pageActions.openJsonViewSidebar) {
+            result.jsonViewTrigger = {
+                onClick: pageActions.openJsonViewSidebar,
+                tooltip: currentPageConfig.sidebarButtons.jsonView.tooltip,
             };
         }
         return result;

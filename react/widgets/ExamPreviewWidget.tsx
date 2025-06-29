@@ -136,4 +136,5 @@ const ExamPreviewWidget: React.FC<ExamPreviewWidgetProps> = (props) => {
     );
 };
 
-export default ExamPreviewWidget;
+// [핵심 수정] React.memo로 컴포넌트를 감싸줍니다.
+export default React.memo(ExamPreviewWidget);

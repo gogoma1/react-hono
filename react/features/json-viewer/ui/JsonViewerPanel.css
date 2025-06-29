@@ -1,0 +1,49 @@
+.json-viewer-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.json-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color-light);
+}
+
+.json-viewer-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.json-viewer-header .action-button {
+    gap: 0.5rem;
+}
+
+.json-viewer-content {
+    flex-grow: 1;
+    overflow: auto;
+    background-color: var(--background-color-main);
+    border-radius: var(--border-radius-medium);
+    border: 1px solid var(--border-color-light);
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.json-viewer-content pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.json-viewer-content code {
+    font-family: var(--font-family-mono);
+}

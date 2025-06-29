@@ -3,7 +3,7 @@ import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch } from 'react-icons/lu';
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2 } from 'react-icons/lu'; // [추가] LuFileJson2
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
@@ -11,6 +11,7 @@ import PromptCollection from '../../features/prompt-collection/ui/PromptCollecti
 import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
 import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel';
+import JsonViewerPanel from '../../features/json-viewer/ui/JsonViewerPanel'; // [추가]
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -19,6 +20,7 @@ const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
 const LatexHelpIcon = () => <LuBookMarked size={20} />;
 const SearchIcon = () => <LuSearch size={20} />;
+const JsonViewIcon = () => <LuFileJson2 size={20} />; // [추가]
 
 interface ProblemEditorWrapperProps {
     isSaving?: boolean;
@@ -75,6 +77,9 @@ const SidebarContentRenderer: React.FC = () => {
 
         case 'settings': {
              const currentPath = window.location.pathname;
+             if (currentPath.startsWith('/problem-publishing')) {
+                 return <TableColumnToggler />;
+             }
              if (currentPath.startsWith('/dashboard')) {
                  return <TableColumnToggler />;
              }
@@ -91,6 +96,13 @@ const SidebarContentRenderer: React.FC = () => {
         
         case 'latexHelp':
             return <LatexHelpPanel />;
+            
+        // [추가] jsonViewer 케이스
+        case 'jsonViewer': {
+            const { problems } = contentConfig.props || {};
+            if (!problems) return <div>JSON으로 변환할 데이터가 없습니다.</div>;
+            return <JsonViewerPanel problems={problems} />;
+        }
 
         default:
             return (
@@ -104,7 +116,7 @@ const SidebarContentRenderer: React.FC = () => {
 
 const GlassSidebarRight: React.FC = () => {
     const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, onClose } = useSidebarTriggers();
+    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, jsonViewTrigger, onClose } = useSidebarTriggers(); // [수정] jsonViewTrigger 추가
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
     const isRightSidebarExpanded = contentConfig.type !== null;
@@ -147,6 +159,19 @@ const GlassSidebarRight: React.FC = () => {
                                         aria-label={searchTrigger.tooltip}
                                     >
                                         <SearchIcon />
+                                    </button>
+                                </Tippy>
+                            )}
+
+                             {/* [추가] JSON 뷰어 버튼 */}
+                            {jsonViewTrigger && (
+                                <Tippy content={jsonViewTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                                    <button
+                                        onClick={jsonViewTrigger.onClick}
+                                        className="settings-toggle-button"
+                                        aria-label={jsonViewTrigger.tooltip}
+                                    >
+                                        <JsonViewIcon />
                                     </button>
                                 </Tippy>
                             )}
