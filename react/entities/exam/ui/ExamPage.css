@@ -38,9 +38,9 @@
     position: relative; 
     margin-bottom: 1.8em; 
     display: flex; 
-    align-items: center; /* [수정] 세로 중앙 정렬 추가 */
+    align-items: center;
     justify-content: center; 
-    height: 5em; /* [수정] 헤더 섹션 높이 고정 */
+    height: 5em;
 }
 .exam-header-page-number { position: absolute; right: 0; top: 50%; transform: translateY(-50%); padding: 0.45em 0.9em; font-size: 3em; font-weight: 700; }
 .exam-header-info-section { 
@@ -48,7 +48,7 @@
     display: flex; 
     align-items: center; 
     gap: 1.4em; 
-    height: 4em; /* [수정] 헤더 섹션 높이 고정 */
+    height: 4em;
 }
 .exam-header-subject-wrapper { display: flex; flex-grow: 1; align-items: center; gap: 1.4em; }
 .exam-header-subject-wrapper-inner { flex-grow: 1; }
@@ -66,7 +66,7 @@
     padding-bottom: 0.5em; 
     padding-top: 0.25em; 
     font-size: 1em; 
-    height: 4.5em; /* [수정] 헤더 섹션 높이 고정 */
+    height: 4.5em;
 }
 .simplified-item-wrapper { display: flex; width: 6rem; flex-shrink: 0; align-items: flex-end; justify-content: center; }
 .simplified-subject-wrapper { order: 2; margin-bottom: 0.25em; display: flex; flex-grow: 1; align-items: flex-end; justify-content: center; padding: 0 1rem; text-align: center; }
@@ -346,18 +346,8 @@
     font-family: var(--content-font-family, sans-serif);
 }
 
-/* --- [추가] PDF 생성을 위한 스타일 --- */
-.pdf-generating .editable-trigger-button .edit-icon-overlay,
-.pdf-generating .problem-deselect-button,
-.pdf-generating .measured-height,
-.pdf-generating .global-index {
-    display: none !important;
-}
-
-.pdf-generating .text-trigger {
-    border-color: transparent !important;
-}
-
-.pdf-generating .problem-container {
-    border: none !important;
-}
+/* 
+  [핵심 수정] 
+  PDF 생성용 스타일을 모두 제거합니다. 
+  이제 JavaScript에서 복제된 노드를 직접 조작하므로 이 CSS 규칙은 필요 없습니다.
+*/

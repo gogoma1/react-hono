@@ -3,6 +3,8 @@ import LoadingButton from '../shared/ui/loadingbutton/LoadingButton';
 import ActionButton from '../shared/ui/actionbutton/ActionButton';
 import { LuFileDown } from 'react-icons/lu';
 import { useExamLayoutStore } from '../features/problem-publishing/model/examLayoutStore';
+// [수정] usePdfGenerator를 이 파일에서 직접 사용합니다.
+import { usePdfGenerator } from '../features/problem-publishing/hooks/usePdfGenerator';
 import './PublishingToolbarWidget.css';
 
 interface PublishingToolbarWidgetProps {
@@ -12,12 +14,12 @@ interface PublishingToolbarWidgetProps {
     onBaseFontSizeChange: (value: string) => void;
     contentFontSizeEm: number;
     onContentFontSizeEmChange: (value: number) => void;
-    onDownloadPdf: () => void;
-    isGeneratingPdf: boolean;
-    pdfProgressMessage: string; // [추가] 진행 메시지 prop
     previewAreaRef: React.RefObject<HTMLDivElement | null>;
     problemBoxMinHeight: number;
     setProblemBoxMinHeight: (height: number) => void;
+    // [수정] PDF 생성을 위해 필요한 정보를 props로 받습니다.
+    examTitle: string;
+    selectedProblemCount: number;
 }
 
 const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) => {
@@ -25,13 +27,17 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         useSequentialNumbering, onToggleSequentialNumbering,
         baseFontSize, onBaseFontSizeChange,
         contentFontSizeEm, onContentFontSizeEmChange,
-        onDownloadPdf,
-        isGeneratingPdf,
-        pdfProgressMessage, // [추가]
         previewAreaRef,
-        problemBoxMinHeight,
-        setProblemBoxMinHeight
+        problemBoxMinHeight, setProblemBoxMinHeight,
+        examTitle, selectedProblemCount
     } = props;
+
+    // [수정] PDF 생성 관련 상태와 로직을 이 컴포넌트 내부에서 직접 관리합니다.
+    const { isGeneratingPdf, onDownloadPdf, pdfProgress } = usePdfGenerator({
+        previewAreaRef,
+        getExamTitle: () => examTitle,
+        getSelectedProblemCount: () => selectedProblemCount,
+    });
 
     const { setDraggingControl, forceRecalculateLayout } = useExamLayoutStore();
     const dragStartRef = useRef<{ startY: number; startHeight: number } | null>(null);
@@ -134,8 +140,7 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
                     className="primary" 
                     onClick={onDownloadPdf}
                     isLoading={isGeneratingPdf}
-                    // [수정] 동적으로 로딩 텍스트 변경
-                    loadingText={pdfProgressMessage || "생성 중..."}
+                    loadingText={pdfProgress.message || "PDF 생성 중..."}
                 >
                     <LuFileDown size={14} className="toolbar-icon"/>
                     PDF로 다운로드

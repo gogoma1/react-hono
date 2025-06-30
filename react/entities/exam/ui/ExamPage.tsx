@@ -1,3 +1,4 @@
+// ./react/entities/exam/ui/ExamPage.tsx
 import React, { useMemo } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
@@ -19,6 +20,7 @@ interface ProblemItemProps {
     onDeselectProblem: (uniqueId: string) => void;
     measuredHeight?: number; 
 }
+
 const ProblemItem: React.FC<ProblemItemProps> = React.memo(({ problem, allProblems, onRenderComplete, useSequentialNumbering, contentFontSizeEm, contentFontFamily, onProblemClick, onDeselectProblem, measuredHeight }) => {
     
     const globalProblemIndex = useMemo(() => allProblems.findIndex(p => p.uniqueId === problem.uniqueId) + 1, [allProblems, problem.uniqueId]);
@@ -59,7 +61,6 @@ const ProblemItem: React.FC<ProblemItemProps> = React.memo(({ problem, allProble
 });
 ProblemItem.displayName = 'ProblemItem';
 
-// [수정] ExamHeader의 필수 Props를 포함하는 타입 정의
 type ExamHeaderInfo = Pick<React.ComponentProps<typeof ExamHeader>, 
     | 'title' 
     | 'titleFontSize' 
@@ -88,7 +89,7 @@ interface ExamPageProps {
     baseFontSize: string;
     contentFontSizeEm: number;
     contentFontFamily: string;
-    headerInfo: ExamHeaderInfo; // [수정] any -> ExamHeaderInfo
+    headerInfo: ExamHeaderInfo;
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
     onDeselectProblem: (uniqueId: string) => void;
     measuredHeights: Map<string, number>; 
@@ -104,12 +105,12 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
     
     
     const leftColumnProblems = useMemo(() => 
-        problems.filter(p => placementMap.get(p.uniqueId)?.column === 1),
+        problems.filter((p: ProcessedProblem) => placementMap.get(p.uniqueId)?.column === 1),
         [problems, placementMap]
     );
 
     const rightColumnProblems = useMemo(() => 
-        problems.filter(p => placementMap.get(p.uniqueId)?.column === 2),
+        problems.filter((p: ProcessedProblem) => placementMap.get(p.uniqueId)?.column === 2),
         [problems, placementMap]
     );
     

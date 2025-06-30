@@ -1,12 +1,14 @@
+// ./react/entities/exam/ui/SolutionPage.tsx
 import React, { useMemo } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
 import ExamHeader from './ExamHeader';
-import type { LayoutItem } from '../../../features/problem-publishing/model/useProblemPublishing';
+import type { LayoutItem } from '../../../features/problem-publishing/model/examLayoutEngine';
 import './ExamPage.css';
 import { useHeightMeasurer } from '../../../features/problem-publishing/hooks/useHeightMeasurer';
 
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
+
 interface SolutionChunkItemProps {
     item: Extract<LayoutItem, { type: 'solutionChunk' }>;
     allProblems: ProcessedProblem[];
@@ -23,7 +25,7 @@ const SolutionChunkItem: React.FC<SolutionChunkItemProps> = React.memo(({ item, 
     
     const measureRef = useHeightMeasurer(onRenderComplete, item.uniqueId);
     
-    if (!parentProblem) return null; // 안전 장치
+    if (!parentProblem) return null;
 
     const displayNumber = useSequentialNumbering ? `${globalProblemIndex}` : parentProblem.display_question_number;
     
@@ -46,7 +48,6 @@ const SolutionChunkItem: React.FC<SolutionChunkItemProps> = React.memo(({ item, 
 });
 SolutionChunkItem.displayName = 'SolutionChunkItem';
 
-// [수정] ExamHeader의 필수 Props를 포함하는 타입 정의
 type ExamHeaderInfo = Pick<React.ComponentProps<typeof ExamHeader>, 
     | 'title' 
     | 'titleFontSize' 
@@ -75,7 +76,7 @@ interface SolutionPageProps {
     baseFontSize: string;
     contentFontSizeEm: number;
     contentFontFamily: string;
-    headerInfo: ExamHeaderInfo; // [수정] any -> ExamHeaderInfo
+    headerInfo: ExamHeaderInfo;
     onHeaderUpdate: (targetId: string, field: string, value: any) => void;
 }
 
@@ -96,7 +97,7 @@ const SolutionPage: React.FC<SolutionPageProps> = (props) => {
             if (item.type !== 'solutionChunk') return null;
 
             const parentProblem = latestProblemsMap.get(item.data.parentProblem.uniqueId);
-            if (!parentProblem) return null; // 부모 문제가 없으면 렌더링하지 않음
+            if (!parentProblem) return null;
 
             return (
                 <SolutionChunkItem
@@ -108,7 +109,7 @@ const SolutionPage: React.FC<SolutionPageProps> = (props) => {
                     contentFontSizeEm={contentFontSizeEm}
                     contentFontFamily={contentFontFamily}
                     isFirstChunk={!item.uniqueId.includes('-sol-') || item.uniqueId.endsWith('-sol-0')}
-                    parentProblem={parentProblem} // 찾은 최신 문제 객체를 prop으로 전달
+                    parentProblem={parentProblem}
                 />
             );
         });

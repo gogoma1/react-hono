@@ -7,13 +7,12 @@ import './ProblemPublishingPage.css';
 
 const ProblemPublishingPage: React.FC = () => {
     const {
-        handleSelectionChange,
-        allProblems, selectedProblems, distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap,
+        allProblems, isLoadingProblems, selectedIds, toggleRow, toggleItems, clearSelection,
+        selectedProblems, distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap,
         headerInfo, useSequentialNumbering, baseFontSize, contentFontSizeEm, measuredHeights,
-        onHeightUpdate, onProblemClick, onHeaderUpdate,
-        onToggleSequentialNumbering, onBaseFontSizeChange, onContentFontSizeEmChange, onDownloadPdf,
-        isGeneratingPdf,
-        pdfProgress, // [추가]
+        onHeightUpdate, onProblemClick, onHeaderUpdate, handleDeselectProblem,
+        onToggleSequentialNumbering, onBaseFontSizeChange, onContentFontSizeEmChange,
+        // [수정] PDF 관련 props 제거
         previewAreaRef, problemBoxMinHeight, setProblemBoxMinHeight,
     } = useProblemPublishingPage();
 
@@ -21,7 +20,14 @@ const ProblemPublishingPage: React.FC = () => {
         <div className="problem-publishing-page">
             <div className="sticky-top-container">
                 <div className="selection-widget-container">
-                    <ProblemSelectionContainer onSelectionChange={handleSelectionChange} />
+                    <ProblemSelectionContainer
+                        allProblems={allProblems}
+                        isLoading={isLoadingProblems}
+                        selectedIds={selectedIds}
+                        toggleRow={toggleRow}
+                        toggleItems={toggleItems}
+                        clearSelection={clearSelection}
+                    />
                 </div>
                 <PublishingToolbarWidget 
                     useSequentialNumbering={useSequentialNumbering}
@@ -30,12 +36,12 @@ const ProblemPublishingPage: React.FC = () => {
                     onBaseFontSizeChange={onBaseFontSizeChange}
                     contentFontSizeEm={contentFontSizeEm}
                     onContentFontSizeEmChange={onContentFontSizeEmChange} 
-                    onDownloadPdf={onDownloadPdf}
-                    isGeneratingPdf={isGeneratingPdf}
-                    pdfProgressMessage={pdfProgress.message} // [추가] 진행 메시지 전달
                     previewAreaRef={previewAreaRef}
                     problemBoxMinHeight={problemBoxMinHeight}
                     setProblemBoxMinHeight={setProblemBoxMinHeight}
+                    // [수정] 툴바 위젯에 PDF 생성에 필요한 정보를 props로 전달합니다.
+                    examTitle={headerInfo.title}
+                    selectedProblemCount={selectedProblems.length}
                 />
             </div>
             <div 
@@ -58,7 +64,7 @@ const ProblemPublishingPage: React.FC = () => {
                     onHeightUpdate={onHeightUpdate}
                     onProblemClick={onProblemClick} 
                     onHeaderUpdate={onHeaderUpdate} 
-                    onDeselectProblem={() => { /* 컨테이너에서 처리되므로 여기선 필요 없음 */ }} 
+                    onDeselectProblem={handleDeselectProblem}
                     measuredHeights={measuredHeights}
                 />
             </div>

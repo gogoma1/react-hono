@@ -1,4 +1,4 @@
-// ----- ./react/shared/ui/MathpixRenderer.tsx -----
+// ./react/shared/ui/MathpixRenderer.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 
 declare global {
@@ -12,10 +12,9 @@ declare global {
 interface MathpixRendererProps {
   text: string;
   options?: object;
-  onRenderComplete?: () => void;
 }
 
-const MathpixRenderer: React.FC<MathpixRendererProps> = ({ text, options = {}, onRenderComplete }) => {
+const MathpixRenderer: React.FC<MathpixRendererProps> = ({ text, options = {} }) => {
   const [html, setHtml] = useState('');
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
@@ -62,17 +61,9 @@ const MathpixRenderer: React.FC<MathpixRendererProps> = ({ text, options = {}, o
       } catch (err) {
         console.error("Markdown rendering error:", err);
         setHtml('<p style="color: red;">콘텐츠를 렌더링하는 중 오류가 발생했습니다.</p>');
-      } finally {
-        if (onRenderComplete) {
-            // [제거] 불필요한 로그 제거
-            // console.log(`[MathpixRenderer] ➡️ Calling onRenderComplete for text starting with: "${text.substring(0, 30)}..."`);
-            requestAnimationFrame(() => {
-                onRenderComplete();
-            });
-        }
       }
     }
-  }, [status, text, memoizedOptions, onRenderComplete]);
+  }, [status, text, memoizedOptions]);
 
   
   if (status === 'error') {

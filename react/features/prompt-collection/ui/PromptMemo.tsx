@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { LuCopy, LuCopyCheck, LuPencil, LuTrash2, LuSave, LuCircleX, LuRotateCcw, LuChevronDown, LuLayers } from 'react-icons/lu'; // LuLayers 추가
+import { useLocation } from 'react-router';
+import { LuCopy, LuCopyCheck, LuPencil, LuTrash2, LuSave, LuCircleX, LuRotateCcw, LuChevronDown, LuLayers } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 import type { Prompt } from '../model/usePromptManager';
 import './PromptCollection.css';
@@ -25,6 +26,7 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
     prompt, isEditing, isExpanded, editingTitle, onSetEditingTitle, editingContent, onSetEditingContent,
     onStartEditing, onSave, onCancel, onDelete, onReset, onToggleExpand, workbenchContent
 }) => {
+    const location = useLocation();
     const [isCopied, setIsCopied] = useState(false);
     const [isCombinedCopied, setIsCombinedCopied] = useState(false); // 새 버튼을 위한 상태
 
@@ -101,21 +103,34 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
                 <div className="button-group">
                     <Tippy content={isCopied ? "복사 완료!" : "프롬프트 복사"} theme="custom-glass"><button onClick={handleCopy} className="prompt-action-button copy">{isCopied ? <LuCopyCheck size={16} /> : <LuCopy size={16} />}</button></Tippy>
                     
-                    {/* [수정] '해설 작업'과 '문제 개별화 작업'에 대한 조건부 버튼 렌더링 */}
-                    {prompt.id === 'default-2' && workbenchContent && (
-                        <Tippy content={isCombinedCopied ? "복사 완료!" : "해설 프롬프트와 JSON을 함께 복사"} theme="custom-glass">
-                            <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
-                                {isCombinedCopied ? <LuCopyCheck size={16} /> : <LuLayers size={16} />}
-                            </button>
-                        </Tippy>
-                    )}
-                    
-                    {prompt.id === 'default-3' && workbenchContent && (
-                        <Tippy content={isCombinedCopied ? "복사 완료!" : "작업할 문제와 프롬프트를 한 번에 복사"} theme="custom-glass">
-                            <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
-                                {isCombinedCopied ? <LuCopyCheck size={16} /> : <LuLayers size={16} />}
-                            </button>
-                        </Tippy>
+                    {/* [수정] 페이지 경로에 따라 '합쳐서 복사' 버튼을 조건부로 렌더링 */}
+                    {workbenchContent && (
+                        <>
+                            {/* '문제 작업' 페이지일 때 */}
+                            {location.pathname === '/problem-workbench' && prompt.id === 'default-1' && (
+                                <Tippy content={isCombinedCopied ? "복사 완료!" : "에디터 내용과 프롬프트를 함께 복사"} theme="custom-glass">
+                                    <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
+                                        {isCombinedCopied ? <LuCopyCheck size={16} /> : <LuLayers size={16} />}
+                                    </button>
+                                </Tippy>
+                            )}
+                            
+                            {/* '문제 출제' 페이지일 때 */}
+                            {location.pathname === '/problem-publishing' && prompt.id === 'default-2' && (
+                                <Tippy content={isCombinedCopied ? "복사 완료!" : "해설 프롬프트와 JSON을 함께 복사"} theme="custom-glass">
+                                    <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
+                                        {isCombinedCopied ? <LuCopyCheck size={16} /> : <LuLayers size={16} />}
+                                    </button>
+                                </Tippy>
+                            )}
+                            {location.pathname === '/problem-publishing' && prompt.id === 'default-3' && (
+                                <Tippy content={isCombinedCopied ? "복사 완료!" : "개별화 프롬프트와 JSON을 함께 복사"} theme="custom-glass">
+                                    <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
+                                        {isCombinedCopied ? <LuCopyCheck size={16} /> : <LuLayers size={16} />}
+                                    </button>
+                                </Tippy>
+                            )}
+                        </>
                     )}
 
                     <Tippy content="수정" theme="custom-glass"><button onClick={handleEditClick} className="prompt-action-button edit"><LuPencil size={16} /></button></Tippy>
