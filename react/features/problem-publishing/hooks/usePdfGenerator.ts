@@ -1,4 +1,4 @@
-import { useState, useCallback, RefObject } from 'react';
+import { useState, useCallback, RefObject, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -10,34 +10,39 @@ interface PdfGeneratorProps {
 
 export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProblemCount }: PdfGeneratorProps) {
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-    const [pdfMessage, setPdfMessage] = useState('');
+    const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, message: '' });
+    
+    const isProcessingRef = useRef(false);
 
     const handleDownloadPdf = useCallback(async () => {
+        if (isProcessingRef.current) return;
+        isProcessingRef.current = true;
+
         const livePreviewElement = previewAreaRef.current;
         if (!livePreviewElement || getSelectedProblemCount() === 0) {
             alert('PDF로 변환할 시험지 내용이 없습니다.');
+            isProcessingRef.current = false;
             return;
         }
 
-        // 1. 즉시 로딩 상태로 전환하여 UI를 먼저 업데이트합니다.
         setIsGeneratingPdf(true);
-        setPdfMessage('시험지 이미지 준비 중...');
+        setPdfProgress({ current: 0, total: 1, message: '준비 중...' });
 
-        // 2. setTimeout을 사용해 브라우저가 UI를 렌더링할 시간을 준 뒤, 무거운 작업을 시작합니다.
         setTimeout(async () => {
             const pageElements = livePreviewElement.querySelectorAll<HTMLElement>('.exam-page-component');
             if (pageElements.length === 0) {
                 alert('PDF로 변환할 페이지(.exam-page-component)를 찾을 수 없습니다.');
                 setIsGeneratingPdf(false);
-                setPdfMessage('');
+                setPdfProgress({ current: 0, total: 0, message: '' });
+                isProcessingRef.current = false;
                 return;
             }
+
+            setPdfProgress({ current: 0, total: pageElements.length, message: '시험지 정리 중...' });
             
             const printContainer = document.createElement('div');
             Object.assign(printContainer.style, {
-                position: 'absolute',
-                left: '-9999px',
-                top: '0px',
+                position: 'absolute', left: '-9999px', top: '0px',
                 width: `${livePreviewElement.offsetWidth}px`,
             });
             document.body.appendChild(printContainer);
@@ -45,18 +50,10 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
             try {
                 pageElements.forEach(page => {
                     const clone = page.cloneNode(true) as HTMLElement;
-
-                    // --- [핵심 수정] 복제된 요소에서 직접 불필요한 UI들을 제거합니다. ---
-                    clone.querySelectorAll('.editable-trigger-button .edit-icon-overlay').forEach(el => el.remove());
-                    clone.querySelectorAll('.problem-deselect-button').forEach(el => el.remove());
-                    clone.querySelectorAll('.measured-height').forEach(el => el.remove());
-                    clone.querySelectorAll('.global-index').forEach(el => el.remove());
                     
-                    // 점선 테두리를 제거하여 PDF를 깔끔하게 만듭니다.
-                    clone.querySelectorAll<HTMLElement>('.problem-container').forEach(el => {
-                        el.style.border = 'none';
-                    });
-                    // ----------------------------------------------------------------
+                    // [핵심] 복제된 요소에서 직접 불필요한 UI들을 제거합니다.
+                    clone.querySelectorAll('.editable-trigger-button .edit-icon-overlay, .problem-deselect-button, .measured-height, .global-index').forEach(el => el.remove());
+                    clone.querySelectorAll<HTMLElement>('.problem-container').forEach(el => { el.style.border = 'none'; });
 
                     printContainer.appendChild(clone);
                 });
@@ -68,7 +65,8 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
                 const singlePageWidth = firstClonedPage.offsetWidth;
                 const singlePageHeight = firstClonedPage.offsetHeight;
                 const singlePageOffsetX = firstClonedPage.offsetLeft;
-
+                
+                setPdfProgress(prev => ({ ...prev, message: '시험지 이미지 생성 중...' }));
                 const canvas = await html2canvas(printContainer, {
                     scale: scale,
                     useCORS: true,
@@ -76,8 +74,6 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
                     width: printContainer.scrollWidth,
                     height: printContainer.scrollHeight,
                 });
-
-                setPdfMessage('PDF 파일로 변환 중입니다...');
                 
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -85,41 +81,33 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
                 const VERTICAL_MARGIN_MM = 10;
 
                 for (let i = 0; i < pageElements.length; i++) {
+                    const percentage = Math.round(((i + 1) / pageElements.length) * 100);
+                    setPdfProgress(prev => ({ ...prev, current: i + 1, message: `${percentage}% 변환 중...` }));
+
                     if (i > 0) pdf.addPage();
                     
                     const sourceY = (singlePageHeight * i) * scale;
-                    
                     const tempCanvas = document.createElement('canvas');
                     tempCanvas.width = singlePageWidth * scale;
                     tempCanvas.height = singlePageHeight * scale;
                     const tempCtx = tempCanvas.getContext('2d');
                     
                     if (tempCtx) {
-                        tempCtx.drawImage(
-                            canvas,
-                            singlePageOffsetX * scale, sourceY,
-                            singlePageWidth * scale, singlePageHeight * scale,
-                            0, 0,
-                            singlePageWidth * scale, singlePageHeight * scale
-                        );
-                        
-                        const pageImgData = tempCanvas.toDataURL('image/png');
+                        tempCtx.drawImage(canvas, singlePageOffsetX * scale, sourceY, singlePageWidth * scale, singlePageHeight * scale, 0, 0, singlePageWidth * scale, singlePageHeight * scale);
+                        const pageImgData = tempCtx.canvas.toDataURL('image/png');
                         const availableHeight = pdfHeight - (VERTICAL_MARGIN_MM * 2);
                         const imageAspectRatio = singlePageWidth / singlePageHeight;
-
                         let imgHeight = availableHeight;
                         let imgWidth = imgHeight * imageAspectRatio;
-                        
                         if (imgWidth > pdfWidth) {
                             imgWidth = pdfWidth;
                             imgHeight = imgWidth / imageAspectRatio;
                         }
-
                         const xOffset = (pdfWidth - imgWidth) / 2;
                         const yOffset = (pdfHeight - imgHeight) / 2;
-                        
                         pdf.addImage(pageImgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight);
                     }
+                    await new Promise(resolve => setTimeout(resolve, 0));
                 }
                 
                 const examTitle = getExamTitle() || '시험지';
@@ -131,16 +119,20 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
             } finally {
                 document.body.removeChild(printContainer);
                 setIsGeneratingPdf(false);
-                setPdfMessage('');
+                setPdfProgress({ current: 0, total: 0, message: '' });
+                isProcessingRef.current = false;
             }
-        }, 50); // 50ms 정도의 짧은 지연으로 렌더링 보장
+        }, 50);
 
     }, [previewAreaRef, getExamTitle, getSelectedProblemCount]);
 
+    const progressPercentage = pdfProgress.total > 0 ? Math.round((pdfProgress.current / pdfProgress.total) * 100) : 0;
+    const loadingMessage = pdfProgress.message || (isGeneratingPdf ? '변환 중...' : '');
+    const finalLoadingText = isGeneratingPdf && pdfProgress.total > 0 && progressPercentage > 0 ? `${loadingMessage} (${progressPercentage}%)` : loadingMessage;
+    
     return {
         isGeneratingPdf,
-        pdfProgress: { current: isGeneratingPdf ? 1 : 0, total: isGeneratingPdf ? 1 : 0, message: pdfMessage },
+        pdfProgress: { ...pdfProgress, message: finalLoadingText || pdfProgress.message },
         onDownloadPdf: handleDownloadPdf,
-        onCancelPdfGeneration: () => {},
     };
 }

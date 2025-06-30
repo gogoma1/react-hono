@@ -1,5 +1,4 @@
-// ./react/features/problem-publishing/hooks/usePublishingPageSetup.ts
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react'; // [수정] useRef 임포트
 import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useUIStore } from '../../../shared/store/uiStore';
 import { useColumnPermissions } from '../../../shared/hooks/useColumnPermissions';
@@ -17,7 +16,6 @@ export function usePublishingPageSetup({ selectedProblems, allProblems }: Publis
     const { permittedColumnsConfig } = useColumnPermissions();
     const { isSavingProblem } = useProblemPublishing();
 
-    // 1. 컬럼 가시성 초기화
     useEffect(() => {
         const initialVisibility: Record<string, boolean> = {};
         permittedColumnsConfig.forEach(col => {
@@ -31,7 +29,6 @@ export function usePublishingPageSetup({ selectedProblems, allProblems }: Publis
         setRightSidebarExpanded(false);
     }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
-    // 2. 사이드바 액션 핸들러 정의
     const handleOpenLatexHelpSidebar = useCallback(() => {
         setRightSidebarConfig({ contentConfig: { type: 'latexHelp' } });
         setRightSidebarExpanded(true);
@@ -57,15 +54,25 @@ export function usePublishingPageSetup({ selectedProblems, allProblems }: Publis
         return JSON.stringify({ problems: problemsForJson }, null, 2);
     }, [selectedProblems, allProblems]);
 
+    // --- [핵심 수정 시작] ---
+    // 1. useRef를 사용하여 jsonStringToCombine의 최신 값을 추적합니다.
+    //    이렇게 하면 jsonStringToCombine이 변경되어도 handleOpenPromptSidebar 함수의 참조는 변경되지 않습니다.
+    const jsonStringToCombineRef = useRef(jsonStringToCombine);
+    useEffect(() => {
+        jsonStringToCombineRef.current = jsonStringToCombine;
+    }, [jsonStringToCombine]);
+
     const handleOpenPromptSidebar = useCallback(() => {
         setRightSidebarConfig({
-            contentConfig: { type: 'prompt', props: { workbenchContent: jsonStringToCombine } },
+            // 2. 버튼 클릭 시, ref에 저장된 최신 값을 사용합니다.
+            contentConfig: { type: 'prompt', props: { workbenchContent: jsonStringToCombineRef.current } },
             isExtraWide: false
         });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarConfig, setRightSidebarExpanded, jsonStringToCombine]);
+    // 3. useCallback의 의존성 배열에서 불안정한 jsonStringToCombine을 제거하여 함수 참조를 안정화시킵니다.
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    // --- [핵심 수정 끝] ---
 
-    // 3. 페이지 액션 등록 및 클린업
     useEffect(() => {
         registerPageActions({
             onClose: handleCloseSidebar,
@@ -78,9 +85,9 @@ export function usePublishingPageSetup({ selectedProblems, allProblems }: Publis
             setRightSidebarConfig({ contentConfig: { type: null } });
             setSearchBoxProps(null);
         };
+    // [수정] 이제 handleOpenPromptSidebar는 안정적이므로, 이 useEffect는 불필요하게 재실행되지 않습니다.
     }, [handleCloseSidebar, setRightSidebarConfig, handleOpenLatexHelpSidebar, registerPageActions, setSearchBoxProps, handleOpenSettingsSidebar, handleOpenPromptSidebar]);
 
-    // 4. 문제 저장 상태에 따른 사이드바 prop 업데이트
     useEffect(() => {
         const { contentConfig } = useLayoutStore.getState().rightSidebar;
         if (contentConfig.type === 'problemEditor' && contentConfig.props) {

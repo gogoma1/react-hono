@@ -2,12 +2,8 @@ import { create } from 'zustand';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
 import type { Student } from '../../entities/student/model/useStudentDataWithRQ';
-import type { ProcessedProblem } from '../../features/problem-publishing'; // [추가] 타입 임포트
+import type { ProcessedProblem } from '../../features/problem-publishing';
 
-/**
- * [수정] TableSearch 컴포넌트가 필요로 하는 모든 props를 포함하는 완전한 인터페이스.
- * 각 페이지의 훅은 이 인터페이스에 맞는 객체를 만들어 스토어에 저장하게 됩니다.
- */
 export interface StoredSearchProps {
     searchTerm: string;
     onSearchTermChange: (value: string) => void;
@@ -29,13 +25,13 @@ interface RegisteredPageActions {
   openPromptSidebar: () => void;
   openLatexHelpSidebar: () => void;
   openSearchSidebar: () => void; 
-  openJsonViewSidebar: () => void; // [추가] 파라미터 없음
+  openJsonViewSidebar: () => void;
   openEditSidebar: (student: Student) => void;
   onClose: () => void;
 }
 
 interface SidebarContentConfig {
-    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | 'jsonViewer' | null; // [추가] 'jsonViewer'
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | 'jsonViewer' | null;
     props?: Record<string, any>;
 }
 
@@ -64,7 +60,7 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
     openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'),
     openSearchSidebar: () => console.warn('openSearchSidebar action not registered.'),
-    openJsonViewSidebar: () => console.warn('openJsonViewSidebar action not registered.'), // [추가] 초기 액션
+    openJsonViewSidebar: () => console.warn('openJsonViewSidebar action not registered.'),
     openEditSidebar: (student: Student) => console.warn('openEditSidebar action not registered for student:', student.id),
     onClose: () => console.warn('onClose action not registered.'),
 };
@@ -78,27 +74,22 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
   pageActions: initialPageActions,
   searchBoxProps: null,
 
+  // [핵심 수정] 복잡한 비교 로직을 제거하고 단순한 setter로 변경합니다.
   setRightSidebarConfig: (config) => {
-    const currentState = get().rightSidebar;
-    if (!config.contentConfig) {
-        if (currentState.contentConfig.type !== null) {
-            set({ rightSidebar: { contentConfig: { type: null }, isExtraWide: false } });
-        }
-        return;
+    // props가 없는 경우, 사이드바를 닫는 것으로 간주합니다.
+    if (!config.contentConfig || !config.contentConfig.type) {
+      set({ rightSidebar: { contentConfig: { type: null }, isExtraWide: false } });
+      return;
     }
-
-    if (
-        currentState.contentConfig.type !== config.contentConfig.type ||
-        JSON.stringify(currentState.contentConfig.props) !== JSON.stringify(config.contentConfig.props) ||
-        currentState.isExtraWide !== (config.isExtraWide ?? false)
-    ) {
-        set({ 
-            rightSidebar: {
-                contentConfig: config.contentConfig,
-                isExtraWide: config.isExtraWide ?? false
-            } 
-        });
-    }
+    
+    // 항상 새로운 설정으로 업데이트합니다.
+    // 상위 컴포넌트의 useCallback이 참조 안정성을 보장해주는 것을 신뢰합니다.
+    set({
+      rightSidebar: {
+        contentConfig: config.contentConfig,
+        isExtraWide: config.isExtraWide ?? false,
+      }
+    });
   },
 
   updateLayoutForPath: (path) => {
@@ -133,7 +124,7 @@ interface SidebarTriggers {
     settingsTrigger?: SidebarTrigger;
     promptTrigger?: SidebarTrigger;
     latexHelpTrigger?: SidebarTrigger;
-    jsonViewTrigger?: SidebarTrigger; // [추가]
+    jsonViewTrigger?: SidebarTrigger;
 }
 
 export const useSidebarTriggers = (): SidebarTriggers => {
@@ -173,7 +164,6 @@ export const useSidebarTriggers = (): SidebarTriggers => {
                 tooltip: currentPageConfig.sidebarButtons.latexHelp.tooltip,
             };
         }
-        // [추가] JSON 뷰어 트리거 로직
         if (currentPageConfig.sidebarButtons?.jsonView && pageActions.openJsonViewSidebar) {
             result.jsonViewTrigger = {
                 onClick: pageActions.openJsonViewSidebar,

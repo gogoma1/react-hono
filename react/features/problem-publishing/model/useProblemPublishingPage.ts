@@ -7,7 +7,7 @@ import { useProblemEditor } from '../hooks/useProblemEditor';
 import { useExamPreviewManager } from '../hooks/useExamPreviewManager';
 import { usePublishingPageSetup } from '../hooks/usePublishingPageSetup';
 import { useRowSelection } from '../../row-selection/model/useRowSelection';
-// [수정] usePdfGenerator 임포트 제거
+import { usePdfGenerator } from '../hooks/usePdfGenerator';
 
 export function useProblemPublishingPage() {
     const { allProblems, isLoadingProblems } = useProblemPublishing();
@@ -30,9 +30,13 @@ export function useProblemPublishingPage() {
     const { onProblemClick } = useProblemEditor({ problemBoxMinHeight: previewManager.problemBoxMinHeight });
     usePublishingPageSetup({ selectedProblems, allProblems });
 
-    // [수정] PDF 생성 관련 로직은 모두 PublishingToolbarWidget으로 이동
-    // previewAreaRef는 페이지 컴포넌트에서 생성되어야 하므로 그대로 둡니다.
     const previewAreaRef = useRef<HTMLDivElement>(null);
+    
+    const { isGeneratingPdf, onDownloadPdf, pdfProgress } = usePdfGenerator({
+        previewAreaRef,
+        getExamTitle: () => headerInfo.title,
+        getSelectedProblemCount: () => selectedProblems.length,
+    });
     
     return {
         allProblems,
@@ -51,7 +55,9 @@ export function useProblemPublishingPage() {
         onProblemClick,
         handleDeselectProblem,
         
-        // [수정] PDF 관련 상태 및 함수 제거
+        isGeneratingPdf,
+        onDownloadPdf,
+        pdfProgress,
         previewAreaRef,
         ...previewManager,
     };

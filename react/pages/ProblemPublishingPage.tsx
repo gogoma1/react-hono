@@ -12,12 +12,15 @@ const ProblemPublishingPage: React.FC = () => {
         headerInfo, useSequentialNumbering, baseFontSize, contentFontSizeEm, measuredHeights,
         onHeightUpdate, onProblemClick, onHeaderUpdate, handleDeselectProblem,
         onToggleSequentialNumbering, onBaseFontSizeChange, onContentFontSizeEmChange,
-        // [수정] PDF 관련 props 제거
+        isGeneratingPdf, onDownloadPdf, pdfProgress,
         previewAreaRef, problemBoxMinHeight, setProblemBoxMinHeight,
     } = useProblemPublishingPage();
 
+    const pageClassName = `problem-publishing-page ${isGeneratingPdf ? 'pdf-processing' : ''}`;
+
     return (
-        <div className="problem-publishing-page">
+        <div className={pageClassName}>
+            {isGeneratingPdf && <div className="processing-overlay" />}
             <div className="sticky-top-container">
                 <div className="selection-widget-container">
                     <ProblemSelectionContainer
@@ -36,12 +39,11 @@ const ProblemPublishingPage: React.FC = () => {
                     onBaseFontSizeChange={onBaseFontSizeChange}
                     contentFontSizeEm={contentFontSizeEm}
                     onContentFontSizeEmChange={onContentFontSizeEmChange} 
-                    previewAreaRef={previewAreaRef}
                     problemBoxMinHeight={problemBoxMinHeight}
                     setProblemBoxMinHeight={setProblemBoxMinHeight}
-                    // [수정] 툴바 위젯에 PDF 생성에 필요한 정보를 props로 전달합니다.
-                    examTitle={headerInfo.title}
-                    selectedProblemCount={selectedProblems.length}
+                    onDownloadPdf={onDownloadPdf}
+                    isGeneratingPdf={isGeneratingPdf}
+                    pdfProgress={pdfProgress}
                 />
             </div>
             <div 

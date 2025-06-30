@@ -3,8 +3,6 @@ import LoadingButton from '../shared/ui/loadingbutton/LoadingButton';
 import ActionButton from '../shared/ui/actionbutton/ActionButton';
 import { LuFileDown } from 'react-icons/lu';
 import { useExamLayoutStore } from '../features/problem-publishing/model/examLayoutStore';
-// [수정] usePdfGenerator를 이 파일에서 직접 사용합니다.
-import { usePdfGenerator } from '../features/problem-publishing/hooks/usePdfGenerator';
 import './PublishingToolbarWidget.css';
 
 interface PublishingToolbarWidgetProps {
@@ -14,12 +12,11 @@ interface PublishingToolbarWidgetProps {
     onBaseFontSizeChange: (value: string) => void;
     contentFontSizeEm: number;
     onContentFontSizeEmChange: (value: number) => void;
-    previewAreaRef: React.RefObject<HTMLDivElement | null>;
     problemBoxMinHeight: number;
     setProblemBoxMinHeight: (height: number) => void;
-    // [수정] PDF 생성을 위해 필요한 정보를 props로 받습니다.
-    examTitle: string;
-    selectedProblemCount: number;
+    onDownloadPdf: () => void;
+    isGeneratingPdf: boolean;
+    pdfProgress: { current: number; total: number; message: string };
 }
 
 const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) => {
@@ -27,17 +24,9 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         useSequentialNumbering, onToggleSequentialNumbering,
         baseFontSize, onBaseFontSizeChange,
         contentFontSizeEm, onContentFontSizeEmChange,
-        previewAreaRef,
         problemBoxMinHeight, setProblemBoxMinHeight,
-        examTitle, selectedProblemCount
+        onDownloadPdf, isGeneratingPdf, pdfProgress
     } = props;
-
-    // [수정] PDF 생성 관련 상태와 로직을 이 컴포넌트 내부에서 직접 관리합니다.
-    const { isGeneratingPdf, onDownloadPdf, pdfProgress } = usePdfGenerator({
-        previewAreaRef,
-        getExamTitle: () => examTitle,
-        getSelectedProblemCount: () => selectedProblemCount,
-    });
 
     const { setDraggingControl, forceRecalculateLayout } = useExamLayoutStore();
     const dragStartRef = useRef<{ startY: number; startHeight: number } | null>(null);
@@ -63,15 +52,14 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
     }, [isEditingMinHeight]);
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!dragStartRef.current || !previewAreaRef.current) return;
+        if (!dragStartRef.current) return;
         const deltaY = e.clientY - dragStartRef.current.startY;
         const sensitivity = -0.1;
         const newHeight = dragStartRef.current.startHeight + deltaY * sensitivity;
         const clampedHeight = Math.max(5, Math.min(newHeight, 150));
         
-        previewAreaRef.current.style.setProperty('--problem-box-min-height-em', `${clampedHeight}em`);
         setDisplayHeight(clampedHeight);
-    }, [previewAreaRef]);
+    }, []);
 
     const handleMouseUp = useCallback(() => {
         if (!dragStartRef.current) return;
@@ -80,10 +68,8 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         window.removeEventListener('mouseup', handleMouseUp);
         
         setDraggingControl(false);
-        
         setProblemBoxMinHeight(displayHeightRef.current);
         forceRecalculateLayout(displayHeightRef.current);
-        
         dragStartRef.current = null;
     }, [handleMouseMove, setDraggingControl, forceRecalculateLayout, setProblemBoxMinHeight]);
 
@@ -99,14 +85,8 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         window.addEventListener('mouseup', handleMouseUp);
     }, [problemBoxMinHeight, handleMouseMove, handleMouseUp, setDraggingControl]);
 
-    const handleMinHeightDoubleClick = () => {
-        setIsEditingMinHeight(true);
-    };
-
-    const handleMinHeightInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setDisplayHeight(parseFloat(e.target.value) || 0);
-    };
-
+    const handleMinHeightDoubleClick = () => setIsEditingMinHeight(true);
+    const handleMinHeightInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setDisplayHeight(parseFloat(e.target.value) || 0);
     const handleMinHeightInputBlur = () => {
         const clampedHeight = Math.max(5, Math.min(displayHeight, 150));
         setDisplayHeight(clampedHeight);
@@ -114,11 +94,9 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         forceRecalculateLayout(clampedHeight);
         setIsEditingMinHeight(false);
     };
-
     const handleMinHeightInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            handleMinHeightInputBlur();
-        } else if (e.key === 'Escape') {
+        if (e.key === 'Enter') handleMinHeightInputBlur();
+        else if (e.key === 'Escape') {
             setDisplayHeight(problemBoxMinHeight);
             setIsEditingMinHeight(false);
         }
@@ -140,7 +118,7 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
                     className="primary" 
                     onClick={onDownloadPdf}
                     isLoading={isGeneratingPdf}
-                    loadingText={pdfProgress.message || "PDF 생성 중..."}
+                    loadingText={pdfProgress.message || "변환 중..."}
                 >
                     <LuFileDown size={14} className="toolbar-icon"/>
                     PDF로 다운로드
@@ -155,39 +133,14 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
             </div>
             <div className="control-group">
                 <label htmlFor="content-font-size">본문 크기(em):</label>
-                <input 
-                    id="content-font-size" 
-                    type="number" 
-                    step="0.1" 
-                    value={contentFontSizeEm} 
-                    onChange={e => onContentFontSizeEmChange(parseFloat(e.target.value) || 0)} 
-                />
+                <input id="content-font-size" type="number" step="0.1" value={contentFontSizeEm} onChange={e => onContentFontSizeEmChange(parseFloat(e.target.value) || 0)} />
             </div>
             <div className="control-group">
                 <label htmlFor="min-box-height-drag">문제 최소높이(em):</label>
                 {isEditingMinHeight ? (
-                    <input
-                        ref={inputRef}
-                        type="number"
-                        value={displayHeight}
-                        onChange={handleMinHeightInputChange}
-                        onBlur={handleMinHeightInputBlur}
-                        onKeyDown={handleMinHeightInputKeyDown}
-                        className="draggable-number-input"
-                    />
+                    <input ref={inputRef} type="number" value={displayHeight} onChange={handleMinHeightInputChange} onBlur={handleMinHeightInputBlur} onKeyDown={handleMinHeightInputKeyDown} className="draggable-number-input" />
                 ) : (
-                    <div
-                        id="min-box-height-drag"
-                        className="draggable-number"
-                        onMouseDown={handleMouseDown}
-                        onDoubleClick={handleMinHeightDoubleClick}
-                        role="slider"
-                        aria-valuenow={displayHeight}
-                        aria-valuemin={5}
-                        aria-valuemax={150}
-                        aria-label="문제 최소 높이 조절. 마우스를 누른 채 위아래로 드래그하거나 더블클릭하여 직접 입력하세요."
-                        title="드래그 또는 더블클릭하여 수정"
-                    >
+                    <div id="min-box-height-drag" className="draggable-number" onMouseDown={handleMouseDown} onDoubleClick={handleMinHeightDoubleClick} role="slider" aria-valuenow={displayHeight} aria-valuemin={5} aria-valuemax={150} aria-label="문제 최소 높이 조절. 마우스를 누른 채 위아래로 드래그하거나 더블클릭하여 직접 입력하세요." title="드래그 또는 더블클릭하여 수정">
                         {displayHeight.toFixed(1)}
                     </div>
                 )}

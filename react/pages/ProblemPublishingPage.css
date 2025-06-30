@@ -1,27 +1,44 @@
 /* ----- ./react/pages/ProblemPublishingPage.css ----- */
 
 .problem-publishing-page {
-    /* 페이지 전체가 main-content의 스크롤을 따르도록 높이 제약을 제거합니다. */
+    position: relative;
     display: flex;
     flex-direction: column;
     width: 100%;
-    gap: 1.5rem; /* 상단 영역과 하단 미리보기 영역 사이의 간격 */
+    gap: 1.5rem;
+}
+
+/* [핵심] pdf-processing 클래스에 마우스 커서 변경만 적용 */
+.problem-publishing-page.pdf-processing {
+    cursor: wait;
+}
+
+/* [핵심] UI 잠금을 위한 오버레이에서 배경 및 블러 효과 제거 */
+.processing-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: transparent; /* 투명 배경 */
+    backdrop-filter: none;         /* 블러 효과 제거 */
+    -webkit-backdrop-filter: none;
+    z-index: 9999;
+    cursor: wait;                  /* 오버레이 위에서도 대기 커서 유지 */
 }
 
 .sticky-top-container {
-    /* 이 컨테이너는 더 이상 화면에 고정되지 않습니다. */
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem; /* 문제 선택 위젯과 툴바 사이의 간격 */
+    gap: 1.5rem;
 }
 
 .selection-widget-container {
-    /* 테이블이 너무 커지는 것을 방지하기 위해 최대/최소 높이 설정 */
     flex-shrink: 0;
     max-height: 40vh;
     min-height: 250px;
-    display: flex; /* 자식인 ProblemSelectionWidget이 높이를 100% 채우도록 */
+    display: flex;
     flex-direction: column;
 }
 
@@ -33,9 +50,9 @@
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     display: flex;
-    flex-wrap: wrap; /* 창이 좁아지면 줄바꿈 */
+    flex-wrap: wrap;
     align-items: center;
-    gap: 1rem 1.5rem; /* 세로 간격, 가로 간격 */
+    gap: 1rem 1.5rem;
 }
 
 .control-group {
@@ -62,7 +79,18 @@
     text-align: center;
 }
 
-/* --- [추가 시작] 드래그 가능한 숫자 컨트롤 스타일 --- */
+.draggable-number-input {
+    width: 70px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.1);
+    background-color: var(--main-content-bg-color);
+    font-size: 0.9rem;
+    text-align: center;
+    outline: none;
+}
+
 .draggable-number {
     width: 70px;
     padding: 6px 8px;
@@ -71,8 +99,8 @@
     background-color: var(--main-content-bg-color);
     font-size: 0.9rem;
     text-align: center;
-    cursor: ns-resize; /* 남북 방향 리사이즈 커서로 드래그 가능함을 암시 */
-    user-select: none; /* 드래그 중 텍스트가 선택되는 것을 방지 */
+    cursor: ns-resize;
+    user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     transition: border-color 0.2s, box-shadow 0.2s;
@@ -87,7 +115,6 @@
     box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.2);
     cursor: ns-resize;
 }
-/* --- [추가 끝] --- */
 
 .control-group input:focus {
     outline: none;
@@ -96,8 +123,6 @@
 }
 
 .scrollable-content-area {
-    /* 이 영역은 이제 페이지의 나머지 부분을 차지하며, 스크롤되지 않습니다. */
-    /* 내부의 ExamPreviewWidget이 내용만큼의 높이를 가집니다. */
     width: 100%;
 }
 

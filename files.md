@@ -2709,7 +2709,7 @@ export function useHeightMeasurer(onHeightUpdate: (uniqueId: string, height: num
     return setRef;
 }
 ----- ./react/features/problem-publishing/hooks/usePdfGenerator.ts -----
-import { useState, useCallback, RefObject } from 'react';
+import { useState, useCallback, RefObject, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -2721,76 +2721,129 @@ interface PdfGeneratorProps {
 
 export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProblemCount }: PdfGeneratorProps) {
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, message: '' });
+    
+    const isProcessingRef = useRef(false);
 
     const handleDownloadPdf = useCallback(async () => {
-        if (!previewAreaRef.current || getSelectedProblemCount() === 0) {
+        if (isProcessingRef.current) return;
+        isProcessingRef.current = true;
+
+        const livePreviewElement = previewAreaRef.current;
+        if (!livePreviewElement || getSelectedProblemCount() === 0) {
             alert('PDF로 변환할 시험지 내용이 없습니다.');
-            return;
-        }
-
-        const fullPreviewArea = previewAreaRef.current;
-
-        if (fullPreviewArea.querySelectorAll('.exam-paper').length === 0) {
-            alert('PDF로 변환할 시험지 페이지(.exam-paper)를 찾을 수 없습니다.');
+            isProcessingRef.current = false;
             return;
         }
 
         setIsGeneratingPdf(true);
-        fullPreviewArea.classList.add('pdf-generating');
+        setPdfProgress({ current: 0, total: 1, message: '준비 중...' });
 
-        try {
-            const canvas = await html2canvas(fullPreviewArea, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                onclone: (document) => {
-                    document.querySelectorAll('.glass-popover').forEach(popover => popover.remove());
-                },
-                windowWidth: fullPreviewArea.scrollWidth,
-                windowHeight: fullPreviewArea.scrollHeight,
-            });
-            
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const canvasRatio = canvasHeight / canvasWidth;
-            
-            const imgWidth = pdfWidth;
-            const imgHeight = imgWidth * canvasRatio;
-
-            let heightLeft = imgHeight;
-            let position = 0;
-
-            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pdfHeight;
-
-            while (heightLeft > 0) {
-                position = -pdfHeight * (Math.floor(imgHeight / pdfHeight) - Math.floor(heightLeft / pdfHeight));
-                pdf.addPage();
-                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pdfHeight;
+        setTimeout(async () => {
+            const pageElements = livePreviewElement.querySelectorAll<HTMLElement>('.exam-page-component');
+            if (pageElements.length === 0) {
+                alert('PDF로 변환할 페이지(.exam-page-component)를 찾을 수 없습니다.');
+                setIsGeneratingPdf(false);
+                setPdfProgress({ current: 0, total: 0, message: '' });
+                isProcessingRef.current = false;
+                return;
             }
 
-            const examTitle = getExamTitle() || '시험지';
-            pdf.save(`${examTitle}.pdf`);
+            setPdfProgress({ current: 0, total: pageElements.length, message: '시험지 정리 중...' });
+            
+            const printContainer = document.createElement('div');
+            Object.assign(printContainer.style, {
+                position: 'absolute', left: '-9999px', top: '0px',
+                width: `${livePreviewElement.offsetWidth}px`,
+            });
+            document.body.appendChild(printContainer);
+            
+            try {
+                pageElements.forEach(page => {
+                    const clone = page.cloneNode(true) as HTMLElement;
+                    
+                    clone.querySelectorAll('.editable-trigger-button .edit-icon-overlay, .problem-deselect-button, .measured-height, .global-index').forEach(el => el.remove());
+                    clone.querySelectorAll<HTMLElement>('.problem-container').forEach(el => { el.style.border = 'none'; });
 
-        } catch (error) {
-            console.error("PDF 생성 중 오류 발생:", error);
-            alert("PDF를 생성하는 데 실패했습니다. 콘솔을 확인해주세요.");
-        } finally {
-            setIsGeneratingPdf(false);
-            fullPreviewArea.classList.remove('pdf-generating');
-        }
+                    printContainer.appendChild(clone);
+                });
+                
+                const scale = 2;
+                const firstClonedPage = printContainer.querySelector<HTMLElement>('.exam-page-component');
+                if (!firstClonedPage) throw new Error("복제된 요소를 찾을 수 없습니다.");
+
+                const singlePageWidth = firstClonedPage.offsetWidth;
+                const singlePageHeight = firstClonedPage.offsetHeight;
+                const singlePageOffsetX = firstClonedPage.offsetLeft;
+                
+                setPdfProgress(prev => ({ ...prev, message: '시험지 이미지 생성 중...' }));
+                const canvas = await html2canvas(printContainer, {
+                    scale: scale,
+                    useCORS: true,
+                    logging: false,
+                    width: printContainer.scrollWidth,
+                    height: printContainer.scrollHeight,
+                });
+                
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const VERTICAL_MARGIN_MM = 10;
+
+                for (let i = 0; i < pageElements.length; i++) {
+                    const percentage = Math.round(((i + 1) / pageElements.length) * 100);
+                    setPdfProgress(prev => ({ ...prev, current: i + 1, message: `${percentage}% 변환 중...` }));
+
+                    if (i > 0) pdf.addPage();
+                    
+                    const sourceY = (singlePageHeight * i) * scale;
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = singlePageWidth * scale;
+                    tempCanvas.height = singlePageHeight * scale;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    
+                    if (tempCtx) {
+                        tempCtx.drawImage(canvas, singlePageOffsetX * scale, sourceY, singlePageWidth * scale, singlePageHeight * scale, 0, 0, singlePageWidth * scale, singlePageHeight * scale);
+                        const pageImgData = tempCtx.canvas.toDataURL('image/png');
+                        const availableHeight = pdfHeight - (VERTICAL_MARGIN_MM * 2);
+                        const imageAspectRatio = singlePageWidth / singlePageHeight;
+                        let imgHeight = availableHeight;
+                        let imgWidth = imgHeight * imageAspectRatio;
+                        if (imgWidth > pdfWidth) {
+                            imgWidth = pdfWidth;
+                            imgHeight = imgWidth / imageAspectRatio;
+                        }
+                        const xOffset = (pdfWidth - imgWidth) / 2;
+                        const yOffset = (pdfHeight - imgHeight) / 2;
+                        pdf.addImage(pageImgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight);
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+                
+                const examTitle = getExamTitle() || '시험지';
+                pdf.save(`${examTitle}.pdf`);
+
+            } catch (error) {
+                console.error("PDF 생성 중 오류 발생:", error);
+                alert("PDF를 생성하는 데 실패했습니다. 콘솔을 확인해주세요.");
+            } finally {
+                document.body.removeChild(printContainer);
+                setIsGeneratingPdf(false);
+                setPdfProgress({ current: 0, total: 0, message: '' });
+                isProcessingRef.current = false;
+            }
+        }, 50);
+
     }, [previewAreaRef, getExamTitle, getSelectedProblemCount]);
 
+    const progressPercentage = pdfProgress.total > 0 ? Math.round((pdfProgress.current / pdfProgress.total) * 100) : 0;
+    const loadingMessage = pdfProgress.message || (isGeneratingPdf ? '변환 중...' : '');
+    const finalLoadingText = isGeneratingPdf && pdfProgress.total > 0 && progressPercentage > 0 ? `${loadingMessage} (${progressPercentage}%)` : loadingMessage;
+    
     return {
         isGeneratingPdf,
-        pdfProgress: { current: 0, total: 0, message: '' },
+        pdfProgress: { ...pdfProgress, message: finalLoadingText || pdfProgress.message },
         onDownloadPdf: handleDownloadPdf,
-        onCancelPdfGeneration: () => {},
     };
 }
 ----- ./react/features/problem-publishing/hooks/useProblemEditor.ts -----
@@ -3585,7 +3638,8 @@ export function useProblemPublishingPage() {
     usePublishingPageSetup({ selectedProblems, allProblems });
 
     const previewAreaRef = useRef<HTMLDivElement>(null);
-    const { isGeneratingPdf, onDownloadPdf } = usePdfGenerator({
+    
+    const { isGeneratingPdf, onDownloadPdf, pdfProgress } = usePdfGenerator({
         previewAreaRef,
         getExamTitle: () => headerInfo.title,
         getSelectedProblemCount: () => selectedProblems.length,
@@ -3610,6 +3664,7 @@ export function useProblemPublishingPage() {
         
         isGeneratingPdf,
         onDownloadPdf,
+        pdfProgress,
         previewAreaRef,
         ...previewManager,
     };
@@ -3927,7 +3982,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                     solution_text: localSolutionText
                 });
             }
-        }, 300);
+        }, 300); // 300ms 디바운스
 
         return () => {
             clearTimeout(handler);
@@ -4173,9 +4228,11 @@ const defaultPrompts: Prompt[] = [
       "problem_id": "244919dc-a659-457f-8a5d-37a2aa89e5b5",
       "question_number": 1,
       "problem_type": "객관식",
-      "question_text": "수열 \${a_n}$이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? [$3.8$점]<br>\n① $16$ \t&emsp;② $32$ \t&emsp;③ $64$ \t&emsp;④ $128$ \t&emsp;⑤ $256$",
+      "question_text": "수열 \${a_n}$이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? 
+      [$3.8$점]<br>\n① $16$ &emsp;② $32$ &emsp;③ $64$ &emsp;④ $128$ &emsp;⑤ $256$",
       "answer": "⑤",
-      "solution_text": "주어진 점화식 $a_{n+1} = 2a_n$은 수열 \\{a_n\\}이 공비가 $2$인 등비수열임을 의미합니다. 제$2$항 $a_2 = 4$이므로 제$8$항 $a_8$은 $a_8 = a_2 \\times r^{8-2} = a_2 \\times 2^6$으로 구할 수 있습니다. 따라서 $a_8 = 4 \\times 2^6 = 2^2 \\times 2^6 = 2^8 = 256$입니다.",
+      "solution_text": "주어진 점화식 $a_{n+1} = 2a_n$은 수열 \\{a_n\\}이 공비가 $2$인 등비수열임을 의미합니다. 제$2$항 $a_2 = 4$이므로 제$8$항 $a_8$은 $a_8 = a_2 \\times r^{8-2} = a_2 \\times 2^6$으로 구할 수 있습니다. 따라서 $a_8 = 4 \\times 2^6$ 
+      $= 2^2 \\times 2^6 = 2^8 = 256$입니다.",
       "page": null,
       "grade": "고2",
       "semester": "1학기",
@@ -4191,7 +4248,8 @@ const defaultPrompts: Prompt[] = [
       "problem_id": "3c0a9006-bdfb-4d27-ab62-f6f517dc5836",
       "question_number": 2,
       "problem_type": "객관식",
-      "question_text": "제$2$항이 $-6$, 제$10$항이 $26$인 등차수열의 제$6$항은? [$3.8$점]<br>\n① $9$ &emsp;&emsp;② $10$ &emsp;&emsp;③ $11$ &emsp;&emsp;④ $12$ &emsp;&emsp;⑤ $13$",
+      "question_text": "제$2$항이 $-6$, 제$10$항이 $26$인 등차수열의 제$6$항은? 
+      [$3.8$점]<br>\n① $9$ &emsp;&emsp;② $10$ &emsp;&emsp;③ $11$ &emsp;&emsp;④ $12$ &emsp;&emsp;⑤ $13$",
       "answer": "②",
       "solution_text": "등차수열 \\{a_n\\}의 첫째항을 $a$, 공차를 $d$라 하면, 제$2$항은 $a_2 = a+d = -6$이고, 제$10$항은 $a_{10} = a+9d=26$입니다. 두 식을 연립하여 풀면, $(a+9d) - (a+d) = 26 - (-6)$에서 $8d = 32$, 즉 $d=4$입니다. $a+4=-6$이므로 $a=-10$입니다. 따라서 제$6$항은 $a_6 = a+5d = -10 + 5(4) = -10 + 20 = 10$입니다.\n\n[다른 풀이]\n등차수열에서 항의 번호가 등차수열을 이루면, 그 항들도 등차수열을 이룹니다. $2, 6, 10$은 공차가 $4$인 등차수열이므로, $a_2, a_6, a_{10}$도 등차수열을 이룹니다. 따라서 $a_6$은 $a_2$와 $a_{10}$의 등차중항입니다. $a_6 = \\dfrac{a_2 + a_{10}}{2} = \\dfrac{-6+26}{2} = \\dfrac{20}{2} = 10$입니다.",
       "page": null,
@@ -6101,12 +6159,15 @@ const ProblemPublishingPage: React.FC = () => {
         headerInfo, useSequentialNumbering, baseFontSize, contentFontSizeEm, measuredHeights,
         onHeightUpdate, onProblemClick, onHeaderUpdate, handleDeselectProblem,
         onToggleSequentialNumbering, onBaseFontSizeChange, onContentFontSizeEmChange,
-        onDownloadPdf, isGeneratingPdf,
+        isGeneratingPdf, onDownloadPdf, pdfProgress,
         previewAreaRef, problemBoxMinHeight, setProblemBoxMinHeight,
     } = useProblemPublishingPage();
 
+    const pageClassName = `problem-publishing-page ${isGeneratingPdf ? 'pdf-processing' : ''}`;
+
     return (
-        <div className="problem-publishing-page">
+        <div className={pageClassName}>
+            {isGeneratingPdf && <div className="processing-overlay" />}
             <div className="sticky-top-container">
                 <div className="selection-widget-container">
                     <ProblemSelectionContainer
@@ -6125,11 +6186,11 @@ const ProblemPublishingPage: React.FC = () => {
                     onBaseFontSizeChange={onBaseFontSizeChange}
                     contentFontSizeEm={contentFontSizeEm}
                     onContentFontSizeEmChange={onContentFontSizeEmChange} 
-                    onDownloadPdf={onDownloadPdf}
-                    isGeneratingPdf={isGeneratingPdf}
-                    previewAreaRef={previewAreaRef}
                     problemBoxMinHeight={problemBoxMinHeight}
                     setProblemBoxMinHeight={setProblemBoxMinHeight}
+                    onDownloadPdf={onDownloadPdf}
+                    isGeneratingPdf={isGeneratingPdf}
+                    pdfProgress={pdfProgress}
                 />
             </div>
             <div 
@@ -7278,12 +7339,8 @@ import { create } from 'zustand';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
 import type { Student } from '../../entities/student/model/useStudentDataWithRQ';
-import type { ProcessedProblem } from '../../features/problem-publishing'; // [추가] 타입 임포트
+import type { ProcessedProblem } from '../../features/problem-publishing';
 
-/**
- * [수정] TableSearch 컴포넌트가 필요로 하는 모든 props를 포함하는 완전한 인터페이스.
- * 각 페이지의 훅은 이 인터페이스에 맞는 객체를 만들어 스토어에 저장하게 됩니다.
- */
 export interface StoredSearchProps {
     searchTerm: string;
     onSearchTermChange: (value: string) => void;
@@ -7305,13 +7362,13 @@ interface RegisteredPageActions {
   openPromptSidebar: () => void;
   openLatexHelpSidebar: () => void;
   openSearchSidebar: () => void; 
-  openJsonViewSidebar: () => void; // [추가] 파라미터 없음
+  openJsonViewSidebar: () => void;
   openEditSidebar: (student: Student) => void;
   onClose: () => void;
 }
 
 interface SidebarContentConfig {
-    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | 'jsonViewer' | null; // [추가] 'jsonViewer'
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | 'jsonViewer' | null;
     props?: Record<string, any>;
 }
 
@@ -7340,7 +7397,7 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     openPromptSidebar: () => console.warn('openPromptSidebar action not registered.'),
     openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'),
     openSearchSidebar: () => console.warn('openSearchSidebar action not registered.'),
-    openJsonViewSidebar: () => console.warn('openJsonViewSidebar action not registered.'), // [추가] 초기 액션
+    openJsonViewSidebar: () => console.warn('openJsonViewSidebar action not registered.'),
     openEditSidebar: (student: Student) => console.warn('openEditSidebar action not registered for student:', student.id),
     onClose: () => console.warn('onClose action not registered.'),
 };
@@ -7355,26 +7412,17 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
   searchBoxProps: null,
 
   setRightSidebarConfig: (config) => {
-    const currentState = get().rightSidebar;
-    if (!config.contentConfig) {
-        if (currentState.contentConfig.type !== null) {
-            set({ rightSidebar: { contentConfig: { type: null }, isExtraWide: false } });
-        }
-        return;
+    if (!config.contentConfig || !config.contentConfig.type) {
+      set({ rightSidebar: { contentConfig: { type: null }, isExtraWide: false } });
+      return;
     }
-
-    if (
-        currentState.contentConfig.type !== config.contentConfig.type ||
-        JSON.stringify(currentState.contentConfig.props) !== JSON.stringify(config.contentConfig.props) ||
-        currentState.isExtraWide !== (config.isExtraWide ?? false)
-    ) {
-        set({ 
-            rightSidebar: {
-                contentConfig: config.contentConfig,
-                isExtraWide: config.isExtraWide ?? false
-            } 
-        });
-    }
+    
+    set({
+      rightSidebar: {
+        contentConfig: config.contentConfig,
+        isExtraWide: config.isExtraWide ?? false,
+      }
+    });
   },
 
   updateLayoutForPath: (path) => {
@@ -7409,7 +7457,7 @@ interface SidebarTriggers {
     settingsTrigger?: SidebarTrigger;
     promptTrigger?: SidebarTrigger;
     latexHelpTrigger?: SidebarTrigger;
-    jsonViewTrigger?: SidebarTrigger; // [추가]
+    jsonViewTrigger?: SidebarTrigger;
 }
 
 export const useSidebarTriggers = (): SidebarTriggers => {
@@ -8993,11 +9041,11 @@ interface PublishingToolbarWidgetProps {
     onBaseFontSizeChange: (value: string) => void;
     contentFontSizeEm: number;
     onContentFontSizeEmChange: (value: number) => void;
-    onDownloadPdf: () => void;
-    isGeneratingPdf: boolean;
-    previewAreaRef: React.RefObject<HTMLDivElement | null>;
     problemBoxMinHeight: number;
     setProblemBoxMinHeight: (height: number) => void;
+    onDownloadPdf: () => void;
+    isGeneratingPdf: boolean;
+    pdfProgress: { current: number; total: number; message: string };
 }
 
 const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) => {
@@ -9005,11 +9053,8 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         useSequentialNumbering, onToggleSequentialNumbering,
         baseFontSize, onBaseFontSizeChange,
         contentFontSizeEm, onContentFontSizeEmChange,
-        onDownloadPdf,
-        isGeneratingPdf,
-        previewAreaRef,
-        problemBoxMinHeight,
-        setProblemBoxMinHeight
+        problemBoxMinHeight, setProblemBoxMinHeight,
+        onDownloadPdf, isGeneratingPdf, pdfProgress
     } = props;
 
     const { setDraggingControl, forceRecalculateLayout } = useExamLayoutStore();
@@ -9036,15 +9081,14 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
     }, [isEditingMinHeight]);
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!dragStartRef.current || !previewAreaRef.current) return;
+        if (!dragStartRef.current) return;
         const deltaY = e.clientY - dragStartRef.current.startY;
         const sensitivity = -0.1;
         const newHeight = dragStartRef.current.startHeight + deltaY * sensitivity;
         const clampedHeight = Math.max(5, Math.min(newHeight, 150));
         
-        previewAreaRef.current.style.setProperty('--problem-box-min-height-em', `${clampedHeight}em`);
         setDisplayHeight(clampedHeight);
-    }, [previewAreaRef]);
+    }, []);
 
     const handleMouseUp = useCallback(() => {
         if (!dragStartRef.current) return;
@@ -9053,10 +9097,8 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         window.removeEventListener('mouseup', handleMouseUp);
         
         setDraggingControl(false);
-        
         setProblemBoxMinHeight(displayHeightRef.current);
         forceRecalculateLayout(displayHeightRef.current);
-        
         dragStartRef.current = null;
     }, [handleMouseMove, setDraggingControl, forceRecalculateLayout, setProblemBoxMinHeight]);
 
@@ -9072,14 +9114,8 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         window.addEventListener('mouseup', handleMouseUp);
     }, [problemBoxMinHeight, handleMouseMove, handleMouseUp, setDraggingControl]);
 
-    const handleMinHeightDoubleClick = () => {
-        setIsEditingMinHeight(true);
-    };
-
-    const handleMinHeightInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setDisplayHeight(parseFloat(e.target.value) || 0);
-    };
-
+    const handleMinHeightDoubleClick = () => setIsEditingMinHeight(true);
+    const handleMinHeightInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setDisplayHeight(parseFloat(e.target.value) || 0);
     const handleMinHeightInputBlur = () => {
         const clampedHeight = Math.max(5, Math.min(displayHeight, 150));
         setDisplayHeight(clampedHeight);
@@ -9087,11 +9123,9 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         forceRecalculateLayout(clampedHeight);
         setIsEditingMinHeight(false);
     };
-
     const handleMinHeightInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            handleMinHeightInputBlur();
-        } else if (e.key === 'Escape') {
+        if (e.key === 'Enter') handleMinHeightInputBlur();
+        else if (e.key === 'Escape') {
             setDisplayHeight(problemBoxMinHeight);
             setIsEditingMinHeight(false);
         }
@@ -9113,7 +9147,7 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
                     className="primary" 
                     onClick={onDownloadPdf}
                     isLoading={isGeneratingPdf}
-                    loadingText="PDF 생성 중..."
+                    loadingText={pdfProgress.message || "변환 중..."}
                 >
                     <LuFileDown size={14} className="toolbar-icon"/>
                     PDF로 다운로드
@@ -9128,39 +9162,14 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
             </div>
             <div className="control-group">
                 <label htmlFor="content-font-size">본문 크기(em):</label>
-                <input 
-                    id="content-font-size" 
-                    type="number" 
-                    step="0.1" 
-                    value={contentFontSizeEm} 
-                    onChange={e => onContentFontSizeEmChange(parseFloat(e.target.value) || 0)} 
-                />
+                <input id="content-font-size" type="number" step="0.1" value={contentFontSizeEm} onChange={e => onContentFontSizeEmChange(parseFloat(e.target.value) || 0)} />
             </div>
             <div className="control-group">
                 <label htmlFor="min-box-height-drag">문제 최소높이(em):</label>
                 {isEditingMinHeight ? (
-                    <input
-                        ref={inputRef}
-                        type="number"
-                        value={displayHeight}
-                        onChange={handleMinHeightInputChange}
-                        onBlur={handleMinHeightInputBlur}
-                        onKeyDown={handleMinHeightInputKeyDown}
-                        className="draggable-number-input"
-                    />
+                    <input ref={inputRef} type="number" value={displayHeight} onChange={handleMinHeightInputChange} onBlur={handleMinHeightInputBlur} onKeyDown={handleMinHeightInputKeyDown} className="draggable-number-input" />
                 ) : (
-                    <div
-                        id="min-box-height-drag"
-                        className="draggable-number"
-                        onMouseDown={handleMouseDown}
-                        onDoubleClick={handleMinHeightDoubleClick}
-                        role="slider"
-                        aria-valuenow={displayHeight}
-                        aria-valuemin={5}
-                        aria-valuemax={150}
-                        aria-label="문제 최소 높이 조절. 마우스를 누른 채 위아래로 드래그하거나 더블클릭하여 직접 입력하세요."
-                        title="드래그 또는 더블클릭하여 수정"
-                    >
+                    <div id="min-box-height-drag" className="draggable-number" onMouseDown={handleMouseDown} onDoubleClick={handleMinHeightDoubleClick} role="slider" aria-valuenow={displayHeight} aria-valuemin={5} aria-valuemax={150} aria-label="문제 최소 높이 조절. 마우스를 누른 채 위아래로 드래그하거나 더블클릭하여 직접 입력하세요." title="드래그 또는 더블클릭하여 수정">
                         {displayHeight.toFixed(1)}
                     </div>
                 )}
@@ -9513,7 +9522,7 @@ import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2 } from 'react-icons/lu'; // [추가] LuFileJson2
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2 } from 'react-icons/lu';
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
@@ -9521,7 +9530,7 @@ import PromptCollection from '../../features/prompt-collection/ui/PromptCollecti
 import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
 import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel';
-import JsonViewerPanel from '../../features/json-viewer/ui/JsonViewerPanel'; // [추가]
+import JsonViewerPanel from '../../features/json-viewer/ui/JsonViewerPanel';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -9530,7 +9539,7 @@ const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
 const LatexHelpIcon = () => <LuBookMarked size={20} />;
 const SearchIcon = () => <LuSearch size={20} />;
-const JsonViewIcon = () => <LuFileJson2 size={20} />; // [추가]
+const JsonViewIcon = () => <LuFileJson2 size={20} />;
 
 interface ProblemEditorWrapperProps {
     isSaving?: boolean;
@@ -9550,7 +9559,6 @@ const ProblemEditorWrapper: React.FC<ProblemEditorWrapperProps> = (props) => {
 
     return <ProblemTextEditor problem={problemToEdit} {...props} />;
 };
-
 
 const SidebarContentRenderer: React.FC = () => {
     const { contentConfig } = useLayoutStore(selectRightSidebarConfig);
@@ -9623,9 +9631,10 @@ const SidebarContentRenderer: React.FC = () => {
     }
 }
 
+
 const GlassSidebarRight: React.FC = () => {
     const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, jsonViewTrigger, onClose } = useSidebarTriggers(); // [수정] jsonViewTrigger 추가
+    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, jsonViewTrigger, onClose } = useSidebarTriggers();
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
     const isRightSidebarExpanded = contentConfig.type !== null;
@@ -9672,7 +9681,6 @@ const GlassSidebarRight: React.FC = () => {
                                 </Tippy>
                             )}
 
-                             {/* [추가] JSON 뷰어 버튼 */}
                             {jsonViewTrigger && (
                                 <Tippy content={jsonViewTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
                                     <button

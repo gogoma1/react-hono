@@ -3,7 +3,7 @@ import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2 } from 'react-icons/lu'; // [추가] LuFileJson2
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2 } from 'react-icons/lu';
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
@@ -11,7 +11,7 @@ import PromptCollection from '../../features/prompt-collection/ui/PromptCollecti
 import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
 import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel';
-import JsonViewerPanel from '../../features/json-viewer/ui/JsonViewerPanel'; // [추가]
+import JsonViewerPanel from '../../features/json-viewer/ui/JsonViewerPanel';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -20,8 +20,9 @@ const PlusIcon = () => <LuCirclePlus size={22} />;
 const PromptIcon = () => <LuClipboardList size={20} />;
 const LatexHelpIcon = () => <LuBookMarked size={20} />;
 const SearchIcon = () => <LuSearch size={20} />;
-const JsonViewIcon = () => <LuFileJson2 size={20} />; // [추가]
+const JsonViewIcon = () => <LuFileJson2 size={20} />;
 
+// [핵심 수정] Props 인터페이스를 파일 최상단으로 이동
 interface ProblemEditorWrapperProps {
     isSaving?: boolean;
     onSave: (problem: ProcessedProblem) => void;
@@ -30,6 +31,7 @@ interface ProblemEditorWrapperProps {
     onProblemChange: (problem: ProcessedProblem) => void;
 }
 
+// [핵심 수정] ProblemEditorWrapper 컴포넌트를 GlassSidebarRight 밖, 파일 최상위 레벨로 이동
 const ProblemEditorWrapper: React.FC<ProblemEditorWrapperProps> = (props) => {
     const { draftProblems, editingProblemId } = useProblemPublishingStore();
     const problemToEdit = draftProblems?.find(p => p.uniqueId === editingProblemId);
@@ -41,7 +43,7 @@ const ProblemEditorWrapper: React.FC<ProblemEditorWrapperProps> = (props) => {
     return <ProblemTextEditor problem={problemToEdit} {...props} />;
 };
 
-
+// [핵심 수정] SidebarContentRenderer 컴포넌트도 GlassSidebarRight 밖으로 이동
 const SidebarContentRenderer: React.FC = () => {
     const { contentConfig } = useLayoutStore(selectRightSidebarConfig);
     const { pageActions } = useLayoutStore.getState();
@@ -97,7 +99,6 @@ const SidebarContentRenderer: React.FC = () => {
         case 'latexHelp':
             return <LatexHelpPanel />;
             
-        // [추가] jsonViewer 케이스
         case 'jsonViewer': {
             const { problems } = contentConfig.props || {};
             if (!problems) return <div>JSON으로 변환할 데이터가 없습니다.</div>;
@@ -114,9 +115,10 @@ const SidebarContentRenderer: React.FC = () => {
     }
 }
 
+
 const GlassSidebarRight: React.FC = () => {
     const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, jsonViewTrigger, onClose } = useSidebarTriggers(); // [수정] jsonViewTrigger 추가
+    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, jsonViewTrigger, onClose } = useSidebarTriggers();
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
     const isRightSidebarExpanded = contentConfig.type !== null;
@@ -163,7 +165,6 @@ const GlassSidebarRight: React.FC = () => {
                                 </Tippy>
                             )}
 
-                             {/* [추가] JSON 뷰어 버튼 */}
                             {jsonViewTrigger && (
                                 <Tippy content={jsonViewTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
                                     <button

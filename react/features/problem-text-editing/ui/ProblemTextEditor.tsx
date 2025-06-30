@@ -23,6 +23,7 @@ interface ProblemTextEditorProps {
     onSave: (updatedProblem: ProcessedProblem) => void;
     onRevert: (problemId: string) => void; 
     onClose: () => void;
+    // [수정] 실시간 업데이트를 위해 onProblemChange prop을 다시 추가합니다.
     onProblemChange: (updatedProblem: ProcessedProblem) => void;
 }
 
@@ -32,6 +33,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     onSave, 
     onRevert,
     onClose,
+    // [수정] prop을 다시 받습니다.
     onProblemChange,
 }) => {
     const [localQuestionText, setLocalQuestionText] = useState(problem.question_text ?? '');
@@ -48,8 +50,10 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
         setLocalProblemData(problem);
     }, [problem]);
 
+    // [수정] 실시간 미리보기를 위해 debounce 처리된 useEffect를 다시 복원합니다.
     useEffect(() => {
         const handler = setTimeout(() => {
+            // 텍스트가 실제로 변경되었을 때만 상위로 전파
             if (problem.question_text !== localQuestionText || problem.solution_text !== localSolutionText) {
                 onProblemChange({ 
                     ...localProblemData, 
@@ -57,7 +61,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                     solution_text: localSolutionText
                 });
             }
-        }, 300);
+        }, 300); // 300ms 디바운스
 
         return () => {
             clearTimeout(handler);
@@ -67,6 +71,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     const handleMetadataChange = useCallback((field: keyof Problem, value: string | number) => {
         const updatedProblem = { ...localProblemData, [field]: value };
         setLocalProblemData(updatedProblem);
+        // 메타데이터 변경은 즉시 상위로 전파하여 미리보기(예: 헤더)에 반영
         onProblemChange(updatedProblem);
     }, [localProblemData, onProblemChange]);
 
