@@ -1,0 +1,46 @@
+/* ./react/pages/PdfOptionsModal.css */
+
+.pdf-options-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.options-description {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.option-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.option-item:hover {
+    background-color: var(--menu-item-hover-bg);
+}
+
+.option-item input[type="checkbox"] {
+    width: 1.15em;
+    height: 1.15em;
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+
+.checkbox-label {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}

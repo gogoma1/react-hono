@@ -8,30 +8,48 @@ interface PdfGeneratorProps {
     getSelectedProblemCount: () => number;
 }
 
+export interface PdfExportOptions {
+    includeProblems: boolean;
+    includeAnswers: boolean;
+    includeSolutions: boolean;
+}
+
 export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProblemCount }: PdfGeneratorProps) {
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, message: '' });
     
     const isProcessingRef = useRef(false);
 
-    const handleDownloadPdf = useCallback(async () => {
+    const generatePdf = useCallback(async (options: PdfExportOptions) => {
         if (isProcessingRef.current) return;
-        isProcessingRef.current = true;
-
+        
         const livePreviewElement = previewAreaRef.current;
         if (!livePreviewElement || getSelectedProblemCount() === 0) {
             alert('PDF로 변환할 시험지 내용이 없습니다.');
-            isProcessingRef.current = false;
             return;
         }
 
+        const selectors = [];
+        if (options.includeProblems) selectors.push('.problem-page-type');
+        if (options.includeAnswers) selectors.push('.answer-page-type');
+        if (options.includeSolutions) selectors.push('.solution-page-type');
+
+        if (selectors.length === 0) {
+            alert('PDF로 출력할 항목을 하나 이상 선택해주세요.');
+            return;
+        }
+        
+        const selectorString = selectors.join(', ');
+
+        isProcessingRef.current = true;
         setIsGeneratingPdf(true);
         setPdfProgress({ current: 0, total: 1, message: '준비 중...' });
 
         setTimeout(async () => {
-            const pageElements = livePreviewElement.querySelectorAll<HTMLElement>('.exam-page-component');
+            const pageElements = livePreviewElement.querySelectorAll<HTMLElement>(selectorString);
+
             if (pageElements.length === 0) {
-                alert('PDF로 변환할 페이지(.exam-page-component)를 찾을 수 없습니다.');
+                alert('선택된 항목에 해당하는 페이지가 없습니다. PDF를 생성할 수 없습니다.');
                 setIsGeneratingPdf(false);
                 setPdfProgress({ current: 0, total: 0, message: '' });
                 isProcessingRef.current = false;
@@ -50,11 +68,8 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
             try {
                 pageElements.forEach(page => {
                     const clone = page.cloneNode(true) as HTMLElement;
-                    
-                    // [핵심] 복제된 요소에서 직접 불필요한 UI들을 제거합니다.
                     clone.querySelectorAll('.editable-trigger-button .edit-icon-overlay, .problem-deselect-button, .measured-height, .global-index').forEach(el => el.remove());
                     clone.querySelectorAll<HTMLElement>('.problem-container').forEach(el => { el.style.border = 'none'; });
-
                     printContainer.appendChild(clone);
                 });
                 
@@ -62,11 +77,14 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
                 const firstClonedPage = printContainer.querySelector<HTMLElement>('.exam-page-component');
                 if (!firstClonedPage) throw new Error("복제된 요소를 찾을 수 없습니다.");
 
+                // --- [핵심 복원] 기존의 안정적인 오프셋 및 크기 계산 로직 유지 ---
                 const singlePageWidth = firstClonedPage.offsetWidth;
                 const singlePageHeight = firstClonedPage.offsetHeight;
                 const singlePageOffsetX = firstClonedPage.offsetLeft;
                 
                 setPdfProgress(prev => ({ ...prev, message: '시험지 이미지 생성 중...' }));
+                
+                // [핵심 복원] 캔버스 생성 시 printContainer의 scrollWidth와 scrollHeight를 사용
                 const canvas = await html2canvas(printContainer, {
                     scale: scale,
                     useCORS: true,
@@ -86,6 +104,7 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
 
                     if (i > 0) pdf.addPage();
                     
+                    // --- [핵심 복원] 기존의 이미지 자르기 로직을 그대로 사용 ---
                     const sourceY = (singlePageHeight * i) * scale;
                     const tempCanvas = document.createElement('canvas');
                     tempCanvas.width = singlePageWidth * scale;
@@ -93,6 +112,7 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
                     const tempCtx = tempCanvas.getContext('2d');
                     
                     if (tempCtx) {
+                        // [핵심 복원] drawImage 호출 시 singlePageOffsetX를 사용하여 정확한 위치에서 잘라냄
                         tempCtx.drawImage(canvas, singlePageOffsetX * scale, sourceY, singlePageWidth * scale, singlePageHeight * scale, 0, 0, singlePageWidth * scale, singlePageHeight * scale);
                         const pageImgData = tempCtx.canvas.toDataURL('image/png');
                         const availableHeight = pdfHeight - (VERTICAL_MARGIN_MM * 2);
@@ -133,6 +153,6 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
     return {
         isGeneratingPdf,
         pdfProgress: { ...pdfProgress, message: finalLoadingText || pdfProgress.message },
-        onDownloadPdf: handleDownloadPdf,
+        generatePdf,
     };
 }

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Problem } from '../../problem/model/types';
+import MathpixRenderer from '../../../shared/ui/MathpixRenderer'; // [추가] MathpixRenderer 임포트
 import './ExamPage.css';
 
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
@@ -57,7 +58,12 @@ const QuickAnswerPage: React.FC<QuickAnswerPageProps> = ({
             {columnProblems.map((problem) => (
                 <div key={problem.uniqueId} className="quick-answer-item">
                     <span className="quick-answer-number">{getProblemNumber(problem)})</span>
-                    <span className="quick-answer-value">{problem.answer}</span>
+                    {/* --- [핵심 수정] --- */}
+                    {/* 기존의 span 태그를 MathpixRenderer를 사용하는 div로 교체합니다. */}
+                    {/* 이렇게 하면 객관식(예: '①')과 서술형(예: '$x=2$') 정답 모두 올바르게 표시됩니다. */}
+                    <div className="quick-answer-value">
+                        <MathpixRenderer text={problem.answer ?? ''} />
+                    </div>
                 </div>
             ))}
         </div>
@@ -65,7 +71,7 @@ const QuickAnswerPage: React.FC<QuickAnswerPageProps> = ({
 
     return (
         <div 
-            className="exam-page-component" 
+            className="exam-page-component answer-page-type" 
             style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
         >
             <div className="exam-paper">

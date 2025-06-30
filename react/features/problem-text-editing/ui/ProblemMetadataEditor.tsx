@@ -4,19 +4,26 @@ import GlassPopover from '../../../shared/components/GlassPopover';
 import { PopoverCombobox } from '../../json-problem-importer/ui/EditPopoverContent';
 import { LuChevronsUpDown } from 'react-icons/lu';
 
+// 공통 옵션들
 const GRADE_OPTIONS: ComboboxOption[] = ['초1', '초2', '초3', '초4', '초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'].map(g => ({ value: g, label: g }));
 const SEMESTER_OPTIONS: ComboboxOption[] = ['1학기', '2학기', '공통'].map(s => ({ value: s, label: s }));
 const DIFFICULTY_OPTIONS: ComboboxOption[] = ['최상', '상', '중', '하', '최하'].map(d => ({ value: d, label: d }));
-// [수정] '주관식' 제거
 const TYPE_OPTIONS: ComboboxOption[] = ['객관식', '서답형', '논술형'].map(t => ({ value: t, label: t }));
 
+// [추가] 객관식 정답 전용 옵션
+const ANSWER_OPTIONS: ComboboxOption[] = ['①', '②', '③', '④', '⑤', '⑥'].map(a => ({ value: a, label: a }));
+
+// 필드 키에 따른 옵션 매핑
 const SELECT_OPTIONS_MAP: Record<string, ComboboxOption[]> = {
     grade: GRADE_OPTIONS,
     semester: SEMESTER_OPTIONS,
     difficulty: DIFFICULTY_OPTIONS,
     problem_type: TYPE_OPTIONS,
+    // [추가] 'answer' 필드에 대한 옵션 매핑 추가
+    answer: ANSWER_OPTIONS,
 };
 
+// 필드 라벨
 const FIELD_LABELS: Record<string, string> = {
     question_number: "문제 번호",
     source: "출처",
@@ -48,8 +55,11 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
     const [popoverAnchorEl, setPopoverAnchorEl] = useState<HTMLElement | null>(null);
 
     const handleFieldClick = (e: React.MouseEvent<HTMLButtonElement>, field: keyof Problem) => {
+        // [수정] answer 필드는 problem_type이 '객관식'일 때만 콤보박스로 동작하도록 조건 추가
+        const isAnswerCombobox = field === 'answer' && problemData.problem_type === '객관식';
         const options = SELECT_OPTIONS_MAP[field];
-        if (options) {
+
+        if (options && (field !== 'answer' || isAnswerCombobox)) {
             e.preventDefault();
             setPopoverTargetField(field);
             setPopoverAnchorEl(e.currentTarget);
@@ -76,7 +86,15 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
         <div className="metadata-fields-section">
             <h5 className="editor-section-title">문제 정보</h5>
             {fields.map(field => {
-                const options = SELECT_OPTIONS_MAP[field];
+                // --- [핵심 수정 로직] ---
+                // 1. 현재 필드가 'answer'이고 문제 타입이 '객관식'인지 확인
+                const isAnswerCombobox = field === 'answer' && problemData.problem_type === '객관식';
+                // 2. 'answer'가 아닌 다른 필드들 중 콤보박스 대상인지 확인
+                const isOtherCombobox = field !== 'answer' && SELECT_OPTIONS_MAP[field];
+                
+                // 3. 콤보박스로 렌더링할지 여부 결정
+                const shouldRenderAsCombobox = isAnswerCombobox || isOtherCombobox;
+                
                 const currentValue = problemData[field] ?? '';
                 
                 return (
@@ -84,7 +102,8 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
                         <label htmlFor={field} className="metadata-field-label">
                             {FIELD_LABELS[field] || field}
                         </label>
-                        {options ? (
+                        {shouldRenderAsCombobox ? (
+                            // 콤보박스로 렌더링
                             <button
                                 type="button"
                                 id={field}
@@ -95,11 +114,12 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
                                 <LuChevronsUpDown className="chevron-icon" />
                             </button>
                         ) : (
+                            // 일반 input으로 렌더링
                             <input
                                 id={field}
                                 type={field === 'question_number' || field === 'page' ? 'number' : 'text'}
                                 className="metadata-field-input"
-                                value={currentValue}
+                                value={String(currentValue)} // [수정] 항상 문자열로 변환하여 제어 컴포넌트 경고 방지
                                 onChange={(e) => handleValueChange(field, e.target.value)}
                             />
                         )}
@@ -107,7 +127,6 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
                 );
             })}
 
-            {/* [핵심 추가] 콤보박스 팝오버 */}
             <GlassPopover
                 isOpen={!!popoverTargetField}
                 onClose={handlePopoverClose}

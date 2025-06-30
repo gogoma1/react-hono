@@ -1,4 +1,3 @@
-// ./react/entities/exam/ui/ExamPage.tsx
 import React, { useMemo } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
@@ -75,6 +74,7 @@ type ExamHeaderInfo = Pick<React.ComponentProps<typeof ExamHeader>,
     | 'simplifiedSubjectFontSize'
     | 'simplifiedSubjectFontFamily'
     | 'simplifiedGradeText'
+    | 'source'
 >;
 
 interface ExamPageProps {
@@ -130,17 +130,17 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
             />
         ));
     };
-
+    
     return (
         <div 
-            className="exam-page-component" 
+            className="exam-page-component problem-page-type" 
             style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
         >
             <div className="exam-paper">
                 <ExamHeader 
                     page={pageNumber}
                     totalPages={totalPages}
-                    additionalBoxContent={problems[0]?.source ?? '정보 없음'}
+                    additionalBoxContent="이름"
                     {...headerInfo}
                     onUpdate={onHeaderUpdate}
                 />

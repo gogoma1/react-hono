@@ -133,6 +133,7 @@ interface ExamHeaderProps {
     simplifiedSubjectFontFamily: string;
     simplifiedGradeText: string;
     onUpdate: (targetId: EditableTarget, field: string, value: ExamUpdateValue) => void;
+    source: string;
 }
 
 
@@ -145,7 +146,8 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
         additionalBoxContent, 
         simplifiedSubjectText, simplifiedSubjectFontSize, simplifiedSubjectFontFamily,
         simplifiedGradeText, 
-        onUpdate
+        onUpdate,
+        source
     } = props;
     
     const [editingTarget, setEditingTarget] = useState<EditableTarget | null>(null);
@@ -210,6 +212,8 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
     const setTriggerRef = (targetId: EditableTarget, el: HTMLButtonElement | null) => {
         triggerRefs.current[targetId] = el;
     };
+
+    const displayTitle = `${source}`;
     
     if (page > 1) {
         return (
@@ -225,7 +229,6 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                             label={getTargetLabel('simplifiedGrade')}
                         >
                              <span className="simplified-grade-text">
-                                {/* [수정] initial... 변수 대신 직접 받은 prop 값을 사용 */}
                                 {simplifiedGradeText}
                             </span>
                         </EditableArea>
@@ -292,7 +295,8 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
                                 '--font-family': titleFontFamily,
                             } as React.CSSProperties}
                         >
-                            {title}
+                            {/* [핵심 수정] 조합된 제목을 화면에 표시합니다. */}
+                            {displayTitle}
                         </span>
                     </EditableArea>
                     <div className="exam-header-page-number">{page}</div>
@@ -440,6 +444,7 @@ type ExamHeaderInfo = Pick<React.ComponentProps<typeof ExamHeader>,
     | 'simplifiedSubjectFontSize'
     | 'simplifiedSubjectFontFamily'
     | 'simplifiedGradeText'
+    | 'source'
 >;
 
 interface ExamPageProps {
@@ -495,17 +500,17 @@ const ExamPage: React.FC<ExamPageProps> = (props) => {
             />
         ));
     };
-
+    
     return (
         <div 
-            className="exam-page-component" 
+            className="exam-page-component problem-page-type" 
             style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
         >
             <div className="exam-paper">
                 <ExamHeader 
                     page={pageNumber}
                     totalPages={totalPages}
-                    additionalBoxContent={problems[0]?.source ?? '정보 없음'}
+                    additionalBoxContent="이름"
                     {...headerInfo}
                     onUpdate={onHeaderUpdate}
                 />
@@ -526,6 +531,7 @@ export default React.memo(ExamPage);
 ----- ./react/entities/exam/ui/QuickAnswerPage.tsx -----
 import React from 'react';
 import type { Problem } from '../../problem/model/types';
+import MathpixRenderer from '../../../shared/ui/MathpixRenderer'; // [추가] MathpixRenderer 임포트
 import './ExamPage.css';
 
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
@@ -583,7 +589,12 @@ const QuickAnswerPage: React.FC<QuickAnswerPageProps> = ({
             {columnProblems.map((problem) => (
                 <div key={problem.uniqueId} className="quick-answer-item">
                     <span className="quick-answer-number">{getProblemNumber(problem)})</span>
-                    <span className="quick-answer-value">{problem.answer}</span>
+                    {/* --- [핵심 수정] --- */}
+                    {/* 기존의 span 태그를 MathpixRenderer를 사용하는 div로 교체합니다. */}
+                    {/* 이렇게 하면 객관식(예: '①')과 서술형(예: '$x=2$') 정답 모두 올바르게 표시됩니다. */}
+                    <div className="quick-answer-value">
+                        <MathpixRenderer text={problem.answer ?? ''} />
+                    </div>
                 </div>
             ))}
         </div>
@@ -591,7 +602,7 @@ const QuickAnswerPage: React.FC<QuickAnswerPageProps> = ({
 
     return (
         <div 
-            className="exam-page-component" 
+            className="exam-page-component answer-page-type" 
             style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
         >
             <div className="exam-paper">
@@ -731,7 +742,7 @@ const SolutionPage: React.FC<SolutionPageProps> = (props) => {
 
     return (
         <div 
-            className="exam-page-component solution-page" 
+            className="exam-page-component solution-page solution-page-type" 
             style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
         >
             <div className="exam-paper">
@@ -2583,13 +2594,31 @@ type HeaderUpdateValue = {
     fontFamily?: string;
 };
 
+export type HeaderInfoState = {
+    title: string;
+    titleFontSize: number;
+    titleFontFamily: string;
+    school: string;
+    schoolFontSize: number;
+    schoolFontFamily: string;
+    subject: string;
+    subjectFontSize: number;
+    subjectFontFamily: string;
+    simplifiedSubjectText: string;
+    simplifiedSubjectFontSize: number;
+    simplifiedSubjectFontFamily: string;
+    simplifiedGradeText: string;
+    source: string;
+};
+
 export function useExamHeaderState() {
-    const [headerInfo, setHeaderInfo] = useState({
+    const [headerInfo, setHeaderInfo] = useState<HeaderInfoState>({
         title: '2025학년도 3월 전국연합학력평가', titleFontSize: 1.64, titleFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
         school: '제2교시', schoolFontSize: 1, schoolFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
         subject: '수학 영역', subjectFontSize: 3, subjectFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
         simplifiedSubjectText: '수학 영역', simplifiedSubjectFontSize: 1.6, simplifiedSubjectFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
         simplifiedGradeText: '고3',
+        source: '정보 없음',
     });
 
     const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: HeaderUpdateValue) => {
@@ -2625,6 +2654,7 @@ export function useExamHeaderState() {
     return {
         headerInfo,
         onHeaderUpdate: handleHeaderUpdate,
+        setHeaderInfo,
     };
 }
 ----- ./react/features/problem-publishing/hooks/useExamPreviewManager.ts -----
@@ -2719,30 +2749,48 @@ interface PdfGeneratorProps {
     getSelectedProblemCount: () => number;
 }
 
+export interface PdfExportOptions {
+    includeProblems: boolean;
+    includeAnswers: boolean;
+    includeSolutions: boolean;
+}
+
 export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProblemCount }: PdfGeneratorProps) {
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, message: '' });
     
     const isProcessingRef = useRef(false);
 
-    const handleDownloadPdf = useCallback(async () => {
+    const generatePdf = useCallback(async (options: PdfExportOptions) => {
         if (isProcessingRef.current) return;
-        isProcessingRef.current = true;
-
+        
         const livePreviewElement = previewAreaRef.current;
         if (!livePreviewElement || getSelectedProblemCount() === 0) {
             alert('PDF로 변환할 시험지 내용이 없습니다.');
-            isProcessingRef.current = false;
             return;
         }
 
+        const selectors = [];
+        if (options.includeProblems) selectors.push('.problem-page-type');
+        if (options.includeAnswers) selectors.push('.answer-page-type');
+        if (options.includeSolutions) selectors.push('.solution-page-type');
+
+        if (selectors.length === 0) {
+            alert('PDF로 출력할 항목을 하나 이상 선택해주세요.');
+            return;
+        }
+        
+        const selectorString = selectors.join(', ');
+
+        isProcessingRef.current = true;
         setIsGeneratingPdf(true);
         setPdfProgress({ current: 0, total: 1, message: '준비 중...' });
 
         setTimeout(async () => {
-            const pageElements = livePreviewElement.querySelectorAll<HTMLElement>('.exam-page-component');
+            const pageElements = livePreviewElement.querySelectorAll<HTMLElement>(selectorString);
+
             if (pageElements.length === 0) {
-                alert('PDF로 변환할 페이지(.exam-page-component)를 찾을 수 없습니다.');
+                alert('선택된 항목에 해당하는 페이지가 없습니다. PDF를 생성할 수 없습니다.');
                 setIsGeneratingPdf(false);
                 setPdfProgress({ current: 0, total: 0, message: '' });
                 isProcessingRef.current = false;
@@ -2761,10 +2809,8 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
             try {
                 pageElements.forEach(page => {
                     const clone = page.cloneNode(true) as HTMLElement;
-                    
                     clone.querySelectorAll('.editable-trigger-button .edit-icon-overlay, .problem-deselect-button, .measured-height, .global-index').forEach(el => el.remove());
                     clone.querySelectorAll<HTMLElement>('.problem-container').forEach(el => { el.style.border = 'none'; });
-
                     printContainer.appendChild(clone);
                 });
                 
@@ -2777,6 +2823,7 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
                 const singlePageOffsetX = firstClonedPage.offsetLeft;
                 
                 setPdfProgress(prev => ({ ...prev, message: '시험지 이미지 생성 중...' }));
+                
                 const canvas = await html2canvas(printContainer, {
                     scale: scale,
                     useCORS: true,
@@ -2843,7 +2890,7 @@ export function usePdfGenerator({ previewAreaRef, getExamTitle, getSelectedProbl
     return {
         isGeneratingPdf,
         pdfProgress: { ...pdfProgress, message: finalLoadingText || pdfProgress.message },
-        onDownloadPdf: handleDownloadPdf,
+        generatePdf,
     };
 }
 ----- ./react/features/problem-publishing/hooks/useProblemEditor.ts -----
@@ -2905,7 +2952,7 @@ export function useProblemEditor({ problemBoxMinHeight }: ProblemEditorProps) {
     return { onProblemClick: handleProblemClick };
 }
 ----- ./react/features/problem-publishing/hooks/usePublishingPageSetup.ts -----
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react'; // [수정] useRef 임포트
 import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useUIStore } from '../../../shared/store/uiStore';
 import { useColumnPermissions } from '../../../shared/hooks/useColumnPermissions';
@@ -2961,13 +3008,18 @@ export function usePublishingPageSetup({ selectedProblems, allProblems }: Publis
         return JSON.stringify({ problems: problemsForJson }, null, 2);
     }, [selectedProblems, allProblems]);
 
+    const jsonStringToCombineRef = useRef(jsonStringToCombine);
+    useEffect(() => {
+        jsonStringToCombineRef.current = jsonStringToCombine;
+    }, [jsonStringToCombine]);
+
     const handleOpenPromptSidebar = useCallback(() => {
         setRightSidebarConfig({
-            contentConfig: { type: 'prompt', props: { workbenchContent: jsonStringToCombine } },
+            contentConfig: { type: 'prompt', props: { workbenchContent: jsonStringToCombineRef.current } },
             isExtraWide: false
         });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarConfig, setRightSidebarExpanded, jsonStringToCombine]);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
     useEffect(() => {
         registerPageActions({
@@ -3605,7 +3657,7 @@ export function useProblemPublishing() {
     };
 }
 ----- ./react/features/problem-publishing/model/useProblemPublishingPage.ts -----
-import { useCallback, useRef, useMemo } from 'react';
+import { useCallback, useRef, useMemo, useState, useEffect } from 'react'; // [추가] useEffect 임포트
 import { useProblemPublishing } from './useProblemPublishing';
 import { useExamLayoutStore } from './examLayoutStore';
 import { useExamLayoutManager } from './useExamLayoutManager';
@@ -3614,7 +3666,7 @@ import { useProblemEditor } from '../hooks/useProblemEditor';
 import { useExamPreviewManager } from '../hooks/useExamPreviewManager';
 import { usePublishingPageSetup } from '../hooks/usePublishingPageSetup';
 import { useRowSelection } from '../../row-selection/model/useRowSelection';
-import { usePdfGenerator } from '../hooks/usePdfGenerator';
+import { usePdfGenerator, type PdfExportOptions } from '../hooks/usePdfGenerator';
 
 export function useProblemPublishingPage() {
     const { allProblems, isLoadingProblems } = useProblemPublishing();
@@ -3633,17 +3685,59 @@ export function useProblemPublishingPage() {
     const previewManager = useExamPreviewManager();
     useExamLayoutManager({ selectedProblems, problemBoxMinHeight: previewManager.problemBoxMinHeight });
     const { distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap } = useExamLayoutStore();
-    const { headerInfo, onHeaderUpdate } = useExamHeaderState();
+    
+    const { headerInfo, onHeaderUpdate, setHeaderInfo } = useExamHeaderState();
     const { onProblemClick } = useProblemEditor({ problemBoxMinHeight: previewManager.problemBoxMinHeight });
     usePublishingPageSetup({ selectedProblems, allProblems });
 
+    useEffect(() => {
+        if (selectedProblems.length > 0) {
+            const newSource = selectedProblems[0].source || '정보 없음';
+            setHeaderInfo(prev => ({
+                ...prev,
+                source: newSource
+            }));
+        } else {
+            setHeaderInfo(prev => ({
+                ...prev,
+                source: '정보 없음'
+            }));
+        }
+    }, [selectedProblems, setHeaderInfo]);
+
     const previewAreaRef = useRef<HTMLDivElement>(null);
     
-    const { isGeneratingPdf, onDownloadPdf, pdfProgress } = usePdfGenerator({
+    const { isGeneratingPdf, generatePdf, pdfProgress } = usePdfGenerator({
         previewAreaRef,
         getExamTitle: () => headerInfo.title,
         getSelectedProblemCount: () => selectedProblems.length,
     });
+
+    const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+    const [pdfOptions, setPdfOptions] = useState<PdfExportOptions>({
+        includeProblems: true,
+        includeAnswers: true,
+        includeSolutions: false,
+    });
+
+    const handlePdfOptionChange = useCallback((option: keyof PdfExportOptions) => {
+        setPdfOptions(prev => ({ ...prev, [option]: !prev[option] }));
+    }, []);
+
+    const handleOpenPdfModal = useCallback(() => {
+        if (selectedProblems.length === 0) {
+            alert('PDF로 출력할 문제가 선택되지 않았습니다.');
+            return;
+        }
+        setIsPdfModalOpen(true);
+    }, [selectedProblems.length]);
+    
+    const handleConfirmPdfDownload = useCallback(() => {
+        setIsPdfModalOpen(false);
+        setTimeout(() => {
+            generatePdf(pdfOptions);
+        }, 100);
+    }, [generatePdf, pdfOptions]);
     
     return {
         allProblems,
@@ -3663,10 +3757,16 @@ export function useProblemPublishingPage() {
         handleDeselectProblem,
         
         isGeneratingPdf,
-        onDownloadPdf,
+        onDownloadPdf: handleOpenPdfModal,
         pdfProgress,
         previewAreaRef,
         ...previewManager,
+
+        isPdfModalOpen,
+        onClosePdfModal: () => setIsPdfModalOpen(false),
+        pdfOptions,
+        onPdfOptionChange: handlePdfOptionChange,
+        onConfirmPdfDownload: handleConfirmPdfDownload,
     };
 }
 ----- ./react/features/problem-publishing/model/useProblemSelection.ts -----
@@ -3804,11 +3904,14 @@ const SEMESTER_OPTIONS: ComboboxOption[] = ['1학기', '2학기', '공통'].map(
 const DIFFICULTY_OPTIONS: ComboboxOption[] = ['최상', '상', '중', '하', '최하'].map(d => ({ value: d, label: d }));
 const TYPE_OPTIONS: ComboboxOption[] = ['객관식', '서답형', '논술형'].map(t => ({ value: t, label: t }));
 
+const ANSWER_OPTIONS: ComboboxOption[] = ['①', '②', '③', '④', '⑤', '⑥'].map(a => ({ value: a, label: a }));
+
 const SELECT_OPTIONS_MAP: Record<string, ComboboxOption[]> = {
     grade: GRADE_OPTIONS,
     semester: SEMESTER_OPTIONS,
     difficulty: DIFFICULTY_OPTIONS,
     problem_type: TYPE_OPTIONS,
+    answer: ANSWER_OPTIONS,
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -3842,8 +3945,10 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
     const [popoverAnchorEl, setPopoverAnchorEl] = useState<HTMLElement | null>(null);
 
     const handleFieldClick = (e: React.MouseEvent<HTMLButtonElement>, field: keyof Problem) => {
+        const isAnswerCombobox = field === 'answer' && problemData.problem_type === '객관식';
         const options = SELECT_OPTIONS_MAP[field];
-        if (options) {
+
+        if (options && (field !== 'answer' || isAnswerCombobox)) {
             e.preventDefault();
             setPopoverTargetField(field);
             setPopoverAnchorEl(e.currentTarget);
@@ -3870,7 +3975,11 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
         <div className="metadata-fields-section">
             <h5 className="editor-section-title">문제 정보</h5>
             {fields.map(field => {
-                const options = SELECT_OPTIONS_MAP[field];
+                const isAnswerCombobox = field === 'answer' && problemData.problem_type === '객관식';
+                const isOtherCombobox = field !== 'answer' && SELECT_OPTIONS_MAP[field];
+                
+                const shouldRenderAsCombobox = isAnswerCombobox || isOtherCombobox;
+                
                 const currentValue = problemData[field] ?? '';
                 
                 return (
@@ -3878,7 +3987,7 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
                         <label htmlFor={field} className="metadata-field-label">
                             {FIELD_LABELS[field] || field}
                         </label>
-                        {options ? (
+                        {shouldRenderAsCombobox ? (
                             <button
                                 type="button"
                                 id={field}
@@ -3893,7 +4002,7 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
                                 id={field}
                                 type={field === 'question_number' || field === 'page' ? 'number' : 'text'}
                                 className="metadata-field-input"
-                                value={currentValue}
+                                value={String(currentValue)} // [수정] 항상 문자열로 변환하여 제어 컴포넌트 경고 방지
                                 onChange={(e) => handleValueChange(field, e.target.value)}
                             />
                         )}
@@ -3901,7 +4010,6 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
                 );
             })}
 
-            {/* [핵심 추가] 콤보박스 팝오버 */}
             <GlassPopover
                 isOpen={!!popoverTargetField}
                 onClose={handlePopoverClose}
@@ -4222,17 +4330,15 @@ const defaultPrompts: Prompt[] = [
 **예시 작업:**
 
 *   **출력:**
-   {
+    {
   "problems": [
     {
       "problem_id": "244919dc-a659-457f-8a5d-37a2aa89e5b5",
       "question_number": 1,
       "problem_type": "객관식",
-      "question_text": "수열 \${a_n}$이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? 
-      [$3.8$점]<br>\n① $16$ &emsp;② $32$ &emsp;③ $64$ &emsp;④ $128$ &emsp;⑤ $256$",
+      "question_text": "수열 \${a_n}$이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? \\n[$3.8$점] \\n <br> \\n ① $16$ &emsp;② $32$ &emsp;③ $64$ &emsp;④ $128$ &emsp;⑤ $256$",
       "answer": "⑤",
-      "solution_text": "주어진 점화식 $a_{n+1} = 2a_n$은 수열 \\{a_n\\}이 공비가 $2$인 등비수열임을 의미합니다. 제$2$항 $a_2 = 4$이므로 제$8$항 $a_8$은 $a_8 = a_2 \\times r^{8-2} = a_2 \\times 2^6$으로 구할 수 있습니다. 따라서 $a_8 = 4 \\times 2^6$ 
-      $= 2^2 \\times 2^6 = 2^8 = 256$입니다.",
+      "solution_text": "주어진 점화식 $a_{n+1} = 2a_n$은 수열 \${a_n}$이 공비가 $2$인 등비수열임을 의미합니다. 제$2$항 $a_2=4$이므로 제$8$항 $a_8$은 $a_8 = a_2 \\\\times r^{8-2} = a_2 \\\\times 2^6$으로 구할 수 있습니다. 따라서 $a_8 = 4 \\\\times 2^6$ \\n$= 2^2 \\\\times 2^6 = 2^8 = 256$입니다.",
       "page": null,
       "grade": "고2",
       "semester": "1학기",
@@ -4245,23 +4351,22 @@ const defaultPrompts: Prompt[] = [
       "score": "3.8점"
     },
     {
-      "problem_id": "3c0a9006-bdfb-4d27-ab62-f6f517dc5836",
-      "question_number": 2,
-      "problem_type": "객관식",
-      "question_text": "제$2$항이 $-6$, 제$10$항이 $26$인 등차수열의 제$6$항은? 
-      [$3.8$점]<br>\n① $9$ &emsp;&emsp;② $10$ &emsp;&emsp;③ $11$ &emsp;&emsp;④ $12$ &emsp;&emsp;⑤ $13$",
-      "answer": "②",
-      "solution_text": "등차수열 \\{a_n\\}의 첫째항을 $a$, 공차를 $d$라 하면, 제$2$항은 $a_2 = a+d = -6$이고, 제$10$항은 $a_{10} = a+9d=26$입니다. 두 식을 연립하여 풀면, $(a+9d) - (a+d) = 26 - (-6)$에서 $8d = 32$, 즉 $d=4$입니다. $a+4=-6$이므로 $a=-10$입니다. 따라서 제$6$항은 $a_6 = a+5d = -10 + 5(4) = -10 + 20 = 10$입니다.\n\n[다른 풀이]\n등차수열에서 항의 번호가 등차수열을 이루면, 그 항들도 등차수열을 이룹니다. $2, 6, 10$은 공차가 $4$인 등차수열이므로, $a_2, a_6, a_{10}$도 등차수열을 이룹니다. 따라서 $a_6$은 $a_2$와 $a_{10}$의 등차중항입니다. $a_6 = \\dfrac{a_2 + a_{10}}{2} = \\dfrac{-6+26}{2} = \\dfrac{20}{2} = 10$입니다.",
+      "problem_id": "ef5dd5a4-b6c4-4c3e-b026-3ded9d00cac6",
+      "question_number": 4,
+      "problem_type": "서답형",
+      "question_text": "그림과 같이 모선의 길이가 $6$이고 밑면의 반지름이 $2$인 원뿔이 있다. 원뿔의 밑면인 원의 둘레 위의 점 P에서 모선 OP의 중점 Q까지 원뿔의 표면을 따라서 길을 표시하고자 할 때, 표시된 길의 최단 거리를 구하는 풀이 과정과 답을 작성하시오. [$6$점]\\n![](https://pub-f13c8ed5c4ed4bf990ca088c26785c34.r2.dev/704cdb31-88e3-4ed5-8148-eb435f79320e.png)",
+      "answer": "$3\\\\sqrt{7}$",
+      "solution_text": "원뿔 표면을 따르는 최단 거리는 원뿔의 전개도에서 직선 거리와 같습니다.\\n\\n1. **전개도 그리기**\\n   원뿔을 펼치면 모선의 길이가 반지름이 되는 부채꼴이 됩니다. \\n   - 부채꼴의 반지름(R): 원뿔의 모선의 길이와 같으므로 $R = 6$ 입니다.\\n   - 부채꼴의 호의 길이(l): 원뿔 밑면의 둘레와 같으므로 $l = 2\\\\pi r = 2\\\\pi(2) = 4\\\\pi$ 입니다.\\n\\n2. **부채꼴의 중심각($\\\\theta$) 구하기**\\n   부채꼴의 호의 길이 공식 $l = R\\\\theta$ 를 이용합니다.\\n   $4\\\\pi = 6 \\\\times \\\\theta \\implies \\\\theta = \\\\dfrac{4\\\\pi}{6} = \\\\dfrac{2\\\\pi}{3}$ (또는 $120^\\\\circ$)\\n\\n3. **전개도에서 점 P와 Q의 위치 파악**\\n   '밑면 둘레 위의 점 P'는 전개도에서 부채꼴의 호 위에 있는 한 점입니다. 전개도를 만들기 위해 모선 OP를 따라 잘랐다고 생각하면, 점 P는 부채꼴의 양쪽 끝 반지름(OP와 OP') 중 한 곳에 위치하게 됩니다.\\n   '모선 OP의 중점 Q'는 이 모선(반지름 OP)의 중점이 됩니다.\\n   최단 경로는 점 P에서 출발하여 원뿔 표면을 한 바퀴 돌아 다시 원래의 모선 OP의 중점 Q로 오는 경로를 의미합니다. 전개도 상에서는 한쪽 끝점 P'에서 다른 쪽 반지름 OP 위의 중점 Q까지의 직선 거리를 구하는 것과 같습니다.\\n\\n   따라서 우리는 꼭짓점이 O이고, 변이 OP', OQ인 삼각형 OP'Q에서 변 P'Q의 길이를 구하면 됩니다.\\n   - $\\\\overline{OP'} = 6$ (부채꼴의 반지름)\\n   - $\\\\overline{OQ} = \\\\dfrac{6}{2} = 3$ (모선의 중점)\\n   - $\\\\angle P'OQ = \\\\theta = \\\\dfrac{2\\\\pi}{3}$\\n\\n4. **최단 거리 계산 (코사인법칙 이용)**\\n   삼각형 OP'Q에 코사인법칙을 적용하여 $\\\\overline{P'Q}$의 길이를 구합니다.\\n   $\\\\overline{P'Q}^2 = \\\\overline{OP'}^2 + \\\\overline{OQ}^2 - 2(\\\\overline{OP'})(\\\\overline{OQ})\\\\cos\\\\theta$\\n   $\\\\overline{P'Q}^2 = 6^2 + 3^2 - 2(6)(3)\\\\cos(\\\\dfrac{2\\\\pi}{3})$\\n   $\\\\cos(\\\\dfrac{2\\\\pi}{3}) = -\\\\dfrac{1}{2}$ 이므로,\\n   $\\\\overline{P'Q}^2 = 36 + 9 - 36(-\\\\dfrac{1}{2}) = 45 + 18 = 63$\\n   $\\\\overline{P'Q} = \\\\sqrt{63} = \\\\sqrt{9 \\\\times 7} = 3\\\\sqrt{7}$\\n\\n   따라서 최단 거리는 $3\\\\sqrt{7}$ 입니다.",
       "page": null,
       "grade": "고2",
       "semester": "1학기",
       "source": "2022학년도 계양고등학교 2학년 1학기 기말고사",
-      "major_chapter_id": "수열",
-      "middle_chapter_id": "등차수열",
-      "core_concept_id": "등차수열의 일반항",
-      "problem_category": "등차수열의 특정 항 구하기",
+      "major_chapter_id": "삼각함수의 활용",
+      "middle_chapter_id": "도형에서의 활용",
+      "core_concept_id": "원뿔의 전개도를 이용한 최단 거리",
+      "problem_category": "입체도형 표면의 최단 거리",
       "difficulty": "중",
-      "score": "3.8점"
+      "score": "6점"
     }
   ]
 }
@@ -4305,38 +4410,38 @@ const defaultPrompts: Prompt[] = [
     {
       "question_number": 1,
       "problem_type": "객관식",
-      "question_text": "수열 \${a_n}$이 모든 자연수 $n$에 대하여 $a_{n+1} = 2a_n$을 만족시킨다. $a_2 = 4$일 때, $a_8$의 값은? \\\\n <br> \\\\n① $16$ &emsp;&emsp;② $32$ &emsp;&emsp;③ $64$ &emsp;&emsp;④ $128$ &emsp;&emsp;⑤ $256$",
+      "question_text": "세 수 $6, x, \\\\dfrac{3}{8}$이 이 순서대로 등비수열일 때, $x^2$의 값은? \\n[$3.4$점]\\n <br> \\n① $\\\\dfrac{3}{2}$ &emsp;&emsp;② $\\\\dfrac{9}{4}$ &emsp;&emsp;③ $3$ &emsp;&emsp;④ $9$ &emsp;&emsp;⑤ $27$",
       "answer": null,
       "solution_text": null,
       "page": null,
-      "grade": null,
-      "semester": null,
-      "source": null,
+      "grade": "고2",
+      "semester": "1학기",
+      "source": "2024학년도 서운고등학교 2학년 1학기 기말고사",
       "major_chapter_id": "수열",
       "middle_chapter_id": "등비수열",
-      "core_concept_id": "등비수열의 일반항",
-      "problem_category": "등비수열의 특정 항 구하기",
-      "difficulty": null,
-      "score": "3.8점"
+      "core_concept_id": "등비중항",
+      "problem_category": "등비중항을 이용한 값 구하기",
+      "difficulty": "중",
+      "score": "3.4점"
     },
     {
-      "question_number": 8,
+      "question_number": 2,
       "problem_type": "객관식",
-      "question_text": "다음은 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 부등식 $2^n > n^2 \\\\cdots (\\\\star)$이 성립함을 수학적 귀납법으로 증명한 것이다.\\\\n\\\\begin{tabular}{|l|}\\\\hline\\\\n(i) $n=$ $\\\\fbox{  A  }$ 이면 (좌변)= $\\\\fbox{ B }$  >  $\\\\fbox{ C }$ $=$(우변)이므로 $(\\\\star)$이 성립한다.<br><br>\\\\n (ii) $n=k(k \\\\ge 5)$일 때 $(\\\\star)$는 성립한다고 가정하면 $2^k > k^2$이다.\\\\n 양변에 $\\\\fbox{ D }$ 를 곱하면 $2^{k+1} >  \\\\fbox{ D } k^2$이다.\\\\n<br>이때, $f(k) =  \\\\fbox{ D } k^2 - (k+1)^2$이라 하면 $f(k)$의 최솟값은 $\\\\fbox{ E }$ 이므로 $f(k) > 0$이다.\\\\n즉, $2^{k+1} > (k+1)^2$이다.\\\\n따라서 $n=k+1$일 때도 $(\\\\star)$는 성립한다.<br><br>\\\\n (i), (ii)에 의하여 $n \\\\ge 5$인 모든 자연수 $n$에 대하여 $(\\\\star)$은 성립한다.\\\\\\\\n \\\\hline\\\\n\\\\end{tabular}\\\\n\\\\n위의 $A, B, C, D, E$ 에 알맞은 수를 각각 $a, b, c, d, e$라 할 때, $a+b+c+d+e$의 값은? \\\\n <br> \\\\n① $64$ &emsp;② $71$ &emsp;③ $78$ &emsp;④ $82$ &emsp;⑤ $86$",
+      "question_text": "제2항이 $19$, 제5항이 $10$인 등차수열 \${a_n}$의 제10항은? [$3.5$점]\\n <br> \\n① $1$ &emsp;&emsp;② $-1$ &emsp;&emsp;③ $-3$ &emsp;&emsp;④ $-5$ &emsp;&emsp;⑤ $-7$",
       "answer": null,
       "solution_text": null,
       "page": null,
-      "grade": null,
-      "semester": null,
-      "source": null,
-      "major_chapter_id": "수학적 귀납법",
-      "middle_chapter_id": "부등식의 증명",
-      "core_concept_id": "수학적 귀납법을 이용한 부등식 증명",
-      "problem_category": "수학적 귀납법 빈칸 채우기",
-      "difficulty": null,
-      "score": "4.6점"
+      "grade": "고2",
+      "semester": "1학기",
+      "source": "2024학년도 서운고등학교 2학년 1학기 기말고사",
+      "major_chapter_id": "수열",
+      "middle_chapter_id": "등차수열",
+      "core_concept_id": "등차수열의 일반항",
+      "problem_category": "등차수열의 특정 항 구하기",
+      "difficulty": "중",
+      "score": "3.5점"
     }
-  ]
+    ]
 }
 \`\`\`
     
@@ -6150,7 +6255,9 @@ import { useProblemPublishingPage } from '../features/problem-publishing';
 import ProblemSelectionContainer from '../widgets/ProblemSelectionContainer';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
 import ExamPreviewWidget from '../widgets/ExamPreviewWidget';
+import Modal from '../shared/ui/modal/Modal';
 import './ProblemPublishingPage.css';
+import './PdfOptionsModal.css';
 
 const ProblemPublishingPage: React.FC = () => {
     const {
@@ -6161,6 +6268,11 @@ const ProblemPublishingPage: React.FC = () => {
         onToggleSequentialNumbering, onBaseFontSizeChange, onContentFontSizeEmChange,
         isGeneratingPdf, onDownloadPdf, pdfProgress,
         previewAreaRef, problemBoxMinHeight, setProblemBoxMinHeight,
+        isPdfModalOpen,
+        onClosePdfModal,
+        pdfOptions,
+        onPdfOptionChange,
+        onConfirmPdfDownload,
     } = useProblemPublishingPage();
 
     const pageClassName = `problem-publishing-page ${isGeneratingPdf ? 'pdf-processing' : ''}`;
@@ -6217,6 +6329,45 @@ const ProblemPublishingPage: React.FC = () => {
                     measuredHeights={measuredHeights}
                 />
             </div>
+
+            <Modal
+                isOpen={isPdfModalOpen}
+                onClose={onClosePdfModal}
+                onConfirm={onConfirmPdfDownload}
+                title="PDF 출력 옵션"
+                confirmText="생성하기"
+                size="small"
+            >
+                <div className="pdf-options-container">
+                    <p className="options-description">PDF에 포함할 항목을 선택하세요.</p>
+                    <div className="options-list">
+                        <label className="option-item">
+                            <input
+                                type="checkbox"
+                                checked={pdfOptions.includeProblems}
+                                onChange={() => onPdfOptionChange('includeProblems')}
+                            />
+                            <span className="checkbox-label">문제</span>
+                        </label>
+                        <label className="option-item">
+                            <input
+                                type="checkbox"
+                                checked={pdfOptions.includeAnswers}
+                                onChange={() => onPdfOptionChange('includeAnswers')}
+                            />
+                            <span className="checkbox-label">빠른 정답</span>
+                        </label>
+                        <label className="option-item">
+                            <input
+                                type="checkbox"
+                                checked={pdfOptions.includeSolutions}
+                                onChange={() => onPdfOptionChange('includeSolutions')}
+                            />
+                            <span className="checkbox-label">정답 및 해설</span>
+                        </label>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

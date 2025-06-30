@@ -1,4 +1,3 @@
-// ./react/entities/exam/ui/SolutionPage.tsx
 import React, { useMemo } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
@@ -119,7 +118,7 @@ const SolutionPage: React.FC<SolutionPageProps> = (props) => {
 
     return (
         <div 
-            className="exam-page-component solution-page" 
+            className="exam-page-component solution-page solution-page-type" 
             style={{ '--base-font-size': baseFontSize } as React.CSSProperties}
         >
             <div className="exam-paper">

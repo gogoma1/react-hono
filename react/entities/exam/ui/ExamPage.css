@@ -11,6 +11,7 @@
     height: 1123px;
     width: 794px;
     overflow: hidden;
+    /* [수정] 시험지 외곽선은 유지 */
     border: 2px solid black;
     background-color: white;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -25,7 +26,8 @@
     width: 100%;
     flex-direction: column;
     padding: 1.8em;
-    color: #374151;
+    /* --- [핵심 수정] 시험지 내부의 모든 텍스트 색상을 순수한 검정으로 변경 --- */
+    color: #000000;
 }
 
 /* ==========================================================================
@@ -106,6 +108,7 @@
     cursor: pointer;
     background: none;
     border: none;
+    /* [수정] 부모로부터 순수한 검정색을 상속받도록 함 */
     color: inherit;
     font: inherit;
     text-align: inherit;
@@ -128,7 +131,8 @@
     top: 50%;
     right: 0.5em;
     transform: translateY(-50%);
-    color: #9ca3af;
+    /* [수정] 아이콘 색상도 더 진하게 변경 */
+    color: #6b7280;
     opacity: 0;
     transition: opacity 0.2s;
     pointer-events: none;
@@ -189,6 +193,7 @@
 .problem-header .header-inner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3em; }
 
 .problem-number { font-size: 2em; font-weight: 700; line-height: 1; }
+/* [수정] global-index는 보조 정보이므로 약간 연한 색상 유지 */
 .global-index { margin-left: 0.1em; font-size: 1em; font-weight: 400; line-height: 1; color: #6b7280; }
 .problem-score { margin-left: 0.2em; font-size: 1em; font-weight: 700; line-height: 1; }
 
@@ -200,6 +205,7 @@
     border-radius: 4px; 
     padding: 0; 
     text-align: left; 
+    /* [수정] 부모로부터 순수한 검정색을 상속받도록 함 */
     color: inherit; 
     background: none; 
     border: none; 
@@ -229,6 +235,7 @@
     padding: 2px;
     margin-right: 3px;
     cursor: pointer;
+    /* [수정] 보조 정보이므로 약간 연한 색상 유지 */
     color: #9ca3af;
     display: inline-flex;
     align-items: center;
