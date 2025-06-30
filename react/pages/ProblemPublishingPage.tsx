@@ -32,6 +32,7 @@ const ProblemPublishingPage: React.FC = () => {
                 <div className="selection-widget-container">
                     <ProblemSelectionContainer
                         allProblems={allProblems}
+                        selectedProblems={selectedProblems} // [추가] 선택된 문제 목록을 전달합니다.
                         isLoading={isLoadingProblems}
                         selectedIds={selectedIds}
                         toggleRow={toggleRow}

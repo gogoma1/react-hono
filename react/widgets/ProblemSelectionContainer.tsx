@@ -1,4 +1,3 @@
-// ./react/widgets/ProblemSelectionContainer.tsx
 import React, { useMemo, useCallback, useEffect } from 'react';
 import { useProblemPublishing } from '../features/problem-publishing';
 import ProblemSelectionWidget from './ProblemSelectionWidget';
@@ -11,6 +10,7 @@ import type { ProcessedProblem } from '../features/problem-publishing/model/prob
 
 interface ProblemSelectionContainerProps {
     allProblems: ProcessedProblem[];
+    selectedProblems: ProcessedProblem[]; // [추가] 선택된 문제 목록을 props로 받습니다.
     isLoading: boolean;
     selectedIds: Set<string>;
     toggleRow: (id: string) => void;
@@ -20,6 +20,7 @@ interface ProblemSelectionContainerProps {
 
 const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
     allProblems,
+    selectedProblems, // [추가]
     isLoading,
     selectedIds,
     toggleRow,
@@ -28,7 +29,6 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
 }) => {
     const { deleteProblems, isDeletingProblems } = useProblemPublishing();
 
-    // 필터링 관련 상태는 이 컨테이너가 계속 소유함
     const [searchTerm, setSearchTerm] = React.useState('');
     const [activeFilters, setActiveFilters] = React.useState<Record<string, Set<string>>>({});
     const [startNumber, setStartNumber] = React.useState('');
@@ -85,19 +85,23 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
       handleResetHeaderFilters();
     }, [clearSelection, handleResetHeaderFilters]);
 
-    // 전역 레이아웃 스토어 연동 로직 (이전과 거의 동일)
     const { setSearchBoxProps, registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
     const [isSearchBoxVisible, setIsSearchBoxVisible] = React.useState(true);
     const toggleSearchBox = React.useCallback(() => setIsSearchBoxVisible(prev => !prev), []);
 
+    // [핵심 수정] 핸들러가 props로 받은 selectedProblems를 사용하도록 변경합니다.
     const handleOpenJsonView = useCallback(() => {
+        if (selectedProblems.length === 0) {
+            alert('JSON으로 변환할 문제가 선택되지 않았습니다.');
+            return;
+        }
         setRightSidebarConfig({
-            contentConfig: { type: 'jsonViewer', props: { problems: filteredProblems } },
+            contentConfig: { type: 'jsonViewer', props: { problems: selectedProblems } },
             isExtraWide: true
         });
         setRightSidebarExpanded(true);
-    }, [filteredProblems, setRightSidebarConfig, setRightSidebarExpanded]);
+    }, [selectedProblems, setRightSidebarConfig, setRightSidebarExpanded]);
 
     useEffect(() => {
         registerPageActions({ openJsonViewSidebar: handleOpenJsonView });
@@ -136,7 +140,6 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
         }
     }, [isSearchBoxVisible, searchTerm, activeFilters, handleResetFilters, suggestionGroupsJSON, handleToggleAllInFilter, selectedIds.size, isAllSelectedInFilter, toggleSearchBox, setSearchBoxProps]);
 
-    // 삭제 모달 관련 로직 (이전과 동일)
     const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = React.useState(false);
     const handleDeleteSelected = () => {
         if (selectedIds.size > 0) setIsBulkDeleteModalOpen(true);

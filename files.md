@@ -4764,19 +4764,10 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
                 <div className="button-group">
                     <Tippy content={isCopied ? "복사 완료!" : "프롬프트 복사"} theme="custom-glass"><button onClick={handleCopy} className="prompt-action-button copy">{isCopied ? <LuCopyCheck size={16} /> : <LuCopy size={16} />}</button></Tippy>
                     
-                    {/* [수정] 페이지 경로에 따라 '합쳐서 복사' 버튼을 조건부로 렌더링 */}
+                    {/* [핵심 수정] 페이지 경로와 프롬프트 ID에 따라 '합쳐서 복사' 버튼을 조건부로 렌더링 */}
                     {workbenchContent && (
                         <>
-                            {/* '문제 작업' 페이지일 때 */}
-                            {location.pathname === '/problem-workbench' && prompt.id === 'default-1' && (
-                                <Tippy content={isCombinedCopied ? "복사 완료!" : "에디터 내용과 프롬프트를 함께 복사"} theme="custom-glass">
-                                    <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
-                                        {isCombinedCopied ? <LuCopyCheck size={16} /> : <LuLayers size={16} />}
-                                    </button>
-                                </Tippy>
-                            )}
-                            
-                            {/* '문제 출제' 페이지일 때 */}
+                            {/* '문제 출제' 페이지에서는 '해설 작업'(default-2) 프롬프트에만 표시 */}
                             {location.pathname === '/problem-publishing' && prompt.id === 'default-2' && (
                                 <Tippy content={isCombinedCopied ? "복사 완료!" : "해설 프롬프트와 JSON을 함께 복사"} theme="custom-glass">
                                     <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
@@ -4784,8 +4775,10 @@ const PromptMemo: React.FC<PromptMemoProps> = ({
                                     </button>
                                 </Tippy>
                             )}
-                            {location.pathname === '/problem-publishing' && prompt.id === 'default-3' && (
-                                <Tippy content={isCombinedCopied ? "복사 완료!" : "개별화 프롬프트와 JSON을 함께 복사"} theme="custom-glass">
+                            
+                            {/* '문제 작업' 페이지에서는 '개별화 작업'(default-3) 프롬프트에만 표시 */}
+                            {location.pathname === '/problem-workbench' && prompt.id === 'default-3' && (
+                                <Tippy content={isCombinedCopied ? "복사 완료!" : "개별화 프롬프트와 작업 내용을 함께 복사"} theme="custom-glass">
                                     <button onClick={handleCombinedCopy} className="prompt-action-button combined-copy">
                                         {isCombinedCopied ? <LuCopyCheck size={16} /> : <LuLayers size={16} />}
                                     </button>
@@ -6284,6 +6277,7 @@ const ProblemPublishingPage: React.FC = () => {
                 <div className="selection-widget-container">
                     <ProblemSelectionContainer
                         allProblems={allProblems}
+                        selectedProblems={selectedProblems} // [추가] 선택된 문제 목록을 전달합니다.
                         isLoading={isLoadingProblems}
                         selectedIds={selectedIds}
                         toggleRow={toggleRow}
@@ -8831,6 +8825,7 @@ import type { ProcessedProblem } from '../features/problem-publishing/model/prob
 
 interface ProblemSelectionContainerProps {
     allProblems: ProcessedProblem[];
+    selectedProblems: ProcessedProblem[]; // [추가] 선택된 문제 목록을 props로 받습니다.
     isLoading: boolean;
     selectedIds: Set<string>;
     toggleRow: (id: string) => void;
@@ -8840,6 +8835,7 @@ interface ProblemSelectionContainerProps {
 
 const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
     allProblems,
+    selectedProblems, // [추가]
     isLoading,
     selectedIds,
     toggleRow,
@@ -8910,12 +8906,16 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
     const toggleSearchBox = React.useCallback(() => setIsSearchBoxVisible(prev => !prev), []);
 
     const handleOpenJsonView = useCallback(() => {
+        if (selectedProblems.length === 0) {
+            alert('JSON으로 변환할 문제가 선택되지 않았습니다.');
+            return;
+        }
         setRightSidebarConfig({
-            contentConfig: { type: 'jsonViewer', props: { problems: filteredProblems } },
+            contentConfig: { type: 'jsonViewer', props: { problems: selectedProblems } },
             isExtraWide: true
         });
         setRightSidebarExpanded(true);
-    }, [filteredProblems, setRightSidebarConfig, setRightSidebarExpanded]);
+    }, [selectedProblems, setRightSidebarConfig, setRightSidebarExpanded]);
 
     useEffect(() => {
         registerPageActions({ openJsonViewSidebar: handleOpenJsonView });
