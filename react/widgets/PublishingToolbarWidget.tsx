@@ -12,11 +12,21 @@ interface PublishingToolbarWidgetProps {
     onBaseFontSizeChange: (value: string) => void;
     contentFontSizeEm: number;
     onContentFontSizeEmChange: (value: number) => void;
-    problemBoxMinHeight: number;
-    setProblemBoxMinHeight: (height: number) => void;
+    displayMinHeight: number;
+    onDisplayMinHeightChange: (height: number) => void;
+    onFinalMinHeightChange: (height: number) => void;
     onDownloadPdf: () => void;
     isGeneratingPdf: boolean;
     pdfProgress: { current: number; total: number; message: string };
+}
+
+// [핵심 수정 1] 드래그 로직에 필요한 모든 것을 담을 인터페이스 정의
+interface DragInfo {
+    startY: number;
+    startHeight: number;
+    onDisplayChange: (height: number) => void;
+    onFinalChange: (height: number) => void;
+    setDragging: (isDragging: boolean) => void;
 }
 
 const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) => {
@@ -24,93 +34,99 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
         useSequentialNumbering, onToggleSequentialNumbering,
         baseFontSize, onBaseFontSizeChange,
         contentFontSizeEm, onContentFontSizeEmChange,
-        problemBoxMinHeight, setProblemBoxMinHeight,
+        displayMinHeight,
+        onDisplayMinHeightChange,
+        onFinalMinHeightChange,
         onDownloadPdf, isGeneratingPdf, pdfProgress
     } = props;
 
-    const { setDraggingControl, forceRecalculateLayout } = useExamLayoutStore();
-    const dragStartRef = useRef<{ startY: number; startHeight: number } | null>(null);
-    
-    const [displayHeight, setDisplayHeight] = useState(problemBoxMinHeight);
-    
-    const displayHeightRef = useRef(displayHeight);
-    useEffect(() => {
-        displayHeightRef.current = displayHeight;
-    }, [displayHeight]);
+    // [핵심 수정 2] dragInfoRef 하나로 모든 드래그 관련 정보를 관리
+    const dragInfoRef = useRef<DragInfo | null>(null);
+    const setDraggingControl = useExamLayoutStore(state => state.setDraggingControl);
 
     const [isEditingMinHeight, setIsEditingMinHeight] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        setDisplayHeight(problemBoxMinHeight);
-    }, [problemBoxMinHeight]);
 
     useEffect(() => {
         if (isEditingMinHeight && inputRef.current) {
             inputRef.current.select();
         }
     }, [isEditingMinHeight]);
-
+    
+    // [핵심 수정 3] 핸들러들이 더 이상 외부 상태(props)에 직접 의존하지 않도록 변경
     const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!dragStartRef.current) return;
-        const deltaY = e.clientY - dragStartRef.current.startY;
-        const sensitivity = -0.1;
-        const newHeight = dragStartRef.current.startHeight + deltaY * sensitivity;
-        const clampedHeight = Math.max(5, Math.min(newHeight, 150));
+        if (!dragInfoRef.current) return;
         
-        setDisplayHeight(clampedHeight);
+        const { startY, startHeight, onDisplayChange } = dragInfoRef.current;
+        const deltaY = e.clientY - startY;
+        const sensitivity = -0.1;
+        const newHeight = startHeight + deltaY * sensitivity;
+        const clampedHeight = parseFloat(Math.max(5, Math.min(newHeight, 150)).toFixed(1));
+        
+        onDisplayChange(clampedHeight);
     }, []);
 
-    const handleMouseUp = useCallback(() => {
-        if (!dragStartRef.current) return;
+    const handleMouseUp = useCallback((e: MouseEvent) => {
+        if (!dragInfoRef.current) return;
+        
+        const { onFinalChange, setDragging } = dragInfoRef.current;
+        
+        // 최종 높이를 계산하여 콜백 호출
+        const deltaY = e.clientY - dragInfoRef.current.startY;
+        const sensitivity = -0.1;
+        const newHeight = dragInfoRef.current.startHeight + deltaY * sensitivity;
+        const finalHeight = parseFloat(Math.max(5, Math.min(newHeight, 150)).toFixed(1));
+        onFinalChange(finalHeight);
+
+        // 정리 작업
         document.body.style.cursor = '';
         window.removeEventListener('mousemove', handleMouseMove);
         window.removeEventListener('mouseup', handleMouseUp);
-        
-        setDraggingControl(false);
-        setProblemBoxMinHeight(displayHeightRef.current);
-        forceRecalculateLayout(displayHeightRef.current);
-        dragStartRef.current = null;
-    }, [handleMouseMove, setDraggingControl, forceRecalculateLayout, setProblemBoxMinHeight]);
+        setDragging(false);
+        dragInfoRef.current = null;
+    }, [handleMouseMove]); // handleMouseMove는 의존성 없음
 
+    // [핵심 수정 4] handleMouseDown의 의존성 배열에서 상태 관련 props 제거
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.preventDefault();
-        setDraggingControl(true);
-        dragStartRef.current = {
+        
+        // 드래그 시작 시점에 필요한 모든 정보를 ref에 저장
+        dragInfoRef.current = {
             startY: e.clientY,
-            startHeight: problemBoxMinHeight,
+            startHeight: displayMinHeight,
+            onDisplayChange: onDisplayMinHeightChange,
+            onFinalChange: onFinalMinHeightChange,
+            setDragging: setDraggingControl,
         };
+
+        setDraggingControl(true);
         document.body.style.cursor = 'ns-resize';
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
-    }, [problemBoxMinHeight, handleMouseMove, handleMouseUp, setDraggingControl]);
+    }, [displayMinHeight, onDisplayMinHeightChange, onFinalMinHeightChange, setDraggingControl, handleMouseMove, handleMouseUp]);
+    
+    // 이 아래 핸들러들은 이미 최적화되어 있으므로 그대로 둡니다.
+    const handleMinHeightDoubleClick = useCallback(() => setIsEditingMinHeight(true), []);
 
-    const handleMinHeightDoubleClick = () => setIsEditingMinHeight(true);
-    const handleMinHeightInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setDisplayHeight(parseFloat(e.target.value) || 0);
-    const handleMinHeightInputBlur = () => {
-        const clampedHeight = Math.max(5, Math.min(displayHeight, 150));
-        setDisplayHeight(clampedHeight);
-        setProblemBoxMinHeight(clampedHeight);
-        forceRecalculateLayout(clampedHeight);
+    const handleMinHeightInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        onDisplayMinHeightChange(parseFloat(e.target.value) || 0);
+    }, [onDisplayMinHeightChange]);
+
+    const handleMinHeightInputBlur = useCallback(() => {
+        const clampedHeight = parseFloat(Math.max(5, Math.min(displayMinHeight, 150)).toFixed(1));
+        onDisplayMinHeightChange(clampedHeight);
+        onFinalMinHeightChange(clampedHeight);
         setIsEditingMinHeight(false);
-    };
-    const handleMinHeightInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') handleMinHeightInputBlur();
-        else if (e.key === 'Escape') {
-            setDisplayHeight(problemBoxMinHeight);
+    }, [displayMinHeight, onDisplayMinHeightChange, onFinalMinHeightChange]);
+
+    const handleMinHeightInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleMinHeightInputBlur();
+        } else if (e.key === 'Escape') {
             setIsEditingMinHeight(false);
         }
-    };
+    }, [handleMinHeightInputBlur]);
 
-    useEffect(() => {
-        return () => {
-            if (dragStartRef.current) {
-                window.removeEventListener('mousemove', handleMouseMove);
-                window.removeEventListener('mouseup', handleMouseUp);
-            }
-        };
-    }, [handleMouseMove, handleMouseUp]);
-    
     return (
         <div className="publishing-controls-panel">
             <div className="control-group">
@@ -138,10 +154,10 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
             <div className="control-group">
                 <label htmlFor="min-box-height-drag">문제 최소높이(em):</label>
                 {isEditingMinHeight ? (
-                    <input ref={inputRef} type="number" value={displayHeight} onChange={handleMinHeightInputChange} onBlur={handleMinHeightInputBlur} onKeyDown={handleMinHeightInputKeyDown} className="draggable-number-input" />
+                    <input ref={inputRef} type="number" value={displayMinHeight} onChange={handleMinHeightInputChange} onBlur={handleMinHeightInputBlur} onKeyDown={handleMinHeightInputKeyDown} className="draggable-number-input" />
                 ) : (
-                    <div id="min-box-height-drag" className="draggable-number" onMouseDown={handleMouseDown} onDoubleClick={handleMinHeightDoubleClick} role="slider" aria-valuenow={displayHeight} aria-valuemin={5} aria-valuemax={150} aria-label="문제 최소 높이 조절. 마우스를 누른 채 위아래로 드래그하거나 더블클릭하여 직접 입력하세요." title="드래그 또는 더블클릭하여 수정">
-                        {displayHeight.toFixed(1)}
+                    <div id="min-box-height-drag" className="draggable-number" onMouseDown={handleMouseDown} onDoubleClick={handleMinHeightDoubleClick} role="slider" aria-valuenow={displayMinHeight} aria-valuemin={5} aria-valuemax={150} aria-label="문제 최소 높이 조절. 마우스를 누른 채 위아래로 드래그하거나 더블클릭하여 직접 입력하세요." title="드래그 또는 더블클릭하여 수정">
+                        {displayMinHeight.toFixed(1)}
                     </div>
                 )}
             </div>
@@ -149,4 +165,4 @@ const PublishingToolbarWidget: React.FC<PublishingToolbarWidgetProps> = (props) 
     );
 };
 
-export default PublishingToolbarWidget;
+export default React.memo(PublishingToolbarWidget);

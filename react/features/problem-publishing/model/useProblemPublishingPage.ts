@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo, useState, useEffect } from 'react'; // [추가] useEffect 임포트
+import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { useProblemPublishing } from './useProblemPublishing';
 import { useExamLayoutStore } from './examLayoutStore';
 import { useExamLayoutManager } from './useExamLayoutManager';
@@ -15,6 +15,7 @@ export function useProblemPublishingPage() {
     const { selectedIds, toggleRow, clearSelection, toggleItems, setSelectedIds } = useRowSelection({ allItems: allProblemIds });
     const selectedProblems = useMemo(() => allProblems.filter(p => selectedIds.has(p.uniqueId)), [allProblems, selectedIds]);
     
+    // [핵심 수정] 함수를 useCallback으로 감쌉니다.
     const handleDeselectProblem = useCallback((uniqueId: string) => {
         setSelectedIds(prev => {
             const newSet = new Set(prev);
@@ -24,28 +25,31 @@ export function useProblemPublishingPage() {
     }, [setSelectedIds]);
 
     const previewManager = useExamPreviewManager();
-    useExamLayoutManager({ selectedProblems, problemBoxMinHeight: previewManager.problemBoxMinHeight });
+
+    const { problemBoxMinHeight, setProblemBoxMinHeight } = useExamLayoutStore();
+    const [displayMinHeight, setDisplayMinHeight] = useState(problemBoxMinHeight);
+
+    useEffect(() => {
+        setDisplayMinHeight(problemBoxMinHeight);
+    }, [problemBoxMinHeight]);
+    
+    useExamLayoutManager({ selectedProblems, problemBoxMinHeight });
     const { distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap } = useExamLayoutStore();
     
-    // [수정] setHeaderInfo를 받아옵니다.
+    // [핵심 수정] onHeaderUpdate는 이미 useExamHeaderState 내부에서 useCallback으로 처리되어 있습니다.
     const { headerInfo, onHeaderUpdate, setHeaderInfo } = useExamHeaderState();
-    const { onProblemClick } = useProblemEditor({ problemBoxMinHeight: previewManager.problemBoxMinHeight });
+    
+    // [핵심 수정] onProblemClick은 이미 useProblemEditor 내부에서 useCallback으로 처리되어 있습니다.
+    const { onProblemClick } = useProblemEditor({ problemBoxMinHeight: displayMinHeight });
+    
     usePublishingPageSetup({ selectedProblems, allProblems });
 
-    // [핵심 추가] selectedProblems가 변경될 때 headerInfo의 source를 직접 업데이트합니다.
     useEffect(() => {
         if (selectedProblems.length > 0) {
             const newSource = selectedProblems[0].source || '정보 없음';
-            setHeaderInfo(prev => ({
-                ...prev,
-                source: newSource
-            }));
+            setHeaderInfo(prev => ({ ...prev, source: newSource }));
         } else {
-            // 선택된 문제가 없으면 source를 초기화합니다.
-            setHeaderInfo(prev => ({
-                ...prev,
-                source: '정보 없음'
-            }));
+            setHeaderInfo(prev => ({ ...prev, source: '정보 없음' }));
         }
     }, [selectedProblems, setHeaderInfo]);
 
@@ -64,10 +68,12 @@ export function useProblemPublishingPage() {
         includeSolutions: false,
     });
 
+    // [핵심 수정] 함수를 useCallback으로 감쌉니다.
     const handlePdfOptionChange = useCallback((option: keyof PdfExportOptions) => {
         setPdfOptions(prev => ({ ...prev, [option]: !prev[option] }));
     }, []);
 
+    // [핵심 수정] 함수를 useCallback으로 감쌉니다.
     const handleOpenPdfModal = useCallback(() => {
         if (selectedProblems.length === 0) {
             alert('PDF로 출력할 문제가 선택되지 않았습니다.');
@@ -76,6 +82,7 @@ export function useProblemPublishingPage() {
         setIsPdfModalOpen(true);
     }, [selectedProblems.length]);
     
+    // [핵심 수정] 함수를 useCallback으로 감쌉니다.
     const handleConfirmPdfDownload = useCallback(() => {
         setIsPdfModalOpen(false);
         setTimeout(() => {
@@ -83,6 +90,11 @@ export function useProblemPublishingPage() {
         }, 100);
     }, [generatePdf, pdfOptions]);
     
+    // [핵심 수정] 함수를 useCallback으로 감쌉니다.
+    const handleClosePdfModal = useCallback(() => {
+        setIsPdfModalOpen(false);
+    }, []);
+
     return {
         allProblems,
         isLoadingProblems,
@@ -96,18 +108,23 @@ export function useProblemPublishingPage() {
         distributedSolutionPages,
         solutionPlacementMap,
         headerInfo,
-        onHeaderUpdate,
-        onProblemClick,
+        onHeaderUpdate, // 이미 메모이제이션됨
+        onProblemClick, // 이미 메모이제이션됨
         handleDeselectProblem,
         
         isGeneratingPdf,
         onDownloadPdf: handleOpenPdfModal,
         pdfProgress,
         previewAreaRef,
-        ...previewManager,
+        ...previewManager, // onHeightUpdate, onToggleSequentialNumbering 등 내부 함수들이 이미 useCallback으로 처리됨
+
+        displayMinHeight,
+        setDisplayMinHeight,
+        problemBoxMinHeight,
+        setProblemBoxMinHeight,
 
         isPdfModalOpen,
-        onClosePdfModal: () => setIsPdfModalOpen(false),
+        onClosePdfModal: handleClosePdfModal,
         pdfOptions,
         onPdfOptionChange: handlePdfOptionChange,
         onConfirmPdfDownload: handleConfirmPdfDownload,

@@ -15,7 +15,11 @@ const ProblemPublishingPage: React.FC = () => {
         onHeightUpdate, onProblemClick, onHeaderUpdate, handleDeselectProblem,
         onToggleSequentialNumbering, onBaseFontSizeChange, onContentFontSizeEmChange,
         isGeneratingPdf, onDownloadPdf, pdfProgress,
-        previewAreaRef, problemBoxMinHeight, setProblemBoxMinHeight,
+        previewAreaRef, 
+        // [핵심 수정] 페이지 레벨에서 displayMinHeight와 관련 함수를 받습니다.
+        displayMinHeight, 
+        setDisplayMinHeight, 
+        setProblemBoxMinHeight,
         isPdfModalOpen,
         onClosePdfModal,
         pdfOptions,
@@ -32,7 +36,7 @@ const ProblemPublishingPage: React.FC = () => {
                 <div className="selection-widget-container">
                     <ProblemSelectionContainer
                         allProblems={allProblems}
-                        selectedProblems={selectedProblems} // [추가] 선택된 문제 목록을 전달합니다.
+                        selectedProblems={selectedProblems}
                         isLoading={isLoadingProblems}
                         selectedIds={selectedIds}
                         toggleRow={toggleRow}
@@ -47,8 +51,10 @@ const ProblemPublishingPage: React.FC = () => {
                     onBaseFontSizeChange={onBaseFontSizeChange}
                     contentFontSizeEm={contentFontSizeEm}
                     onContentFontSizeEmChange={onContentFontSizeEmChange} 
-                    problemBoxMinHeight={problemBoxMinHeight}
-                    setProblemBoxMinHeight={setProblemBoxMinHeight}
+                    // [핵심 수정] 툴바에 displayMinHeight 상태와 두 개의 세터 함수를 모두 전달합니다.
+                    displayMinHeight={displayMinHeight}
+                    onDisplayMinHeightChange={setDisplayMinHeight}
+                    onFinalMinHeightChange={setProblemBoxMinHeight}
                     onDownloadPdf={onDownloadPdf}
                     isGeneratingPdf={isGeneratingPdf}
                     pdfProgress={pdfProgress}
@@ -57,7 +63,8 @@ const ProblemPublishingPage: React.FC = () => {
             <div 
                 ref={previewAreaRef}
                 className="scrollable-content-area"
-                style={{ '--problem-box-min-height-em': `${problemBoxMinHeight}em` } as React.CSSProperties}
+                // [핵심 수정] CSS 변수를 displayMinHeight로 직접 바인딩하여 실시간 반응하도록 합니다.
+                style={{ '--problem-box-min-height-em': `${displayMinHeight}em` } as React.CSSProperties}
             >
                 <ExamPreviewWidget 
                     distributedPages={distributedPages} 

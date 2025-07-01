@@ -20,16 +20,17 @@ export function useExamLayoutManager({ selectedProblems, problemBoxMinHeight }: 
 
         if (currentSelectedIds !== prevSelectedIdsRef.current) {
             console.log('[useExamLayoutManager] Detected change in selected problems. Triggering full layout calculation.');
-            prevSelectedIdsRef.current = currentSelectedIds; // 이전 ID 목록을 현재 목록으로 업데이트
+            prevSelectedIdsRef.current = currentSelectedIds;
 
             if (selectedProblems.length > 0) {
+                // 이 함수가 호출될 때의 problemBoxMinHeight 값을 인자로 넘겨줍니다.
                 startLayoutCalculation(selectedProblems, problemBoxMinHeight);
             } else {
                 resetLayout();
             }
         }
-    }, [selectedProblems, problemBoxMinHeight, startLayoutCalculation, resetLayout]);
+    // [핵심 수정] 의존성 배열에서 problemBoxMinHeight를 제거합니다.
+    // 이제 이 useEffect는 selectedProblems가 변경될 때만 실행됩니다.
+    }, [selectedProblems, startLayoutCalculation, resetLayout]);
 
-    // [핵심 수정] 페이지 이동 시 레이아웃을 초기화하던 useEffect 클린업 함수를 제거합니다.
-    // 이로써 `ProblemPublishingPage`를 벗어나도 `MobileExamPage`에서 상태를 유지할 수 있습니다.
 }

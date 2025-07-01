@@ -4,14 +4,14 @@ import { calculateInitialLayout, recalculateProblemLayout, recalculateSolutionLa
 import { useProblemPublishingStore } from './problemPublishingStore';
 
 let itemHeightsMap = new Map<string, number>();
-// [수정] NodeJS.Timeout 대신 브라우저 환경에 맞는 타입(number) 또는 ReturnType 사용
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-let recalculateTimer: ReturnType<typeof setTimeout> | null = null;
+let recalculateTimer: ReturnType<typeof setTimeout> | null = null; // 이 변수는 이제 사용되지 않을 수 있지만, 다른 곳에서 쓸 수 있으니 남겨둡니다.
 
 interface ExamUIOptions {
     baseFontSize: string;
     contentFontSizeEm: number;
     useSequentialNumbering: boolean;
+    problemBoxMinHeight: number; 
 }
 
 interface ExamLayoutState extends ExamUIOptions {
@@ -33,6 +33,7 @@ interface ExamLayoutActions {
     setUseSequentialNumbering: (use: boolean) => void;
     setDraggingControl: (isDragging: boolean) => void;
     forceRecalculateLayout: (minHeight: number) => void;
+    setProblemBoxMinHeight: (height: number) => void; 
 }
 
 const logLayoutResult = (problems: ProcessedProblem[], problemPlacements: Map<string, ProblemPlacementInfo>, solutionPlacements: Map<string, ProblemPlacementInfo>) => {
@@ -73,6 +74,7 @@ const runDebouncedRecalculation = (get: () => ExamLayoutState & ExamLayoutAction
              console.log("[LOG] examLayoutStore: 레이아웃이 확정되었거나, 드래그 중이거나, 편집 중이므로 디바운스된 재계산을 건너뜁니다.");
             return;
         }
+        get().forceRecalculateLayout(get().problemBoxMinHeight);
     }, 500);
 };
 
@@ -80,6 +82,7 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
     baseFontSize: '12px',
     contentFontSizeEm: 1,
     useSequentialNumbering: false,
+    problemBoxMinHeight: 31, 
     
     distributedPages: [],
     placementMap: new Map(),
@@ -91,48 +94,19 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
 
     setDraggingControl: (isDragging) => set({ isDraggingControl: isDragging }),
 
+    // [핵심 수정] setItemHeight는 순수하게 높이 맵만 업데이트합니다. 재계산 트리거를 제거합니다.
     setItemHeight: (uniqueId, height) => {
-        const oldHeight = itemHeightsMap.get(uniqueId);
-        if (oldHeight === height) return;
-        
         itemHeightsMap.set(uniqueId, height);
-
-        if (recalculateTimer) clearTimeout(recalculateTimer);
-        recalculateTimer = setTimeout(() => {
-            console.log('[LOG] examLayoutStore: 높이 측정 완료 후 최종 레이아웃 재계산을 시도합니다.');
-            const { problemsForLayout, isLayoutFinalized, isDraggingControl } = get();
-            const isEditing = !!useProblemPublishingStore.getState().editingProblemId;
-
-            if (isLayoutFinalized || isDraggingControl || isEditing || problemsForLayout.length === 0) {
-                return;
-            }
-            
-            const allItemsToMeasure: string[] = [];
-            problemsForLayout.forEach(p => {
-                allItemsToMeasure.push(p.uniqueId);
-                if (p.solution_text?.trim()) {
-                    p.solution_text.split(/\n\s*\n/).filter(c => c.trim()).forEach((_, index) => {
-                        allItemsToMeasure.push(`${p.uniqueId}-sol-${index}`);
-                    });
-                }
-            });
-
-            const allMeasured = allItemsToMeasure.every(id => itemHeightsMap.has(id));
-
-            if (allMeasured) {
-                console.log('[LOG] examLayoutStore: ✅ 모든 항목의 높이가 측정되었습니다. 최종 레이아웃을 실행합니다.');
-                get().forceRecalculateLayout(31);
-            } else {
-                console.log('[LOG] examLayoutStore: ⏳ 아직 측정되지 않은 항목이 있습니다. 재계산을 보류합니다.');
-            }
-        }, 500);
     },
     
     forceRecalculateLayout: (minHeight) => {
-        if (get().isDraggingControl) return;
+        if (get().isDraggingControl) {
+            console.log('[LOG] examLayoutStore: 드래그 중이므로 강제 재계산을 건너뜁니다.');
+            return;
+        }
         if (debounceTimer) clearTimeout(debounceTimer);
 
-        console.log(`[LOG] examLayoutStore: ⚡️ 강제 레이아웃 재계산 (minHeight: ${minHeight})`);
+        console.log(`[examLayoutStore] ⚡️ 강제 레이아웃 재계산 실행. 적용될 최소 높이: ${minHeight}`);
         const { problemsForLayout } = get();
         if (problemsForLayout.length === 0) return;
 
@@ -189,10 +163,6 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
         });
 
         logLayoutResult(selectedProblems, problems.placements, solutions.placements);
-
-        recalculateTimer = setTimeout(() => {
-            get().setItemHeight('', -1);
-        }, 600);
     },
 
     setBaseFontSize: (size) => {
@@ -204,4 +174,21 @@ export const useExamLayoutStore = create<ExamLayoutState & ExamLayoutActions>((s
         runDebouncedRecalculation(get);
     },
     setUseSequentialNumbering: (use) => set({ useSequentialNumbering: use }),
+    
+    // [핵심 수정] setProblemBoxMinHeight가 재계산을 트리거하되, setTimeout으로 지연을 줍니다.
+    setProblemBoxMinHeight: (height) => {
+        console.log(`[examLayoutStore] 📥 setProblemBoxMinHeight 액션 호출됨. 새로운 최소 높이: ${height}em`);
+        
+        set({ problemBoxMinHeight: height, isLayoutFinalized: false });
+        
+        // 이전에 실행되던 타이머가 있다면 취소합니다.
+        if (recalculateTimer) clearTimeout(recalculateTimer);
+
+        // setTimeout으로 재계산을 이벤트 루프의 다음 틱으로 넘깁니다.
+        // 이렇게 하면 React 렌더링과 상태 업데이트가 먼저 처리될 시간을 벌 수 있습니다.
+        recalculateTimer = setTimeout(() => {
+            console.log('[LOG] examLayoutStore: 지연된 재계산 트리거 실행.');
+            get().forceRecalculateLayout(get().problemBoxMinHeight);
+        }, 10); // 아주 짧은 지연으로 충분합니다.
+    },
 }));
