@@ -1,9 +1,5 @@
 /* ./react/widgets/rootlayout/RootLayout.css */
 
-/* ==========================================================================
-   1. 최상위 레이아웃 컨테이너 (App.css에서 이전)
-   ========================================================================== */
-
 .app-container {
   position: relative;
   min-height: 100vh;
@@ -28,32 +24,25 @@
   display: flex;
   flex-direction: column;
   flex-grow: 1;
-  height: 100vh;
   box-sizing: border-box;
-  overflow: hidden;
   padding-top: var(--navbar-height);
+  /* [수정] height 제거 */
 }
 
 .content-body-wrapper {
   display: flex;
   flex-grow: 1;
-  overflow: hidden;
   position: relative;
+  /* [수정] min-height 제거 */
 }
-
-/* ==========================================================================
-   2. 메인 콘텐츠 영역 및 오버레이
-   ========================================================================== */
 
 .main-content {
   flex-grow: 1;
   background-color: var(--main-content-bg-color);
-  padding: 25px;
-  padding-bottom: 25px; /* 하단 검색바를 위한 여백 확보 */
-  overflow-y: auto;
+  padding: 15px;
+  padding-bottom: 25px;
   position: relative;
   z-index: 5;
-  height: 100%;
   box-sizing: border-box;
   border-top-left-radius: var(--main-content-border-radius);
   border-top-right-radius: var(--main-content-border-radius);
@@ -61,9 +50,10 @@
     inset 0px 6px 12px -6px rgba(0, 0, 0, 0.07),
     inset 5px 0px 10px -5px rgba(0, 0, 0, 0.05),
     inset -5px 0px 10px -5px rgba(0, 0, 0, 0.045);
-  scrollbar-gutter: stable;
+  /* [수정] overflow-y 제거 */
 }
 
+/* ... (이하 모든 코드는 이전과 동일) ... */
 .main-content.main-content--compact-padding {
   padding-bottom: 25px; 
 }
@@ -89,22 +79,15 @@
   transition: opacity 0.3s ease-in-out, visibility 0s 0s linear;
 }
 
-
-/* ==========================================================================
-   3. 하단 콘텐츠 영역 (검색 바)
-   ========================================================================== */
-
 .bottom-content-area {
   position: fixed;
   bottom: 0;
   z-index: 95;
   padding: 0 25px 20px 30px;
   box-sizing: border-box;
-  pointer-events: none; /* [수정] 기본적으로는 이벤트 통과, visible 클래스에서 제어 */
+  pointer-events: none;
   display: flex;
   height: auto;
-
-  /* [수정] Fade & Slide 효과를 위한 기본 상태 설정 */
   opacity: 0;
   transform: translateY(20px);
   transition: 
@@ -114,15 +97,12 @@
     width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* [추가] 검색창이 보일 때의 스타일 */
 .bottom-content-area.visible {
   opacity: 1;
   transform: translateY(0);
-  pointer-events: auto; /* 보일 때만 클릭 등 이벤트 허용 */
+  pointer-events: auto;
 }
 
-
-/* --- 사이드바 상태에 따른 너비 계산 --- */
 .app-container.left-sidebar-expanded.right-sidebar-collapsed .bottom-content-area {
   left: var(--sidebar-width);
   width: calc(100% - var(--sidebar-width) - var(--sidebar-right-width));
@@ -148,12 +128,6 @@
     width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-extra-expanded-width));
 }
 
-
-/* ==========================================================================
-   4. 반응형 레이아웃
-   ========================================================================== */
-
-/* 태블릿 (Tablet) */
 @media (max-width: 1024px) and (min-width: 769px) {
   .main-content {
     padding: 20px;
@@ -163,26 +137,23 @@
   }
 }
 
-/* 모바일 (Mobile) */
 @media (max-width: 768px) {
-  .app-container {
-    overflow-x: hidden;
+  .layout-main-wrapper {
+      padding-top: var(--navbar-height-mobile);
   }
-
   .main-content {
     padding: 15px;
-    padding-bottom: 150px; /* 모바일에서 검색바가 겹치지 않도록 충분한 하단 여백 확보 */
+    padding-bottom: 150px;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
     box-shadow: none;
+    width: -webkit-fill-available;
   }
-  
   .bottom-content-area {
     left: 0 !important;
     width: 100% !important;
     padding: 0 10px 10px;
   }
-  
   .mobile-sidebar {
     position: fixed !important;
     top: 0;
@@ -192,23 +163,19 @@
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
-
     opacity: 0;
     pointer-events: none;
     transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
-
   .mobile-sidebar.left-mobile-sidebar {
     left: 0;
     transform: translateX(-100%);
   }
-
   .mobile-sidebar.right-mobile-sidebar {
     left: auto;
     right: 0;
     transform: translateX(100%);
   }
-
   .mobile-sidebar.open {
     transform: translateX(0);
     opacity: 1;

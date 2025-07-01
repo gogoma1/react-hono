@@ -40,7 +40,6 @@ export interface UIState {
     setProblemPublishingColumnOrder: (newOrder: ProblemPublishingColumnKey[]) => void;
 }
 
-// [추가] 저장될 상태의 타입만 따로 정의합니다.
 type PersistedUIState = {
     columnVisibility: Record<string, boolean>;
     problemPublishingColumnOrder: ProblemPublishingColumnKey[];
@@ -53,7 +52,6 @@ const log = (action: string, payload?: any) => {
 
 export const useUIStore = create(
     subscribeWithSelector(
-        // [수정] persist 함수에 전체 상태와 저장될 상태의 타입을 명시적으로 전달합니다.
         persist<UIState, [], [], PersistedUIState>(
             (set, get) => ({
                 isRightSidebarExpanded: false,
@@ -167,7 +165,6 @@ export const useUIStore = create(
                 name: 'ui-settings-storage',
                 storage: createJSONStorage(() => localStorage), 
                 
-                // [수정] partialize의 반환 타입이 PersistedUIState와 일치하므로 타입 에러가 해결됩니다.
                 partialize: (state): PersistedUIState => ({
                     columnVisibility: state.columnVisibility,
                     problemPublishingColumnOrder: state.problemPublishingColumnOrder,

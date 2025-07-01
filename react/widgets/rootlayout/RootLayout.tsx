@@ -1,5 +1,3 @@
-// ./react/widgets/rootlayout/RootLayout.tsx
-
 import { useMemo, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useUIStore } from '../../shared/store/uiStore';

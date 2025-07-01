@@ -82,7 +82,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--app-bg-color);
   color: var(--text-primary);
-  overflow: hidden;
+  /* overflow: hidden; */
   line-height: 1.5;
 }
 

@@ -6,7 +6,6 @@
     box-sizing: border-box;
     background: var(--navbar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
-    -webkit-backdrop-filter: var(--glass-blur-effect);
     display: flex;
     align-items: center;
     justify-content: space-between;

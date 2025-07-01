@@ -1,0 +1,108 @@
+/* ./react/features/omr-marking/ui/OmrMarkingCard.css */
+
+.omr-marking-card {
+    background: var(--navbar-glass-bg);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--main-content-border-radius);
+    padding: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.omr-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+/* [핵심 수정] 상태 버튼 행에 grid 레이아웃 적용 */
+.omr-row.status-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4개의 컬럼이 동일한 너비를 갖도록 설정 */
+    gap: 10px;
+}
+
+.omr-button {
+    cursor: pointer;
+    border: 1px solid var(--text-placeholder);
+    background-color: transparent;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* [핵심 수정] grid 레이아웃을 사용하므로 flex-grow 속성 제거 */
+.omr-row.status-row .omr-button {
+    width: 100%; /* grid 셀의 너비를 꽉 채움 */
+}
+
+
+.omr-button:hover:not(.active) {
+    border-color: var(--accent-color);
+    color: var(--accent-color-darker);
+    background-color: var(--menu-item-hover-bg);
+}
+
+.omr-button.active {
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
+    border-color: var(--accent-color);
+    font-weight: 600;
+}
+
+.number-button {
+    width: 44px;
+    height: 44px;
+    aspect-ratio: 1 / 1;
+    border-radius: 9999px;
+    font-size: 1.1rem;
+    padding: 0;
+    flex-grow: 1; /* 숫자 버튼은 기존 flex 레이아웃 유지 */
+}
+
+.status-button {
+    border-radius: 8px;
+    padding: 8px 10px;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 52px;
+}
+
+.status-label-key {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.status-label-text {
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    .omr-marking-card {
+        padding: 12px;
+    }
+    
+    .number-button {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .status-button {
+        min-height: 48px;
+        padding: 6px 4px;
+    }
+
+    .status-label-text {
+        font-size: 0.7rem;
+    }
+}

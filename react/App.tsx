@@ -13,13 +13,14 @@ import { useAuthStore, selectIsLoadingAuth } from './shared/store/authStore';
 import ProblemWorkbenchPage from './pages/ProblemWorkbenchPage';
 import JsonRendererPage from './pages/JsonRendererPage';
 import ProblemPublishingPage from './pages/ProblemPublishingPage'; 
-import './App.css'; // [추가]
+import MobileExamPage from './pages/MobileExamPage';
+import './App.css'; 
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 5, // 5분 동안 캐시 유지
+      staleTime: 1000 * 60 * 5,
 
     },
   },
@@ -32,7 +33,6 @@ function App() {
         <QueryClientProvider client={queryClient}>
             <AuthInitializer />
             {isLoadingAuth ? (
-                // [수정] 인라인 스타일을 className으로 변경
                 <div className="app-loading-container">
                     <h1>애플리케이션 로딩 중...</h1>
                 </div>
@@ -51,6 +51,8 @@ function App() {
                                 <Route path="/problem-publishing" element={<ProblemPublishingPage />} />
                                 <Route path="/json-renderer" element={<JsonRendererPage />} /> 
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
+                                {/* [핵심 수정] 모바일 시험지 페이지 라우트를 RootLayout 내부로 이동 */}
+                                <Route path="/mobile-exam" element={<MobileExamPage />} /> 
                             </Route>
                         </Route>
                         <Route path="*" element={<Navigate to="/" replace />} />

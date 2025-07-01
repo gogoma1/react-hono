@@ -1,4 +1,3 @@
-// ./react/shared/ui/MathpixRenderer.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 
 declare global {
@@ -14,7 +13,8 @@ interface MathpixRendererProps {
   options?: object;
 }
 
-const MathpixRenderer: React.FC<MathpixRendererProps> = ({ text, options = {} }) => {
+// [핵심 수정] 컴포넌트를 React.memo로 감싸서 props가 변경되지 않으면 재렌더링을 방지합니다.
+const MathpixRenderer: React.FC<MathpixRendererProps> = React.memo(({ text, options = {} }) => {
   const [html, setHtml] = useState('');
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
@@ -75,6 +75,9 @@ const MathpixRenderer: React.FC<MathpixRendererProps> = ({ text, options = {} })
   }
 
   return <div dangerouslySetInnerHTML={{ __html: html }} />;
-};
+});
+
+// [핵심 수정] displayName 추가 (디버깅 용이)
+MathpixRenderer.displayName = 'MathpixRenderer';
 
 export default MathpixRenderer;

@@ -23,18 +23,13 @@ export function useExamLayoutManager({ selectedProblems, problemBoxMinHeight }: 
             prevSelectedIdsRef.current = currentSelectedIds; // 이전 ID 목록을 현재 목록으로 업데이트
 
             if (selectedProblems.length > 0) {
-                // [수정] 두 번째 인자인 problemBoxMinHeight를 전달합니다.
                 startLayoutCalculation(selectedProblems, problemBoxMinHeight);
             } else {
                 resetLayout();
             }
         }
-    // [수정] 의존성 배열에 problemBoxMinHeight 추가
     }, [selectedProblems, problemBoxMinHeight, startLayoutCalculation, resetLayout]);
 
-    useEffect(() => {
-        return () => {
-            resetLayout();
-        };
-    }, [resetLayout]);
+    // [핵심 수정] 페이지 이동 시 레이아웃을 초기화하던 useEffect 클린업 함수를 제거합니다.
+    // 이로써 `ProblemPublishingPage`를 벗어나도 `MobileExamPage`에서 상태를 유지할 수 있습니다.
 }

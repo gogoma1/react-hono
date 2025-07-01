@@ -1,0 +1,90 @@
+/* react/entities/exam/ui/MobileExamProblem.css */
+
+.mobile-problem-container {
+    background-color: var(--glass-base-bg);
+    border: 1px solid var(--border-color-light);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    /* [수정] 자식 요소가 넘치더라도 이 컨테이너는 깨지지 않도록 hidden 유지 */
+    overflow: hidden; 
+}
+
+.mobile-problem-header {
+    margin-bottom: 0.7em;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    white-space: nowrap;
+    font-size: 1em;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.mobile-problem-header .mobile-header-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3em;
+}
+
+.mobile-problem-number {
+    font-size: 1.5em;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.mobile-problem-score {
+    margin-left: 0.2em;
+    font-size: 1em;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.mobile-problem-content-wrapper {
+    position: relative;
+    width: 100%;
+    flex-grow: 1;
+    line-height: 1.75;
+    font-size: var(--content-font-size-em, 1em);
+    font-family: var(--content-font-family, sans-serif);
+    /* [수정] 가로 스크롤을 허용하지 않습니다. */
+    /* overflow-x: auto; */
+}
+
+.mathpix-wrapper {
+    /* [핵심 수정] 텍스트가 강제로 줄바꿈되도록 설정 */
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-all;
+}
+
+/* 
+  [최종 핵심 수정] 
+  mathpix-wrapper 내부의 모든 요소가 부모의 너비를 초과하지 않도록 강제합니다.
+  이것이 레이아웃 깨짐을 막는 가장 확실한 방법입니다.
+*/
+.mathpix-wrapper * {
+    box-sizing: border-box;
+}
+
+/* 테이블에 대한 추가적인 규칙 */
+.mathpix-wrapper table {
+    table-layout: fixed;
+}
+
+/* 이미지는 높이가 자동으로 조절되도록 합니다. */
+.mathpix-wrapper img {
+    height: auto;
+}
+
+.omr-separator {
+    height: 1px;
+    background-color: var(--border-color-light);
+    margin: 1.5rem 0;
+}
