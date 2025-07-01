@@ -4,27 +4,26 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    width: 100%;
+    /* [핵심 수정] height: 100%를 제거하여 콘텐츠 높이에 따라 컨테이너 높이가 결정되게 합니다. */
+    /* height: 100%; */
+    /* [핵심 수정] sticky 기능을 제거했으므로 gap을 다시 추가합니다. */
     gap: 1.5rem;
 }
 
-/* [핵심] pdf-processing 클래스에 마우스 커서 변경만 적용 */
 .problem-publishing-page.pdf-processing {
     cursor: wait;
 }
-
-/* [핵심] UI 잠금을 위한 오버레이에서 배경 및 블러 효과 제거 */
 .processing-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: transparent; /* 투명 배경 */
-    backdrop-filter: none;         /* 블러 효과 제거 */
+    background-color: transparent;
+    backdrop-filter: none;
     -webkit-backdrop-filter: none;
     z-index: 9999;
-    cursor: wait;                  /* 오버레이 위에서도 대기 커서 유지 */
+    cursor: wait;
 }
 
 .sticky-top-container {
@@ -32,6 +31,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    /* [핵심 수정] position: sticky 관련 속성을 모두 제거합니다. */
 }
 
 .selection-widget-container {

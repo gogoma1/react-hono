@@ -3,9 +3,6 @@
 .mobile-exam-view {
     background-color: transparent;
     padding: 0;
-    /* 데스크탑에서 볼 때를 위한 최대 너비 및 중앙 정렬 */
-    max-width: 800px;
-    margin: 0 auto;
     font-size: var(--base-font-size, 16px);
     display: flex;
     flex-direction: column;
@@ -25,16 +22,20 @@
 
 .mobile-exam-nav-container {
     position: sticky;
+    /* [핵심 수정] top 위치를 RootLayout의 네비게이션바 높이만큼 내립니다. */
     top: var(--navbar-height-mobile); 
     z-index: 10;
     background: var(--navbar-glass-bg);
     backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
     margin-bottom: 1rem;
     padding: 10px 15px;
     border-bottom: 1px solid var(--border-color-light);
     flex-shrink: 0;
+    /* [핵심 수정] sticky가 body 기준일 때, 화면 전체 너비를 사용하도록 설정 */
     margin-left: -15px;
     margin-right: -15px;
+    width: calc(100% + 30px);
 }
 
 .mobile-exam-nav-scroll-area {
@@ -43,7 +44,15 @@
     gap: 8px;
     overflow-x: auto;
     scrollbar-width: none;
+    /* [핵심 추가] 스크롤 영역에 패딩을 줘서 좌우 여백 확보 */
+    padding: 0 15px; 
 }
+/* [핵심 추가] scroll-area의 width가 컨테이너를 넘어가지 않도록 */
+.mobile-exam-nav-scroll-area {
+    box-sizing: border-box;
+    width: 100%;
+}
+
 
 .mobile-exam-nav-scroll-area::-webkit-scrollbar {
     display: none;
@@ -52,8 +61,8 @@
 .nav-button {
     flex-shrink: 0;
     padding: 6px 14px;
-    border: 1px solid var(--text-placeholder);
-    background-color: transparent;
+    border: none;
+    background-color: rgb(240, 240, 240);
     color: var(--text-secondary);
     border-radius: 18px; 
     font-size: 0.9rem;
@@ -62,7 +71,6 @@
     transition: all 0.2s ease-in-out;
 }
 
-/* [핵심 수정] 활성화되지 않은 버튼에 대한 호버(hover) 효과 추가 */
 .nav-button:hover:not(.active) {
     border-color: var(--accent-color);
     background-color: rgba(var(--accent-color-rgb), 0.1);

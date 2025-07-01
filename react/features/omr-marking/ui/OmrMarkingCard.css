@@ -1,7 +1,8 @@
 /* ./react/features/omr-marking/ui/OmrMarkingCard.css */
 
 .omr-marking-card {
-    background: var(--navbar-glass-bg);
+    /* [핵심 수정] Glassmorphism 디자인 적용 */
+    background: rgba(var(--glass-base-bg-rgb), 0.6);
     backdrop-filter: var(--glass-blur-effect);
     -webkit-backdrop-filter: var(--glass-blur-effect);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -10,7 +11,7 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px; /* 행 간 간격 증가 */
 }
 
 .omr-row {
@@ -20,16 +21,24 @@
     gap: 10px;
 }
 
-/* [핵심 수정] 상태 버튼 행에 grid 레이아웃 적용 */
-.omr-row.status-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr); /* 4개의 컬럼이 동일한 너비를 갖도록 설정 */
+/* [핵심 수정] 상태 버튼과 넘기기 버튼을 담는 행 */
+.status-and-actions-row {
+    display: flex;
+    align-items: stretch; /* 버튼 높이를 동일하게 */
     gap: 10px;
+}
+
+/* [핵심 수정] 상태 버튼 그룹은 grid 레이아웃으로 균등 분할 */
+.status-buttons-group {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    flex-grow: 1; /* 남은 공간을 모두 차지 */
 }
 
 .omr-button {
     cursor: pointer;
-    border: 1px solid var(--text-placeholder);
+    border: none;
     background-color: transparent;
     color: var(--text-secondary);
     font-weight: 500;
@@ -38,12 +47,6 @@
     align-items: center;
     justify-content: center;
 }
-
-/* [핵심 수정] grid 레이아웃을 사용하므로 flex-grow 속성 제거 */
-.omr-row.status-row .omr-button {
-    width: 100%; /* grid 셀의 너비를 꽉 채움 */
-}
-
 
 .omr-button:hover:not(.active) {
     border-color: var(--accent-color);
@@ -59,21 +62,27 @@
 }
 
 .number-button {
+    /* [핵심 수정] 완벽한 원형 버튼 */
     width: 44px;
     height: 44px;
     aspect-ratio: 1 / 1;
     border-radius: 9999px;
     font-size: 1.1rem;
     padding: 0;
-    flex-grow: 1; /* 숫자 버튼은 기존 flex 레이아웃 유지 */
+    flex-grow: 1; 
+    border-bottom:1px solid rgb(164, 164, 164);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
 .status-button {
-    border-radius: 8px;
+    /* [핵심 수정] 모던한 세로 정렬 버튼 */
+    border-radius: 12px;
     padding: 8px 10px;
     flex-direction: column;
     gap: 4px;
     min-height: 52px;
+    border-bottom:1px solid rgb(164, 164, 164);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
 .status-label-key {
@@ -86,23 +95,12 @@
     white-space: nowrap;
 }
 
-@media (max-width: 480px) {
-    .omr-marking-card {
-        padding: 12px;
-    }
-    
-    .number-button {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
-    }
-
-    .status-button {
-        min-height: 48px;
-        padding: 6px 4px;
-    }
-
-    .status-label-text {
-        font-size: 0.7rem;
-    }
+/* [핵심 수정] 넘기기 버튼 스타일 */
+.next-button {
+    flex-shrink: 0; /* 크기 고정 */
+    width: 40px;
+    border-radius: 12px;
+    font-size: 0.6rem;
+    /* 다른 버튼보다 덜 중요하게 보이도록 '고스트' 스타일 적용 */
+    border-style: dashed;
 }

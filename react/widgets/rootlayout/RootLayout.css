@@ -2,9 +2,10 @@
 
 .app-container {
   position: relative;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .background-blobs-wrapper {
@@ -26,15 +27,26 @@
   flex-grow: 1;
   box-sizing: border-box;
   padding-top: var(--navbar-height);
-  /* [수정] height 제거 */
+  min-height: 0;
 }
 
+/* [핵심 수정 1] flex 대신 grid를 사용하여 레이아웃 재정의 */
 .content-body-wrapper {
-  display: flex;
-  flex-grow: 1;
+  display: grid;
+  /* 사이드바 크기에 맞춰 3단 컬럼 정의 */
+  grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-right-width);
   position: relative;
-  /* [수정] min-height 제거 */
+  flex-grow: 1;
+  min-height: 0;
+  /* 사이드바 크기 변경 시 부드러운 전환 효과 */
+  transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* [핵심 수정 2] 왼쪽 사이드바가 축소되었을 때의 grid 컬럼 크기 재정의 */
+.app-container.left-sidebar-collapsed .content-body-wrapper {
+  grid-template-columns: var(--sidebar-collapsed-width) 1fr var(--sidebar-right-width);
+}
+
 
 .main-content {
   flex-grow: 1;
@@ -50,13 +62,42 @@
     inset 0px 6px 12px -6px rgba(0, 0, 0, 0.07),
     inset 5px 0px 10px -5px rgba(0, 0, 0, 0.05),
     inset -5px 0px 10px -5px rgba(0, 0, 0, 0.045);
-  /* [수정] overflow-y 제거 */
+  overflow-y: auto;
 }
 
-/* ... (이하 모든 코드는 이전과 동일) ... */
 .main-content.main-content--compact-padding {
   padding-bottom: 25px; 
 }
+
+/* --- 모바일 시험지 페이지 레이아웃 재정의 --- */
+.app-container.mobile-exam-layout-active {
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+}
+.app-container.mobile-exam-layout-active .layout-main-wrapper {
+  overflow: visible;
+}
+
+.app-container.mobile-exam-layout-active .glass-sidebar-right {
+  display: none;
+}
+
+.app-container.mobile-exam-layout-active .main-content {
+  width: 100%;
+  overflow-y: visible;
+  border-radius: 0;
+  padding: 15px;
+  max-width: 800px;
+  padding-bottom:200px;
+  /* [핵심 수정 3] Grid 환경에서 중앙 정렬을 위해 margin 대신 justify-self 사용 */
+  justify-self: center; 
+}
+
+.app-container.mobile-exam-layout-active .bottom-content-area {
+  display: none;
+}
+
 
 .clickable-overlay {
   position: fixed;
@@ -117,7 +158,7 @@
 }
 .app-container.left-sidebar-collapsed.right-sidebar-expanded .bottom-content-area {
   left: var(--sidebar-collapsed-width);
-  width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-expanded-width));
+  width: calc(100% - var(--sidebar-collapsed-width) - var(--sidebar-right-width));
 }
 .app-container.left-sidebar-expanded.right-sidebar-expanded.right-sidebar-extra-wide .bottom-content-area {
     left: var(--sidebar-width);
@@ -138,6 +179,11 @@
 }
 
 @media (max-width: 768px) {
+  /* 모바일에서는 원래의 flex 레이아웃으로 돌아가도록 재정의 */
+  .content-body-wrapper {
+    display: flex;
+  }
+
   .layout-main-wrapper {
       padding-top: var(--navbar-height-mobile);
   }
@@ -148,6 +194,8 @@
     border-top-right-radius: 0;
     box-shadow: none;
     width: -webkit-fill-available;
+    max-width: none;
+    margin: 0;
   }
   .bottom-content-area {
     left: 0 !important;

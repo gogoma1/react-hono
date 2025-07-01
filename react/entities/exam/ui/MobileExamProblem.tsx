@@ -13,10 +13,11 @@ interface MobileExamProblemProps {
     useSequentialNumbering: boolean;
     contentFontSizeEm: number;
     contentFontFamily: string;
-    currentAnswers: Set<AnswerNumber> | null; // [핵심 수정] Prop 타입을 Set으로 변경
+    currentAnswers: Set<AnswerNumber> | null;
     currentStatus: MarkingStatus | null;
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
     onMarkStatus: (problemId: string, status: MarkingStatus) => void;
+    onNextClick: (problemId: string) => void; // [핵심 수정] prop 추가
 }
 
 const MobileExamProblem = React.memo(forwardRef<HTMLDivElement, MobileExamProblemProps>(({ 
@@ -25,10 +26,11 @@ const MobileExamProblem = React.memo(forwardRef<HTMLDivElement, MobileExamProble
     useSequentialNumbering, 
     contentFontSizeEm, 
     contentFontFamily,
-    currentAnswers, // [핵심 수정] Prop 이름 변경
+    currentAnswers,
     currentStatus,
     onMarkAnswer,
-    onMarkStatus
+    onMarkStatus,
+    onNextClick // [핵심 수정] prop 받기
 }, ref) => {
     
     const globalProblemIndex = useMemo(() => allProblems.findIndex(p => p.uniqueId === problem.uniqueId) + 1, [allProblems, problem.uniqueId]);
@@ -59,10 +61,11 @@ const MobileExamProblem = React.memo(forwardRef<HTMLDivElement, MobileExamProble
 
             <OmrMarkingCard
                 problemId={problem.uniqueId}
-                currentAnswers={currentAnswers} // [핵심 수정] Prop 전달
+                currentAnswers={currentAnswers}
                 currentStatus={currentStatus}
                 onMarkAnswer={onMarkAnswer}
                 onMarkStatus={onMarkStatus}
+                onNextClick={onNextClick} // [핵심 수정] prop 전달
             />
         </div>
     );

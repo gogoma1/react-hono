@@ -6,12 +6,11 @@ export type AnswerNumber = 1 | 2 | 3 | 4 | 5;
 
 interface OmrMarkingCardProps {
     problemId: string;
-    
-    currentAnswers: Set<AnswerNumber> | null; // [핵심 수정] Prop 타입을 Set으로 변경
+    currentAnswers: Set<AnswerNumber> | null;
     currentStatus: MarkingStatus | null;
-
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
     onMarkStatus: (problemId: string, status: MarkingStatus) => void;
+    onNextClick: (problemId: string) => void; // [핵심 수정] prop 추가
 }
 
 const statusLabels: Record<MarkingStatus, string> = {
@@ -23,10 +22,11 @@ const statusLabels: Record<MarkingStatus, string> = {
 
 const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
     problemId,
-    currentAnswers, // [핵심 수정] Prop 이름 변경
+    currentAnswers,
     currentStatus,
     onMarkAnswer,
     onMarkStatus,
+    onNextClick, // [핵심 수정] prop 받기
 }) => {
     const answerOptions: AnswerNumber[] = [1, 2, 3, 4, 5];
     const statusOptions: MarkingStatus[] = ['A', 'B', 'C', 'D'];
@@ -36,7 +36,6 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
             {/* 1. 정답 선택 버튼 (1-5) */}
             <div className="omr-row answer-row">
                 {answerOptions.map(num => {
-                    // [핵심 수정] Set에 포함되어 있는지 여부로 active 상태를 결정
                     const isActive = currentAnswers?.has(num) ?? false;
                     return (
                         <button
@@ -53,21 +52,33 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
                 })}
             </div>
 
-            {/* 2. 문제 풀이 상태 선택 버튼 (A-D) */}
-            <div className="omr-row status-row">
-                {statusOptions.map(statusKey => (
-                     <button
-                        key={statusKey}
-                        type="button"
-                        className={`omr-button status-button ${currentStatus === statusKey ? 'active' : ''}`}
-                        onClick={() => onMarkStatus(problemId, statusKey)}
-                        aria-pressed={currentStatus === statusKey}
-                        aria-label={`${statusLabels[statusKey]} 선택`}
-                    >
-                        <span className="status-label-key">{statusKey}</span>
-                        <span className="status-label-text">{statusLabels[statusKey]}</span>
-                    </button>
-                ))}
+            {/* 2. 상태 및 넘기기 버튼 */}
+            <div className="omr-row status-and-actions-row">
+                <div className="status-buttons-group">
+                    {statusOptions.map(statusKey => (
+                         <button
+                            key={statusKey}
+                            type="button"
+                            className={`omr-button status-button ${currentStatus === statusKey ? 'active' : ''}`}
+                            onClick={() => onMarkStatus(problemId, statusKey)}
+                            aria-pressed={currentStatus === statusKey}
+                            aria-label={`${statusLabels[statusKey]} 선택`}
+                        >
+                            <span className="status-label-key">{statusKey}</span>
+                            <span className="status-label-text">{statusLabels[statusKey]}</span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* [핵심 수정] 넘기기 버튼 추가 */}
+                <button
+                    type="button"
+                    className="omr-button next-button"
+                    onClick={() => onNextClick(problemId)}
+                    aria-label="다음 문제로 넘기기"
+                >
+                    넘기기
+                </button>
             </div>
         </div>
     );

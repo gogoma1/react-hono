@@ -75,14 +75,19 @@
   --border-color-light: rgba(0, 0, 0, 0.1);
 }
 
-body {
+html, body, #root {
+  height: 100%; /* [핵심] 뷰포트 높이를 상속받기 위해 필요 */
   margin: 0;
+  padding: 0;
+}
+
+
+body {
   font-family: var(--base-font-family);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--app-bg-color);
   color: var(--text-primary);
-  /* overflow: hidden; */
   line-height: 1.5;
 }
 

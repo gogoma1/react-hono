@@ -17,7 +17,6 @@ const MobileExamView: React.FC = () => {
         state => state.draftProblems ?? state.initialProblems
     );
     
-    // [핵심 수정] 정답 상태를 Set으로 변경하여 중복 선택을 지원
     const [answers, setAnswers] = useState<Map<string, Set<AnswerNumber>>>(new Map());
     const [statuses, setStatuses] = useState<Map<string, MarkingStatus>>(new Map());
 
@@ -26,7 +25,6 @@ const MobileExamView: React.FC = () => {
     const navContainerRef = useRef<HTMLDivElement | null>(null);
     const isNavigating = useRef(false);
 
-    // [핵심 수정] 정답 마킹 로직을 Set에 맞게 수정
     const handleMarkAnswer = useCallback((problemId: string, answer: AnswerNumber) => {
         setAnswers(prevAnswers => {
             const newAnswers = new Map(prevAnswers);
@@ -81,8 +79,16 @@ const MobileExamView: React.FC = () => {
             isNavigating.current = false;
         }
     }, []);
+
+    // [핵심 수정] '넘기기' 버튼 클릭 핸들러 추가
+    const handleNextClick = useCallback((problemId: string) => {
+        const currentIndex = orderedProblems.findIndex(p => p.uniqueId === problemId);
+        if (currentIndex !== -1 && currentIndex < orderedProblems.length - 1) {
+            const nextProblemId = orderedProblems[currentIndex + 1].uniqueId;
+            handleNavClick(nextProblemId);
+        }
+    }, [orderedProblems, handleNavClick]);
     
-    // [핵심 수정] 상태 마킹 시 자동 스크롤 기능 추가
     const handleMarkStatus = useCallback((problemId: string, status: MarkingStatus) => {
         setStatuses(prevStatuses => {
             const newStatuses = new Map(prevStatuses);
@@ -94,13 +100,11 @@ const MobileExamView: React.FC = () => {
             return newStatuses;
         });
 
-        // 정답이 마킹된 상태에서 상태 버튼을 누르면 다음 문제로 이동
         const answerForProblem = answers.get(problemId);
         if (answerForProblem && answerForProblem.size > 0) {
             const currentIndex = orderedProblems.findIndex(p => p.uniqueId === problemId);
             if (currentIndex !== -1 && currentIndex < orderedProblems.length - 1) {
                 const nextProblemId = orderedProblems[currentIndex + 1].uniqueId;
-                // 약간의 딜레이를 주어 사용자가 상태 변경을 인지하게 한 후 스크롤
                 setTimeout(() => handleNavClick(nextProblemId), 100);
             }
         }
@@ -174,6 +178,7 @@ const MobileExamView: React.FC = () => {
                         currentStatus={statuses.get(problem.uniqueId) || null}
                         onMarkAnswer={handleMarkAnswer} 
                         onMarkStatus={handleMarkStatus}
+                        onNextClick={handleNextClick} // [핵심 수정] 핸들러 전달
                     />
                 ))}
             </div>
