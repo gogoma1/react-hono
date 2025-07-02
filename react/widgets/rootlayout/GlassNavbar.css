@@ -22,7 +22,34 @@
 .navbar-right {
     display: flex;
     align-items: center;
-    gap: 8px; /* [수정] 아이콘들 사이의 기본 간격 */
+    gap: 8px;
+}
+
+/* [핵심 추가] 네비게이션바 중앙 영역 */
+.navbar-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+}
+
+/* [핵심 추가] 타이머 스타일 */
+.navbar-timer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: rgba(0,0,0,0.07);
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-family: monospace;
+}
+
+.timer-icon {
+    color: var(--text-secondary);
 }
 
 .navbar-logo-link {
@@ -73,11 +100,10 @@
     display: none;
 }
 
-/* [추가] 모바일 오른쪽 액션 버튼 그룹 스타일 */
 .mobile-right-actions {
     display: flex;
     align-items: center;
-    gap: 8px; /* 액션 버튼들 사이의 간격 */
+    gap: 8px;
 }
 
 .profile-button svg {
@@ -98,11 +124,15 @@
     }
 }
 
-/* 모바일 반응형 스타일 (768px 이하) */
 @media (max-width: 768px) {
     .glass-navbar {
         padding: 0 10px;
         height: var(--navbar-height-mobile);
+    }
+    
+    .navbar-center {
+        /* 로고와 겹치지 않도록 약간 조정 */
+        left: 55%;
     }
 
     .hamburger-button {

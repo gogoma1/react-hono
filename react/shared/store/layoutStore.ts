@@ -40,11 +40,18 @@ interface RightSidebarState {
     isExtraWide: boolean;
 }
 
+// [핵심 추가] 타이머 표시 상태
+interface TimerDisplayState {
+    isVisible: boolean;
+    text: string;
+}
+
 interface LayoutState {
   rightSidebar: RightSidebarState; 
   currentPageConfig: PageLayoutConfig;
   pageActions: Partial<RegisteredPageActions>;
   searchBoxProps: StoredSearchProps | null;
+  timerDisplay: TimerDisplayState | null; // [핵심 추가]
 }
 
 interface LayoutActions {
@@ -52,6 +59,7 @@ interface LayoutActions {
   updateLayoutForPath: (path: string) => void;
   registerPageActions: (actions: Partial<RegisteredPageActions>) => void;
   setSearchBoxProps: (props: StoredSearchProps | null) => void;
+  setTimerDisplay: (display: TimerDisplayState | null) => void; // [핵심 추가]
 }
 
 const initialPageActions: Partial<RegisteredPageActions> = {
@@ -73,17 +81,14 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
   currentPageConfig: {},
   pageActions: initialPageActions,
   searchBoxProps: null,
+  timerDisplay: null, // [핵심 추가] 초기값
 
-  // [핵심 수정] 복잡한 비교 로직을 제거하고 단순한 setter로 변경합니다.
   setRightSidebarConfig: (config) => {
-    // props가 없는 경우, 사이드바를 닫는 것으로 간주합니다.
     if (!config.contentConfig || !config.contentConfig.type) {
       set({ rightSidebar: { contentConfig: { type: null }, isExtraWide: false } });
       return;
     }
     
-    // 항상 새로운 설정으로 업데이트합니다.
-    // 상위 컴포넌트의 useCallback이 참조 안정성을 보장해주는 것을 신뢰합니다.
     set({
       rightSidebar: {
         contentConfig: config.contentConfig,
@@ -106,6 +111,9 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
   },
   
   setSearchBoxProps: (props) => set({ searchBoxProps: props }),
+
+  // [핵심 추가] 타이머 상태 설정 액션
+  setTimerDisplay: (display) => set({ timerDisplay: display }),
 }));
 
 

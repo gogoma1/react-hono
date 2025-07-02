@@ -1,7 +1,7 @@
 /**
  * 각 페이지별로 우측 사이드바에 표시될 버튼의 종류를 정의합니다.
  */
-export type SidebarButtonType = 'register' | 'settings' | 'prompt' | 'latexHelp' | 'search' | 'jsonView'; // [추가] 'jsonView'
+export type SidebarButtonType = 'register' | 'settings' | 'prompt' | 'latexHelp' | 'search' | 'jsonView';
 
 /**
  * 각 페이지의 레이아웃 설정을 정의하는 인터페이스입니다.
@@ -42,9 +42,15 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
     sidebarButtons: {
       search: { tooltip: '문제 검색 및 필터' },
       jsonView: { tooltip: 'JSON으로 변환' },
-      prompt: { tooltip: '프롬프트 모음' }, // [추가] 프롬프트 버튼 설정
+      prompt: { tooltip: '프롬프트 모음' },
       settings: { tooltip: '테이블 컬럼 설정' },
       latexHelp: { tooltip: 'LaTeX 문법 도움말' }
+    }
+  },
+  // [핵심 추가] 모바일 시험지 페이지 설정
+  '/mobile-exam': {
+    sidebarButtons: {
+        settings: { tooltip: '시험 설정 및 결과' },
     }
   }
 };

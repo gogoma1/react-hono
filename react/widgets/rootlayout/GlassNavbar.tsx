@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router';
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useSidebarTriggers } from '../../shared/store/layoutStore';
+import { useLayoutStore, useSidebarTriggers } from '../../shared/store/layoutStore'; // useLayoutStore 임포트
 import { 
     LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, 
-    LuSettings2, LuSearch, LuClipboardList, LuBookMarked
+    LuSettings2, LuSearch, LuClipboardList, LuBookMarked, LuTimer // [핵심 추가]
 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
@@ -38,6 +38,9 @@ const GlassNavbar: React.FC = () => {
         promptTrigger, 
         latexHelpTrigger 
     } = useSidebarTriggers();
+
+    // [핵심 추가] layoutStore에서 타이머 상태 구독
+    const timerDisplay = useLayoutStore(state => state.timerDisplay);
 
     const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
     const profileButtonRef = useRef<HTMLButtonElement>(null);
@@ -77,6 +80,16 @@ const GlassNavbar: React.FC = () => {
                 <Link to="/dashboard" className="navbar-logo-link" aria-label="대시보드로 이동">
                     <LogoIcon />
                 </Link>
+            </div>
+            
+            {/* [핵심 추가] 중앙 타이머 영역 */}
+            <div className="navbar-center">
+                {timerDisplay?.isVisible && (
+                    <div className="navbar-timer">
+                        <LuTimer size={16} className="timer-icon" />
+                        <span className="timer-text">{timerDisplay.text}</span>
+                    </div>
+                )}
             </div>
 
             <div className="navbar-right">

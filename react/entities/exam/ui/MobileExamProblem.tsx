@@ -1,4 +1,4 @@
-import React, { useMemo, forwardRef } from 'react';
+import React, { memo, forwardRef } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
 import { OmrMarkingCard } from '../../../features/omr-marking';
@@ -18,13 +18,12 @@ interface MobileExamProblemProps {
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
     onMarkStatus: (problemId: string, status: MarkingStatus) => void;
     onNextClick: (problemId: string) => void;
-    // [핵심 수정] prop 이름 변경
     isSubjective?: boolean;
     currentSubjectiveAnswer?: string;
     onMarkSubjectiveAnswer?: (problemId: string, answer: string) => void;
 }
 
-const MobileExamProblem = React.memo(forwardRef<HTMLDivElement, MobileExamProblemProps>(({ 
+const MobileExamProblem = memo(forwardRef<HTMLDivElement, MobileExamProblemProps>(({ 
     problem, 
     allProblems, 
     useSequentialNumbering, 
@@ -35,13 +34,12 @@ const MobileExamProblem = React.memo(forwardRef<HTMLDivElement, MobileExamProble
     onMarkAnswer,
     onMarkStatus,
     onNextClick,
-    // [핵심 수정] 변경된 prop 이름으로 받기
     isSubjective,
     currentSubjectiveAnswer,
     onMarkSubjectiveAnswer,
 }, ref) => {
     
-    const globalProblemIndex = useMemo(() => allProblems.findIndex(p => p.uniqueId === problem.uniqueId) + 1, [allProblems, problem.uniqueId]);
+    const globalProblemIndex = allProblems.findIndex(p => p.uniqueId === problem.uniqueId) + 1;
     
     if (!problem) return null;
 
@@ -74,7 +72,6 @@ const MobileExamProblem = React.memo(forwardRef<HTMLDivElement, MobileExamProble
                 onMarkAnswer={onMarkAnswer}
                 onMarkStatus={onMarkStatus}
                 onNextClick={onNextClick}
-                // [핵심 수정] 변경된 prop 이름으로 전달
                 isSubjective={isSubjective}
                 currentSubjectiveAnswer={currentSubjectiveAnswer}
                 onMarkSubjectiveAnswer={onMarkSubjectiveAnswer}

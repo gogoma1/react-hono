@@ -88,8 +88,6 @@
   overflow: visible;
 }
 
-/* ----- [진짜 최종 수정] ----- */
-/* 부모 컨테이너들이 뷰포트 높이에 갇히지 않고 내용만큼 커지도록 설정 */
 .app-container.mobile-exam-layout-active .layout-main-wrapper {
   overflow: visible;
   flex-grow: 0;
@@ -99,12 +97,12 @@
 .app-container.mobile-exam-layout-active .content-body-wrapper {
     height: auto;
 }
-/* ----- [수정 종료] ----- */
 
-
-.app-container.mobile-exam-layout-active .glass-sidebar-right {
+/* [핵심 수정] 모바일 시험지 페이지에서도 오른쪽 사이드바가 보일 수 있도록 display:none 제거 */
+/* .app-container.mobile-exam-layout-active .glass-sidebar-right {
   display: none;
-}
+} */
+
 
 .app-container.mobile-exam-layout-active .main-content {
   width: 100%;

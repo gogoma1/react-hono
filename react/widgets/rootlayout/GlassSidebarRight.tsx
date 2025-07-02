@@ -12,6 +12,7 @@ import StudentEditForm from '../../features/student-editing/ui/StudentEditForm';
 import { useProblemPublishingStore, type ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel';
 import JsonViewerPanel from '../../features/json-viewer/ui/JsonViewerPanel';
+import ExamTimerDisplay from '../../features/exam-timer-display/ui/ExamTimerDisplay';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -22,7 +23,6 @@ const LatexHelpIcon = () => <LuBookMarked size={20} />;
 const SearchIcon = () => <LuSearch size={20} />;
 const JsonViewIcon = () => <LuFileJson2 size={20} />;
 
-// [핵심 수정] Props 인터페이스를 파일 최상단으로 이동
 interface ProblemEditorWrapperProps {
     isSaving?: boolean;
     onSave: (problem: ProcessedProblem) => void;
@@ -31,7 +31,6 @@ interface ProblemEditorWrapperProps {
     onProblemChange: (problem: ProcessedProblem) => void;
 }
 
-// [핵심 수정] ProblemEditorWrapper 컴포넌트를 GlassSidebarRight 밖, 파일 최상위 레벨로 이동
 const ProblemEditorWrapper: React.FC<ProblemEditorWrapperProps> = (props) => {
     const { draftProblems, editingProblemId } = useProblemPublishingStore();
     const problemToEdit = draftProblems?.find(p => p.uniqueId === editingProblemId);
@@ -43,7 +42,6 @@ const ProblemEditorWrapper: React.FC<ProblemEditorWrapperProps> = (props) => {
     return <ProblemTextEditor problem={problemToEdit} {...props} />;
 };
 
-// [핵심 수정] SidebarContentRenderer 컴포넌트도 GlassSidebarRight 밖으로 이동
 const SidebarContentRenderer: React.FC = () => {
     const { contentConfig } = useLayoutStore(selectRightSidebarConfig);
     const { pageActions } = useLayoutStore.getState();
@@ -84,6 +82,9 @@ const SidebarContentRenderer: React.FC = () => {
              }
              if (currentPath.startsWith('/dashboard')) {
                  return <TableColumnToggler />;
+             }
+             if (currentPath.startsWith('/mobile-exam')) {
+                return <ExamTimerDisplay />;
              }
              return (
                  <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
