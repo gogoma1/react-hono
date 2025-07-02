@@ -75,8 +75,18 @@
 
 .suggestion-buttons-wrapper {
     display: flex;
-    flex-wrap: wrap;
     gap: 8px;
+    /* --- [핵심 수정] --- */
+    flex-wrap: nowrap;   /* 줄바꿈을 방지하여 가로로 나열되도록 변경 */
+    overflow-x: auto;   /* 내용이 넘칠 경우 가로 스크롤을 허용 */
+
+    /* 가로 스크롤바 숨기기 */
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+/* Chrome, Safari, Opera 등 Webkit 브라우저용 스크롤바 숨기기 */
+.suggestion-buttons-wrapper::-webkit-scrollbar {
+    display: none;
 }
 
 .suggestion-chip {

@@ -6,6 +6,7 @@
     font-size: var(--base-font-size, 16px);
     display: flex;
     flex-direction: column;
+    
 }
 
 .mobile-exam-title-header {
@@ -104,4 +105,10 @@
 
 .mobile-exam-status h2 {
     margin-bottom: 1rem;
+}
+
+.mobile-exam-scroll-container {
+    flex-grow: 1; /* 남은 모든 세로 공간을 차지 */
+    /* overflow-y: auto; */
+    min-height: 0; /* flex-grow가 올바르게 작동하기 위한 트릭 */
 }

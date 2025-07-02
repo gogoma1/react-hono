@@ -59,10 +59,9 @@ const RootLayout = () => {
     
     const showOverlay = currentBreakpoint === 'mobile' && mobileSidebarType !== null;
 
-    // [핵심 수정] 현재 경로가 '모바일 시험지' 페이지인지 확인합니다.
+    // [핵심 수정] 현재 경로가 모바일 시험지 페이지인지 확인
     const isMobileExamPage = location.pathname === '/mobile-exam';
     
-    // [핵심 수정] isMobileExamPage 값에 따라 조건부 클래스를 추가합니다.
     const appContainerClasses = `
         app-container
         ${isLeftSidebarExpanded ? 'left-sidebar-expanded' : 'left-sidebar-collapsed'}

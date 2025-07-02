@@ -30,21 +30,33 @@
   min-height: 0;
 }
 
-/* [핵심 수정 1] flex 대신 grid를 사용하여 레이아웃 재정의 */
 .content-body-wrapper {
   display: grid;
-  /* 사이드바 크기에 맞춰 3단 컬럼 정의 */
   grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-right-width);
   position: relative;
   flex-grow: 1;
   min-height: 0;
-  /* 사이드바 크기 변경 시 부드러운 전환 효과 */
   transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* [핵심 수정 2] 왼쪽 사이드바가 축소되었을 때의 grid 컬럼 크기 재정의 */
 .app-container.left-sidebar-collapsed .content-body-wrapper {
   grid-template-columns: var(--sidebar-collapsed-width) 1fr var(--sidebar-right-width);
+}
+
+.app-container.left-sidebar-expanded.right-sidebar-expanded .content-body-wrapper {
+    grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-right-expanded-width);
+}
+
+.app-container.left-sidebar-collapsed.right-sidebar-expanded .content-body-wrapper {
+    grid-template-columns: var(--sidebar-collapsed-width) 1fr var(--sidebar-right-expanded-width);
+}
+
+.app-container.left-sidebar-expanded.right-sidebar-expanded.right-sidebar-extra-wide .content-body-wrapper {
+    grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-right-extra-expanded-width);
+}
+
+.app-container.left-sidebar-collapsed.right-sidebar-expanded.right-sidebar-extra-wide .content-body-wrapper {
+    grid-template-columns: var(--sidebar-collapsed-width) 1fr var(--sidebar-right-extra-expanded-width);
 }
 
 
@@ -75,9 +87,20 @@
   min-height: 100vh;
   overflow: visible;
 }
+
+/* ----- [진짜 최종 수정] ----- */
+/* 부모 컨테이너들이 뷰포트 높이에 갇히지 않고 내용만큼 커지도록 설정 */
 .app-container.mobile-exam-layout-active .layout-main-wrapper {
   overflow: visible;
+  flex-grow: 0;
+  height: auto;
 }
+
+.app-container.mobile-exam-layout-active .content-body-wrapper {
+    height: auto;
+}
+/* ----- [수정 종료] ----- */
+
 
 .app-container.mobile-exam-layout-active .glass-sidebar-right {
   display: none;
@@ -90,8 +113,8 @@
   padding: 15px;
   max-width: 800px;
   padding-bottom:200px;
-  /* [핵심 수정 3] Grid 환경에서 중앙 정렬을 위해 margin 대신 justify-self 사용 */
-  justify-self: center; 
+  justify-self: center;
+  background-color: var(--main-content-bg-color);
 }
 
 .app-container.mobile-exam-layout-active .bottom-content-area {
