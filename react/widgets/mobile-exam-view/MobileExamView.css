@@ -23,7 +23,6 @@
 
 .mobile-exam-nav-container {
     position: sticky;
-    /* [핵심 수정] top 위치를 RootLayout의 네비게이션바 높이만큼 내립니다. */
     top: var(--navbar-height-mobile); 
     z-index: 10;
     background: var(--navbar-glass-bg);
@@ -33,7 +32,6 @@
     padding: 10px 15px;
     border-bottom: 1px solid var(--border-color-light);
     flex-shrink: 0;
-    /* [핵심 수정] sticky가 body 기준일 때, 화면 전체 너비를 사용하도록 설정 */
     margin-left: -15px;
     margin-right: -15px;
     width: calc(100% + 30px);
@@ -45,10 +43,8 @@
     gap: 8px;
     overflow-x: auto;
     scrollbar-width: none;
-    /* [핵심 추가] 스크롤 영역에 패딩을 줘서 좌우 여백 확보 */
     padding: 0 15px; 
 }
-/* [핵심 추가] scroll-area의 width가 컨테이너를 넘어가지 않도록 */
 .mobile-exam-nav-scroll-area {
     box-sizing: border-box;
     width: 100%;
@@ -59,32 +55,53 @@
     display: none;
 }
 
+/* ==========================================================================
+   [핵심 수정] 네비게이션 버튼 스타일을 OMR 카드 버튼과 동일하게 변경
+   ========================================================================== */
 .nav-button {
+    /* OMR 버튼의 기본 스타일 적용 */
+    cursor: pointer;
+    background: rgb(198 184 167 / 20%);
+    backdrop-filter: blur(4px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1), 
+                inset 0 3px 5px rgba(255, 255, 255, 0.5);
+    color: #34495e;
+    transition: all 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* 기존 nav-button의 크기 및 폰트 속성 유지/조정 */
     flex-shrink: 0;
-    padding: 6px 14px;
-    border: none;
-    background-color: rgb(240, 240, 240);
-    color: var(--text-secondary);
-    border-radius: 18px; 
+    padding: 8px 14px;
+    border-radius: 12px;
     font-size: 0.9rem;
     font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
+    white-space: nowrap;
 }
 
 .nav-button:hover:not(.active) {
-    border-color: var(--accent-color);
-    background-color: rgba(var(--accent-color-rgb), 0.1);
-    color: var(--accent-color-darker);
+    /* OMR 버튼의 호버 스타일 적용 */
+    border-color: rgba(255, 255, 255, 1);
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15), 
+                inset 0 3px 5px rgba(255, 255, 255, 0.5);
 }
 
 .nav-button.active {
-    background-color: var(--accent-color);
+    /* OMR 버튼의 활성(눌림) 스타일 적용 */
+    background: rgba(var(--accent-color-rgb), 0.7);
     color: var(--text-on-accent);
-    border-color: var(--accent-color);
+    border-color: rgba(var(--accent-color-rgb), 0.8);
     font-weight: 600;
-    transform: scale(1.05);
+    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.3);
+    transform: scale(0.97);
 }
+/* ==========================================================================
+   수정 완료
+   ========================================================================== */
 
 .mobile-exam-problem-list {
     display: flex;
@@ -108,7 +125,6 @@
 }
 
 .mobile-exam-scroll-container {
-    flex-grow: 1; /* 남은 모든 세로 공간을 차지 */
-    /* overflow-y: auto; */
-    min-height: 0; /* flex-grow가 올바르게 작동하기 위한 트릭 */
+    flex-grow: 1;
+    min-height: 0;
 }
