@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react'; // useEffect 임포트 추가
 import { useProblemPublishingPage } from '../features/problem-publishing';
 import ProblemSelectionContainer from '../widgets/ProblemSelectionContainer';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
@@ -16,7 +16,6 @@ const ProblemPublishingPage: React.FC = () => {
         onToggleSequentialNumbering, onBaseFontSizeChange, onContentFontSizeEmChange,
         isGeneratingPdf, onDownloadPdf, pdfProgress,
         previewAreaRef, 
-        // [핵심 수정] 페이지 레벨에서 displayMinHeight와 관련 함수를 받습니다.
         displayMinHeight, 
         setDisplayMinHeight, 
         setProblemBoxMinHeight,
@@ -26,6 +25,11 @@ const ProblemPublishingPage: React.FC = () => {
         onPdfOptionChange,
         onConfirmPdfDownload,
     } = useProblemPublishingPage();
+
+    // [핵심 수정] 페이지 마운트 시 스크롤을 최상단으로 이동시키는 useEffect 추가
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
 
     const pageClassName = `problem-publishing-page ${isGeneratingPdf ? 'pdf-processing' : ''}`;
 
@@ -51,7 +55,6 @@ const ProblemPublishingPage: React.FC = () => {
                     onBaseFontSizeChange={onBaseFontSizeChange}
                     contentFontSizeEm={contentFontSizeEm}
                     onContentFontSizeEmChange={onContentFontSizeEmChange} 
-                    // [핵심 수정] 툴바에 displayMinHeight 상태와 두 개의 세터 함수를 모두 전달합니다.
                     displayMinHeight={displayMinHeight}
                     onDisplayMinHeightChange={setDisplayMinHeight}
                     onFinalMinHeightChange={setProblemBoxMinHeight}
@@ -63,7 +66,6 @@ const ProblemPublishingPage: React.FC = () => {
             <div 
                 ref={previewAreaRef}
                 className="scrollable-content-area"
-                // [핵심 수정] CSS 변수를 displayMinHeight로 직접 바인딩하여 실시간 반응하도록 합니다.
                 style={{ '--problem-box-min-height-em': `${displayMinHeight}em` } as React.CSSProperties}
             >
                 <ExamPreviewWidget 

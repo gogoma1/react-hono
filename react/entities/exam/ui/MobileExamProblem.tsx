@@ -17,7 +17,11 @@ interface MobileExamProblemProps {
     currentStatus: MarkingStatus | null;
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
     onMarkStatus: (problemId: string, status: MarkingStatus) => void;
-    onNextClick: (problemId: string) => void; // [핵심 수정] prop 추가
+    onNextClick: (problemId: string) => void;
+    // [핵심 수정] prop 이름 변경
+    isSubjective?: boolean;
+    currentSubjectiveAnswer?: string;
+    onMarkSubjectiveAnswer?: (problemId: string, answer: string) => void;
 }
 
 const MobileExamProblem = React.memo(forwardRef<HTMLDivElement, MobileExamProblemProps>(({ 
@@ -30,7 +34,11 @@ const MobileExamProblem = React.memo(forwardRef<HTMLDivElement, MobileExamProble
     currentStatus,
     onMarkAnswer,
     onMarkStatus,
-    onNextClick // [핵심 수정] prop 받기
+    onNextClick,
+    // [핵심 수정] 변경된 prop 이름으로 받기
+    isSubjective,
+    currentSubjectiveAnswer,
+    onMarkSubjectiveAnswer,
 }, ref) => {
     
     const globalProblemIndex = useMemo(() => allProblems.findIndex(p => p.uniqueId === problem.uniqueId) + 1, [allProblems, problem.uniqueId]);
@@ -65,7 +73,11 @@ const MobileExamProblem = React.memo(forwardRef<HTMLDivElement, MobileExamProble
                 currentStatus={currentStatus}
                 onMarkAnswer={onMarkAnswer}
                 onMarkStatus={onMarkStatus}
-                onNextClick={onNextClick} // [핵심 수정] prop 전달
+                onNextClick={onNextClick}
+                // [핵심 수정] 변경된 prop 이름으로 전달
+                isSubjective={isSubjective}
+                currentSubjectiveAnswer={currentSubjectiveAnswer}
+                onMarkSubjectiveAnswer={onMarkSubjectiveAnswer}
             />
         </div>
     );

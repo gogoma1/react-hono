@@ -10,7 +10,11 @@ interface OmrMarkingCardProps {
     currentStatus: MarkingStatus | null;
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
     onMarkStatus: (problemId: string, status: MarkingStatus) => void;
-    onNextClick: (problemId: string) => void; // [핵심 수정] prop 추가
+    onNextClick: (problemId: string) => void;
+    // [핵심 수정] prop 이름 변경
+    isSubjective?: boolean;
+    currentSubjectiveAnswer?: string;
+    onMarkSubjectiveAnswer?: (problemId: string, answer: string) => void;
 }
 
 const statusLabels: Record<MarkingStatus, string> = {
@@ -26,33 +30,50 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
     currentStatus,
     onMarkAnswer,
     onMarkStatus,
-    onNextClick, // [핵심 수정] prop 받기
+    onNextClick,
+    // [핵심 수정] 변경된 prop 이름으로 받기
+    isSubjective,
+    currentSubjectiveAnswer,
+    onMarkSubjectiveAnswer,
 }) => {
     const answerOptions: AnswerNumber[] = [1, 2, 3, 4, 5];
     const statusOptions: MarkingStatus[] = ['A', 'B', 'C', 'D'];
 
     return (
         <div className="omr-marking-card">
-            {/* 1. 정답 선택 버튼 (1-5) */}
             <div className="omr-row answer-row">
-                {answerOptions.map(num => {
-                    const isActive = currentAnswers?.has(num) ?? false;
-                    return (
-                        <button
-                            key={num}
-                            type="button"
-                            className={`omr-button number-button ${isActive ? 'active' : ''}`}
-                            onClick={() => onMarkAnswer(problemId, num)}
-                            aria-pressed={isActive}
-                            aria-label={`정답 ${num}번 선택`}
-                        >
-                            <span>{num}</span>
-                        </button>
-                    )
-                })}
+                {/* [핵심 수정] isSubjective prop으로 조건부 렌더링 */}
+                {isSubjective ? (
+                    <div className="subjective-answer-wrapper">
+                        <input
+                            type="text"
+                            className="omr-subjective-input"
+                            placeholder="서답형 정답 입력..."
+                            value={currentSubjectiveAnswer || ''}
+                            onChange={(e) => onMarkSubjectiveAnswer?.(problemId, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label="서답형 정답 입력"
+                        />
+                    </div>
+                ) : (
+                    answerOptions.map(num => {
+                        const isActive = currentAnswers?.has(num) ?? false;
+                        return (
+                            <button
+                                key={num}
+                                type="button"
+                                className={`omr-button number-button ${isActive ? 'active' : ''}`}
+                                onClick={() => onMarkAnswer(problemId, num)}
+                                aria-pressed={isActive}
+                                aria-label={`정답 ${num}번 선택`}
+                            >
+                                <span>{num}</span>
+                            </button>
+                        )
+                    })
+                )}
             </div>
 
-            {/* 2. 상태 및 넘기기 버튼 */}
             <div className="omr-row status-and-actions-row">
                 <div className="status-buttons-group">
                     {statusOptions.map(statusKey => (
@@ -70,7 +91,6 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
                     ))}
                 </div>
 
-                {/* [핵심 수정] 넘기기 버튼 추가 */}
                 <button
                     type="button"
                     className="omr-button next-button"

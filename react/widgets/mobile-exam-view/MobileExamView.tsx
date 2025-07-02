@@ -19,6 +19,8 @@ const MobileExamView: React.FC = () => {
     
     const [answers, setAnswers] = useState<Map<string, Set<AnswerNumber>>>(new Map());
     const [statuses, setStatuses] = useState<Map<string, MarkingStatus>>(new Map());
+    const [skippedProblemIds, setSkippedProblemIds] = useState<Set<string>>(new Set());
+    const [subjectiveAnswers, setSubjectiveAnswers] = useState<Map<string, string>>(new Map());
 
     const [activeProblemId, setActiveProblemId] = useState<string | null>(null);
     const problemRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
@@ -45,6 +47,11 @@ const MobileExamView: React.FC = () => {
             return newAnswers;
         });
     }, []);
+
+    const handleMarkSubjectiveAnswer = useCallback((problemId: string, answer: string) => {
+        setSubjectiveAnswers(prev => new Map(prev).set(problemId, answer));
+    }, []);
+
 
     const latestProblemsMap = useMemo(() => new Map(allProblems.map(p => [p.uniqueId, p])), [allProblems]);
 
@@ -80,8 +87,9 @@ const MobileExamView: React.FC = () => {
         }
     }, []);
 
-    // [핵심 수정] '넘기기' 버튼 클릭 핸들러 추가
     const handleNextClick = useCallback((problemId: string) => {
+        setSkippedProblemIds(prev => new Set(prev).add(problemId));
+
         const currentIndex = orderedProblems.findIndex(p => p.uniqueId === problemId);
         if (currentIndex !== -1 && currentIndex < orderedProblems.length - 1) {
             const nextProblemId = orderedProblems[currentIndex + 1].uniqueId;
@@ -100,15 +108,22 @@ const MobileExamView: React.FC = () => {
             return newStatuses;
         });
 
-        const answerForProblem = answers.get(problemId);
-        if (answerForProblem && answerForProblem.size > 0) {
+        const problem = orderedProblems.find(p => p.uniqueId === problemId);
+        if (!problem) return;
+
+        const isObjectiveSolved = (answers.get(problemId)?.size || 0) > 0;
+        const isSubjectiveSolved = (subjectiveAnswers.get(problemId) || '').trim() !== '';
+
+        const isProblemSolved = problem.problem_type === '서답형' ? isSubjectiveSolved : isObjectiveSolved;
+
+        if (isProblemSolved) {
             const currentIndex = orderedProblems.findIndex(p => p.uniqueId === problemId);
             if (currentIndex !== -1 && currentIndex < orderedProblems.length - 1) {
                 const nextProblemId = orderedProblems[currentIndex + 1].uniqueId;
                 setTimeout(() => handleNavClick(nextProblemId), 100);
             }
         }
-    }, [answers, orderedProblems, handleNavClick]);
+    }, [answers, subjectiveAnswers, orderedProblems, handleNavClick]);
 
     useEffect(() => {
         const handleUserInteraction = () => { if (isNavigating.current) isNavigating.current = false; };
@@ -145,6 +160,30 @@ const MobileExamView: React.FC = () => {
             navContainerRef.current.querySelector<HTMLButtonElement>(`[data-problem-id="${activeProblemId}"]`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         }
     }, [activeProblemId]);
+    
+    const solvedProblemIds = useMemo(() => {
+        const solvedIds = new Set<string>();
+        for (const problem of orderedProblems) {
+            if (statuses.has(problem.uniqueId)) {
+                if (problem.problem_type === '서답형') {
+                    if ((subjectiveAnswers.get(problem.uniqueId) || '').trim() !== '') {
+                        solvedIds.add(problem.uniqueId);
+                    }
+                } else {
+                    if ((answers.get(problem.uniqueId)?.size || 0) > 0) {
+                        solvedIds.add(problem.uniqueId);
+                    }
+                }
+            }
+        }
+        return solvedIds;
+    }, [answers, statuses, orderedProblems, subjectiveAnswers]);
+
+    // [핵심 추가] 제출 버튼 클릭 핸들러 (현재는 기능 없음)
+    const handleSubmitExam = useCallback(() => {
+        alert("시험지를 제출합니다! (기능 구현 예정)");
+    }, []);
+
 
     if (orderedProblems.length === 0) {
         return (
@@ -160,27 +199,70 @@ const MobileExamView: React.FC = () => {
             <div className="mobile-exam-title-header"><h1>모바일 시험지</h1></div>
             <nav ref={navContainerRef} className="mobile-exam-nav-container">
                 <div className="mobile-exam-nav-scroll-area">
-                    {orderedProblems.map((problem, index) => (
-                        <button key={problem.uniqueId} type="button" data-problem-id={problem.uniqueId}
-                            className={`nav-button ${activeProblemId === problem.uniqueId ? 'active' : ''}`}
-                            onClick={() => handleNavClick(problem.uniqueId)}
-                            aria-label={`${useSequentialNumbering ? index + 1 : problem.display_question_number}번 문제로 이동`}
-                        >{useSequentialNumbering ? index + 1 : problem.display_question_number}</button>
-                    ))}
+                    {orderedProblems.map((problem, index) => {
+                        const isCurrent = activeProblemId === problem.uniqueId;
+                        const isSolved = solvedProblemIds.has(problem.uniqueId);
+                        const isSkipped = skippedProblemIds.has(problem.uniqueId);
+
+                        const buttonClass = `
+                            nav-button
+                            ${isCurrent ? 'active' : ''}
+                            ${!isCurrent && isSolved ? 'solved' : ''}
+                            ${!isCurrent && !isSolved && isSkipped ? 'skipped' : ''}
+                        `.trim().replace(/\s+/g, ' ');
+
+                        return (
+                            <button
+                                key={problem.uniqueId}
+                                type="button"
+                                data-problem-id={problem.uniqueId}
+                                className={buttonClass}
+                                onClick={() => handleNavClick(problem.uniqueId)}
+                                aria-label={`${useSequentialNumbering ? index + 1 : problem.display_question_number}번 문제로 이동`}
+                            >
+                                {useSequentialNumbering ? index + 1 : problem.display_question_number}
+                            </button>
+                        );
+                    })}
                 </div>
             </nav>
             <div className="mobile-exam-problem-list">
-                {orderedProblems.map(problem => (
-                    <MobileExamProblem ref={el => { if (el) problemRefs.current.set(problem.uniqueId, el); else problemRefs.current.delete(problem.uniqueId); }}
-                        key={problem.uniqueId} problem={problem} allProblems={allProblems} useSequentialNumbering={useSequentialNumbering}
-                        contentFontSizeEm={contentFontSizeEm} contentFontFamily="'NanumGothic', 'Malgun Gothic', sans-serif"
-                        currentAnswers={answers.get(problem.uniqueId) || null} 
-                        currentStatus={statuses.get(problem.uniqueId) || null}
-                        onMarkAnswer={handleMarkAnswer} 
-                        onMarkStatus={handleMarkStatus}
-                        onNextClick={handleNextClick} // [핵심 수정] 핸들러 전달
-                    />
-                ))}
+                {orderedProblems.map((problem, index) => {
+                    const isCurrentProblemSubjective = problem.problem_type === '서답형';
+                    // [핵심 수정] 마지막 문제인지 여부 확인
+                    const isLastProblem = index === orderedProblems.length - 1;
+
+                    return (
+                        <React.Fragment key={problem.uniqueId}>
+                            <MobileExamProblem
+                                ref={el => { if (el) problemRefs.current.set(problem.uniqueId, el); else problemRefs.current.delete(problem.uniqueId); }}
+                                problem={problem}
+                                allProblems={allProblems}
+                                useSequentialNumbering={useSequentialNumbering}
+                                contentFontSizeEm={contentFontSizeEm}
+                                contentFontFamily="'NanumGothic', 'Malgun Gothic', sans-serif"
+                                currentAnswers={answers.get(problem.uniqueId) || null}
+                                currentStatus={statuses.get(problem.uniqueId) || null}
+                                onMarkAnswer={handleMarkAnswer}
+                                onMarkStatus={handleMarkStatus}
+                                onNextClick={handleNextClick}
+                                isSubjective={isCurrentProblemSubjective}
+                                currentSubjectiveAnswer={subjectiveAnswers.get(problem.uniqueId) || ''}
+                                onMarkSubjectiveAnswer={handleMarkSubjectiveAnswer}
+                            />
+                            {/* [핵심 수정] 마지막 문제일 경우에만 제출하기 버튼 렌더링 */}
+                            {isLastProblem && (
+                                <button
+                                    type="button"
+                                    className="omr-button submit-exam-button"
+                                    onClick={handleSubmitExam}
+                                >
+                                    시험지 제출하기
+                                </button>
+                            )}
+                        </React.Fragment>
+                    );
+                })}
             </div>
         </div>
     );

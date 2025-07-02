@@ -36,34 +36,34 @@
 }
 
 /* ==========================================================================
-   2. 카드 내부 요소 레이아웃 (변경 없음)
+   2. 카드 내부 요소 레이아웃 (핵심 수정)
    ========================================================================== */
-.omr-row, .status-and-actions-row, .status-buttons-group {
+.omr-row, .status-and-actions-row {
     display: flex;
     gap: 10px;
 }
 .omr-row { justify-content: space-between; align-items: center; }
 .status-and-actions-row { align-items: stretch; }
-.status-buttons-group { grid-template-columns: repeat(4, 1fr); flex-grow: 1; }
+
+.status-buttons-group {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    flex-grow: 1;
+    gap: 10px;
+}
+
 
 /* ==========================================================================
    3. 버튼 스타일 (유리 효과 대폭 강화)
    ========================================================================== */
-
-/* [핵심 강화] 모든 버튼에 적용될 공통 글래스 스타일 */
 .omr-button {
     cursor: pointer;
         background: rgb(198 184 167 / 20%);
     backdrop-filter: blur(4px) saturate(150%);
-    
-    /* [핵심 강화] 테두리를 더 밝고 선명하게 하여 유리 가장자리 효과 강조 */
     border: 1px solid rgba(255, 255, 255, 0.8);
-    
-    /* [핵심 강화] 내부 하이라이트를 강하게 넣어 입체감 부여 */
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1), /* 외부 그림자 */
-                inset 0 3px 5px rgba(255, 255, 255, 0.5); /* 내부 상단 하이라이트 */
-
-    color: #34495e; /* 텍스트 색상을 약간 더 진하게 하여 가독성 확보 */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1),
+                inset 0 3px 5px rgba(255, 255, 255, 0.5);
+    color: #34495e;
     font-weight: 500;
     transition: all 0.2s ease-in-out;
     display: flex;
@@ -71,23 +71,21 @@
     justify-content: center;
 }
 
-/* [핵심 강화] 호버 시 떠오르는 효과 추가 */
 .omr-button:hover:not(.active) {
     border-color: rgba(255, 255, 255, 1);
     background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px) scale(1.03); /* 떠오르는 효과 */
+    transform: translateY(-2px) scale(1.03);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15), 
                 inset 0 3px 5px rgba(255, 255, 255, 0.5);
 }
 
-/* 활성화된 버튼: "눌린" 효과 */
 .omr-button.active {
     background: rgba(var(--accent-color-rgb), 0.7);
     color: var(--text-on-accent);
     border-color: rgba(var(--accent-color-rgb), 0.8);
     font-weight: 600;
-    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.3); /* 눌린 느낌 강화 */
-    transform: scale(0.97); /* 살짝 작아지며 눌리는 느낌 */
+    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.3);
+    transform: scale(0.97);
 }
 
 /* 숫자 버튼 고유 스타일 */
@@ -122,3 +120,43 @@
     border-color: rgba(255,255,255, 0.4);
     background: rgba(255, 255, 255, 0.1);
 }
+
+
+/* ==========================================================================
+   4. [신규] 서답형 입력 필드 및 버튼 스타일
+   ========================================================================== */
+.subjective-answer-wrapper {
+    display: flex;
+    flex-grow: 1;
+    gap: 10px;
+    align-items: stretch;
+}
+
+.omr-subjective-input {
+    flex-grow: 1;
+    min-width: 0;
+    height: 44px;
+    padding: 0 16px;
+    font-size: 1rem;
+    color: #34495e;
+    
+    /* [핵심 수정] 배경을 더 밝은 화이트 톤으로 변경하고 그림자도 조정 */
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(4px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+    
+    border-radius: 22px;
+    transition: all 0.2s ease-in-out;
+}
+
+.omr-subjective-input::placeholder {
+    color: rgba(52, 73, 94, 0.5);
+}
+
+.omr-subjective-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1), 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+
