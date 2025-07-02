@@ -79,3 +79,81 @@
     color: var(--accent-color-darker);
     font-family: monospace;
 }
+
+/* [추가] 시험 시작/종료 시간 섹션 */
+.exam-session-times {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(129, 127, 127, 0.1);
+}
+
+.session-time-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+}
+
+.session-time-item .time-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.session-time-item .time-value {
+    font-weight: 500;
+    font-family: monospace;
+    color: var(--text-primary);
+}
+
+/* [수정] 리스트 아이템 레이아웃 변경 */
+.timer-list-item.extended {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.problem-main-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.problem-answer-log {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 0.8rem;
+    padding-left: 4px;
+}
+
+.problem-answer-log .log-label {
+    font-weight: 500;
+    color: var(--text-placeholder);
+    flex-shrink: 0;
+}
+
+.problem-answer-log .log-value {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.log-value.final-status {
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.final-status.status-A { background-color: #e0f2f1; color: #00796b; }
+.final-status.status-B { background-color: #e3f2fd; color: #1e88e5; }
+.final-status.status-C { background-color: #fff8e1; color: #fbc02d; }
+.final-status.status-D { background-color: #fbe9e7; color: #d84315; }
+
+.log-value.history-trail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}

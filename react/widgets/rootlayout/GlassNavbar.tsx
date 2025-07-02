@@ -1,11 +1,13 @@
+// ./react/widgets/rootlayout/GlassNavbar.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, useSidebarTriggers } from '../../shared/store/layoutStore'; // useLayoutStore 임포트
+import { useLayoutStore, useSidebarTriggers } from '../../shared/store/layoutStore'; 
+import { useMobileExamStore } from '../../features/mobile-exam-session/model/mobileExamStore';
 import { 
     LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, 
-    LuSettings2, LuSearch, LuClipboardList, LuBookMarked, LuTimer // [핵심 추가]
+    LuSettings2, LuSearch, LuClipboardList, LuBookMarked,
 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
@@ -22,8 +24,18 @@ const SearchIcon = () => <LuSearch size={22} />;
 const PromptIcon = () => <LuClipboardList size={22} />;
 const LatexHelpIcon = () => <LuBookMarked size={22} />;
 
+// [핵심 수정] 다시 단색을 반환하는 함수로 변경
+const getProgressBarColor = (minute: number): string => {
+    if (minute < 1) return '#3498db'; 
+    if (minute < 2) return '#2ecc71'; 
+    if (minute < 3) return '#f1c40f'; 
+    if (minute < 4) return '#e67e22'; 
+    return '#c0392b'; 
+};
+
 
 const GlassNavbar: React.FC = () => {
+    const location = useLocation();
     const {
         currentBreakpoint,
         toggleLeftSidebar,
@@ -39,8 +51,8 @@ const GlassNavbar: React.FC = () => {
         latexHelpTrigger 
     } = useSidebarTriggers();
 
-    // [핵심 추가] layoutStore에서 타이머 상태 구독
     const timerDisplay = useLayoutStore(state => state.timerDisplay);
+    const currentProblemTimer = useMobileExamStore(state => state.currentTimer); 
 
     const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
     const profileButtonRef = useRef<HTMLButtonElement>(null);
@@ -62,6 +74,33 @@ const GlassNavbar: React.FC = () => {
         }
     }, [currentBreakpoint, isProfilePopoverOpen]);
 
+    const renderMobileExamTimer = () => {
+        const isVisible = location.pathname === '/mobile-exam' && currentProblemTimer >= 0;
+        if (!isVisible) return null;
+
+        const currentMinute = Math.floor(currentProblemTimer / 60);
+        const secondsIntoMinute = currentProblemTimer % 60;
+        const progressPercentage = (secondsIntoMinute / 60) * 100;
+        const minuteText = `${currentMinute + 1}분`;
+        const barColor = getProgressBarColor(currentMinute); // [핵심 수정] 단색 가져오기
+
+        return (
+            <div className="timer-progress-bar-container">
+                <div className="progress-bar-track">
+                    <div 
+                        className="progress-bar-fill"
+                        // [핵심 수정] backgroundColor를 사용하여 단색 배경을 설정
+                        style={{ 
+                            width: `${progressPercentage}%`, 
+                            backgroundColor: barColor 
+                        }}
+                    />
+                </div>
+                <span className="progress-minute-text">{minuteText}</span>
+            </div>
+        );
+    };
+
     return (
         <nav className="glass-navbar">
             <div className="navbar-left">
@@ -80,13 +119,13 @@ const GlassNavbar: React.FC = () => {
                 <Link to="/dashboard" className="navbar-logo-link" aria-label="대시보드로 이동">
                     <LogoIcon />
                 </Link>
+
+                {location.pathname === '/mobile-exam' && renderMobileExamTimer()}
             </div>
             
-            {/* [핵심 추가] 중앙 타이머 영역 */}
             <div className="navbar-center">
-                {timerDisplay?.isVisible && (
+                {location.pathname !== '/mobile-exam' && timerDisplay?.isVisible && (
                     <div className="navbar-timer">
-                        <LuTimer size={16} className="timer-icon" />
                         <span className="timer-text">{timerDisplay.text}</span>
                     </div>
                 )}

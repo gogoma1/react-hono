@@ -1,4 +1,4 @@
-/* client/src/components/rootlayout/GlassNavbar.css */
+/* ./react/widgets/rootlayout/GlassNavbar.css */
 .glass-navbar {
     width: 100%;
     height: var(--navbar-height);
@@ -21,20 +21,12 @@
 .navbar-left,
 .navbar-right {
     display: flex;
-    align-items: center;
+    align-items: flex-end; 
     gap: 8px;
 }
 
-/* [핵심 추가] 네비게이션바 중앙 영역 */
-.navbar-center {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-}
+/* .navbar-center 규칙은 삭제되었습니다. */
 
-/* [핵심 추가] 타이머 스타일 */
 .navbar-timer {
     display: flex;
     align-items: center;
@@ -48,9 +40,75 @@
     font-family: monospace;
 }
 
-.timer-icon {
-    color: var(--text-secondary);
+.timer-progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 6px; 
+    background-color: rgba(0,0,0,0.04);
+    padding: 3px 6px;
+    border-radius: 5px;
+    margin-left: 10px;
 }
+
+.progress-bar-track {
+    width: 90px; 
+    height: 5px; 
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 2.5px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* [핵심 수정] fill 요소는 이제 단색 배경과 애니메이션을 위한 기준점 역할만 합니다. */
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 2.5px;
+    transition: width 1s linear, background-color 0.5s ease-out; /* background-color로 변경 */
+    position: relative;
+    overflow: hidden;
+}
+
+/* [핵심 수정] 가상 요소는 그대로 유지하여 흐르는 애니메이션을 담당합니다. */
+.progress-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    
+    background-image: 
+      linear-gradient(
+        -60deg, 
+        transparent 30%, 
+        rgba(255, 255, 255, 0.2) 30%, 
+        rgba(255, 255, 255, 0.2) 70%, 
+        transparent 70%
+      );
+    
+    background-size: 200% 100%;
+    animation: flow-gradient 1.5s linear infinite;
+}
+
+@keyframes flow-gradient {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.progress-minute-text {
+    font-size: 0.7rem; 
+    font-weight: 600;
+    color: #9e9e9e; 
+    font-family: monospace;
+    min-width: 3ch;
+    text-align: right;
+    line-height: 1; 
+}
+
 
 .navbar-logo-link {
     display: flex;
@@ -130,11 +188,6 @@
         height: var(--navbar-height-mobile);
     }
     
-    .navbar-center {
-        /* 로고와 겹치지 않도록 약간 조정 */
-        left: 55%;
-    }
-
     .hamburger-button {
         display: flex;
     }

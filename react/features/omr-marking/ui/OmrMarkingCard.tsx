@@ -9,9 +9,9 @@ interface OmrMarkingCardProps {
     currentAnswers: Set<AnswerNumber> | null;
     currentStatus: MarkingStatus | null;
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
+    // [수정] onMarkStatus가 onMarkAnswer와 동일한 로직을 타도록 통합합니다.
     onMarkStatus: (problemId: string, status: MarkingStatus) => void;
     onNextClick: (problemId: string) => void;
-    // [핵심 수정] prop 이름 변경
     isSubjective?: boolean;
     currentSubjectiveAnswer?: string;
     onMarkSubjectiveAnswer?: (problemId: string, answer: string) => void;
@@ -21,7 +21,7 @@ const statusLabels: Record<MarkingStatus, string> = {
     A: '보자마자 품',
     B: '고민하다 품',
     C: '모름',
-    D: '고민하다 질문'
+    D: '고민 후 못 품'
 };
 
 const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
@@ -31,7 +31,6 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
     onMarkAnswer,
     onMarkStatus,
     onNextClick,
-    // [핵심 수정] 변경된 prop 이름으로 받기
     isSubjective,
     currentSubjectiveAnswer,
     onMarkSubjectiveAnswer,
@@ -39,10 +38,14 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
     const answerOptions: AnswerNumber[] = [1, 2, 3, 4, 5];
     const statusOptions: MarkingStatus[] = ['A', 'B', 'C', 'D'];
 
+    // [추가] 'C'를 눌렀을 때의 특별한 동작을 위해 onMarkStatus를 직접 호출합니다.
+    const handleStatusClick = (statusKey: MarkingStatus) => {
+        onMarkStatus(problemId, statusKey);
+    };
+
     return (
         <div className="omr-marking-card">
             <div className="omr-row answer-row">
-                {/* [핵심 수정] isSubjective prop으로 조건부 렌더링 */}
                 {isSubjective ? (
                     <div className="subjective-answer-wrapper">
                         <input
@@ -81,7 +84,7 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
                             key={statusKey}
                             type="button"
                             className={`omr-button status-button ${currentStatus === statusKey ? 'active' : ''}`}
-                            onClick={() => onMarkStatus(problemId, statusKey)}
+                            onClick={() => handleStatusClick(statusKey)}
                             aria-pressed={currentStatus === statusKey}
                             aria-label={`${statusLabels[statusKey]} 선택`}
                         >

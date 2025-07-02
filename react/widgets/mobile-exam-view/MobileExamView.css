@@ -84,7 +84,6 @@
     transform: translateY(-2px) scale(1.03);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15), 
                 inset 0 3px 5px rgba(255, 255, 255, 0.5);
-    /* [핵심 수정] 호버 시 텍스트 색상을 진하게 변경 */
     color: var(--text-primary);
 }
 
@@ -104,6 +103,14 @@
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* [핵심 수정] 'C' (모름) 버튼 색상을 더 연한 파스텔 핑크로 변경 */
+.nav-button.marked-c {
+    background-color: #dcbbbb; /* Tailwind pink-200 */
+    color: #636363; /* Tailwind pink-700 */
+    border-color: #dcbbbb; /* Tailwind pink-300 */
+    font-weight: 600;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
 .nav-button.skipped {
     background-color: #f1c40f;
     color: #2c3e50;
@@ -137,7 +144,6 @@
     min-height: 0;
 }
 
-/* [핵심 추가] 제출하기 버튼 스타일 */
 .submit-exam-button {
     margin-top: 2rem;
     padding: 16px 20px;

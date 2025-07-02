@@ -3,6 +3,7 @@ import type { ProcessedProblem } from '../../problem-publishing';
 import type { AnswerNumber, MarkingStatus } from '../../omr-marking';
 
 let timerIntervalId: NodeJS.Timeout | null = null;
+let examTimerIntervalId: NodeJS.Timeout | null = null; 
 
 interface MobileExamState {
     orderedProblems: ProcessedProblem[];
@@ -15,6 +16,10 @@ interface MobileExamState {
     activeProblemId: string | null;
     timerStartTime: number | null;
     currentTimer: number;
+    totalElapsedTime: number;
+    examStartTime: Date | null;
+    examEndTime: Date | null;
+    answerHistory: Map<string, (AnswerNumber | MarkingStatus | string)[]>;
 }
 
 interface MobileExamActions {
@@ -27,6 +32,11 @@ interface MobileExamActions {
     pauseCurrentTimer: () => void;
     markProblemAsSolved: (problemId: string, status: MarkingStatus) => void;
     skipProblem: (problemId: string) => void;
+
+    startExamTimer: () => void;
+    stopExamTimer: () => void;
+
+    completeExam: () => void;
 }
 
 const initialState: MobileExamState = {
@@ -40,6 +50,10 @@ const initialState: MobileExamState = {
     activeProblemId: null,
     timerStartTime: null,
     currentTimer: 0,
+    totalElapsedTime: 0,
+    examStartTime: null,
+    examEndTime: null,
+    answerHistory: new Map(),
 };
 
 export const useMobileExamStore = create<MobileExamState & MobileExamActions>((set, get) => ({
@@ -52,15 +66,18 @@ export const useMobileExamStore = create<MobileExamState & MobileExamActions>((s
         set({
             orderedProblems: problems,
             activeProblemId: problems[0]?.uniqueId || null,
+            examStartTime: new Date(),
         });
         if (problems.length > 0) {
             get().startTimerForProblem(problems[0].uniqueId);
+            get().startExamTimer();
         }
     },
 
     resetSession: () => {
         if (timerIntervalId) clearInterval(timerIntervalId);
         timerIntervalId = null;
+        get().stopExamTimer();
         set(initialState);
     },
 
@@ -80,15 +97,26 @@ export const useMobileExamStore = create<MobileExamState & MobileExamActions>((s
             newAnswers.set(problemId, answerSet);
         }
         
-        return { answers: newAnswers };
+        const newHistory = new Map(state.answerHistory);
+        const history = [...(newHistory.get(problemId) || [])];
+        history.push(answer);
+        newHistory.set(problemId, history);
+
+        return { answers: newAnswers, answerHistory: newHistory };
     }),
 
-    markSubjectiveAnswer: (problemId, answer) => set(state => ({
-        subjectiveAnswers: new Map(state.subjectiveAnswers).set(problemId, answer)
-    })),
+    markSubjectiveAnswer: (problemId, answer) => set(state => {
+        const newSubjectiveAnswers = new Map(state.subjectiveAnswers).set(problemId, answer);
+        
+        const newHistory = new Map(state.answerHistory);
+        const history = [...(newHistory.get(problemId) || [])];
+        history.push(answer);
+        newHistory.set(problemId, history);
+
+        return { subjectiveAnswers: newSubjectiveAnswers, answerHistory: newHistory };
+    }),
 
     startTimerForProblem: (problemId) => {
-        // [로그 추가]
         console.log(`[MobileExamStore] Action: startTimerForProblem 호출됨. targetId: ${problemId}`);
         get().pauseCurrentTimer();
         set({ activeProblemId: problemId });
@@ -107,7 +135,7 @@ export const useMobileExamStore = create<MobileExamState & MobileExamActions>((s
 
         timerIntervalId = setInterval(() => {
             const { timerStartTime: newTimerStartTime, activeProblemId: currentActiveId } = get();
-            if(newTimerStartTime && currentActiveId === problemId) { // 현재 활성 문제에 대해서만 실행
+            if(newTimerStartTime && currentActiveId === problemId) {
                 const elapsed = (Date.now() - newTimerStartTime) / 1000;
                 set({ currentTimer: accumulatedTime + elapsed });
             }
@@ -134,14 +162,23 @@ export const useMobileExamStore = create<MobileExamState & MobileExamActions>((s
     
     markProblemAsSolved: (problemId, status) => {
         get().pauseCurrentTimer();
+        set(state => {
+            const finalTime = state.accumulatedTimes.get(problemId) || 0;
+            console.log(`[MobileExamStore] ✅ MARK_SOLVED: 문제 [${problemId}] 최종 풀이 완료. 최종 시간: ${finalTime.toFixed(2)}초.`);
+            
+            const newProblemTimes = new Map(state.problemTimes).set(problemId, finalTime);
+            const newStatuses = new Map(state.statuses).set(problemId, status);
+            
+            const newHistory = new Map(state.answerHistory);
+            const history = [...(newHistory.get(problemId) || [])];
+            history.push(status);
+            newHistory.set(problemId, history);
 
-        const { accumulatedTimes, statuses, problemTimes } = get();
-        const finalTime = accumulatedTimes.get(problemId) || 0;
-
-        console.log(`[MobileExamStore] ✅ MARK_SOLVED: 문제 [${problemId}] 최종 풀이 완료. 최종 시간: ${finalTime.toFixed(2)}초.`);
-        set({
-            problemTimes: new Map(problemTimes).set(problemId, finalTime),
-            statuses: new Map(statuses).set(problemId, status),
+            return {
+                problemTimes: newProblemTimes,
+                statuses: newStatuses,
+                answerHistory: newHistory,
+            };
         });
     },
 
@@ -150,5 +187,27 @@ export const useMobileExamStore = create<MobileExamState & MobileExamActions>((s
         set(state => ({
             skippedProblemIds: new Set(state.skippedProblemIds).add(problemId)
         }));
+    },
+    
+    startExamTimer: () => {
+        if (examTimerIntervalId) return;
+        console.log('[MobileExamStore] ⏱️ EXAM_TIMER_START: 시험 전체 타이머 시작');
+        examTimerIntervalId = setInterval(() => {
+            set(state => ({ totalElapsedTime: state.totalElapsedTime + 1 }));
+        }, 1000);
+    },
+
+    stopExamTimer: () => {
+        if (examTimerIntervalId) {
+            console.log('[MobileExamStore] 🛑 EXAM_TIMER_STOP: 시험 전체 타이머 정지');
+            clearInterval(examTimerIntervalId);
+            examTimerIntervalId = null;
+        }
+    },
+
+    completeExam: () => {
+        console.log('[MobileExamStore] 🏁 EXAM_COMPLETE: 시험 종료');
+        get().stopExamTimer();
+        set({ examEndTime: new Date() });
     },
 }));
