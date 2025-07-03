@@ -4,7 +4,7 @@ import { useLayoutStore } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
 import { useExamLayoutStore } from '../features/problem-publishing/model/examLayoutStore';
 import { useProblemPublishingStore, type ProcessedProblem } from '../features/problem-publishing/model/problemPublishingStore';
-import { useMobileExamStore } from '../features/mobile-exam-session/model/mobileExamStore';
+import { useMobileExamSessionStore } from '../features/mobile-exam-session/model/mobileExamSessionStore'; // [핵심 수정]
 import './MobileExamPage.css';
 
 const MobileExamPage: React.FC = () => {
@@ -12,7 +12,7 @@ const MobileExamPage: React.FC = () => {
     const { setRightSidebarExpanded } = useUIStore.getState();
     const { distributedPages, placementMap } = useExamLayoutStore();
     const allProblems = useProblemPublishingStore(state => state.draftProblems ?? state.initialProblems);
-    const { initializeSession, resetSession } = useMobileExamStore();
+    const { initializeSession, resetSession } = useMobileExamSessionStore(); // [핵심 수정]
 
     const orderedProblems = useMemo(() => {
         if (!distributedPages || distributedPages.length === 0) return [];
@@ -26,16 +26,18 @@ const MobileExamPage: React.FC = () => {
 
     useEffect(() => {
         document.documentElement.classList.add('mobile-exam-layout-active');
+        // 세션 초기화는 한 번만 호출
         initializeSession(orderedProblems);
         return () => {
             document.documentElement.classList.remove('mobile-exam-layout-active');
+            // 컴포넌트 언마운트 시 세션 리셋
             resetSession();
         };
     }, [orderedProblems, initializeSession, resetSession]);
 
     const handleOpenSettingsSidebar = useCallback(() => {
         setRightSidebarConfig({
-            contentConfig: { type: 'settings' }, // Props 전달이 더 이상 필요 없음
+            contentConfig: { type: 'settings' }, 
         });
         setRightSidebarExpanded(true);
     }, [setRightSidebarConfig, setRightSidebarExpanded]);

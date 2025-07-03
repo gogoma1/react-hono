@@ -21,6 +21,8 @@ find  ./react \( -name "*.css" \) -type f -not -path "./react/pages/LoginPageWit
 
 find ./react \( -name "*.ts" -o -name "*.tsx" \) -type f -not -path "./react/shared/ui/codemirror-editor/*" -not -path "./react/features/kakaologin/*" -not -path "./react/features/latex-help/*" -not -path "./react\pages\LoginPageWithErrorDisplay.tsx" -not -path "./react\pages\LoginPage.tsx" -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > files.md
 
+find ./react \( -name "*.ts" -o -name "*.tsx" \) -type f -not -path "./react/shared/ui/codemirror-editor/*" -not -path "./react/features/kakaologin/*" -not -path "./react/features/latex-help/*" -not -path "./react\pages\LoginPageWithErrorDisplay.tsx" -not -path "./react\pages\LoginPage.tsx" -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > files2.md
+
 
 [오류출력]
 

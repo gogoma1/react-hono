@@ -1,6 +1,8 @@
 import React from 'react';
 import type { AnswerNumber, MarkingStatus } from '../../omr-marking';
-import { useMobileExamStore } from '../../mobile-exam-session/model/mobileExamStore';
+import { useMobileExamSessionStore } from '../../mobile-exam-session/model/mobileExamSessionStore';
+import { useMobileExamTimeStore } from '../../mobile-exam-session/model/mobileExamTimeStore';
+import { useMobileExamAnswerStore } from '../../mobile-exam-session/model/mobileExamAnswerStore'; // [핵심]
 import { useExamLayoutStore } from '../../problem-publishing';
 import './ExamTimerDisplay.css';
 
@@ -32,18 +34,10 @@ const numberToCircle = (num: AnswerNumber): string => {
 };
 
 const ExamTimerDisplay: React.FC = () => {
-    const { 
-        orderedProblems: problems, 
-        problemTimes, 
-        totalElapsedTime, 
-        examStartTime, 
-        examEndTime, 
-        answerHistory,
-        statuses,
-        modifiedProblemIds,
-        answers, // [핵심 수정] 객관식 정답 정보 가져오기
-        subjectiveAnswers, // [핵심 수정] 서답형 정답 정보 가져오기
-    } = useMobileExamStore();
+    // [핵심] 각 store에서 필요한 데이터를 선택적으로 가져옵니다.
+    const { orderedProblems: problems } = useMobileExamSessionStore();
+    const { answerHistory, statuses, answers, subjectiveAnswers } = useMobileExamAnswerStore();
+    const { problemTimes, totalElapsedTime, examStartTime, examEndTime, modifiedProblemIds } = useMobileExamTimeStore();
     const { useSequentialNumbering } = useExamLayoutStore();
     
     const totalTime = totalElapsedTime;
@@ -60,7 +54,6 @@ const ExamTimerDisplay: React.FC = () => {
         );
     };
 
-    // [핵심 수정] 최종 정답과 상태를 포맷팅하는 함수
     const formatFinalResult = (problemId: string, problemType: string): React.ReactNode => {
         const finalStatus = statuses.get(problemId);
         let finalAnswerDisplay = '미선택';
@@ -135,7 +128,6 @@ const ExamTimerDisplay: React.FC = () => {
                                     )}
                                 </div>
                             </div>
-                            {/* [핵심 수정] 최종 결과 표시 로직 변경 */}
                             <div className="problem-answer-log">
                                 <span className="log-label">최종:</span>
                                 <div className="log-value-container">

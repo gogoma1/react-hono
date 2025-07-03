@@ -1,10 +1,9 @@
-// ./react/widgets/rootlayout/GlassNavbar.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router'; // [수정] react-router -> react-router-dom
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, useSidebarTriggers } from '../../shared/store/layoutStore'; 
-import { useMobileExamStore } from '../../features/mobile-exam-session/model/mobileExamStore';
+import { useMobileExamTimeStore } from '../../features/mobile-exam-session/model/mobileExamTimeStore'; // [핵심 수정]
 import { 
     LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, 
     LuSettings2, LuSearch, LuClipboardList, LuBookMarked,
@@ -24,7 +23,6 @@ const SearchIcon = () => <LuSearch size={22} />;
 const PromptIcon = () => <LuClipboardList size={22} />;
 const LatexHelpIcon = () => <LuBookMarked size={22} />;
 
-// [핵심 수정] 다시 단색을 반환하는 함수로 변경
 const getProgressBarColor = (minute: number): string => {
     if (minute < 1) return '#3498db'; 
     if (minute < 2) return '#2ecc71'; 
@@ -52,7 +50,7 @@ const GlassNavbar: React.FC = () => {
     } = useSidebarTriggers();
 
     const timerDisplay = useLayoutStore(state => state.timerDisplay);
-    const currentProblemTimer = useMobileExamStore(state => state.currentTimer); 
+    const currentProblemTimer = useMobileExamTimeStore(state => state.currentTimer); // [핵심 수정]
 
     const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
     const profileButtonRef = useRef<HTMLButtonElement>(null);
@@ -82,14 +80,13 @@ const GlassNavbar: React.FC = () => {
         const secondsIntoMinute = currentProblemTimer % 60;
         const progressPercentage = (secondsIntoMinute / 60) * 100;
         const minuteText = `${currentMinute + 1}분`;
-        const barColor = getProgressBarColor(currentMinute); // [핵심 수정] 단색 가져오기
+        const barColor = getProgressBarColor(currentMinute);
 
         return (
             <div className="timer-progress-bar-container">
                 <div className="progress-bar-track">
                     <div 
                         className="progress-bar-fill"
-                        // [핵심 수정] backgroundColor를 사용하여 단색 배경을 설정
                         style={{ 
                             width: `${progressPercentage}%`, 
                             backgroundColor: barColor 

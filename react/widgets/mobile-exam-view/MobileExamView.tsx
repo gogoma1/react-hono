@@ -1,6 +1,8 @@
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import MobileExamProblem from '../../entities/exam/ui/MobileExamProblem';
-import { useMobileExamStore } from '../../features/mobile-exam-session/model/mobileExamStore';
+import { useMobileExamSessionStore } from '../../features/mobile-exam-session/model/mobileExamSessionStore';
+import { useMobileExamAnswerStore } from '../../features/mobile-exam-session/model/mobileExamAnswerStore'; // [핵심]
+import { useMobileExamTimeStore } from '../../features/mobile-exam-session/model/mobileExamTimeStore'; // [핵심]
 import { useExamLayoutStore } from '../../features/problem-publishing/model/examLayoutStore';
 import type { MarkingStatus } from '../../features/omr-marking';
 import './MobileExamView.css';
@@ -8,12 +10,15 @@ import './MobileExamView.css';
 const HEADER_OFFSET = 60;
 
 const MobileExamView: React.FC = () => {
-    const store = useMobileExamStore();
-    const { 
-        orderedProblems, activeProblemId, answers, statuses, subjectiveAnswers, skippedProblemIds,
-        initializeSession, resetSession, startTimerForProblem, markAnswer, markSubjectiveAnswer, markProblemAsSolved, skipProblem,
-        completeExam
-    } = store;
+    // [핵심] 각 Store에서 필요한 상태와 액션을 구조 분해 할당
+    const { orderedProblems, activeProblemId, skippedProblemIds, isSessionActive,
+            setActiveProblemId, skipProblem, completeExam, initializeSession, resetSession 
+    } = useMobileExamSessionStore();
+    
+    const { answers, subjectiveAnswers, statuses, markAnswer, markSubjectiveAnswer, markStatus 
+    } = useMobileExamAnswerStore();
+
+    const { finalizeProblemTime } = useMobileExamTimeStore();
     
     const { baseFontSize, contentFontSizeEm, useSequentialNumbering } = useExamLayoutStore();
 
@@ -21,11 +26,22 @@ const MobileExamView: React.FC = () => {
     const observer = useRef<IntersectionObserver | null>(null);
     const problemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
+    // [핵심] initializeSession/resetSession은 이제 props가 아닌 hook에서 직접 가져옴
+    useEffect(() => {
+        if (orderedProblems.length > 0 && !isSessionActive) {
+            initializeSession(orderedProblems);
+        }
+        return () => {
+            if(isSessionActive) {
+                // resetSession(); // 페이지 이동 시 초기화는 MobileExamPage에서 담당
+            }
+        };
+    }, [orderedProblems, initializeSession, resetSession, isSessionActive]);
+
     const handleNavClick = useCallback((problemId: string) => {
         if (activeProblemId === problemId) return;
-
         isNavigating.current = true;
-        startTimerForProblem(problemId);
+        setActiveProblemId(problemId);
         
         const problemElement = problemRefs.current.get(problemId);
         if (problemElement) {
@@ -35,7 +51,7 @@ const MobileExamView: React.FC = () => {
             window.scrollTo({ top: scrollTop, behavior: 'smooth' });
         }
         setTimeout(() => { isNavigating.current = false; }, 1000);
-    }, [activeProblemId, startTimerForProblem]);
+    }, [activeProblemId, setActiveProblemId]);
 
     const handleNextClick = useCallback((problemId: string) => {
         skipProblem(problemId);
@@ -46,29 +62,27 @@ const MobileExamView: React.FC = () => {
     }, [orderedProblems, skipProblem, handleNavClick]);
 
     const handleMarkStatus = useCallback((problemId: string, status: MarkingStatus) => {
-        markProblemAsSolved(problemId, status);
+        // [핵심] 각 Store의 액션을 순서대로 호출
+        markStatus(problemId, status);
+        finalizeProblemTime(problemId);
         
         const problem = orderedProblems.find(p => p.uniqueId === problemId);
         if (!problem) return;
 
+        const currentAnswers = useMobileExamAnswerStore.getState().answers;
+        const currentSubjectiveAnswers = useMobileExamAnswerStore.getState().subjectiveAnswers;
+
         const isAnswered = (problem.problem_type === '서답형')
-            ? (subjectiveAnswers.get(problemId) || '').trim() !== ''
-            : (answers.get(problemId)?.size || 0) > 0;
+            ? (currentSubjectiveAnswers.get(problemId) || '').trim() !== ''
+            : (currentAnswers.get(problemId)?.size || 0) > 0;
         
-        if (status === 'C') {
-            console.log(`[MobileExamView] 🚀 'C(모름)' 선택으로 자동 다음 문제 넘기기 실행. 문제 ID: [${problemId}]`);
-            const currentIndex = orderedProblems.findIndex(p => p.uniqueId === problemId);
-            if (currentIndex > -1 && currentIndex < orderedProblems.length - 1) {
-                setTimeout(() => handleNavClick(orderedProblems[currentIndex + 1].uniqueId), 100);
-            }
-        } else if (isAnswered) {
-            console.log(`[MobileExamView] 🚀 '자동 다음 문제 넘기기' 로직 실행. 마킹 문제 ID: [${problemId}]`);
+        if (status === 'C' || isAnswered) {
             const currentIndex = orderedProblems.findIndex(p => p.uniqueId === problemId);
             if (currentIndex > -1 && currentIndex < orderedProblems.length - 1) {
                 setTimeout(() => handleNavClick(orderedProblems[currentIndex + 1].uniqueId), 100);
             }
         }
-    }, [markProblemAsSolved, orderedProblems, answers, subjectiveAnswers, handleNavClick]);
+    }, [markStatus, finalizeProblemTime, orderedProblems, handleNavClick]);
 
     useEffect(() => {
         const navButton = document.querySelector(`.mobile-exam-nav-container [data-problem-id="${activeProblemId}"]`);
@@ -86,10 +100,10 @@ const MobileExamView: React.FC = () => {
             const intersectingEntry = entries.find(entry => entry.isIntersecting);
             if (intersectingEntry) {
                 const problemId = intersectingEntry.target.getAttribute('data-unique-id');
-                const currentActiveIdInStore = useMobileExamStore.getState().activeProblemId;
+                const currentActiveIdInStore = useMobileExamSessionStore.getState().activeProblemId;
 
                 if (problemId && problemId !== currentActiveIdInStore) {
-                    useMobileExamStore.getState().startTimerForProblem(problemId);
+                    setActiveProblemId(problemId);
                 }
             }
         }, options);
@@ -98,14 +112,7 @@ const MobileExamView: React.FC = () => {
         return () => {
             observer.current?.disconnect();
         };
-    }, [orderedProblems]);
-
-    useEffect(() => {
-        initializeSession(orderedProblems);
-        return () => {
-            resetSession();
-        };
-    }, [initializeSession, resetSession, orderedProblems]);
+    }, [orderedProblems, setActiveProblemId]);
 
     const handleSubmitExam = () => {
         completeExam();
@@ -126,20 +133,15 @@ const MobileExamView: React.FC = () => {
                         const finalStatus = statuses.get(problem.uniqueId);
                         const isSkipped = skippedProblemIds.has(problem.uniqueId);
                         
-                        // [핵심 수정] 완료 상태 로직 변경
-                        // 1. 정답이 입력되었는지 확인
                         const hasAnswer = problem.problem_type === '서답형'
                             ? (subjectiveAnswers.get(problem.uniqueId) || '').trim() !== ''
                             : (answers.get(problem.uniqueId)?.size ?? 0) > 0;
                         
-                        // 2. 'A', 'B', 'D' 상태인지 확인
                         const hasCompletingStatus = finalStatus === 'A' || finalStatus === 'B' || finalStatus === 'D';
                         
-                        // 3. 최종 완료 상태 결정
                         const isSolved = hasAnswer && hasCompletingStatus;
                         const isMarkedAsUnknown = finalStatus === 'C';
 
-                        // [핵심 수정] 클래스명 조합 로직 변경
                         const buttonClass = [
                             'nav-button',
                             isCurrent && 'active',
