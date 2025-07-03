@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+// [핵심 수정] './ui/OmrMarkingCard' 대신 피처의 index 파일에서 타입을 가져옵니다.
 import type { AnswerNumber, MarkingStatus } from '../../omr-marking';
 
 // 답안지 관련 상태 인터페이스
