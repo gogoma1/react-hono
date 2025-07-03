@@ -14,7 +14,6 @@ const formatTime = (totalSeconds: number): string => {
     return `${seconds}초`;
 };
 
-// [추가] 날짜를 한국 표준시로 포맷하는 함수
 const formatKST = (date: Date | null): string => {
     if (!date) return '기록 없음';
     return date.toLocaleString('ko-KR', {
@@ -28,8 +27,11 @@ const formatKST = (date: Date | null): string => {
     });
 };
 
+const numberToCircle = (num: AnswerNumber): string => {
+    return `①②③④⑤`[num - 1] || String(num);
+};
+
 const ExamTimerDisplay: React.FC = () => {
-    // [수정] store에서 새로운 상태들을 가져옵니다.
     const { 
         orderedProblems: problems, 
         problemTimes, 
@@ -37,25 +39,64 @@ const ExamTimerDisplay: React.FC = () => {
         examStartTime, 
         examEndTime, 
         answerHistory,
-        statuses 
+        statuses,
+        modifiedProblemIds,
+        answers, // [핵심 수정] 객관식 정답 정보 가져오기
+        subjectiveAnswers, // [핵심 수정] 서답형 정답 정보 가져오기
     } = useMobileExamStore();
     const { useSequentialNumbering } = useExamLayoutStore();
     
-    // [수정] 총 풀이 시간을 totalElapsedTime으로 변경
     const totalTime = totalElapsedTime;
 
     const renderHistoryItem = (item: AnswerNumber | MarkingStatus | string, index: number) => {
-        // 스타일링을 위해 item 타입에 따라 클래스를 부여할 수 있습니다.
         let className = 'history-item';
         if (typeof item === 'number') className += ' number';
         if (typeof item === 'string' && ['A', 'B', 'C', 'D'].includes(item)) className += ` status-${item}`;
 
         return (
             <span key={index} className={className}>
-                {item}
+                {typeof item === 'number' ? numberToCircle(item) : item}
             </span>
         );
     };
+
+    // [핵심 수정] 최종 정답과 상태를 포맷팅하는 함수
+    const formatFinalResult = (problemId: string, problemType: string): React.ReactNode => {
+        const finalStatus = statuses.get(problemId);
+        let finalAnswerDisplay = '미선택';
+        let hasAnswer = false;
+
+        if (problemType === '서답형') {
+            const subjectiveAnswer = subjectiveAnswers.get(problemId);
+            if (subjectiveAnswer && subjectiveAnswer.trim() !== '') {
+                finalAnswerDisplay = subjectiveAnswer;
+                hasAnswer = true;
+            }
+        } else {
+            const answerSet = answers.get(problemId);
+            if (answerSet && answerSet.size > 0) {
+                const sortedAnswers = [...answerSet].sort((a, b) => a - b);
+                finalAnswerDisplay = `(${sortedAnswers.map(numberToCircle).join(', ')})`;
+                hasAnswer = true;
+            }
+        }
+        
+        if (!finalStatus && !hasAnswer) {
+            return <span className="log-value final-status">미선택</span>;
+        }
+
+        return (
+            <>
+                {hasAnswer && <span className="log-value final-answer">{finalAnswerDisplay}</span>}
+                {finalStatus && (
+                    <span className={`log-value final-status status-${finalStatus}`}>
+                        {hasAnswer ? `, ${finalStatus}` : finalStatus}
+                    </span>
+                )}
+            </>
+        );
+    };
+
 
     return (
         <div className="exam-timer-display-container">
@@ -63,7 +104,6 @@ const ExamTimerDisplay: React.FC = () => {
                 <h4 className="timer-display-title">시험 정보 및 풀이 기록</h4>
             </div>
 
-            {/* [추가] 시험 시작/종료 시간 표시 */}
             <div className="exam-session-times">
                 <div className="session-time-item">
                     <span className="time-label">시작 시간</span>
@@ -80,20 +120,27 @@ const ExamTimerDisplay: React.FC = () => {
                     const problemNumber = useSequentialNumbering ? `${index + 1}` : problem.display_question_number;
                     const time = problemTimes.get(problem.uniqueId);
                     const history = answerHistory.get(problem.uniqueId) || [];
-                    const finalStatus = statuses.get(problem.uniqueId);
+                    const isModified = modifiedProblemIds.has(problem.uniqueId);
 
                     return (
                         <li key={problem.uniqueId} className="timer-list-item extended">
                             <div className="problem-main-info">
                                 <span className="problem-number-label">{problemNumber}번</span>
-                                <span className="problem-time-value">
-                                    {time !== undefined ? formatTime(time) : '풀이중'}
-                                </span>
+                                <div className="problem-time-info">
+                                    <span className="problem-time-value">
+                                        {time !== undefined ? formatTime(time) : '풀이중'}
+                                    </span>
+                                    {isModified && (
+                                        <span className="problem-modified-label">정답 변경</span>
+                                    )}
+                                </div>
                             </div>
-                            {/* [추가] 답변 기록 표시 */}
+                            {/* [핵심 수정] 최종 결과 표시 로직 변경 */}
                             <div className="problem-answer-log">
                                 <span className="log-label">최종:</span>
-                                <span className={`log-value final-status status-${finalStatus}`}>{finalStatus || '미선택'}</span>
+                                <div className="log-value-container">
+                                    {formatFinalResult(problem.uniqueId, problem.problem_type)}
+                                </div>
                             </div>
                             <div className="problem-answer-log">
                                 <span className="log-label">기록:</span>

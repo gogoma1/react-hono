@@ -3,7 +3,13 @@ import type { ProcessedProblem } from '../../problem-publishing';
 import type { AnswerNumber, MarkingStatus } from '../../omr-marking';
 
 let timerIntervalId: NodeJS.Timeout | null = null;
-let examTimerIntervalId: NodeJS.Timeout | null = null; 
+let examTimerIntervalId: NodeJS.Timeout | null = null;
+
+interface RevisitState {
+    problemId: string;
+    initialAnswer: Set<AnswerNumber> | undefined;
+    initialSubjectiveAnswer: string | undefined;
+}
 
 interface MobileExamState {
     orderedProblems: ProcessedProblem[];
@@ -20,22 +26,20 @@ interface MobileExamState {
     examStartTime: Date | null;
     examEndTime: Date | null;
     answerHistory: Map<string, (AnswerNumber | MarkingStatus | string)[]>;
+    revisitState: RevisitState | null;
+    modifiedProblemIds: Set<string>;
 }
 
 interface MobileExamActions {
     initializeSession: (problems: ProcessedProblem[]) => void;
     resetSession: () => void;
     markAnswer: (problemId: string, answer: AnswerNumber) => void;
-    markSubjectiveAnswer: (problemId: string, answer: string) => void;
-    
+    markSubjectiveAnswer: (problemId:string, answer: string) => void;
     startTimerForProblem: (problemId: string) => void;
-    pauseCurrentTimer: () => void;
     markProblemAsSolved: (problemId: string, status: MarkingStatus) => void;
     skipProblem: (problemId: string) => void;
-
     startExamTimer: () => void;
     stopExamTimer: () => void;
-
     completeExam: () => void;
 }
 
@@ -54,14 +58,43 @@ const initialState: MobileExamState = {
     examStartTime: null,
     examEndTime: null,
     answerHistory: new Map(),
+    revisitState: null,
+    modifiedProblemIds: new Set(),
+};
+
+const areAnswersEqual = (
+    problem: ProcessedProblem | undefined,
+    initialAnswers: RevisitState['initialAnswer'],
+    initialSubjective: RevisitState['initialSubjectiveAnswer'],
+    currentAnswers: MobileExamState['answers'],
+    currentSubjective: MobileExamState['subjectiveAnswers']
+): boolean => {
+    if (!problem) return true;
+
+    if (problem.problem_type === '서답형') {
+        const currentSubj = currentSubjective.get(problem.uniqueId) || '';
+        return initialSubjective === currentSubj;
+    } else {
+        const currentSet = currentAnswers.get(problem.uniqueId);
+        // 두 Set이 모두 없거나(undefined) 비어있는(size 0) 경우
+        if ((!initialAnswers || initialAnswers.size === 0) && (!currentSet || currentSet.size === 0)) {
+            return true;
+        }
+        if (initialAnswers?.size !== currentSet?.size) return false;
+        if (!initialAnswers || !currentSet) return false;
+
+        for (const item of initialAnswers) {
+            if (!currentSet.has(item)) return false;
+        }
+        return true;
+    }
 };
 
 export const useMobileExamStore = create<MobileExamState & MobileExamActions>((set, get) => ({
     ...initialState,
 
     initializeSession: (problems) => {
-        if (get().orderedProblems.length > 0 && get().orderedProblems[0].uniqueId === problems[0]?.uniqueId) return;
-        console.log(`[MobileExamStore] 🟢 INITIALIZE_SESSION`);
+        if (get().orderedProblems.length > 0 && get().orderedProblems[0]?.uniqueId === problems[0]?.uniqueId) return;
         get().resetSession();
         set({
             orderedProblems: problems,
@@ -76,11 +109,13 @@ export const useMobileExamStore = create<MobileExamState & MobileExamActions>((s
 
     resetSession: () => {
         if (timerIntervalId) clearInterval(timerIntervalId);
+        if (examTimerIntervalId) clearInterval(examTimerIntervalId);
         timerIntervalId = null;
-        get().stopExamTimer();
+        examTimerIntervalId = null;
         set(initialState);
     },
 
+    // [핵심 수정] 복수정답 토글 로직
     markAnswer: (problemId, answer) => set(state => {
         const newAnswers = new Map(state.answers);
         const answerSet = new Set(newAnswers.get(problemId) || []);
@@ -90,7 +125,7 @@ export const useMobileExamStore = create<MobileExamState & MobileExamActions>((s
         } else {
             answerSet.add(answer);
         }
-
+        
         if (answerSet.size === 0) {
             newAnswers.delete(problemId);
         } else {
@@ -98,8 +133,7 @@ export const useMobileExamStore = create<MobileExamState & MobileExamActions>((s
         }
         
         const newHistory = new Map(state.answerHistory);
-        const history = [...(newHistory.get(problemId) || [])];
-        history.push(answer);
+        const history = [...(newHistory.get(problemId) || []), answer];
         newHistory.set(problemId, history);
 
         return { answers: newAnswers, answerHistory: newHistory };
@@ -107,88 +141,133 @@ export const useMobileExamStore = create<MobileExamState & MobileExamActions>((s
 
     markSubjectiveAnswer: (problemId, answer) => set(state => {
         const newSubjectiveAnswers = new Map(state.subjectiveAnswers).set(problemId, answer);
-        
         const newHistory = new Map(state.answerHistory);
-        const history = [...(newHistory.get(problemId) || [])];
-        history.push(answer);
+        const history = [...(newHistory.get(problemId) || []), answer];
         newHistory.set(problemId, history);
-
         return { subjectiveAnswers: newSubjectiveAnswers, answerHistory: newHistory };
     }),
 
-    startTimerForProblem: (problemId) => {
-        console.log(`[MobileExamStore] Action: startTimerForProblem 호출됨. targetId: ${problemId}`);
-        get().pauseCurrentTimer();
-        set({ activeProblemId: problemId });
-        
-        const { accumulatedTimes, problemTimes } = get();
-        const accumulatedTime = accumulatedTimes.get(problemId) || 0;
-        set({ currentTimer: accumulatedTime });
-        
-        if (problemTimes.has(problemId)) {
-            console.log(`[MobileExamStore] 🛑 TIMER_STOP: 문제[${problemId}]는 이미 풀었습니다.`);
-            return;
-        }
-
-        console.log(`[MobileExamStore] ⏰ TIMER_START: 문제 [${problemId}] 타이머 시작. (누적: ${accumulatedTime.toFixed(2)}초)`);
-        set({ timerStartTime: Date.now() });
-
-        timerIntervalId = setInterval(() => {
-            const { timerStartTime: newTimerStartTime, activeProblemId: currentActiveId } = get();
-            if(newTimerStartTime && currentActiveId === problemId) {
-                const elapsed = (Date.now() - newTimerStartTime) / 1000;
-                set({ currentTimer: accumulatedTime + elapsed });
-            }
-        }, 1000);
-    },
-    
-    pauseCurrentTimer: () => {
+    startTimerForProblem: (problemIdToStart) => {
         if (timerIntervalId) clearInterval(timerIntervalId);
         timerIntervalId = null;
 
-        const { activeProblemId, timerStartTime, accumulatedTimes } = get();
-        if (activeProblemId && timerStartTime) {
+        const {
+            activeProblemId: problemIdToLeave,
+            timerStartTime,
+            revisitState,
+            orderedProblems,
+            answers,
+            subjectiveAnswers,
+        } = get();
+        
+        let nextState: Partial<MobileExamState> = {};
+        let currentAccumulatedTimes = new Map(get().accumulatedTimes);
+
+        if (problemIdToLeave && timerStartTime) {
             const elapsed = (Date.now() - timerStartTime) / 1000;
-            const prevAccumulated = accumulatedTimes.get(activeProblemId) || 0;
+            const prevAccumulated = currentAccumulatedTimes.get(problemIdToLeave) || 0;
             const newAccumulated = prevAccumulated + elapsed;
-            
-            console.log(`[MobileExamStore] ⏸️ PAUSE_TIMER: 문제 [${activeProblemId}]를 떠납니다. 누적 시간: ${newAccumulated.toFixed(2)}초.`);
-            set({
-                accumulatedTimes: new Map(accumulatedTimes).set(activeProblemId, newAccumulated),
-                timerStartTime: null,
-            });
+            currentAccumulatedTimes.set(problemIdToLeave, newAccumulated);
+            console.log(`[MobileExamStore] ⏸️ PAUSE_TIMER: 문제 [${problemIdToLeave}]를 떠납니다. 누적 시간: ${newAccumulated.toFixed(2)}초.`);
+
+            if (revisitState && revisitState.problemId === problemIdToLeave) {
+                const problemBeingLeft = orderedProblems.find(p => p.uniqueId === problemIdToLeave);
+                const answerIsUnchanged = areAnswersEqual(problemBeingLeft, revisitState.initialAnswer, revisitState.initialSubjectiveAnswer, answers, subjectiveAnswers);
+
+                if (answerIsUnchanged) {
+                    const originalTime = get().problemTimes.get(problemIdToLeave);
+                    if (originalTime !== undefined) {
+                        currentAccumulatedTimes.set(problemIdToLeave, originalTime);
+                        console.log(`[MobileExamStore] ⏪ REVERT_TIME: 문제 [${problemIdToLeave}] 답 변경 없어 시간 원복. 시간: ${originalTime.toFixed(2)}초`);
+                    }
+                } else {
+                    const finalTime = newAccumulated;
+                    const newProblemTimes = new Map(get().problemTimes).set(problemIdToLeave, finalTime);
+                    const newModifiedProblemIds = new Set(get().modifiedProblemIds).add(problemIdToLeave);
+                    nextState.problemTimes = newProblemTimes;
+                    nextState.modifiedProblemIds = newModifiedProblemIds;
+                    console.log(`[MobileExamStore] 🔄 COMMIT_MODIFIED_TIME: 문제 [${problemIdToLeave}] 답 변경되어 시간 갱신. 시간: ${finalTime.toFixed(2)}초`);
+                }
+            }
         }
-    },
-    
-    markProblemAsSolved: (problemId, status) => {
-        get().pauseCurrentTimer();
-        set(state => {
-            const finalTime = state.accumulatedTimes.get(problemId) || 0;
-            console.log(`[MobileExamStore] ✅ MARK_SOLVED: 문제 [${problemId}] 최종 풀이 완료. 최종 시간: ${finalTime.toFixed(2)}초.`);
+        nextState.accumulatedTimes = currentAccumulatedTimes;
+        nextState.revisitState = null;
+
+        if (problemIdToStart) {
+            const isRevisiting = get().problemTimes.has(problemIdToStart);
+            if (isRevisiting) {
+                console.log(`[MobileExamStore] 🔄 REVISIT_START: 이미 푼 문제 [${problemIdToStart}] 재방문`);
+                nextState.revisitState = {
+                    problemId: problemIdToStart,
+                    initialAnswer: answers.get(problemIdToStart) ? new Set(answers.get(problemIdToStart)) : undefined,
+                    initialSubjectiveAnswer: subjectiveAnswers.get(problemIdToStart),
+                };
+            }
+
+            const accumulatedTimeForNewProblem = currentAccumulatedTimes.get(problemIdToStart) || 0;
+            nextState.activeProblemId = problemIdToStart;
+            nextState.currentTimer = accumulatedTimeForNewProblem;
+            nextState.timerStartTime = Date.now();
             
+            console.log(`[MobileExamStore] ⏰ TIMER_START: 문제 [${problemIdToStart}] 타이머 시작. (누적: ${accumulatedTimeForNewProblem.toFixed(2)}초)`);
+
+            timerIntervalId = setInterval(() => {
+                const { timerStartTime: newTimerStartTime, activeProblemId: currentActiveId } = get();
+                if (newTimerStartTime && currentActiveId === problemIdToStart) {
+                    const elapsed = (Date.now() - newTimerStartTime) / 1000;
+                    set({ currentTimer: accumulatedTimeForNewProblem + elapsed });
+                }
+            }, 1000);
+        } else {
+            nextState.activeProblemId = null;
+            nextState.timerStartTime = null;
+        }
+
+        set(nextState);
+    },
+
+    markProblemAsSolved: (problemId, status) => {
+        if (timerIntervalId) clearInterval(timerIntervalId);
+        timerIntervalId = null;
+
+        const { timerStartTime, accumulatedTimes } = get();
+        let finalTime = accumulatedTimes.get(problemId) || 0;
+
+        if(timerStartTime) {
+            const elapsed = (Date.now() - timerStartTime) / 1000;
+            finalTime += elapsed;
+        }
+
+        console.log(`[MobileExamStore] ✅ MARK_SOLVED: 문제 [${problemId}] 첫 풀이 완료. 최종 시간: ${finalTime.toFixed(2)}초.`);
+        
+        set(state => {
+            const newAccumulatedTimes = new Map(state.accumulatedTimes).set(problemId, finalTime);
             const newProblemTimes = new Map(state.problemTimes).set(problemId, finalTime);
             const newStatuses = new Map(state.statuses).set(problemId, status);
-            
             const newHistory = new Map(state.answerHistory);
-            const history = [...(newHistory.get(problemId) || [])];
-            history.push(status);
+            const history = [...(newHistory.get(problemId) || []), status];
             newHistory.set(problemId, history);
 
+            const newRevisitState = state.revisitState?.problemId === problemId ? null : state.revisitState;
+
             return {
+                accumulatedTimes: newAccumulatedTimes,
                 problemTimes: newProblemTimes,
                 statuses: newStatuses,
                 answerHistory: newHistory,
+                revisitState: newRevisitState,
+                timerStartTime: null,
             };
         });
     },
 
     skipProblem: (problemId) => {
-        get().pauseCurrentTimer();
+        get().startTimerForProblem('');
         set(state => ({
             skippedProblemIds: new Set(state.skippedProblemIds).add(problemId)
         }));
     },
-    
+
     startExamTimer: () => {
         if (examTimerIntervalId) return;
         console.log('[MobileExamStore] ⏱️ EXAM_TIMER_START: 시험 전체 타이머 시작');
@@ -207,6 +286,7 @@ export const useMobileExamStore = create<MobileExamState & MobileExamActions>((s
 
     completeExam: () => {
         console.log('[MobileExamStore] 🏁 EXAM_COMPLETE: 시험 종료');
+        get().startTimerForProblem('');
         get().stopExamTimer();
         set({ examEndTime: new Date() });
     },

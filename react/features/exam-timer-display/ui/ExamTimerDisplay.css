@@ -29,7 +29,7 @@
     margin: 0;
     flex-grow: 1;
     overflow-y: auto;
-    padding-right: 10px;
+    /* 스크롤바 영역을 항상 확보하여 레이아웃 쉬프트를 방지합니다. */
     scrollbar-gutter: stable;
 }
 
@@ -80,7 +80,7 @@
     font-family: monospace;
 }
 
-/* [추가] 시험 시작/종료 시간 섹션 */
+/* 시험 시작/종료 시간 섹션 */
 .exam-session-times {
     display: flex;
     flex-direction: column;
@@ -108,7 +108,7 @@
     color: var(--text-primary);
 }
 
-/* [수정] 리스트 아이템 레이아웃 변경 */
+/* 리스트 아이템 레이아웃 */
 .timer-list-item.extended {
     flex-direction: column;
     align-items: stretch;
@@ -140,10 +140,22 @@
     color: var(--text-secondary);
 }
 
+.log-value-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.final-answer {
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
 .log-value.final-status {
     font-weight: 600;
     padding: 2px 6px;
     border-radius: 4px;
+    line-height: 1.2;
 }
 
 .final-status.status-A { background-color: #e0f2f1; color: #00796b; }
@@ -155,5 +167,41 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
+    gap: 4px 6px;
+}
+
+.history-item.number {
+    font-weight: bold;
+}
+
+/* 시간과 '정답 변경' 라벨을 감싸는 컨테이너 */
+.problem-time-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* === [핵심] '정답 변경' 라벨 스타일 === */
+.problem-modified-label {
+  /* 배경색과 글자색으로 강조 */
+  background-color: var(--accent-color);
+  color: white;
+  
+  /* 폰트 스타일 */
+  font-size: 0.65rem; /* 다른 텍스트보다 작게 */
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  
+  /* 모양 */
+  padding: 3px 7px;
+  border-radius: 10px; /* 둥근 모서리 */
+  line-height: 1;
+
+  /* 애니메이션 (선택 사항) */
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
 }

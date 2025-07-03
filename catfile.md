@@ -16,7 +16,7 @@ find  ./react \( -name "*.ts" -o -name "*.tsx" \) -type f -exec echo "----- {} -
 
 find  ./api \( -name "*.ts" -o -name "*.tsx" \) -type f -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > filesapi.md
 
-find  ./react \( -name "*.css" \) -type f -not -path "./react\pages\LoginPageWithErrorDisplay.css" -not -path "./react\pages\LoginPage.css" -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > filescss.md
+find  ./react \( -name "*.css" \) -type f -not -path "./react/pages/LoginPageWithErrorDisplay.css" -not -path "./react-hono/react/shared/ui/codemirror-editor"  -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > filescss.md
 
 
 find ./react \( -name "*.ts" -o -name "*.tsx" \) -type f -not -path "./react/shared/ui/codemirror-editor/*" -not -path "./react/features/kakaologin/*" -not -path "./react/features/latex-help/*" -not -path "./react\pages\LoginPageWithErrorDisplay.tsx" -not -path "./react\pages\LoginPage.tsx" -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > files.md

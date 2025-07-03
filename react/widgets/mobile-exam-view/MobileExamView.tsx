@@ -7,7 +7,6 @@ import './MobileExamView.css';
 
 const HEADER_OFFSET = 60;
 
-
 const MobileExamView: React.FC = () => {
     const store = useMobileExamStore();
     const { 
@@ -21,10 +20,6 @@ const MobileExamView: React.FC = () => {
     const isNavigating = useRef(false);
     const observer = useRef<IntersectionObserver | null>(null);
     const problemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-
-    // [수정] isSolved 와 isMarkedAsUnknown 로직을 분리하여 더 명확하게 만듭니다.
-    // 이 useMemo는 더 이상 필요 없으므로 제거합니다.
-    // const solvedProblemIds = useMemo(() => { ... });
 
     const handleNavClick = useCallback((problemId: string) => {
         if (activeProblemId === problemId) return;
@@ -130,17 +125,27 @@ const MobileExamView: React.FC = () => {
                         const isCurrent = activeProblemId === problem.uniqueId;
                         const finalStatus = statuses.get(problem.uniqueId);
                         const isSkipped = skippedProblemIds.has(problem.uniqueId);
-
-                        // [수정] 클래스 결정 로직을 더 명확하게 변경
+                        
+                        // [핵심 수정] 완료 상태 로직 변경
+                        // 1. 정답이 입력되었는지 확인
+                        const hasAnswer = problem.problem_type === '서답형'
+                            ? (subjectiveAnswers.get(problem.uniqueId) || '').trim() !== ''
+                            : (answers.get(problem.uniqueId)?.size ?? 0) > 0;
+                        
+                        // 2. 'A', 'B', 'D' 상태인지 확인
+                        const hasCompletingStatus = finalStatus === 'A' || finalStatus === 'B' || finalStatus === 'D';
+                        
+                        // 3. 최종 완료 상태 결정
+                        const isSolved = hasAnswer && hasCompletingStatus;
                         const isMarkedAsUnknown = finalStatus === 'C';
-                        const isSolved = finalStatus && finalStatus !== 'C'; // A, B, D인 경우
 
+                        // [핵심 수정] 클래스명 조합 로직 변경
                         const buttonClass = [
                             'nav-button',
                             isCurrent && 'active',
                             !isCurrent && isMarkedAsUnknown && 'marked-c',
                             !isCurrent && isSolved && 'solved',
-                            !isCurrent && !finalStatus && isSkipped && 'skipped',
+                            !isCurrent && !isSolved && !isMarkedAsUnknown && isSkipped && 'skipped',
                         ].filter(Boolean).join(' ');
 
                         return (
