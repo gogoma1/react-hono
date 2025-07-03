@@ -26,12 +26,13 @@ interface RegisteredPageActions {
   openLatexHelpSidebar: () => void;
   openSearchSidebar: () => void; 
   openJsonViewSidebar: () => void;
+  openSelectedStudentsSidebar: () => void; // [핵심] 추가
   openEditSidebar: (student: Student) => void;
   onClose: () => void;
 }
 
 interface SidebarContentConfig {
-    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | 'jsonViewer' | null;
+    type: 'register' | 'settings' | 'prompt' | 'problemEditor' | 'edit' | 'latexHelp' | 'jsonViewer' | 'selectedStudents' | null; // [핵심] 추가
     props?: Record<string, any>;
 }
 
@@ -40,7 +41,6 @@ interface RightSidebarState {
     isExtraWide: boolean;
 }
 
-// [핵심 추가] 타이머 표시 상태
 interface TimerDisplayState {
     isVisible: boolean;
     text: string;
@@ -51,7 +51,7 @@ interface LayoutState {
   currentPageConfig: PageLayoutConfig;
   pageActions: Partial<RegisteredPageActions>;
   searchBoxProps: StoredSearchProps | null;
-  timerDisplay: TimerDisplayState | null; // [핵심 추가]
+  timerDisplay: TimerDisplayState | null;
 }
 
 interface LayoutActions {
@@ -59,7 +59,7 @@ interface LayoutActions {
   updateLayoutForPath: (path: string) => void;
   registerPageActions: (actions: Partial<RegisteredPageActions>) => void;
   setSearchBoxProps: (props: StoredSearchProps | null) => void;
-  setTimerDisplay: (display: TimerDisplayState | null) => void; // [핵심 추가]
+  setTimerDisplay: (display: TimerDisplayState | null) => void;
 }
 
 const initialPageActions: Partial<RegisteredPageActions> = {
@@ -69,6 +69,7 @@ const initialPageActions: Partial<RegisteredPageActions> = {
     openLatexHelpSidebar: () => console.warn('openLatexHelpSidebar action not registered.'),
     openSearchSidebar: () => console.warn('openSearchSidebar action not registered.'),
     openJsonViewSidebar: () => console.warn('openJsonViewSidebar action not registered.'),
+    openSelectedStudentsSidebar: () => console.warn('openSelectedStudentsSidebar action not registered.'), // [핵심] 추가
     openEditSidebar: (student: Student) => console.warn('openEditSidebar action not registered for student:', student.id),
     onClose: () => console.warn('onClose action not registered.'),
 };
@@ -81,7 +82,7 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
   currentPageConfig: {},
   pageActions: initialPageActions,
   searchBoxProps: null,
-  timerDisplay: null, // [핵심 추가] 초기값
+  timerDisplay: null,
 
   setRightSidebarConfig: (config) => {
     if (!config.contentConfig || !config.contentConfig.type) {
@@ -112,7 +113,6 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
   
   setSearchBoxProps: (props) => set({ searchBoxProps: props }),
 
-  // [핵심 추가] 타이머 상태 설정 액션
   setTimerDisplay: (display) => set({ timerDisplay: display }),
 }));
 
@@ -133,6 +133,7 @@ interface SidebarTriggers {
     promptTrigger?: SidebarTrigger;
     latexHelpTrigger?: SidebarTrigger;
     jsonViewTrigger?: SidebarTrigger;
+    selectedStudentsTrigger?: SidebarTrigger; // [핵심] 추가
 }
 
 export const useSidebarTriggers = (): SidebarTriggers => {
@@ -176,6 +177,13 @@ export const useSidebarTriggers = (): SidebarTriggers => {
             result.jsonViewTrigger = {
                 onClick: pageActions.openJsonViewSidebar,
                 tooltip: currentPageConfig.sidebarButtons.jsonView.tooltip,
+            };
+        }
+        // [핵심] '선택된 학생' 트리거 추가
+        if (currentPageConfig.sidebarButtons?.selectedStudents && pageActions.openSelectedStudentsSidebar) {
+            result.selectedStudentsTrigger = {
+                onClick: pageActions.openSelectedStudentsSidebar,
+                tooltip: currentPageConfig.sidebarButtons.selectedStudents.tooltip,
             };
         }
         return result;

@@ -1,0 +1,107 @@
+.selected-students-panel {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: var(--text-secondary);
+    padding: 0 15px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.selected-students-panel .panel-title {
+    color: var(--text-primary);
+    margin: 0;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    font-size: 1.05em;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(129, 127, 127, 0.1);
+    flex-shrink: 0;
+}
+
+.student-list-container {
+    flex-grow: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 10px;
+    scrollbar-gutter: stable;
+}
+
+.status-text {
+    padding: 2rem 0;
+    text-align: center;
+    color: var(--text-placeholder);
+}
+
+.student-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.student-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.student-icon {
+    color: var(--text-placeholder);
+    flex-shrink: 0;
+}
+
+.student-info {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.student-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.student-details {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.student-list-item .badge {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.deselect-button {
+    background: none;
+    border: none;
+    padding: 4px;
+    margin-left: 8px;
+    cursor: pointer;
+    color: var(--text-placeholder);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: color 0.2s, background-color 0.2s;
+    flex-shrink: 0;
+}
+
+.deselect-button:hover {
+    color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.1);
+}

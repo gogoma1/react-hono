@@ -6,24 +6,39 @@ import { useExamHeaderState } from '../hooks/useExamHeaderState';
 import { useProblemEditor } from '../hooks/useProblemEditor';
 import { useExamPreviewManager } from '../hooks/useExamPreviewManager';
 import { usePublishingPageSetup } from '../hooks/usePublishingPageSetup';
-import { useRowSelection } from '../../row-selection/model/useRowSelection';
 import { usePdfGenerator, type PdfExportOptions } from '../hooks/usePdfGenerator';
-import { useLayoutStore } from '../../../shared/store/layoutStore'; // [추가]
-import { useUIStore } from '../../../shared/store/uiStore'; // [추가]
+import { useLayoutStore } from '../../../shared/store/layoutStore';
+import { useUIStore } from '../../../shared/store/uiStore';
+import { useProblemSetStudentStore } from '../../../shared/store/problemSetStudentStore';
+import { useProblemPublishingSelectionStore } from './problemPublishingSelectionStore';
 
 export function useProblemPublishingPage() {
-    const { allProblems, isLoadingProblems } = useProblemPublishing();
-    const allProblemIds = useMemo(() => allProblems.map(p => p.uniqueId), [allProblems]);
-    const { selectedIds, toggleRow, clearSelection, toggleItems, setSelectedIds } = useRowSelection({ allItems: allProblemIds });
+    const { allProblems, isLoadingProblems, setSelectedIds: setProblemSelectionInMainStore } = useProblemPublishing();
+
+    const { 
+        selectedProblemIds: selectedIds, 
+        toggleProblem: toggleRow, 
+        toggleProblems: toggleItems, 
+        clearSelection, 
+        setSelectedProblemIds: setSelectedIds 
+    } = useProblemPublishingSelectionStore();
+    
+    const { studentIds: studentIdsFromDashboard, clearStudentIds } = useProblemSetStudentStore();
+    
+    useEffect(() => {
+        if (studentIdsFromDashboard.length > 0) {
+            setSelectedIds(new Set(studentIdsFromDashboard));
+            setProblemSelectionInMainStore(new Set(studentIdsFromDashboard));
+            clearStudentIds();
+        }
+    }, [studentIdsFromDashboard, setSelectedIds, clearStudentIds, setProblemSelectionInMainStore]);
+
+
     const selectedProblems = useMemo(() => allProblems.filter(p => selectedIds.has(p.uniqueId)), [allProblems, selectedIds]);
     
     const handleDeselectProblem = useCallback((uniqueId: string) => {
-        setSelectedIds(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(uniqueId);
-            return newSet;
-        });
-    }, [setSelectedIds]);
+        toggleRow(uniqueId);
+    }, [toggleRow]);
 
     const previewManager = useExamPreviewManager();
 
@@ -40,8 +55,6 @@ export function useProblemPublishingPage() {
     const { headerInfo, onHeaderUpdate, setHeaderInfo } = useExamHeaderState();
     const { onProblemClick } = useProblemEditor({ problemBoxMinHeight: displayMinHeight });
 
-    // --- [핵심 수정 시작] ---
-    // 액션 핸들러들을 useProblemPublishingPage 훅에서 직접 생성합니다.
     const setRightSidebarConfig = useLayoutStore(state => state.setRightSidebarConfig);
     const setRightSidebarExpanded = useUIStore(state => state.setRightSidebarExpanded);
 
@@ -57,6 +70,11 @@ export function useProblemPublishingPage() {
 
     const handleOpenSettingsSidebar = useCallback(() => {
         setRightSidebarConfig({ contentConfig: { type: 'settings' } });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    
+    const handleOpenSelectedStudentsSidebar = useCallback(() => {
+        setRightSidebarConfig({ contentConfig: { type: 'selectedStudents' } });
         setRightSidebarExpanded(true);
     }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
@@ -87,16 +105,14 @@ export function useProblemPublishingPage() {
         setRightSidebarExpanded(true);
     }, [setRightSidebarConfig, setRightSidebarExpanded]);
 
-    // 생성한 핸들러들을 usePublishingPageSetup 훅에 전달합니다.
+    // [핵심 수정] 불필요한 props 제거
     usePublishingPageSetup({ 
-        selectedProblems, 
-        allProblems,
         handleCloseSidebar,
         handleOpenLatexHelpSidebar,
         handleOpenSettingsSidebar,
         handleOpenPromptSidebar,
+        handleOpenSelectedStudentsSidebar,
     });
-    // --- [핵심 수정 끝] ---
 
     useEffect(() => {
         if (selectedProblems.length > 0) {

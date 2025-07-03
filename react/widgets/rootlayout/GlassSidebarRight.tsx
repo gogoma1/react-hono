@@ -3,7 +3,7 @@ import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarConfig, useSidebarTriggers } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2 } from 'react-icons/lu';
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2, LuUsers } from 'react-icons/lu';
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
@@ -13,6 +13,7 @@ import { useProblemPublishingStore, type ProcessedProblem } from '../../features
 import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel';
 import JsonViewerPanel from '../../features/json-viewer/ui/JsonViewerPanel';
 import ExamTimerDisplay from '../../features/exam-timer-display/ui/ExamTimerDisplay';
+import SelectedStudentsPanel from '../../features/selected-students-viewer/ui/SelectedStudentsPanel'; // [핵심] 신규 패널 임포트
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -22,6 +23,7 @@ const PromptIcon = () => <LuClipboardList size={20} />;
 const LatexHelpIcon = () => <LuBookMarked size={20} />;
 const SearchIcon = () => <LuSearch size={20} />;
 const JsonViewIcon = () => <LuFileJson2 size={20} />;
+const SelectedStudentsIcon = () => <LuUsers size={20} />; // [핵심] 신규 아이콘
 
 interface ProblemEditorWrapperProps {
     isSaving?: boolean;
@@ -105,6 +107,10 @@ const SidebarContentRenderer: React.FC = () => {
             if (!problems) return <div>JSON으로 변환할 데이터가 없습니다.</div>;
             return <JsonViewerPanel problems={problems} />;
         }
+        
+        // [핵심] '선택된 학생' 패널 렌더링 케이스 추가
+        case 'selectedStudents':
+            return <SelectedStudentsPanel />;
 
         default:
             return (
@@ -119,7 +125,7 @@ const SidebarContentRenderer: React.FC = () => {
 
 const GlassSidebarRight: React.FC = () => {
     const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, jsonViewTrigger, onClose } = useSidebarTriggers();
+    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, jsonViewTrigger, selectedStudentsTrigger, onClose } = useSidebarTriggers(); // [핵심]
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
     const isRightSidebarExpanded = contentConfig.type !== null;
@@ -162,6 +168,19 @@ const GlassSidebarRight: React.FC = () => {
                                         aria-label={searchTrigger.tooltip}
                                     >
                                         <SearchIcon />
+                                    </button>
+                                </Tippy>
+                            )}
+                            
+                            {/* [핵심] '선택된 학생' 버튼 추가 */}
+                            {selectedStudentsTrigger && (
+                                <Tippy content={selectedStudentsTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
+                                    <button
+                                        onClick={selectedStudentsTrigger.onClick}
+                                        className="settings-toggle-button"
+                                        aria-label={selectedStudentsTrigger.tooltip}
+                                    >
+                                        <SelectedStudentsIcon />
                                     </button>
                                 </Tippy>
                             )}

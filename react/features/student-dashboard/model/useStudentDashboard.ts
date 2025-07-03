@@ -1,20 +1,22 @@
-// ./react/features/student-dashboard/model/useStudentDashboard.ts
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router';
 import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useUIStore } from '../../../shared/store/uiStore';
 import { useStudentDataWithRQ, type Student, GRADE_LEVELS } from '../../../entities/student/model/useStudentDataWithRQ';
 import { useRowSelection } from '../../row-selection/model/useRowSelection';
 import { useTableSearch } from '../../table-search/model/useTableSearch';
-import type { SuggestionGroup } from '../../../features/table-search/ui/TableSearch'; 
+import type { SuggestionGroup } from '../../../features/table-search/ui/TableSearch';
+import { useProblemSetStudentStore } from '../../../shared/store/problemSetStudentStore';
 
 export function useStudentDashboard() {
+    const navigate = useNavigate();
+    const { setStudentIds } = useProblemSetStudentStore();
+
     const { registerPageActions, setRightSidebarConfig, setSearchBoxProps } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
     
     const { students, isLoadingStudents, isStudentsError, studentsError } = useStudentDataWithRQ();
     
-    // [수정] 페이지별 독립적인 상태 관리 복원
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState<Record<string, Set<string>>>({});
 
@@ -60,13 +62,24 @@ export function useStudentDashboard() {
         setActiveFilters(prev => {
             const newFilters = { ...prev };
             const currentSet = new Set(newFilters[key] || []);
-            if (currentSet.has(value)) currentSet.delete(value);
-            else currentSet.add(value);
-            if (currentSet.size === 0) delete newFilters[key];
-            else newFilters[key] = currentSet;
+            
+            if (currentSet.has(value)) {
+                currentSet.delete(value);
+            } else {
+                currentSet.add(value);
+            }
+
+            if (currentSet.size === 0) {
+                // [핵심 수정] delete 연산자 대신 객체에서 키를 제거하는 방식으로 수정
+                const { [key]: _, ...rest } = newFilters;
+                return rest;
+            } else {
+                newFilters[key] = currentSet;
+            }
             return newFilters;
         });
     }, []);
+
 
     const handleResetFilters = useCallback(() => {
       setActiveFilters({});
@@ -77,10 +90,13 @@ export function useStudentDashboard() {
     const handleToggleAll = useCallback(() => toggleItems(filteredStudentIds), [toggleItems, filteredStudentIds]);
 
     const handleCreateProblemSet = useCallback(() => {
-        if (selectedIds.size === 0) return alert('선택된 학생이 없습니다.');
-        console.log('문제 출제 대상 학생 ID:', [...selectedIds]);
-        alert(`${selectedIds.size}명의 학생을 대상으로 문제 출제 로직을 실행합니다.`);
-    }, [selectedIds]);
+        if (selectedIds.size === 0) {
+            alert('문제를 출제할 학생을 먼저 선택해주세요.');
+            return;
+        }
+        setStudentIds(Array.from(selectedIds));
+        navigate('/problem-publishing');
+    }, [selectedIds, setStudentIds, navigate]);
 
     const handleCloseSidebar = useCallback(() => {
         setRightSidebarConfig({ contentConfig: { type: null } });
@@ -117,7 +133,6 @@ export function useStudentDashboard() {
         };
     }, [registerPageActions, handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar]);
     
-    // [수정] useEffect가 페이지의 상태가 변경될 때마다 searchBoxProps를 업데이트하도록 복원
     useEffect(() => {
         setSearchBoxProps({
             searchTerm,
@@ -134,7 +149,6 @@ export function useStudentDashboard() {
             onHide: undefined,
         });
 
-        // 페이지가 언마운트될 때 searchBoxProps를 비웁니다.
         return () => setSearchBoxProps(null);
     }, [
         searchTerm, activeFilters, suggestionGroupsJSON, selectedIds.size, isAllSelected,
