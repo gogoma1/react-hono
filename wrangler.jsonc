@@ -28,6 +28,19 @@
       "binding": "MY_R2_BUCKET",
       "bucket_name": "problemimage",
       "preview_bucket_name": "problemimage-preview" ,
+    },
+    {
+      "binding": "LOGS_R2_BUCKET",
+      "bucket_name": "myapplogs",
+      "preview_bucket_name": "myapplogs-preview"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "D1_DATABASE",
+      "database_name": "MY_D1_DB",
+      "database_id": "3c392c9b-8ebb-426b-a04f-2c13988f3b57", // 실제 D1 데이터베이스 ID
+      // "preview_database_id": "3c392c9b-8ebb-426b-a04f-2c13988f3b57" // 미리보기용 D1 데이터베이스 ID
     }
   ],
   "vars" :{
@@ -36,6 +49,8 @@
     // "R2_PUBLIC_URL":"https://pub-eb8bc14505da4173971fab0835943824.r2.dev", 실제 url
     "R2_PUBLIC_URL": "https://pub-f13c8ed5c4ed4bf990ca088c26785c34.r2.dev", // 개발용 url
     "R2_PUBLIC_URL_PREVIEW": "https://pub-f13c8ed5c4ed4bf990ca088c26785c34.r2.dev",
+    "R2_LOGS_URL": "https://pub-04a33de7129e4962b62dbe16ed26a4dc.r2.dev",
+    "R2_LOGS_URL_PREVIEW": "https://pub-b853702a693f49c7a45ad4a53dd76a33.r2.dev"
   },
 
   

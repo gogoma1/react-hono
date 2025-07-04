@@ -10,6 +10,10 @@ declare namespace Cloudflare {
         SUPABASE_URL: string;
         SUPABASE_ANON_KEY: string;
         R2_PUBLIC_URL_PREVIEW: string;
+        D1_DATABASE: D1Database;
+        LOGS_R2_BUCKET: R2Bucket;
+        R2_LOGS_URL: string;
+        R2_LOGS_URL_PREVIEW: string;
 	}
 }
 interface Env extends Cloudflare.Env {}

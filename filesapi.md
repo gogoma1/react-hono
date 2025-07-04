@@ -1,117 +1,103 @@
------ ./api/db/schema.pg.ts -----
+----- ./api/db/schema.d1.ts -----
 import {
-    boolean,
     integer,
     real,
-    pgTable,
+    sqliteTable,
     text,
-    timestamp,
-    uuid,
-    pgEnum,
-    date,
-    primaryKey, // problem_tag_table 복합 PK 예시용 (현재는 단일 uuid id 사용)
-} from "drizzle-orm/pg-core";
-import { sql, relations } from "drizzle-orm"; // raw SQL 사용 및 default 값 설정용
-
-export const studentStatusEnum = pgEnum('student_status_enum', ['재원', '휴원', '퇴원']);
-
+    primaryKey,
+    uniqueIndex,
+} from "drizzle-orm/sqlite-core";
+import { sql, relations } from "drizzle-orm";
 
 /**
- * 사용자 프로필 테이블.
- * id는 외부 인증 시스템(예: Supabase의 auth.users 테이블)의 사용자 ID를 참조합니다.
- * 이 테이블의 레코드는 사용자가 인증 시스템에 등록된 후, 추가 프로필 정보를 입력할 때 생성됩니다.
+ * 문제 원본 데이터 테이블 (Cloudflare D1)
  */
-export const profilesTable = pgTable("profiles", {
-    id: uuid("id").primaryKey(),
-
-    email: text("email").notNull().unique(),
-
-    name: text("name").notNull(), // 사용자가 설정하는 프로필 이름
-    position: text("position").notNull(), // 예: 학생, 원장, 강사, 학부모
-    academy_name: text("academy_name").notNull(),
-    region: text("region").notNull(),
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-});
-
-export const studentsTable = pgTable("students", {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`), // 학생 고유 ID
-    tuition: integer("tuition"), // 수강료
-    admission_date: date("admission_date"), // 입학일 (YYYY-MM-DD)
-    discharge_date: date("discharge_date"), // 퇴학일 (YYYY-MM-DD)
-    principal_id: uuid("principal_id").references(() => profilesTable.id, { onDelete: 'set null' }),
-    grade: text("grade").notNull(), // 학년
-    student_phone: text("student_phone"), // 학생 연락처
-    guardian_phone: text("guardian_phone"), // 보호자 연락처
-    school_name: text("school_name"), // 학교명
-    class_name: text("class_name"), // 반 이름 (SQL 예약어 'class' 회피)
-    student_name: text("student_name").notNull(), // 학생 이름
-    teacher: text("teacher"), // 담당 강사 (profilesTable.id 참조 가능 또는 텍스트)
-    status: studentStatusEnum("status").notNull(), // 학생 상태 (재원, 휴원, 퇴원)
-    subject: text("subject").notNull(), // 주요 과목
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-});
-
-export const problemSetTable = pgTable("problem_set", {
-    problem_set_id: uuid("problem_set_id").primaryKey().default(sql`gen_random_uuid()`),
-    name: text("name").notNull(),
-    grade: text("grade"), // 대상 학년
-    semester: text("semester"), // 대상 학기
-    avg_difficulty: text("avg_difficulty"), // 평균 난이도 (텍스트 또는 numeric/real 타입 고려)
-    cover_image: text("cover_image"), // 표지 이미지 URL
-    description: text("description"), // 설명
-    published_year: integer("published_year"), // 출판 연도
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-});
-
-export const majorChaptersTable = pgTable("major_chapters", { // 대단원
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    name: text("name").notNull().unique(), // 대단원명
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-});
-
-export const middleChaptersTable = pgTable("middle_chapters", { // 중단원
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    major_chapter_id: uuid("major_chapter_id").notNull().references(() => majorChaptersTable.id, { onDelete: 'cascade' }), // 대단원 ID 참조
-    name: text("name").notNull(), // 중단원명 (대단원 내에서 unique할 수도 있음)
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-});
-
-export const coreConceptsTable = pgTable("core_concepts", { // 핵심 개념
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    name: text("name").notNull().unique(), // 핵심 개념명
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-});
-
-export const problemTable = pgTable("problem", {
-    problem_id: uuid("problem_id").primaryKey().default(sql`gen_random_uuid()`),
-    problem_set_id: uuid("problem_set_id").references(() => problemSetTable.problem_set_id, { onDelete: 'set null' }), // 문제집 ID 참조
-    source: text("source"), // 출처 (예: 문제집명, 모의고사명)
-    page: integer("page"), // 페이지 번호
-    question_number: real("question_number"), // 문제 번호 (소수점 가능, 예: 3.1)
-    answer: text("answer"), // 정답
-    problem_type: text("problem_type"), // 문제 유형 (예: 객관식, 주관식)
-    grade: text("grade"), // grade_level -> grade 로 이름 변경 (studentsTable과 통일)
+export const problemTable = sqliteTable("problem", {
+    problem_id: text("problem_id").primaryKey(),
+    source: text("source"),
+    page: integer("page"),
+    question_number: real("question_number"),
+    answer: text("answer"),
+    problem_type: text("problem_type"),
+    grade: text("grade"),
     semester: text("semester"),
-    creator_id: uuid("creator_id").notNull().references(() => profilesTable.id, { onDelete: 'restrict' }), // restrict: 출제자 프로필 삭제 시 문제 삭제 방지 (정책에 따라 cascade, set null 등)
-    major_chapter_id: uuid("major_chapter_id").references(() => majorChaptersTable.id, { onDelete: 'set null' }), // 대단원 ID 참조
-    middle_chapter_id: uuid("middle_chapter_id").references(() => middleChaptersTable.id, { onDelete: 'set null' }), // 중단원 ID 참조
-    core_concept_id: uuid("core_concept_id").references(() => coreConceptsTable.id, { onDelete: 'set null' }), // 핵심 개념 ID 참조
-    problem_category: text("problem_category"), // 문제 카테고리
-    difficulty: text("difficulty"), // 난이도 (텍스트 또는 numeric/real 타입 고려)
-    score: text("score"),           // 배점 (텍스트 또는 numeric/real 타입 고려)
-    question_text: text("question_text"), // 문제 본문 (긴 텍스트)
-    solution_text: text("solution_text"), // 해설 (긴 텍스트)
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+    creator_id: text("creator_id").notNull(),
+    major_chapter_id: text("major_chapter_id"),
+    middle_chapter_id: text("middle_chapter_id"),
+    core_concept_id: text("core_concept_id"),
+    problem_category: text("problem_category"),
+    difficulty: text("difficulty"),
+    score: text("score"),
+    question_text: text("question_text"),
+    solution_text: text("solution_text"),
+    created_at: text("created_at").default(sql`(strftime('%Y-%m-%d %H:%M:%f', 'now'))`),
+    updated_at: text("updated_at").default(sql`(strftime('%Y-%m-%d %H:%M:%f', 'now'))`),
 });
 
-export const problemRelations = relations(problemTable, ({ one }) => ({
+/**
+ * 문제집 정보 테이블 (Cloudflare D1)
+ */
+export const problemSetTable = sqliteTable("problem_set", {
+    problem_set_id: text("problem_set_id").primaryKey(),
+    name: text("name").notNull(),
+    grade: text("grade"),
+    semester: text("semester"),
+    avg_difficulty: text("avg_difficulty"),
+    cover_image: text("cover_image"),
+    description: text("description"),
+    published_year: integer("published_year"),
+    created_at: text("created_at").default(sql`(strftime('%Y-%m-%d %H:%M:%f', 'now'))`),
+    updated_at: text("updated_at").default(sql`(strftime('%Y-%m-%d %H:%M:%f', 'now'))`),
+});
+
+/**
+ * 대단원 정보 테이블 (Cloudflare D1)
+ */
+export const majorChaptersTable = sqliteTable("major_chapters", {
+    id: text("id").primaryKey(),
+    name: text("name").notNull().unique(),
+});
+
+/**
+ * 중단원 정보 테이블 (Cloudflare D1)
+ */
+export const middleChaptersTable = sqliteTable("middle_chapters", {
+    id: text("id").primaryKey(),
+    major_chapter_id: text("major_chapter_id").notNull(),
+    name: text("name").notNull(),
+}, (table) => ({
+    unq: uniqueIndex('middle_chapters_major_id_name_unq').on(table.major_chapter_id, table.name),
+}));
+
+/**
+ * 핵심 개념 정보 테이블 (Cloudflare D1)
+ */
+export const coreConceptsTable = sqliteTable("core_concepts", {
+    id: text("id").primaryKey(),
+    name: text("name").notNull().unique(),
+});
+
+/**
+ * 태그 정보 테이블 (Cloudflare D1)
+ */
+export const tagTable = sqliteTable("tag", {
+    tag_id: text("tag_id").primaryKey(),
+    name: text("name").notNull().unique(),
+    tag_type: text("tag_type"),
+});
+
+/**
+ * 문제와 태그의 다대다 관계를 위한 연결 테이블 (Cloudflare D1)
+ */
+export const problemTagTable = sqliteTable("problem_tag", {
+    problem_id: text("problem_id").notNull(),
+    tag_id: text("tag_id").notNull(),
+}, (table) => ({
+    pk: primaryKey({ columns: [table.problem_id, table.tag_id] }),
+}));
+
+
+export const problemRelations = relations(problemTable, ({ one, many }) => ({
     majorChapter: one(majorChaptersTable, {
         fields: [problemTable.major_chapter_id],
         references: [majorChaptersTable.id],
@@ -124,85 +110,147 @@ export const problemRelations = relations(problemTable, ({ one }) => ({
         fields: [problemTable.core_concept_id],
         references: [coreConceptsTable.id],
     }),
-    creator: one(profilesTable, {
-        fields: [problemTable.creator_id],
-        references: [profilesTable.id],
+    problemTags: many(problemTagTable),
+}));
+
+export const tagRelations = relations(tagTable, ({ many }) => ({
+    problemTags: many(problemTagTable),
+}));
+
+export const problemTagRelations = relations(problemTagTable, ({ one }) => ({
+    problem: one(problemTable, {
+        fields: [problemTagTable.problem_id],
+        references: [problemTable.problem_id],
+    }),
+    tag: one(tagTable, {
+        fields: [problemTagTable.tag_id],
+        references: [tagTable.tag_id],
     }),
 }));
 
-export const tagTable = pgTable("tag", {
-    tag_id: uuid("tag_id").primaryKey().default(sql`gen_random_uuid()`),
-    name: text("name").notNull().unique(), // 태그명
-    tag_type: text("tag_type"), // 태그 유형 (예: 개념, 유형, 출처)
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-});
 
-export const problemTagTable = pgTable("problem_tag", {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`), // 연결 테이블 자체의 고유 ID
-    problem_id: uuid("problem_id").notNull().references(() => problemTable.problem_id, { onDelete: 'cascade' }), // 문제 ID 참조
-    tag_id: uuid("tag_id").notNull().references(() => tagTable.tag_id, { onDelete: 'cascade' }), // 태그 ID 참조
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-}, (table) => {
-    return {
-        unqProblemTag: sql`UNIQUE (${table.problem_id}, ${table.tag_id})`,
-    };
-});
-
-export const userPurchaseTable = pgTable("user_purchase", {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    user_id: uuid("user_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }), // 사용자 삭제 시 구매 내역도 삭제 (정책에 따라)
-    problem_set_id: uuid("problem_set_id").references(() => problemSetTable.problem_set_id, { onDelete: 'set null' }), // 구매한 문제집 ID (문제집 삭제 시 null로 설정)
-    purchase_date: timestamp("purchase_date", { mode: "date", withTimezone: true }), // 구매일
-    purchase_price: integer("purchase_price"), // 구매 가격
-    license_period: integer("license_period"), // 라이선스 기간 (예: 일 단위)
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-});
-
-export const userProblemLogTable = pgTable("user_problem_log", {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    user_id: uuid("user_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
-    problem_id: uuid("problem_id").references(() => problemTable.problem_id, { onDelete: 'cascade' }), // 푼 문제 ID (문제 삭제 시 로그도 삭제)
-    is_correct: boolean("is_correct"), // 정답 여부
-    a_solved: boolean("a_solved").default(false).notNull(), // (분석용 플래그)
-    q_unknown: boolean("q_unknown").default(false).notNull(), // (분석용 플래그)
-    t_think: boolean("t_think").default(false).notNull(), // (분석용 플래그)
-    qt_failed: boolean("qt_failed").default(false).notNull(), // (분석용 플래그)
-    time_taken: integer("time_taken"), // 문제 풀이 시간 (예: 초 단위)
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`), // 풀이 시점
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-});
-
-export const problemStatsTable = pgTable("problem_stats", {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`), // 통계 레코드 자체의 ID
-    problem_set_id: uuid("problem_set_id").references(() => problemSetTable.problem_set_id, { onDelete: 'cascade' }), // 통계 대상 문제집 (선택적)
-    problem_id: uuid("problem_id").notNull().references(() => problemTable.problem_id, { onDelete: 'cascade' }), // 통계 대상 문제 ID
-    attempt_count: integer("attempt_count").default(0).notNull(), // 시도 횟수
-    correct_count: integer("correct_count").default(0).notNull(), // 정답 횟수
-    wrong_rate: real("wrong_rate"), // 오답률 (계산된 값, numeric(정밀도, 스케일) 타입 고려)
-    avg_time: integer("avg_time"), // 평균 풀이 시간 (예: 초 단위)
-    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-}, (table) => {
-    return {
-        unqProblemStats: sql`UNIQUE (${table.problem_id})`, // 문제별 통계는 하나만 존재
-    };
-});
-
-export type DbProfile = typeof profilesTable.$inferSelect;
-export type DbStudent = typeof studentsTable.$inferSelect;
+export type DbProblem = typeof problemTable.$inferSelect;
 export type DbProblemSet = typeof problemSetTable.$inferSelect;
 export type DbMajorChapter = typeof majorChaptersTable.$inferSelect;
 export type DbMiddleChapter = typeof middleChaptersTable.$inferSelect;
 export type DbCoreConcept = typeof coreConceptsTable.$inferSelect;
-export type DbProblem = typeof problemTable.$inferSelect;
 export type DbTag = typeof tagTable.$inferSelect;
 export type DbProblemTag = typeof problemTagTable.$inferSelect;
+----- ./api/db/schema.pg.ts -----
+import {
+    integer,
+    real,
+    pgTable,
+    text,
+    timestamp,
+    uuid,
+    pgEnum,
+    date,
+    jsonb,
+} from "drizzle-orm/pg-core";
+import { sql, relations } from "drizzle-orm";
+
+export const studentStatusEnum = pgEnum('student_status_enum', ['재원', '휴원', '퇴원']);
+export const examAssignmentStatusEnum = pgEnum('exam_assignment_status_enum', ['not_started', 'in_progress', 'completed', 'graded', 'expired']);
+
+
+
+/**
+ * 사용자 프로필 테이블 (인증 시스템과 연동)
+ */
+export const profilesTable = pgTable("profiles", {
+    id: uuid("id").primaryKey(), // Supabase auth.users.id 참조
+    email: text("email").notNull().unique(),
+    name: text("name").notNull(),
+    position: text("position").notNull(),
+    academy_name: text("academy_name").notNull(),
+    region: text("region").notNull(),
+    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+});
+
+/**
+ * 학생 정보 테이블
+ */
+export const studentsTable = pgTable("students", {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    principal_id: uuid("principal_id").references(() => profilesTable.id, { onDelete: 'set null' }),
+    student_name: text("student_name").notNull(),
+    grade: text("grade").notNull(),
+    status: studentStatusEnum("status").notNull(),
+    subject: text("subject").notNull(),
+    tuition: integer("tuition"),
+    admission_date: date("admission_date"),
+    discharge_date: date("discharge_date"),
+    student_phone: text("student_phone"),
+    guardian_phone: text("guardian_phone"),
+    school_name: text("school_name"),
+    class_name: text("class_name"),
+    teacher: text("teacher"),
+    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+});
+
+/**
+ * 선생님이 생성한 개별 시험지 세트 정보 테이블
+ */
+export const examSetsTable = pgTable("exam_sets", {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    creator_id: uuid("creator_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
+    title: text("title").notNull(),
+    problem_ids: jsonb("problem_ids").$type<string[]>().notNull(), // D1에 저장된 문제들의 ID 목록
+    header_info: jsonb("header_info"),
+    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+});
+
+/**
+ * 시험지 할당 정보 테이블 (학생과 시험지 세트 연결)
+ */
+export const examAssignmentsTable = pgTable("exam_assignments", {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    exam_set_id: uuid("exam_set_id").notNull().references(() => examSetsTable.id, { onDelete: 'cascade' }),
+    student_id: uuid("student_id").notNull().references(() => studentsTable.id, { onDelete: 'cascade' }),
+    status: examAssignmentStatusEnum("status").default('not_started').notNull(),
+    correct_rate: real("correct_rate"),
+    total_pure_time_seconds: integer("total_pure_time_seconds"),
+    assigned_at: timestamp("assigned_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+    started_at: timestamp("started_at", { mode: "date", withTimezone: true }),
+    completed_at: timestamp("completed_at", { mode: "date", withTimezone: true }),
+}, (table) => ({
+    unqExamStudent: sql`UNIQUE (${table.exam_set_id}, ${table.student_id})`,
+}));
+
+/**
+ * 사용자 구매 정보 테이블 (권한 관리용)
+ */
+export const userPurchaseTable = pgTable("user_purchase", {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    user_id: uuid("user_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
+    problem_set_id: text("problem_set_id"),
+    purchase_date: timestamp("purchase_date", { mode: "date", withTimezone: true }),
+    purchase_price: integer("purchase_price"),
+    license_period: integer("license_period"),
+    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+});
+
+
+export const examAssignmentsRelations = relations(examAssignmentsTable, ({ one }) => ({
+    examSet: one(examSetsTable, {
+        fields: [examAssignmentsTable.exam_set_id],
+        references: [examSetsTable.id],
+    }),
+    student: one(studentsTable, {
+        fields: [examAssignmentsTable.student_id],
+        references: [studentsTable.id],
+    }),
+}));
+
+export type DbProfile = typeof profilesTable.$inferSelect;
+export type DbStudent = typeof studentsTable.$inferSelect;
+export type DbExamSet = typeof examSetsTable.$inferSelect;
+export type DbExamAssignment = typeof examAssignmentsTable.$inferSelect;
 export type DbUserPurchase = typeof userPurchaseTable.$inferSelect;
-export type DbUserProblemLog = typeof userProblemLogTable.$inferSelect;
-export type DbProblemStats = typeof problemStatsTable.$inferSelect;
 ----- ./api/index.ts -----
 
 import { Hono } from 'hono';
@@ -213,6 +261,7 @@ import studentRoutes from './routes/manage/student';
 import { supabaseMiddleware } from './routes/middleware/auth.middleware';
 import problemRoutes from './routes/manage/problems';
 import r2ImageRoutes from './routes/r2/image';
+import examRoutes from './routes/exam';
 
 export type AppEnv = {
     Bindings: Env;
@@ -243,24 +292,195 @@ app.route('/manage/student', studentRoutes);
 app.route('/manage/problems', problemRoutes); 
 app.route('/r2', r2ImageRoutes);
 
+app.route('/exam', examRoutes);
+
 
 
 app.get('/', (c) => c.text('Hono API is running!'));
 
 export default app;
------ ./api/routes/manage/problems.ts -----
+----- ./api/routes/exam.ts -----
 import { Hono } from 'hono';
-import postgres from 'postgres';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq, and, inArray } from 'drizzle-orm'; // [수정] 'sql' 제거
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
+import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { eq, and } from 'drizzle-orm';
+
+import type { AppEnv } from '../index';
+import * as schema from '../db/schema.pg';
+
+
+const publishExamSetSchema = z.object({
+  title: z.string().min(1, '제목은 필수입니다.'),
+  problemIds: z.array(z.string()).min(1, '문제는 하나 이상 포함되어야 합니다.'),
+  studentIds: z.array(z.string().uuid()).min(1, '학생은 한 명 이상 선택되어야 합니다.'),
+  headerInfo: z.record(z.any()).optional(),
+});
+
+const submitAssignmentSchema = z.object({
+  examStartTime: z.string().datetime(),
+  examEndTime: z.string().datetime(),
+  totalPureTimeSeconds: z.number().int().nonnegative(),
+  correctRate: z.number().min(0).max(100).nullable(),
+  problemLogs: z.array(z.object({
+    problemId: z.string(),
+    timeTakenSeconds: z.number().int().nonnegative(),
+    finalAnswer: z.any().optional(),
+    finalStatus: z.enum(['A', 'B', 'C', 'D']).optional(), 
+    isModified: z.boolean(),
+    answerHistory: z.array(z.any()),
+  })),
+});
+
+
+const examRoutes = new Hono<AppEnv>();
+
+
+/**
+ * POST /api/exam/sets - 새로운 시험지 세트 생성 및 학생들에게 할당
+ */
+examRoutes.post(
+  '/sets',
+  zValidator('json', publishExamSetSchema),
+  async (c) => {
+    const user = c.get('user');
+    const body = c.req.valid('json');
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+      const result = await db.transaction(async (tx) => {
+        const [newExamSet] = await tx.insert(schema.examSetsTable).values({
+          creator_id: user.id,
+          title: body.title,
+          problem_ids: body.problemIds,
+          header_info: body.headerInfo,
+        }).returning();
+
+        if (!newExamSet) {
+          throw new Error("시험지 세트 생성에 실패했습니다.");
+        }
+
+        const assignments = body.studentIds.map(studentId => ({
+          exam_set_id: newExamSet.id,
+          student_id: studentId,
+        }));
+        
+        await tx.insert(schema.examAssignmentsTable).values(assignments);
+
+        return { examSetId: newExamSet.id, assignedCount: assignments.length };
+      });
+
+      return c.json({ 
+        message: `${result.assignedCount}명의 학생에게 시험지가 성공적으로 할당되었습니다.`,
+        ...result 
+      }, 201);
+
+    } catch (error: any) {
+      console.error('Failed to publish exam set:', error);
+      return c.json({ error: '시험지 출제 중 오류가 발생했습니다.' }, 500);
+    } finally {
+      c.executionCtx.waitUntil(sql.end());
+    }
+  }
+);
+
+
+/**
+ * POST /api/exam/assignments/:assignmentId/submit - 학생 시험 제출 및 R2에 로그 저장
+ */
+examRoutes.post(
+  '/assignments/:assignmentId/submit',
+  zValidator('json', submitAssignmentSchema),
+  async (c) => {
+    const user = c.get('user');
+    const assignmentId = c.req.param('assignmentId');
+    const body = c.req.valid('json');
+    
+    const logBucket = c.env.LOGS_R2_BUCKET;
+    if (!logBucket) {
+        console.error('R2 로그 버킷 바인딩(LOGS_R2_BUCKET)이 설정되지 않았습니다.');
+        return c.json({ error: '서버 설정 오류: 로그 저장소를 찾을 수 없습니다.' }, 500);
+    }
+    
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+    
+    try {
+        const [updatedAssignment] = await db.update(schema.examAssignmentsTable)
+            .set({
+                status: body.correctRate === null ? 'completed' : 'graded',
+                started_at: new Date(body.examStartTime),
+                completed_at: new Date(body.examEndTime),
+                total_pure_time_seconds: body.totalPureTimeSeconds,
+                correct_rate: body.correctRate,
+            })
+            .where(and(
+                eq(schema.examAssignmentsTable.id, assignmentId),
+                eq(schema.examAssignmentsTable.student_id, user.id)
+            ))
+            .returning({ id: schema.examAssignmentsTable.id });
+
+        if (!updatedAssignment) {
+            return c.json({ error: '유효하지 않은 시험이거나 제출 권한이 없습니다.' }, 404);
+        }
+
+    } catch (error) {
+        console.error('Failed to update assignment status:', error);
+        return c.json({ error: '시험 상태 업데이트에 실패했습니다.' }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+
+    c.executionCtx.waitUntil((async () => {
+        try {
+            const bucket = logBucket; // <- 미리 확인한 버킷 변수 사용
+
+            const now = new Date();
+            const year = now.getUTCFullYear();
+            const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(now.getUTCDate()).padStart(2, '0');
+            const logId = crypto.randomUUID();
+
+            const r2Key = `logs/year=${year}/month=${month}/day=${day}/${assignmentId}/${logId}.json`;
+            
+            const fullLogData = { 
+                ...body, 
+                assignmentId, 
+                studentId: user.id, 
+                submittedAt: now.toISOString() 
+            };
+            
+            await bucket.put(r2Key, JSON.stringify(fullLogData, null, 2), {
+                httpMetadata: { contentType: 'application/json' },
+            });
+            console.log(`Log for assignment ${assignmentId} saved to R2 at ${r2Key}`);
+
+        } catch (r2Error) {
+            console.error(`CRITICAL: Failed to save log for assignment ${assignmentId} to R2:`, r2Error);
+        }
+    })());
+
+    return c.json({ message: '시험이 성공적으로 제출되었습니다.' }, 200);
+  }
+);
+
+
+export default examRoutes;
+----- ./api/routes/manage/problems.ts -----
+import { Hono } from 'hono';
+import { drizzle, DrizzleD1Database } from 'drizzle-orm/d1';
+import { eq, and, inArray, SQL } from 'drizzle-orm';
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
+import type { BatchItem } from 'drizzle-orm/batch';
 
 import type { AppEnv } from '../../index';
-import * as schema from '../../db/schema.pg';
+import * as schema from '../../db/schema.d1';
 
 const problemSchema = z.object({
-  problem_id: z.string().uuid().optional(),
+  problem_id: z.string().optional(),
   question_number: z.number(),
   question_text: z.string(),
   answer: z.string().nullable(),
@@ -285,22 +505,55 @@ const uploadProblemsBodySchema = z.object({
 const updateProblemBodySchema = problemSchema.omit({ problem_id: true }).partial();
 
 const deleteProblemsBodySchema = z.object({
-    problem_ids: z.array(z.string().uuid()).min(1, { message: '삭제할 문제 ID를 하나 이상 제공해야 합니다.' }),
+    problem_ids: z.array(z.string()).min(1),
 });
-
-type UploadProblemsInput = z.infer<typeof uploadProblemsBodySchema>;
-type UpdateProblemInput = z.infer<typeof updateProblemBodySchema>;
 
 const problemRoutes = new Hono<AppEnv>();
 
+async function ensureChapterAndConceptIds(
+    db: DrizzleD1Database<typeof schema>,
+    data: { major_chapter_id?: string | null, middle_chapter_id?: string | null, core_concept_id?: string | null },
+    existingProblem?: { major_chapter_id: string | null }
+) {
+    const result: { major_chapter_id?: string, middle_chapter_id?: string, core_concept_id?: string } = {};
+    let finalMajorChapterId = existingProblem?.major_chapter_id;
+
+    if (data.major_chapter_id) {
+        await db.insert(schema.majorChaptersTable).values({ id: crypto.randomUUID(), name: data.major_chapter_id }).onConflictDoNothing();
+        const [item] = await db.select({ id: schema.majorChaptersTable.id }).from(schema.majorChaptersTable).where(eq(schema.majorChaptersTable.name, data.major_chapter_id));
+        if (item) {
+            result.major_chapter_id = item.id;
+            finalMajorChapterId = item.id;
+        }
+    }
+
+    if (data.middle_chapter_id && finalMajorChapterId) {
+        await db.insert(schema.middleChaptersTable).values({ id: crypto.randomUUID(), name: data.middle_chapter_id, major_chapter_id: finalMajorChapterId }).onConflictDoNothing();
+        const [item] = await db.select({ id: schema.middleChaptersTable.id }).from(schema.middleChaptersTable).where(and(eq(schema.middleChaptersTable.name, data.middle_chapter_id), eq(schema.middleChaptersTable.major_chapter_id, finalMajorChapterId)));
+        if (item) {
+            result.middle_chapter_id = item.id;
+        }
+    }
+
+    if (data.core_concept_id) {
+        await db.insert(schema.coreConceptsTable).values({ id: crypto.randomUUID(), name: data.core_concept_id }).onConflictDoNothing();
+        const [item] = await db.select({ id: schema.coreConceptsTable.id }).from(schema.coreConceptsTable).where(eq(schema.coreConceptsTable.name, data.core_concept_id));
+        if (item) {
+            result.core_concept_id = item.id;
+        }
+    }
+
+    return result;
+}
+
+
+/**
+ * GET / - 사용자가 생성한 모든 문제 목록 조회 (변경 없음)
+ */
 problemRoutes.get('/', async (c) => {
     const user = c.get('user');
-    if (!user) {
-        return c.json({ error: '인증이 필요합니다.' }, 401);
-    }
-    
-    const sqlClient = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sqlClient, { schema });
+    const d1 = c.env.D1_DATABASE;
+    const db = drizzle(d1, { schema });
 
     try {
         const problemsData = await db.query.problemTable.findMany({
@@ -321,192 +574,121 @@ problemRoutes.get('/', async (c) => {
         }));
 
         return c.json(transformedProblems, 200);
-
     } catch (error: any) {
-        console.error('Failed to fetch problems:', error.message);
-        return c.json({ error: '데이터베이스 조회에 실패했습니다.', details: error.message }, 500);
-    } finally {
-        c.executionCtx.waitUntil(sqlClient.end());
+        console.error('Failed to fetch problems from D1:', error.message);
+        return c.json({ error: 'D1 데이터베이스 조회에 실패했습니다.', details: error.message }, 500);
     }
 });
 
+/**
+ * POST /upload - 여러 문제 생성 또는 업데이트 (개선됨)
+ */
 problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), async (c) => {
-    const user = c.get('user')!;
-    const { problems } = c.req.valid('json') as UploadProblemsInput;
-
-    const sqlClient = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sqlClient, { schema });
+    const user = c.get('user');
+    const { problems } = c.req.valid('json');
+    const d1 = c.env.D1_DATABASE;
+    const db = drizzle(d1, { schema });
 
     try {
+        const problemStmts: BatchItem<'sqlite'>[] = [];
         let createdCount = 0;
         let updatedCount = 0;
 
-        await db.transaction(async (tx) => {
-            for (const problem of problems) {
-                const [majorChapter] = await tx.insert(schema.majorChaptersTable)
-                    .values({ name: problem.major_chapter_id })
-                    .onConflictDoUpdate({ target: schema.majorChaptersTable.name, set: { name: problem.major_chapter_id } })
-                    .returning();
-                
-                const [middleChapter] = await tx.insert(schema.middleChaptersTable)
-                    .values({ name: problem.middle_chapter_id, major_chapter_id: majorChapter.id })
-                    .onConflictDoNothing()
-                    .returning();
-                
-                const [coreConcept] = await tx.insert(schema.coreConceptsTable)
-                    .values({ name: problem.core_concept_id })
-                    .onConflictDoUpdate({ target: schema.coreConceptsTable.name, set: { name: problem.core_concept_id } })
-                    .returning();
+        for (const problem of problems) {
+            const now = new Date().toISOString().replace(/T|Z/g, ' ').trim();
+            
+            const chapterIds = await ensureChapterAndConceptIds(db, problem);
+            
+            const problemData = {
+                ...problem,
+                ...chapterIds, // 이름 대신 변환된 ID로 덮어쓰기
+                creator_id: user.id,
+                updated_at: now,
+            };
 
-                const problemData = {
-                    question_number: problem.question_number,
-                    question_text: problem.question_text,
-                    answer: problem.answer,
-                    solution_text: problem.solution_text,
-                    page: problem.page,
-                    problem_type: problem.problem_type,
-                    grade: problem.grade,
-                    semester: problem.semester,
-                    source: problem.source,
-                    problem_category: problem.problem_category,
-                    difficulty: problem.difficulty,
-                    score: problem.score,
-                    creator_id: user.id,
-                    major_chapter_id: majorChapter?.id,
-                    middle_chapter_id: middleChapter?.id,
-                    core_concept_id: coreConcept?.id,
-                    updated_at: new Date(),
-                };
-
-                if (problem.problem_id) {
-                    const updatedResult = await tx.update(schema.problemTable)
-                        .set(problemData)
-                        .where(and(
-                            eq(schema.problemTable.problem_id, problem.problem_id),
-                            eq(schema.problemTable.creator_id, user.id)
-                        ))
-                        .returning({ id: schema.problemTable.problem_id }); // [수정] .returning() 사용
-
-                    if (updatedResult.length > 0) { // [수정] 반환된 배열의 길이로 확인
-                        updatedCount++;
-                    }
-                } else {
-                    await tx.insert(schema.problemTable).values(problemData);
-                    createdCount++;
-                }
+            if (problem.problem_id) {
+                problemStmts.push(db.update(schema.problemTable).set(problemData).where(and(eq(schema.problemTable.problem_id, problem.problem_id), eq(schema.problemTable.creator_id, user.id))));
+                updatedCount++;
+            } else {
+                problemStmts.push(db.insert(schema.problemTable).values({ ...problemData, problem_id: crypto.randomUUID(), created_at: now }));
+                createdCount++;
             }
-        });
+        }
+        
+        if (problemStmts.length > 0) {
+            await db.batch(problemStmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+        }
 
-        return c.json({ success: true, created: createdCount, updated: updatedCount }, 200);
-
+        return c.json({ success: true, created: createdCount, updated: updatedCount });
     } catch (error: any) {
-        console.error('Failed to upload/update problems:', error.message);
-        return c.json({ error: '데이터베이스 작업에 실패했습니다.', details: error.message }, 500);
-    } finally {
-        c.executionCtx.waitUntil(sqlClient.end());
+        console.error('Failed to upload/update problems to D1:', error.message);
+        return c.json({ error: 'D1 데이터베이스 작업에 실패했습니다.', details: error.message }, 500);
     }
 });
 
 
+/**
+ * PUT /:id - 특정 문제 업데이트 (완성됨)
+ */
 problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) => {
-    const user = c.get('user')!;
+    const user = c.get('user');
     const problemId = c.req.param('id');
-    const problemData = c.req.valid('json') as UpdateProblemInput;
-
-    const sqlClient = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sqlClient, { schema });
+    const problemData = c.req.valid('json');
+    const d1 = c.env.D1_DATABASE;
+    const db = drizzle(d1, { schema });
 
     try {
-        const [updatedProblem] = await db.transaction(async (tx) => {
-            const dataToUpdate: Partial<typeof schema.problemTable.$inferInsert> = {
-                ...problemData,
-                updated_at: new Date()
-            };
+        const [existingProblem] = await db.select({ major_chapter_id: schema.problemTable.major_chapter_id })
+            .from(schema.problemTable)
+            .where(and(eq(schema.problemTable.problem_id, problemId), eq(schema.problemTable.creator_id, user.id)));
 
-            if (problemData.major_chapter_id) {
-                const [majorChapter] = await tx.insert(schema.majorChaptersTable)
-                    .values({ name: problemData.major_chapter_id })
-                    .onConflictDoUpdate({ target: schema.majorChaptersTable.name, set: { name: problemData.major_chapter_id } })
-                    .returning();
-                dataToUpdate.major_chapter_id = majorChapter.id;
-            }
+        if (!existingProblem) {
+            return c.json({ error: '문제를 찾을 수 없거나 업데이트할 권한이 없습니다.' }, 404);
+        }
 
-            if (problemData.middle_chapter_id && dataToUpdate.major_chapter_id) {
-                 const [middleChapter] = await tx.insert(schema.middleChaptersTable)
-                    .values({ name: problemData.middle_chapter_id, major_chapter_id: dataToUpdate.major_chapter_id })
-                    .onConflictDoNothing()
-                    .returning();
-                if (middleChapter) {
-                    dataToUpdate.middle_chapter_id = middleChapter.id;
-                }
-            }
-
-            if (problemData.core_concept_id) {
-                const [coreConcept] = await tx.insert(schema.coreConceptsTable)
-                    .values({ name: problemData.core_concept_id })
-                    .onConflictDoUpdate({ target: schema.coreConceptsTable.name, set: { name: problemData.core_concept_id } })
-                    .returning();
-                dataToUpdate.core_concept_id = coreConcept.id;
-            }
-
-            return tx.update(schema.problemTable)
-                .set(dataToUpdate)
-                .where(and(
-                    eq(schema.problemTable.problem_id, problemId),
-                    eq(schema.problemTable.creator_id, user.id)
-                ))
-                .returning();
-        });
+        const chapterIds = await ensureChapterAndConceptIds(db, problemData, existingProblem);
+        
+        const dataToUpdate: Partial<typeof schema.problemTable.$inferInsert> = {
+            ...problemData,
+            ...chapterIds, // 변환된 ID로 덮어쓰기
+            updated_at: new Date().toISOString().replace(/T|Z/g, ' ').trim(),
+        };
+        
+        const [updatedProblem] = await db.update(schema.problemTable).set(dataToUpdate).where(and(eq(schema.problemTable.problem_id, problemId), eq(schema.problemTable.creator_id, user.id))).returning();
         
         if (!updatedProblem) {
             return c.json({ error: '문제를 찾을 수 없거나 업데이트할 권한이 없습니다.' }, 404);
         }
-
         return c.json(updatedProblem);
-
     } catch (error: any) {
-        console.error(`Failed to update problem ${problemId}:`, error.message);
-        return c.json({ error: '데이터베이스 업데이트에 실패했습니다.', details: error.message }, 500);
-    } finally {
-        c.executionCtx.waitUntil(sqlClient.end());
+        console.error(`Failed to update problem ${problemId} in D1:`, error.message);
+        return c.json({ error: 'D1 데이터베이스 업데이트에 실패했습니다.', details: error.message }, 500);
     }
 });
 
+/**
+ * DELETE / - 여러 문제 삭제 (변경 없음)
+ */
 problemRoutes.delete('/', zValidator('json', deleteProblemsBodySchema), async (c) => {
     const user = c.get('user');
-    if (!user) {
-        return c.json({ error: '인증이 필요합니다.' }, 401);
-    }
-
     const { problem_ids } = c.req.valid('json');
-    const sqlClient = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sqlClient, { schema });
+    const d1 = c.env.D1_DATABASE;
+    const db = drizzle(d1, { schema });
 
     try {
-        const deletedProblems = await db.delete(schema.problemTable)
-            .where(and(
-                inArray(schema.problemTable.problem_id, problem_ids),
-                eq(schema.problemTable.creator_id, user.id)
-            ))
-            .returning({ id: schema.problemTable.problem_id });
+        const statements: BatchItem<'sqlite'>[] = [
+            db.delete(schema.problemTagTable).where(inArray(schema.problemTagTable.problem_id, problem_ids)),
+            db.delete(schema.problemTable).where(and(inArray(schema.problemTable.problem_id, problem_ids), eq(schema.problemTable.creator_id, user.id))),
+        ];
+        
+        await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
 
-        if (deletedProblems.length === 0) {
-            return c.json({ error: '삭제할 문제를 찾을 수 없거나 권한이 없습니다.' }, 404);
-        }
-
-        return c.json({ 
-            message: `${deletedProblems.length}개의 문제가 성공적으로 삭제되었습니다.`, 
-            deleted_count: deletedProblems.length 
-        }, 200);
-
+        return c.json({ message: `${problem_ids.length}개의 문제에 대한 삭제 요청이 처리되었습니다.` }, 200);
     } catch (error: any) {
-        console.error(`Failed to delete problems:`, error.message);
-        return c.json({ error: '데이터베이스 삭제 작업에 실패했습니다.', details: error.message }, 500);
-    } finally {
-        c.executionCtx.waitUntil(sqlClient.end());
+        console.error(`Failed to delete problems from D1:`, error.message);
+        return c.json({ error: 'D1 데이터베이스 삭제 작업에 실패했습니다.', details: error.message }, 500);
     }
 });
-
 
 export default problemRoutes;
 ----- ./api/routes/manage/student.ts -----
