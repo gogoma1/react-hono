@@ -199,7 +199,7 @@ export const examSetsTable = pgTable("exam_sets", {
     creator_id: uuid("creator_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
     title: text("title").notNull(),
     problem_ids: jsonb("problem_ids").$type<string[]>().notNull(), // D1에 저장된 문제들의 ID 목록
-    header_info: jsonb("header_info"),
+    header_info: jsonb("header_info"), //exam-header-title의 text 내용
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
 
@@ -261,7 +261,8 @@ import studentRoutes from './routes/manage/student';
 import { supabaseMiddleware } from './routes/middleware/auth.middleware';
 import problemRoutes from './routes/manage/problems';
 import r2ImageRoutes from './routes/r2/image';
-import examRoutes from './routes/exam';
+import examRoutes from './routes/exam/examlogs';
+import mobileExamRoutes from './routes/exam/exam.mobile';
 
 export type AppEnv = {
     Bindings: Env;
@@ -294,12 +295,83 @@ app.route('/r2', r2ImageRoutes);
 
 app.route('/exam', examRoutes);
 
+app.route('/exam/mobile', mobileExamRoutes); 
+
 
 
 app.get('/', (c) => c.text('Hono API is running!'));
 
 export default app;
------ ./api/routes/exam.ts -----
+----- ./api/routes/exam/exam.mobile.ts -----
+import { Hono } from 'hono';
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
+import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
+
+import type { AppEnv } from '../../index';
+import * as schema from '../../db/schema.pg';
+
+const publishExamSetSchema = z.object({
+  title: z.string().min(1, '제목은 필수입니다.'),
+  problemIds: z.array(z.string()).min(1, '문제는 하나 이상 포함되어야 합니다.'),
+  studentIds: z.array(z.string().uuid()).min(1, '학생은 한 명 이상 선택되어야 합니다.'),
+  headerInfo: z.record(z.any()).nullable().optional(),
+});
+
+const mobileExamRoutes = new Hono<AppEnv>();
+
+/**
+ * [핵심 기능] POST /api/exam/mobile/sets - 새로운 모바일 시험지 세트 생성 및 학생들에게 할당
+ */
+mobileExamRoutes.post(
+  '/sets',
+  zValidator('json', publishExamSetSchema),
+  async (c) => {
+    const user = c.get('user');
+    const body = c.req.valid('json');
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+      const result = await db.transaction(async (tx) => {
+        const [newExamSet] = await tx.insert(schema.examSetsTable).values({
+          creator_id: user.id,
+          title: body.title,
+          problem_ids: body.problemIds,
+          header_info: body.headerInfo, // null 또는 객체가 들어옴
+        }).returning();
+
+        if (!newExamSet) {
+          throw new Error("시험지 세트 생성에 실패했습니다.");
+        }
+
+        const assignments = body.studentIds.map(studentId => ({
+          exam_set_id: newExamSet.id,
+          student_id: studentId,
+        }));
+        
+        await tx.insert(schema.examAssignmentsTable).values(assignments);
+
+        return { examSetId: newExamSet.id, assignedCount: assignments.length };
+      });
+
+      return c.json({ 
+        message: `${result.assignedCount}명의 학생에게 시험지가 성공적으로 할당되었습니다.`,
+        ...result 
+      }, 201);
+
+    } catch (error: any) {
+      console.error('Failed to publish mobile exam set:', error);
+      return c.json({ error: '모바일 시험지 출제 중 오류가 발생했습니다.' }, 500);
+    } finally {
+      c.executionCtx.waitUntil(sql.end());
+    }
+  }
+);
+
+export default mobileExamRoutes;
+----- ./api/routes/exam/examlogs.ts -----
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
@@ -307,8 +379,8 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq, and } from 'drizzle-orm';
 
-import type { AppEnv } from '../index';
-import * as schema from '../db/schema.pg';
+import type { AppEnv } from '../../index';
+import * as schema from '../../db/schema.pg';
 
 
 const publishExamSetSchema = z.object({
@@ -510,7 +582,7 @@ const deleteProblemsBodySchema = z.object({
 
 const problemRoutes = new Hono<AppEnv>();
 
-async function ensureChapterAndConceptIds(
+async function ensureChapterAndConceptIdsForPut(
     db: DrizzleD1Database<typeof schema>,
     data: { major_chapter_id?: string | null, middle_chapter_id?: string | null, core_concept_id?: string | null },
     existingProblem?: { major_chapter_id: string | null }
@@ -548,7 +620,7 @@ async function ensureChapterAndConceptIds(
 
 
 /**
- * GET / - 사용자가 생성한 모든 문제 목록 조회 (변경 없음)
+ * GET / - 사용자가 생성한 모든 문제 목록 조회
  */
 problemRoutes.get('/', async (c) => {
     const user = c.get('user');
@@ -581,7 +653,7 @@ problemRoutes.get('/', async (c) => {
 });
 
 /**
- * POST /upload - 여러 문제 생성 또는 업데이트 (개선됨)
+ * POST /upload - 여러 문제 생성 또는 업데이트 (성능 최적화 버전)
  */
 problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), async (c) => {
     const user = c.get('user');
@@ -589,24 +661,77 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
     const d1 = c.env.D1_DATABASE;
     const db = drizzle(d1, { schema });
 
+    if (problems.length === 0) {
+        return c.json({ success: true, created: 0, updated: 0 });
+    }
+
     try {
+        const uniqueMajorNames = [...new Set(problems.map(p => p.major_chapter_id).filter(Boolean))];
+        const uniqueCoreConceptNames = [...new Set(problems.map(p => p.core_concept_id).filter(Boolean))];
+        const middleChapterPairs = problems
+            .map(p => ({ majorName: p.major_chapter_id, middleName: p.middle_chapter_id }))
+            .filter(p => p.majorName && p.middleName);
+        const uniqueMiddlePairs = [...new Map(middleChapterPairs.map(p => [`${p.majorName}__${p.middleName}`, p])).values()];
+        const uniqueMiddleNames = [...new Set(uniqueMiddlePairs.map(p => p.middleName))];
+
+        const [existingMajors, existingMiddles, existingCoreConcepts] = await Promise.all([
+            uniqueMajorNames.length ? db.select().from(schema.majorChaptersTable).where(inArray(schema.majorChaptersTable.name, uniqueMajorNames)) : Promise.resolve([]),
+            uniqueMiddleNames.length ? db.select().from(schema.middleChaptersTable).where(inArray(schema.middleChaptersTable.name, uniqueMiddleNames)) : Promise.resolve([]),
+            uniqueCoreConceptNames.length ? db.select().from(schema.coreConceptsTable).where(inArray(schema.coreConceptsTable.name, uniqueCoreConceptNames)) : Promise.resolve([]),
+        ]);
+
+        const majorMap = new Map(existingMajors.map(i => [i.name, i.id]));
+        const coreConceptMap = new Map(existingCoreConcepts.map(i => [i.name, i.id]));
+        const middleMap = new Map(existingMiddles.map(i => [`${i.major_chapter_id}__${i.name}`, i.id]));
+
+        const newMajorValues = uniqueMajorNames
+            .filter(name => !majorMap.has(name))
+            .map(name => ({ id: crypto.randomUUID(), name }));
+        
+        newMajorValues.forEach(val => majorMap.set(val.name, val.id)); // 새로 생성할 ID도 미리 맵에 추가
+
+        const newMiddleValues = uniqueMiddlePairs
+            .filter(pair => !middleMap.has(`${majorMap.get(pair.majorName)}__${pair.middleName}`))
+            .map(pair => ({
+                id: crypto.randomUUID(),
+                name: pair.middleName!,
+                major_chapter_id: majorMap.get(pair.majorName)!,
+            }));
+        
+        const newCoreConceptValues = uniqueCoreConceptNames
+            .filter(name => !coreConceptMap.has(name))
+            .map(name => ({ id: crypto.randomUUID(), name }));
+
+        const newItemsStmts: BatchItem<'sqlite'>[] = [];
+        if (newMajorValues.length > 0) newItemsStmts.push(db.insert(schema.majorChaptersTable).values(newMajorValues));
+        if (newMiddleValues.length > 0) newItemsStmts.push(db.insert(schema.middleChaptersTable).values(newMiddleValues));
+        if (newCoreConceptValues.length > 0) newItemsStmts.push(db.insert(schema.coreConceptsTable).values(newCoreConceptValues));
+
+        if (newItemsStmts.length > 0) {
+            await db.batch(newItemsStmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+        }
+        
+        newMiddleValues.forEach(val => middleMap.set(`${val.major_chapter_id}__${val.name}`, val.id));
+        newCoreConceptValues.forEach(val => coreConceptMap.set(val.name, val.id));
+
         const problemStmts: BatchItem<'sqlite'>[] = [];
         let createdCount = 0;
         let updatedCount = 0;
 
         for (const problem of problems) {
             const now = new Date().toISOString().replace(/T|Z/g, ' ').trim();
-            
-            const chapterIds = await ensureChapterAndConceptIds(db, problem);
+            const majorId = problem.major_chapter_id ? majorMap.get(problem.major_chapter_id) : null;
             
             const problemData = {
                 ...problem,
-                ...chapterIds, // 이름 대신 변환된 ID로 덮어쓰기
                 creator_id: user.id,
                 updated_at: now,
+                major_chapter_id: majorId,
+                middle_chapter_id: (majorId && problem.middle_chapter_id) ? middleMap.get(`${majorId}__${problem.middle_chapter_id}`) || null : null,
+                core_concept_id: problem.core_concept_id ? coreConceptMap.get(problem.core_concept_id) : null,
             };
 
-            if (problem.problem_id) {
+            if (problem.problem_id && !problem.problem_id.startsWith('new-')) { // 'new-'로 시작하는 임시 ID는 업데이트 대상이 아님
                 problemStmts.push(db.update(schema.problemTable).set(problemData).where(and(eq(schema.problemTable.problem_id, problem.problem_id), eq(schema.problemTable.creator_id, user.id))));
                 updatedCount++;
             } else {
@@ -620,15 +745,17 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
         }
 
         return c.json({ success: true, created: createdCount, updated: updatedCount });
+
     } catch (error: any) {
-        console.error('Failed to upload/update problems to D1:', error.message);
-        return c.json({ error: 'D1 데이터베이스 작업에 실패했습니다.', details: error.message }, 500);
+        console.error('Failed to upload/update problems to D1:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return c.json({ error: 'D1 데이터베이스 작업에 실패했습니다.', details: errorMessage }, 500);
     }
 });
 
 
 /**
- * PUT /:id - 특정 문제 업데이트 (완성됨)
+ * PUT /:id - 특정 문제 업데이트
  */
 problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) => {
     const user = c.get('user');
@@ -646,11 +773,11 @@ problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c)
             return c.json({ error: '문제를 찾을 수 없거나 업데이트할 권한이 없습니다.' }, 404);
         }
 
-        const chapterIds = await ensureChapterAndConceptIds(db, problemData, existingProblem);
+        const chapterIds = await ensureChapterAndConceptIdsForPut(db, problemData, existingProblem);
         
         const dataToUpdate: Partial<typeof schema.problemTable.$inferInsert> = {
             ...problemData,
-            ...chapterIds, // 변환된 ID로 덮어쓰기
+            ...chapterIds,
             updated_at: new Date().toISOString().replace(/T|Z/g, ' ').trim(),
         };
         
@@ -667,7 +794,7 @@ problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c)
 });
 
 /**
- * DELETE / - 여러 문제 삭제 (변경 없음)
+ * DELETE / - 여러 문제 삭제
  */
 problemRoutes.delete('/', zValidator('json', deleteProblemsBodySchema), async (c) => {
     const user = c.get('user');

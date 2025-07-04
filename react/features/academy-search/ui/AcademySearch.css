@@ -1,0 +1,99 @@
+/*
+ * Filepath: react/features/academy-search/ui/AcademySearch.css
+ * Description: ProfileSetupForm.css의 스타일을 상속받아 학원 검색 기능에 특화된 스타일을 정의합니다.
+ */
+
+.academy-search-container {
+    position: relative;
+}
+
+.academy-search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.academy-search-wrapper .search-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--text-tertiary);
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* form-input의 기본 스타일은 상속받고, 패딩만 덮어씁니다. */
+.academy-search-wrapper .form-input {
+    padding-left: 40px;
+    padding-right: 40px;
+}
+
+.academy-search-wrapper .dropdown-arrow {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    transition: color 0.2s ease;
+}
+
+.academy-search-wrapper .dropdown-arrow:hover {
+    color: var(--text-primary);
+}
+
+.academy-dropdown-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    width: 100%;
+    margin-top: 8px;
+    padding: 6px;
+    list-style: none;
+    background: rgba(var(--sidebar-glass-bg-rgb), 0.85);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(var(--glass-base-bg-rgb), 0.2);
+    border-radius: var(--main-content-border-radius, 12px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 20;
+}
+
+.academy-dropdown-list li {
+    padding: 12px 14px;
+    cursor: pointer;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
+
+.academy-dropdown-list li:hover {
+    background-color: rgba(var(--glass-base-bg-rgb), 0.1);
+}
+
+.academy-dropdown-list li.no-results {
+    font-style: italic;
+    color: var(--text-secondary);
+    cursor: default;
+    justify-content: center;
+}
+
+.academy-dropdown-list li strong {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.academy-dropdown-list li span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}

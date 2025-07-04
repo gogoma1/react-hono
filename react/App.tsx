@@ -51,7 +51,6 @@ function App() {
                                 <Route path="/problem-publishing" element={<ProblemPublishingPage />} />
                                 <Route path="/json-renderer" element={<JsonRendererPage />} /> 
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
-                                {/* [핵심 수정] 모바일 시험지 페이지 라우트를 RootLayout 내부로 이동 */}
                                 <Route path="/mobile-exam" element={<MobileExamPage />} /> 
                             </Route>
                         </Route>
