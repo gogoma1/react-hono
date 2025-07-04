@@ -9,7 +9,8 @@ import studentRoutes from './routes/manage/student';
 import { supabaseMiddleware } from './routes/middleware/auth.middleware';
 import problemRoutes from './routes/manage/problems';
 import r2ImageRoutes from './routes/r2/image';
-import examRoutes from './routes/exam';
+import examRoutes from './routes/exam/examlogs';
+import mobileExamRoutes from './routes/exam/exam.mobile';
 
 // --- Hono 앱 타입 정의 (AppEnv) ---
 export type AppEnv = {
@@ -45,6 +46,8 @@ app.route('/manage/problems', problemRoutes);
 app.route('/r2', r2ImageRoutes);
 
 app.route('/exam', examRoutes);
+
+app.route('/exam/mobile', mobileExamRoutes); 
 
 
 

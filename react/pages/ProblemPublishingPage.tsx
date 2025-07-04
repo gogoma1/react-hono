@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react'; // useEffect 임포트 추가
+import React, { useEffect } from 'react';
 import { useProblemPublishingPage } from '../features/problem-publishing';
 import ProblemSelectionContainer from '../widgets/ProblemSelectionContainer';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
 import ExamPreviewWidget from '../widgets/ExamPreviewWidget';
 import Modal from '../shared/ui/modal/Modal';
+import SelectedStudentsPanel from '../features/selected-students-viewer/ui/SelectedStudentsPanel';
 import './ProblemPublishingPage.css';
 import './PdfOptionsModal.css';
 
@@ -24,18 +25,24 @@ const ProblemPublishingPage: React.FC = () => {
         pdfOptions,
         onPdfOptionChange,
         onConfirmPdfDownload,
+        isMobilePublishModalOpen,
+        onOpenMobilePublishModal,
+        onCloseMobilePublishModal,
+        onConfirmMobilePublish,
+        isPublishing,
+        selectedStudentCount,
+        selectedProblemCount,
     } = useProblemPublishingPage();
 
-    // [핵심 수정] 페이지 마운트 시 스크롤을 최상단으로 이동시키는 useEffect 추가
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
 
-    const pageClassName = `problem-publishing-page ${isGeneratingPdf ? 'pdf-processing' : ''}`;
+    const pageClassName = `problem-publishing-page ${isGeneratingPdf || isPublishing ? 'pdf-processing' : ''}`;
 
     return (
         <div className={pageClassName}>
-            {isGeneratingPdf && <div className="processing-overlay" />}
+            {(isGeneratingPdf || isPublishing) && <div className="processing-overlay" />}
             <div className="sticky-top-container">
                 <div className="selection-widget-container">
                     <ProblemSelectionContainer
@@ -61,6 +68,8 @@ const ProblemPublishingPage: React.FC = () => {
                     onDownloadPdf={onDownloadPdf}
                     isGeneratingPdf={isGeneratingPdf}
                     pdfProgress={pdfProgress}
+                    onPublishMobileExam={onOpenMobilePublishModal}
+                    isPublishing={isPublishing}
                 />
             </div>
             <div 
@@ -100,30 +109,46 @@ const ProblemPublishingPage: React.FC = () => {
                     <p className="options-description">PDF에 포함할 항목을 선택하세요.</p>
                     <div className="options-list">
                         <label className="option-item">
-                            <input
-                                type="checkbox"
-                                checked={pdfOptions.includeProblems}
-                                onChange={() => onPdfOptionChange('includeProblems')}
-                            />
+                            <input type="checkbox" checked={pdfOptions.includeProblems} onChange={() => onPdfOptionChange('includeProblems')} />
                             <span className="checkbox-label">문제</span>
                         </label>
                         <label className="option-item">
-                            <input
-                                type="checkbox"
-                                checked={pdfOptions.includeAnswers}
-                                onChange={() => onPdfOptionChange('includeAnswers')}
-                            />
+                            <input type="checkbox" checked={pdfOptions.includeAnswers} onChange={() => onPdfOptionChange('includeAnswers')} />
                             <span className="checkbox-label">빠른 정답</span>
                         </label>
                         <label className="option-item">
-                            <input
-                                type="checkbox"
-                                checked={pdfOptions.includeSolutions}
-                                onChange={() => onPdfOptionChange('includeSolutions')}
-                            />
+                            <input type="checkbox" checked={pdfOptions.includeSolutions} onChange={() => onPdfOptionChange('includeSolutions')} />
                             <span className="checkbox-label">정답 및 해설</span>
                         </label>
                     </div>
+                </div>
+            </Modal>
+
+            {/* [핵심] 모바일 출제 모달에 수정된 props 전달 */}
+            <Modal
+                isOpen={isMobilePublishModalOpen}
+                onClose={onCloseMobilePublishModal}
+                onConfirm={onConfirmMobilePublish}
+                isConfirming={isPublishing}
+                title="모바일 시험지 출제 확인"
+                confirmText="출제하기"
+                confirmLoadingText="출제 중..." /* [수정] 올바른 로딩 텍스트 전달 */
+                isConfirmDestructive={false}    /* [수정] 이 액션은 파괴적이지 않으므로 false */
+                size="medium"
+            >
+                <div className="publish-confirm-container">
+                    <p>
+                        아래 <strong>{selectedStudentCount}</strong>명의 학생에게 <strong>{selectedProblemCount}</strong>개의 문제로 구성된 시험지를 출제합니다.
+                    </p>
+                    
+                    <SelectedStudentsPanel 
+                        hideTitle={true} 
+                        className="in-modal" 
+                    />
+                    
+                    <p className="confirm-warning">
+                        출제 후에는 문제 구성을 변경할 수 없습니다. 계속하시겠습니까?
+                    </p>
                 </div>
             </Modal>
         </div>

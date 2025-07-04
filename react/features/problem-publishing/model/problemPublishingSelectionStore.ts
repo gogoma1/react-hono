@@ -8,6 +8,9 @@ interface ProblemPublishingSelectionState {
   clearSelection: () => void;
 }
 
+/**
+ * '문제 출제' 페이지 내에서 사용자가 선택하는 문제들의 ID를 관리하는 스토어.
+ */
 export const useProblemPublishingSelectionStore = create<ProblemPublishingSelectionState>((set) => ({
   selectedProblemIds: new Set(),
   setSelectedProblemIds: (ids) => set({ selectedProblemIds: ids }),

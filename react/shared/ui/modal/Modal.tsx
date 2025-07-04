@@ -14,6 +14,8 @@ interface ModalProps {
     confirmText?: string;
     cancelText?: string;
     isConfirming?: boolean;
+    confirmLoadingText?: string; // [신규] 확인 버튼 로딩 텍스트
+    isConfirmDestructive?: boolean; // [신규] 확인 버튼이 파괴적 액션인지 여부
     hideFooter?: boolean;
     size?: 'small' | 'medium' | 'large';
 }
@@ -27,6 +29,8 @@ const Modal: React.FC<ModalProps> = ({
     confirmText = '확인',
     cancelText = '취소',
     isConfirming = false,
+    confirmLoadingText = '처리 중...', // [신규]
+    isConfirmDestructive = false,   // [신규]
     hideFooter = false,
     size = 'medium'
 }) => {
@@ -52,6 +56,9 @@ const Modal: React.FC<ModalProps> = ({
         return null;
     }
 
+    // [핵심] 확인 버튼의 클래스를 동적으로 결정
+    const confirmButtonClassName = `primary ${isConfirmDestructive ? 'destructive' : ''}`.trim();
+
     const modalContent = (
         <div className="modal-backdrop" onClick={onClose}>
             <div className={`modal-content-wrapper ${size}`} onClick={e => e.stopPropagation()}>
@@ -73,8 +80,8 @@ const Modal: React.FC<ModalProps> = ({
                             <LoadingButton
                                 onClick={onConfirm}
                                 isLoading={isConfirming}
-                                className="primary destructive"
-                                loadingText="삭제중..."
+                                className={confirmButtonClassName}
+                                loadingText={confirmLoadingText} // [수정] prop 사용
                             >
                                 {confirmText}
                             </LoadingButton>

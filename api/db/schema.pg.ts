@@ -62,7 +62,7 @@ export const examSetsTable = pgTable("exam_sets", {
     creator_id: uuid("creator_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
     title: text("title").notNull(),
     problem_ids: jsonb("problem_ids").$type<string[]>().notNull(), // D1에 저장된 문제들의 ID 목록
-    header_info: jsonb("header_info"),
+    header_info: jsonb("header_info"), //exam-header-title의 text 내용
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
 

@@ -55,6 +55,20 @@
     gap: 1rem 1.5rem;
 }
 
+/* --- [핵심 수정] --- */
+/* 이 패널 내부의 버튼들만 작게 만들기 위한 스타일 규칙 추가 */
+.publishing-controls-panel .action-button,
+.publishing-controls-panel .loading-button {
+    padding: 6px 12px; /* 가로 패딩 줄이기 (기존 8px 16px) */
+    font-size: 13px;   /* 폰트 크기 줄이기 (기존 14px) */
+}
+
+.publishing-controls-panel .toolbar-icon {
+    margin-right: 6px; /* 아이콘과 텍스트 간격 줄이기 (기존 8px) */
+}
+/* --- [핵심 수정 끝] --- */
+
+
 .control-group {
     display: flex;
     align-items: center;

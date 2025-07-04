@@ -5,8 +5,8 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq, and } from 'drizzle-orm';
 
-import type { AppEnv } from '../index';
-import * as schema from '../db/schema.pg';
+import type { AppEnv } from '../../index';
+import * as schema from '../../db/schema.pg';
 
 // --- Zod 스키마 정의 ---
 

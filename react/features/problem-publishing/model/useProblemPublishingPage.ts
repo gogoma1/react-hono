@@ -11,37 +11,27 @@ import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useUIStore } from '../../../shared/store/uiStore';
 import { useProblemSetStudentStore } from '../../../shared/store/problemSetStudentStore';
 import { useProblemPublishingSelectionStore } from './problemPublishingSelectionStore';
+import { usePublishExamSetMutation } from '../../../entities/exam-set/model/useExamSetMutations';
 
 export function useProblemPublishingPage() {
-    const { allProblems, isLoadingProblems, setSelectedIds: setProblemSelectionInMainStore } = useProblemPublishing();
+    const { allProblems, isLoadingProblems } = useProblemPublishing();
 
     const { 
-        selectedProblemIds: selectedIds, 
+        selectedProblemIds, 
         toggleProblem: toggleRow, 
         toggleProblems: toggleItems, 
         clearSelection, 
-        setSelectedProblemIds: setSelectedIds 
     } = useProblemPublishingSelectionStore();
     
-    const { studentIds: studentIdsFromDashboard, clearStudentIds } = useProblemSetStudentStore();
+    const { studentIds: selectedStudentIds, clearStudentIds } = useProblemSetStudentStore();
     
-    useEffect(() => {
-        if (studentIdsFromDashboard.length > 0) {
-            setSelectedIds(new Set(studentIdsFromDashboard));
-            setProblemSelectionInMainStore(new Set(studentIdsFromDashboard));
-            clearStudentIds();
-        }
-    }, [studentIdsFromDashboard, setSelectedIds, clearStudentIds, setProblemSelectionInMainStore]);
-
-
-    const selectedProblems = useMemo(() => allProblems.filter(p => selectedIds.has(p.uniqueId)), [allProblems, selectedIds]);
+    const selectedProblems = useMemo(() => allProblems.filter(p => selectedProblemIds.has(p.uniqueId)), [allProblems, selectedProblemIds]);
     
     const handleDeselectProblem = useCallback((uniqueId: string) => {
         toggleRow(uniqueId);
     }, [toggleRow]);
 
     const previewManager = useExamPreviewManager();
-
     const { problemBoxMinHeight, setProblemBoxMinHeight } = useExamLayoutStore();
     const [displayMinHeight, setDisplayMinHeight] = useState(problemBoxMinHeight);
 
@@ -51,12 +41,10 @@ export function useProblemPublishingPage() {
     
     useExamLayoutManager({ selectedProblems, problemBoxMinHeight });
     const { distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap } = useExamLayoutStore();
-    
     const { headerInfo, onHeaderUpdate, setHeaderInfo } = useExamHeaderState();
     const { onProblemClick } = useProblemEditor({ problemBoxMinHeight: displayMinHeight });
-
-    const setRightSidebarConfig = useLayoutStore(state => state.setRightSidebarConfig);
-    const setRightSidebarExpanded = useUIStore(state => state.setRightSidebarExpanded);
+    const { setRightSidebarConfig } = useLayoutStore.getState();
+    const { setRightSidebarExpanded } = useUIStore.getState();
 
     const handleCloseSidebar = useCallback(() => {
         setRightSidebarConfig({ contentConfig: { type: null } });
@@ -77,7 +65,15 @@ export function useProblemPublishingPage() {
         setRightSidebarConfig({ contentConfig: { type: 'selectedStudents' } });
         setRightSidebarExpanded(true);
     }, [setRightSidebarConfig, setRightSidebarExpanded]);
-
+    
+    const handleOpenPromptSidebar = useCallback(() => {
+        setRightSidebarConfig({
+            contentConfig: { type: 'prompt', props: { workbenchContent: jsonStringToCombineRef.current } },
+            isExtraWide: false
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    
     const jsonStringToCombine = useMemo(() => {
         const problemsToConvert = selectedProblems.length > 0 ? selectedProblems : allProblems.slice(0, 1);
         if (problemsToConvert.length === 0) return '';
@@ -97,75 +93,60 @@ export function useProblemPublishingPage() {
         jsonStringToCombineRef.current = jsonStringToCombine;
     }, [jsonStringToCombine]);
 
-    const handleOpenPromptSidebar = useCallback(() => {
-        setRightSidebarConfig({
-            contentConfig: { type: 'prompt', props: { workbenchContent: jsonStringToCombineRef.current } },
-            isExtraWide: false
-        });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarConfig, setRightSidebarExpanded]);
-
-    // [핵심 수정] 불필요한 props 제거
-    usePublishingPageSetup({ 
-        handleCloseSidebar,
-        handleOpenLatexHelpSidebar,
-        handleOpenSettingsSidebar,
-        handleOpenPromptSidebar,
-        handleOpenSelectedStudentsSidebar,
-    });
-
-    useEffect(() => {
-        if (selectedProblems.length > 0) {
-            const newSource = selectedProblems[0].source || '정보 없음';
-            setHeaderInfo(prev => ({ ...prev, source: newSource }));
-        } else {
-            setHeaderInfo(prev => ({ ...prev, source: '정보 없음' }));
-        }
-    }, [selectedProblems, setHeaderInfo]);
+    usePublishingPageSetup({ handleCloseSidebar, handleOpenLatexHelpSidebar, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleOpenSelectedStudentsSidebar });
+    useEffect(() => { if (selectedProblems.length > 0) { const newSource = selectedProblems[0].source || '정보 없음'; setHeaderInfo(prev => ({ ...prev, source: newSource })); } else { setHeaderInfo(prev => ({ ...prev, source: '정보 없음' })); } }, [selectedProblems, setHeaderInfo]);
 
     const previewAreaRef = useRef<HTMLDivElement>(null);
-    
-    const { isGeneratingPdf, generatePdf, pdfProgress } = usePdfGenerator({
-        previewAreaRef,
-        getExamTitle: () => headerInfo.title,
-        getSelectedProblemCount: () => selectedProblems.length,
-    });
-
+    const { isGeneratingPdf, generatePdf, pdfProgress } = usePdfGenerator({ previewAreaRef, getExamTitle: () => headerInfo.title, getSelectedProblemCount: () => selectedProblems.length });
     const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
-    const [pdfOptions, setPdfOptions] = useState<PdfExportOptions>({
-        includeProblems: true,
-        includeAnswers: true,
-        includeSolutions: false,
-    });
+    const [pdfOptions, setPdfOptions] = useState<PdfExportOptions>({ includeProblems: true, includeAnswers: true, includeSolutions: false });
+    const handlePdfOptionChange = useCallback((option: keyof PdfExportOptions) => { setPdfOptions(prev => ({ ...prev, [option]: !prev[option] })); }, []);
+    const handleOpenPdfModal = useCallback(() => { if (selectedProblems.length === 0) { alert('PDF로 출력할 문제가 선택되지 않았습니다.'); return; } setIsPdfModalOpen(true); }, [selectedProblems.length]);
+    const handleConfirmPdfDownload = useCallback(() => { setIsPdfModalOpen(false); setTimeout(() => { generatePdf(pdfOptions); }, 100); }, [generatePdf, pdfOptions]);
+    const handleClosePdfModal = useCallback(() => { setIsPdfModalOpen(false); }, []);
+    
+    // --- [핵심] 모바일 시험지 출제 로직 (모든 로직 복원) ---
+    const { mutate: publishExam, isPending: isPublishing } = usePublishExamSetMutation();
+    const [isMobilePublishModalOpen, setIsMobilePublishModalOpen] = useState(false);
 
-    const handlePdfOptionChange = useCallback((option: keyof PdfExportOptions) => {
-        setPdfOptions(prev => ({ ...prev, [option]: !prev[option] }));
-    }, []);
-
-    const handleOpenPdfModal = useCallback(() => {
-        if (selectedProblems.length === 0) {
-            alert('PDF로 출력할 문제가 선택되지 않았습니다.');
+    const handleOpenMobilePublishModal = useCallback(() => {
+        if (selectedStudentIds.length === 0) {
+            alert('선택된 학생이 없습니다. 대시보드에서 학생을 선택하거나, 우측 사이드바에서 학생을 추가해주세요.');
             return;
         }
-        setIsPdfModalOpen(true);
-    }, [selectedProblems.length]);
-    
-    const handleConfirmPdfDownload = useCallback(() => {
-        setIsPdfModalOpen(false);
-        setTimeout(() => {
-            generatePdf(pdfOptions);
-        }, 100);
-    }, [generatePdf, pdfOptions]);
-    
-    const handleClosePdfModal = useCallback(() => {
-        setIsPdfModalOpen(false);
+        if (selectedProblemIds.size === 0) {
+            alert('선택된 문제가 없습니다.');
+            return;
+        }
+        setIsMobilePublishModalOpen(true);
+    }, [selectedStudentIds, selectedProblemIds]);
+
+    const handleCloseMobilePublishModal = useCallback(() => {
+        setIsMobilePublishModalOpen(false);
     }, []);
+
+    const handleConfirmMobilePublish = useCallback(() => {
+        const payload = {
+            title: headerInfo.title,
+            problemIds: Array.from(selectedProblemIds),
+            studentIds: selectedStudentIds,
+            headerInfo: headerInfo,
+        };
+        
+        publishExam(payload, {
+            onSuccess: () => {
+                clearStudentIds();
+                clearSelection();
+                handleCloseMobilePublishModal();
+            },
+        });
+    }, [selectedStudentIds, selectedProblemIds, headerInfo, publishExam, clearStudentIds, clearSelection, handleCloseMobilePublishModal]);
 
     return {
         allProblems,
         isLoadingProblems,
         selectedProblems,
-        selectedIds,
+        selectedIds: selectedProblemIds,
         toggleRow,
         toggleItems,
         clearSelection,
@@ -177,22 +158,28 @@ export function useProblemPublishingPage() {
         onHeaderUpdate,
         onProblemClick,
         handleDeselectProblem,
-        
         isGeneratingPdf,
         onDownloadPdf: handleOpenPdfModal,
         pdfProgress,
         previewAreaRef,
         ...previewManager,
-
         displayMinHeight,
         setDisplayMinHeight,
         problemBoxMinHeight,
         setProblemBoxMinHeight,
-
         isPdfModalOpen,
         onClosePdfModal: handleClosePdfModal,
         pdfOptions,
         onPdfOptionChange: handlePdfOptionChange,
         onConfirmPdfDownload: handleConfirmPdfDownload,
+        
+        // [핵심] 누락되었던 모달 관련 상태와 핸들러를 모두 반환합니다.
+        isMobilePublishModalOpen,
+        onOpenMobilePublishModal: handleOpenMobilePublishModal,
+        onCloseMobilePublishModal: handleCloseMobilePublishModal,
+        onConfirmMobilePublish: handleConfirmMobilePublish,
+        isPublishing,
+        selectedStudentCount: selectedStudentIds.length,
+        selectedProblemCount: selectedProblemIds.size,
     };
 }
