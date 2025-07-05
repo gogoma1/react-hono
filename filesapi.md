@@ -308,6 +308,7 @@ import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { eq, desc } from 'drizzle-orm';
 
 import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
@@ -322,7 +323,45 @@ const publishExamSetSchema = z.object({
 const mobileExamRoutes = new Hono<AppEnv>();
 
 /**
- * [핵심 기능] POST /api/exam/mobile/sets - 새로운 모바일 시험지 세트 생성 및 학생들에게 할당
+ * GET /api/exam/mobile/my-assignment - 로그인한 학생에게 할당된 최신 시험지 조회
+ * Supabase 미들웨어를 통해 인증된 사용자의 ID를 기반으로 동작합니다.
+ */
+mobileExamRoutes.get('/my-assignment', async (c) => {
+    const user = c.get('user');
+    
+    if (!user || !user.id) {
+        return c.json({ error: '인증 정보가 필요합니다.' }, 401);
+    }
+    
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+        const assignment = await db.query.examAssignmentsTable.findFirst({
+            where: eq(schema.examAssignmentsTable.student_id, user.id),
+            orderBy: [desc(schema.examAssignmentsTable.assigned_at)],
+            with: {
+                examSet: true,
+            },
+        });
+
+        if (!assignment) {
+            return c.json({ error: '할당된 시험지를 찾을 수 없습니다.' }, 404);
+        }
+
+        return c.json(assignment);
+
+    } catch (error: any) {
+        console.error('Failed to fetch student assignment from Supabase:', error);
+        return c.json({ error: '시험지 정보를 가져오는 중 오류가 발생했습니다.' }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
+
+/**
+ * POST /api/exam/mobile/sets - 새로운 모바일 시험지 세트 생성 및 학생들에게 할당
  */
 mobileExamRoutes.post(
   '/sets',
@@ -339,7 +378,7 @@ mobileExamRoutes.post(
           creator_id: user.id,
           title: body.title,
           problem_ids: body.problemIds,
-          header_info: body.headerInfo, // null 또는 객체가 들어옴
+          header_info: body.headerInfo,
         }).returning();
 
         if (!newExamSet) {
@@ -543,7 +582,7 @@ export default examRoutes;
 ----- ./api/routes/manage/problems.ts -----
 import { Hono } from 'hono';
 import { drizzle, DrizzleD1Database } from 'drizzle-orm/d1';
-import { eq, and, inArray, SQL } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import type { BatchItem } from 'drizzle-orm/batch';
@@ -579,6 +618,11 @@ const updateProblemBodySchema = problemSchema.omit({ problem_id: true }).partial
 const deleteProblemsBodySchema = z.object({
     problem_ids: z.array(z.string()).min(1),
 });
+
+const getProblemsByIdsSchema = z.object({
+    problemIds: z.array(z.string()).min(1, "problemIds 배열은 비어있을 수 없습니다."),
+});
+
 
 const problemRoutes = new Hono<AppEnv>();
 
@@ -652,6 +696,50 @@ problemRoutes.get('/', async (c) => {
     }
 });
 
+
+/**
+ * 학생이 시험지를 볼 때 필요한 문제 데이터를 한 번에 가져오기 위해 사용합니다.
+ * POST를 사용하는 이유는 GET 요청의 URL 길이 제한을 피하기 위함입니다.
+ */
+problemRoutes.post('/by-ids', zValidator('json', getProblemsByIdsSchema), async (c) => {
+    const { problemIds } = c.req.valid('json');
+    const d1 = c.env.D1_DATABASE;
+    const db = drizzle(d1, { schema });
+
+    try {
+        if (problemIds.length === 0) {
+            return c.json([]);
+        }
+
+        const problemsData = await db.query.problemTable.findMany({
+            where: inArray(schema.problemTable.problem_id, problemIds),
+            with: {
+                majorChapter: { columns: { name: true } },
+                middleChapter: { columns: { name: true } },
+                coreConcept: { columns: { name: true } },
+            }
+        });
+
+        const problemsMap = new Map(problemsData.map(p => [p.problem_id, p]));
+        const orderedProblems = problemIds
+            .map(id => problemsMap.get(id))
+            .filter((p): p is schema.DbProblem & { majorChapter: any; middleChapter: any; coreConcept: any; } => !!p);
+        
+        const transformedProblems = orderedProblems.map(p => ({
+            ...p,
+            major_chapter_id: p.majorChapter?.name ?? p.major_chapter_id,
+            middle_chapter_id: p.middleChapter?.name ?? p.middle_chapter_id,
+            core_concept_id: p.coreConcept?.name ?? p.core_concept_id,
+        }));
+
+        return c.json(transformedProblems, 200);
+    } catch (error: any) {
+        console.error('Failed to fetch problems by IDs from D1:', error);
+        return c.json({ error: 'D1 데이터베이스 조회에 실패했습니다.', details: error.message }, 500);
+    }
+});
+
+
 /**
  * POST /upload - 여러 문제 생성 또는 업데이트 (성능 최적화 버전)
  */
@@ -688,7 +776,7 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
             .filter(name => !majorMap.has(name))
             .map(name => ({ id: crypto.randomUUID(), name }));
         
-        newMajorValues.forEach(val => majorMap.set(val.name, val.id)); // 새로 생성할 ID도 미리 맵에 추가
+        newMajorValues.forEach(val => majorMap.set(val.name, val.id));
 
         const newMiddleValues = uniqueMiddlePairs
             .filter(pair => !middleMap.has(`${majorMap.get(pair.majorName)}__${pair.middleName}`))
@@ -731,7 +819,7 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
                 core_concept_id: problem.core_concept_id ? coreConceptMap.get(problem.core_concept_id) : null,
             };
 
-            if (problem.problem_id && !problem.problem_id.startsWith('new-')) { // 'new-'로 시작하는 임시 ID는 업데이트 대상이 아님
+            if (problem.problem_id && !problem.problem_id.startsWith('new-')) {
                 problemStmts.push(db.update(schema.problemTable).set(problemData).where(and(eq(schema.problemTable.problem_id, problem.problem_id), eq(schema.problemTable.creator_id, user.id))));
                 updatedCount++;
             } else {
@@ -1088,12 +1176,12 @@ export const supabaseMiddleware = (): MiddlewareHandler => {
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm'; // [수정] sql 임포트 제거
 import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator'; // Zod 유효성 검사기 import
+import { zValidator } from '@hono/zod-validator';
 
 import type { AppEnv } from '../../index';
-import * as schema from '../../db/schema.pg'; // 스키마 전체를 가져옵니다.
+import * as schema from '../../db/schema.pg';
 
 const POSITIONS = ['학생', '원장', '강사', '학부모'] as const;
 
@@ -1107,83 +1195,109 @@ const profileSetupSchema = z.object({
 
 const profileRoutes = new Hono<AppEnv>();
 
-profileRoutes.get('/exists', async (c) => {
-  const user = c.get('user');
 
-  if (!user?.id) {
-    return c.json({ success: false, error: 'Authentication required' }, 401);
-  }
-
-  const sql = postgres(c.env.HYPERDRIVE.connectionString);
-  const db = drizzle(sql, { schema });
-
-  try {
-    const profile = await db.query.profilesTable.findFirst({
-      where: eq(schema.profilesTable.id, user.id),
-      columns: { id: true },
-    });
-    return c.json({ success: true, exists: !!profile });
-  } catch (error: any) {
-    console.error('Failed to check profile existence:', error.message);
-    return c.json({ success: false, error: 'Database query failed' }, 500);
-  } finally {
-    c.executionCtx.waitUntil(sql.end());
-  }
-});
-
-
-profileRoutes.post(
-  '/setup',
-  zValidator('json', profileSetupSchema, (result, c) => {
-    if (!result.success) {
-      console.error('Validation failed:', result.error.flatten());
-      return c.json({ error: 'Invalid input', details: result.error.flatten().fieldErrors }, 400);
-    }
-  }),
-  async (c) => {
-    const user = c.get('user');
-    const { name, position, academyName, region } = c.req.valid('json');
-
-    if (!user?.id || !user?.email) {
-      return c.json({ error: 'Authentication required' }, 401);
-    }
-    
+profileRoutes.get('/academies', async (c) => {
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const db = drizzle(sql, { schema });
 
     try {
-      const newProfile = await db.insert(schema.profilesTable).values({
-        id: user.id, // 인증된 사용자의 UUID
-        email: user.email, // 인증된 사용자의 이메일
-        name: name,
-        position: position,
-        academy_name: academyName, // 프론트의 camelCase를 DB의 snake_case에 매핑
-        region: region,
-      })
-      .returning({ // 삽입된 데이터 중 id를 반환받아 확인
-        insertedId: schema.profilesTable.id 
-      });
-
-      if (newProfile.length === 0) {
-        throw new Error('Profile insertion failed, no data returned.');
-      }
-      
-      console.log(`New profile created for user: ${newProfile[0].insertedId}`);
-
-      return c.json({ success: true, profileId: newProfile[0].insertedId }, 201); // 201 Created 상태 코드 사용
+        const academies = await db
+            .selectDistinct({
+                academyName: schema.profilesTable.academy_name,
+                region: schema.profilesTable.region,
+            })
+            .from(schema.profilesTable)
+            .where(eq(schema.profilesTable.position, '원장'));
+        
+        academies.sort((a, b) => a.academyName.localeCompare(b.academyName));
+        
+        return c.json(academies);
 
     } catch (error: any) {
-      console.error('Failed to create profile:', error.message);
-      if (error.code === '23505') { // PostgreSQL unique_violation 에러 코드
-        return c.json({ error: 'Profile for this user already exists.' }, 409); // 409 Conflict
-      }
-      return c.json({ error: 'Database query failed' }, 500);
+        console.error('Failed to fetch academies:', error.message);
+        return c.json({ error: '학원 목록 조회에 실패했습니다.' }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
+
+profileRoutes.get('/exists', async (c) => {
+    const user = c.get('user');
+  
+    if (!user?.id) {
+      return c.json({ success: false, error: 'Authentication required' }, 401);
+    }
+  
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+  
+    try {
+      const profile = await db.query.profilesTable.findFirst({
+        where: eq(schema.profilesTable.id, user.id),
+        columns: { id: true },
+      });
+      return c.json({ success: true, exists: !!profile });
+    } catch (error: any) {
+      console.error('Failed to check profile existence:', error.message);
+      return c.json({ success: false, error: 'Database query failed' }, 500);
     } finally {
       c.executionCtx.waitUntil(sql.end());
     }
-  }
-);
-
+  });
+  
+  
+  profileRoutes.post(
+    '/setup',
+    zValidator('json', profileSetupSchema, (result, c) => {
+      if (!result.success) {
+        console.error('Validation failed:', result.error.flatten());
+        return c.json({ error: 'Invalid input', details: result.error.flatten().fieldErrors }, 400);
+      }
+    }),
+    async (c) => {
+      const user = c.get('user');
+      const { name, position, academyName, region } = c.req.valid('json');
+  
+      if (!user?.id || !user?.email) {
+        return c.json({ error: 'Authentication required' }, 401);
+      }
+      
+      const sql = postgres(c.env.HYPERDRIVE.connectionString);
+      const db = drizzle(sql, { schema });
+  
+      try {
+        const newProfile = await db.insert(schema.profilesTable).values({
+          id: user.id,
+          email: user.email,
+          name: name,
+          position: position,
+          academy_name: academyName,
+          region: region,
+        })
+        .returning({
+          insertedId: schema.profilesTable.id 
+        });
+  
+        if (newProfile.length === 0) {
+          throw new Error('Profile insertion failed, no data returned.');
+        }
+        
+        console.log(`New profile created for user: ${newProfile[0].insertedId}`);
+  
+        return c.json({ success: true, profileId: newProfile[0].insertedId }, 201);
+  
+      } catch (error: any) {
+        console.error('Failed to create profile:', error.message);
+        if (error.code === '23505') {
+          return c.json({ error: 'Profile for this user already exists.' }, 409);
+        }
+        return c.json({ error: 'Database query failed' }, 500);
+      } finally {
+        c.executionCtx.waitUntil(sql.end());
+      }
+    }
+  );
 
 export default profileRoutes;
 ----- ./api/routes/r2/image.ts -----

@@ -39,7 +39,15 @@
     position: relative;
     z-index: 1;
     color: var(--text-primary);
+    max-height: 85vh;
+    overflow-y: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
+.profile-setup-container::-webkit-scrollbar {
+    display: none;
+}
+
 
 .profile-setup-title {
     font-size: 2rem;
@@ -52,7 +60,8 @@
     color: var(--text-secondary);
     margin-bottom: 35px;
     line-height: 1.6;
-    min-height: 30px;
+    min-height: 48px;
+    white-space: pre-wrap;
 }
 
 /* --- 폼 및 그룹 레이아웃 --- */
@@ -71,6 +80,31 @@
     font-weight: 500;
     font-size: 0.9rem;
     color: var(--text-secondary);
+}
+
+.form-divider, .region-divider {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.3), transparent);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.form-divider {
+    margin: 4px 0;
+}
+
+.region-selection-area {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(var(--glass-base-bg-rgb), 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.region-divider {
+    margin: 0;
 }
 
 /* --- 버튼 스타일 (리퀴드 글래스 포함) --- */
@@ -119,10 +153,11 @@
 }
 
 .region-button-group {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
     gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
 }
+
 .region-button {
     padding: 8px 14px;
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -133,6 +168,7 @@
     transition: all 0.2s ease-in-out;
     font-weight: 500;
     font-size: 0.9rem;
+    text-align: center;
 }
 .region-button.active {
     background-color: var(--accent-color);
@@ -140,8 +176,10 @@
     border-color: var(--accent-color);
 }
 .region-button:not(.active):hover {
-    border-color: rgba(255, 255, 255, 0.4);
-    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+    transform: translateY(-2px);
 }
 
 /* --- 입력 필드 스타일 --- */
@@ -155,6 +193,7 @@
     color: var(--text-primary);
     outline: none;
     transition: all 0.2s ease;
+    box-sizing: border-box;
 }
 
 .form-input::placeholder { color: var(--text-placeholder); }
@@ -167,8 +206,9 @@
 /* --- 단계별 폼 UI/UX 스타일 --- */
 .step-completed {
     opacity: 0.6;
-    pointer-events: none;
+    pointer-events: auto;
     transition: opacity 0.3s ease;
+    cursor: pointer;
 }
 
 .input-with-button {
@@ -248,7 +288,14 @@
     color: var(--text-tertiary);
 }
 
-/* --- 제출 버튼 및 에러 메시지 --- */
+/* --- 제출 버튼 및 헬퍼 텍스트 --- */
+.submission-area {
+    min-height: 48px; /* 버튼/헬퍼 텍스트 공간 확보로 레이아웃 이동 방지 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .submit-button {
     width: 100%;
     padding: 14px 20px;
@@ -260,10 +307,23 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    margin-top: 10px;
 }
 .submit-button:hover:not(:disabled) { background-color: var(--accent-color-darker); }
 .submit-button:disabled { background-color: var(--text-placeholder); opacity: 0.7; cursor: not-allowed; }
+
+/* [요청사항] 헬퍼 텍스트 색상을 accent-color 계열로 수정 */
+.submission-helper-text {
+    width: 100%;
+    padding: 14px 20px;
+    background-color: rgba(var(--accent-color-rgb), 0.1); /* accent color 배경 */
+    border: 1px solid rgba(var(--accent-color-rgb), 0.3);
+    color: var(--accent-color); /* accent color 텍스트 */
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.3s ease;
+}
 
 .error-message { margin-top: 4px; color: var(--notification-badge-bg); font-size: 0.8rem; font-weight: 500; text-align: left; }
 .error-message.api-error { text-align: center; margin-top: 15px; font-size: 0.875rem; }

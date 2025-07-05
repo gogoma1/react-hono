@@ -1,19 +1,23 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProfileSetupForm } from '../entities/profile/ui/ProfileSetupForm';
+import { useProfileSetup } from '../entities/profile/model/useProfileSetup';
 
-// React Query 클라이언트를 생성합니다.
 const queryClient = new QueryClient();
 
-/**
- * 프로필 설정 페이지
- * 이 페이지는 데이터 fetching을 위한 QueryClientProvider와
- * 실제 UI를 담당하는 ProfileSetupForm을 조립하는 역할만 수행합니다.
- */
+const ProfileSetupContainer: React.FC = () => {
+    // [수정] 훅에서 반환하는 모든 props를 그대로 받음
+    const profileSetupProps = useProfileSetup();
+
+    // [수정] ref와 나머지 props를 올바르게 전달
+    return <ProfileSetupForm ref={profileSetupProps.containerRef} {...profileSetupProps} />;
+};
+
+
 const ProfileSetupPage: React.FC = () => {
     return (
         <QueryClientProvider client={queryClient}>
-            <ProfileSetupForm />
+            <ProfileSetupContainer />
         </QueryClientProvider>
     );
 };
