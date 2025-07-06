@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useMemo } from 'react';
 import { layoutConfigMap, type PageLayoutConfig } from './layout.config';
-import type { Student } from '../../entities/student/model/useStudentDataWithRQ';
+import type { Student } from '../../entities/student/model/types';
 import type { ProcessedProblem } from '../../features/problem-publishing';
 
 export interface StoredSearchProps {

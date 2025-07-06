@@ -1,53 +1,55 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { z } from 'zod';
 import { useAuthStore, selectUser, selectIsLoadingAuth } from '../../../shared/store/authStore';
-import type { Academy } from '../../academy/model/types';
-import { type PositionType, profileFormSchema, type ProfileFormSchema } from './types';
+import { type PositionType } from './types';
+
+// [수정됨] API 페이로드 타입의 키를 snake_case로 변경합니다.
+interface ProfileSetupPayload {
+    name: string;
+    phone?: string;
+    role_name: PositionType;
+    academy_name?: string;
+    region?: string;
+}
 
 export const useProfileSetup = () => {
     const navigate = useNavigate();
     const isLoadingAuth = useAuthStore(selectIsLoadingAuth);
     const user = useAuthStore(selectUser);
-    
+
     const containerRef = useRef<HTMLDivElement>(null);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+    const [apiErrorMessage, setApiErrorMessage] = useState('');
+
     const [step, setStep] = useState(1);
-    const [editingField, setEditingField] = useState<'name' | 'phone' | null>(null); // [수정] 수정 모드 상태
+    const [editingField, setEditingField] = useState<'name' | 'phone' | null>(null);
 
     const [selectedPosition, setSelectedPosition] = useState<PositionType | ''>('');
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
-    
+
     const [academyName, setAcademyName] = useState('');
     const [selectedCity, setSelectedCity] = useState('');
     const [selectedDistrict, setSelectedDistrict] = useState('');
-    const [region, setRegion] = useState('');
-
-    const [formErrors, setFormErrors] = useState<z.ZodFormattedError<ProfileFormSchema> | null>(null);
-    const [apiErrorMessage, setApiErrorMessage] = useState('');
 
     useEffect(() => {
-       if (user) {
-           setName(user.user_metadata?.name || '');
-           setPhone(user.phone || ''); 
-       }
-    }, [isLoadingAuth, user]);
-    
-    const isFormComplete = useMemo(() => {
-        if (!name.trim() || !selectedPosition || !phone.trim()) return false;
-        
-        const phoneRegex = /^[0-9]{3}-[0-9]{3,4}-[0-9]{4}$/;
-        if(!phoneRegex.test(phone)) return false;
-
-        if (['학생', '강사'].includes(selectedPosition)) {
-            return !!academyName && !!region;
-        } else {
-            return !!academyName && !!selectedCity && !!selectedDistrict;
+        if (user) {
+            setName(user.user_metadata?.name || '');
+            setPhone(user.phone || '');
         }
-    }, [name, phone, selectedPosition, academyName, region, selectedCity, selectedDistrict]);
+    }, [isLoadingAuth, user]);
+
+    const isFormComplete = useMemo(() => {
+        const phoneRegex = /^[0-9]{3}-[0-9]{3,4}-[0-9]{4}$/;
+        if (!name.trim() || !selectedPosition || !phoneRegex.test(phone)) return false;
+
+        if (selectedPosition === '원장') {
+            return !!academyName.trim() && !!selectedCity && !!selectedDistrict;
+        }
+        
+        return true;
+    }, [name, phone, selectedPosition, academyName, selectedCity, selectedDistrict]);
 
     const scrollToBottom = useCallback(() => {
         setTimeout(() => {
@@ -60,23 +62,24 @@ export const useProfileSetup = () => {
         }, 100);
     }, []);
 
-    const handlePositionSelect = (position: PositionType) => {
+    const handleNextStep = useCallback((nextStep: number) => {
+        setStep(nextStep);
+        setEditingField(null);
+        scrollToBottom();
+    }, [scrollToBottom]);
+
+    const handlePositionSelect = useCallback((position: PositionType) => {
         setSelectedPosition(position);
         setStep(2);
-    };
-
-    const handleNextStep = (nextStep: number) => {
-        setStep(nextStep);
-        setEditingField(null); // 다음 단계로 넘어가면 수정 모드 해제
         scrollToBottom();
-    };
-    
+    }, [scrollToBottom]);
+
     const handleNameSubmit = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && name.trim()) {
             e.preventDefault();
             handleNextStep(3);
         }
-    }, [name]);
+    }, [name, handleNextStep]);
     
     const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -94,18 +97,14 @@ export const useProfileSetup = () => {
     }, []);
 
     const handlePhoneSubmit = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && phone.trim()) {
+        const phoneRegex = /^[0-9]{3}-[0-9]{3,4}-[0-9]{4}$/;
+        if (e.key === 'Enter' && phoneRegex.test(phone)) {
             e.preventDefault();
             handleNextStep(4);
         }
-    }, [phone]);
+    }, [phone, handleNextStep]);
 
-    const handleAcademySelect = (academy: Academy) => {
-        setAcademyName(academy.academyName);
-        setRegion(academy.region);
-    };
-
-    const handleReset = () => {
+    const handleReset = useCallback(() => {
         setStep(1);
         setEditingField(null);
         setSelectedPosition('');
@@ -114,55 +113,53 @@ export const useProfileSetup = () => {
         setAcademyName('');
         setSelectedCity('');
         setSelectedDistrict('');
-        setRegion('');
-        setFormErrors(null);
         setApiErrorMessage('');
-    };
+    }, [user]);
+
+    const handleSaveProfile = useCallback(async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!isFormComplete || !user || !selectedPosition || isSubmitting) return;
+
+        setIsSubmitting(true);
+        setApiErrorMessage('');
+
+        // [수정됨] payload 객체의 키를 snake_case로 변경합니다.
+        const payload: ProfileSetupPayload = {
+            name,
+            phone,
+            role_name: selectedPosition,
+        };
+        
+        if (selectedPosition === '원장') {
+            payload.academy_name = academyName;
+            payload.region = `${selectedCity} ${selectedDistrict}`;
+        }
+        
+        try {
+            const response = await fetch('/api/profiles/setup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            
+            if (response.ok) {
+                navigate('/dashboard', { replace: true });
+            } else {
+                const data = await response.json();
+                setApiErrorMessage(data.error || '프로필 저장에 실패했습니다. 관리자에게 문의하세요.');
+            }
+        } catch (error) {
+            setApiErrorMessage('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [isFormComplete, user, selectedPosition, isSubmitting, name, phone, academyName, selectedCity, selectedDistrict, navigate]);
 
     useEffect(() => {
         if (selectedCity || selectedDistrict) {
             scrollToBottom();
         }
     }, [selectedCity, selectedDistrict, scrollToBottom]);
-
-    const handleSaveProfile = async (event: React.FormEvent) => {
-        event.preventDefault();
-        if (!isFormComplete || !user || isSubmitting) return;
-        
-        const isSearchingRole = ['학생', '강사'].includes(selectedPosition || '');
-        const finalRegion = isSearchingRole ? region : `${selectedCity} ${selectedDistrict}`;
-
-        const validationResult = profileFormSchema.safeParse({ name, phone, position: selectedPosition, academyName, region: finalRegion });
-
-        if (!validationResult.success) {
-            setFormErrors(validationResult.error.format());
-            scrollToBottom();
-            return;
-        }
-        
-        setFormErrors(null);
-        setIsSubmitting(true);
-        setApiErrorMessage('');
-
-        try {
-            const response = await fetch('/api/profiles/setup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(validationResult.data),
-            });
-            
-            if (response.ok) {
-                navigate('/', { replace: true });
-            } else {
-                const data = await response.json();
-                setApiErrorMessage(data.error || '프로필 저장에 실패했습니다.');
-            }
-        } catch (error) {
-            setApiErrorMessage('네트워크 오류가 발생했습니다.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
     
     return {
         containerRef,
@@ -177,20 +174,17 @@ export const useProfileSetup = () => {
         academyName,
         selectedCity,
         selectedDistrict,
-        region,
-        formErrors,
         apiErrorMessage,
         isFormComplete,
         setName,
+        setPhone,
         setAcademyName,
         setSelectedCity,
         setSelectedDistrict,
-        setRegion,
         handlePositionSelect,
         handleNameSubmit,
         handlePhoneChange,
         handlePhoneSubmit,
-        handleAcademySelect,
         handleReset,
         handleSaveProfile,
         handleNextStep,

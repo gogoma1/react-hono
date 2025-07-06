@@ -105,7 +105,6 @@ export function useProblemPublishingPage() {
     const handleConfirmPdfDownload = useCallback(() => { setIsPdfModalOpen(false); setTimeout(() => { generatePdf(pdfOptions); }, 100); }, [generatePdf, pdfOptions]);
     const handleClosePdfModal = useCallback(() => { setIsPdfModalOpen(false); }, []);
     
-    // --- [핵심] 모바일 시험지 출제 로직 (모든 로직 복원) ---
     const { mutate: publishExam, isPending: isPublishing } = usePublishExamSetMutation();
     const [isMobilePublishModalOpen, setIsMobilePublishModalOpen] = useState(false);
 
@@ -126,11 +125,12 @@ export function useProblemPublishingPage() {
     }, []);
 
     const handleConfirmMobilePublish = useCallback(() => {
+        // [수정됨] payload의 키를 모두 snake_case로 변경
         const payload = {
             title: headerInfo.title,
-            problemIds: Array.from(selectedProblemIds),
-            studentIds: selectedStudentIds,
-            headerInfo: headerInfo,
+            problem_ids: Array.from(selectedProblemIds),
+            student_ids: selectedStudentIds,
+            header_info: headerInfo,
         };
         
         publishExam(payload, {
@@ -173,7 +173,6 @@ export function useProblemPublishingPage() {
         onPdfOptionChange: handlePdfOptionChange,
         onConfirmPdfDownload: handleConfirmPdfDownload,
         
-        // [핵심] 누락되었던 모달 관련 상태와 핸들러를 모두 반환합니다.
         isMobilePublishModalOpen,
         onOpenMobilePublishModal: handleOpenMobilePublishModal,
         onCloseMobilePublishModal: handleCloseMobilePublishModal,

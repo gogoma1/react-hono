@@ -1,6 +1,6 @@
 {
-  "id": "281813dd-d5b2-4a02-95ad-f6b6c917acca",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "5a3363d8-b3b1-449e-a755-642616fb9bb5",
+  "prevId": "281813dd-d5b2-4a02-95ad-f6b6c917acca",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -101,6 +101,12 @@
         },
         "student_phone": {
           "name": "student_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "guardian_phone": {
+          "name": "guardian_phone",
           "type": "text",
           "primaryKey": false,
           "notNull": false

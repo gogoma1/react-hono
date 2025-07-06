@@ -11,6 +11,7 @@ import problemRoutes from './routes/manage/problems';
 import r2ImageRoutes from './routes/r2/image';
 import examRoutes from './routes/exam/examlogs';
 import mobileExamRoutes from './routes/exam/exam.mobile';
+import academyRoutes from './routes/manage/academies';
 
 // --- Hono 앱 타입 정의 (AppEnv) ---
 export type AppEnv = {
@@ -46,6 +47,7 @@ app.route('/manage/problems', problemRoutes);
 app.route('/r2', r2ImageRoutes);
 
 app.route('/exam', examRoutes);
+app.route('/academies', academyRoutes);
 
 app.route('/exam/mobile', mobileExamRoutes); 
 

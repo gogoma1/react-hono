@@ -10,3 +10,112 @@
     position: relative;
     height: 100%;
 }
+
+/* --- 위젯 제목을 감싸는 컨테이너 --- */
+.widget-title-container {
+    padding: 0 20px;
+    margin-bottom: 16px;
+}
+
+/* --- 클릭 가능한 제목 버튼 --- */
+.widget-title-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    color: var(--text-primary);
+}
+
+.widget-title-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.widget-title-button:disabled {
+    opacity: 0.7;
+}
+
+.widget-title-icon {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.widget-title-text {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.widget-title-chevron {
+    color: var(--text-secondary);
+    transition: transform 0.2s ease-in-out;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+.widget-title-chevron.open {
+    transform: rotate(180deg);
+}
+
+
+/* --- Popover에 표시될 학원 목록 --- */
+.academy-select-popover .glass-popover-content {
+    padding: 8px; /* Popover 내부 패딩 */
+}
+
+.academy-select-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    min-width: 280px;
+}
+
+.academy-select-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+    text-align: left;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+}
+
+.academy-select-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.academy-select-item.active {
+    background-color: var(--accent-color-faded, rgba(230, 126, 34, 0.1)); /* fallback 추가 */
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.academy-select-item .item-name {
+    font-weight: 500;
+}
+
+.academy-select-item .item-region {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    margin-left: 16px;
+    white-space: nowrap;
+}
+
+.academy-select-item.active .item-region {
+    color: var(--accent-color);
+    opacity: 0.8;
+}

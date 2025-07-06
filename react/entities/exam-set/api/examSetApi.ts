@@ -1,20 +1,20 @@
-// ----- ./react/entities/exam-set/api/examSetApi.ts -----
 import { handleApiResponse } from '../../../shared/api/api.utils';
 
+// [수정됨] camelCase -> snake_case
 export interface PublishExamSetPayload {
     title: string;
-    problemIds: string[];
-    studentIds: string[];
-    headerInfo: Record<string, any> | null;
+    problem_ids: string[];
+    student_ids: string[];
+    header_info: Record<string, any> | null;
 }
 
+// [수정됨] camelCase -> snake_case
 export interface PublishExamSetResponse {
     message: string;
-    examSetId: string;
-    assignedCount: number;
+    exam_set_id: string;
+    assigned_count: number;
 }
 
-// [핵심] API 경로를 수정한 백엔드에 맞춤
 const API_BASE_URL = '/api/exam/mobile';
 
 /**
@@ -23,6 +23,8 @@ const API_BASE_URL = '/api/exam/mobile';
  * @returns 성공 메시지 및 생성된 시험지 세트 정보
  */
 export const publishExamSetAPI = async (payload: PublishExamSetPayload): Promise<PublishExamSetResponse> => {
+    // [수정됨] 백엔드로 보낼 payload의 키가 snake_case이므로,
+    // JSON.stringify가 자동으로 snake_case 키를 가진 JSON 문자열을 생성합니다.
     const res = await fetch(`${API_BASE_URL}/sets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

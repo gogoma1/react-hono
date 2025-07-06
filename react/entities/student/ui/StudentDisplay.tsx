@@ -1,6 +1,6 @@
 // ./react/entities/student/ui/StudentDisplay.tsx
 import React, { forwardRef } from 'react';
-import type { Student } from '../model/useStudentDataWithRQ';
+import type { Student } from '../model/types';
 import { useUIStore } from '../../../shared/store/uiStore';
 import StudentDisplayDesktop from './StudentDisplayDesktop';
 import StudentDisplayMobile from './StudentDisplayMobile';

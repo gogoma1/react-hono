@@ -1,113 +1,55 @@
-//file path : react/entities/student/model/useStudentDataWithRQ.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-    fetchStudentsAPI,
-    addStudentAPI,
-    updateStudentAPI,
-    deleteStudentAPI,
+    fetchEnrollmentsAPI,
+    addEnrollmentAPI,
+    updateEnrollmentAPI,
+    deleteEnrollmentAPI,
 } from '../api/studentApi';
+// [수정] 새로 만든 types.ts에서 타입들을 가져옵니다.
+import type { Enrollment, CreateEnrollmentInput, UpdateEnrollmentInput, Student } from './types';
 
-export interface CreateStudentInput {
-    student_name: string;
-    grade: string;
-    status: '재원' | '휴원' | '퇴원';
-    subject: string;
-    tuition: string | number;
-    admission_date?: string | null;
-    student_phone?: string | null;
-    guardian_phone?: string | null;
-    school_name?: string | null;
-    class_name?: string | null;
-    teacher?: string | null;
-}
-
-export interface UpdateStudentInputBody {
-    student_name?: string;
-    grade?: string;
-    status?: '재원' | '휴원' | '퇴원';
-    subject?: string;
-    tuition?: string | number;
-    admission_date?: string | null;
-    student_phone?: string | null;
-    guardian_phone?: string | null;
-    school_name?: string | null;
-    class_name?: string | null;
-    teacher?: string | null;
-    discharge_date?: string | null;
-}
-
-export interface UpdateStudentInput extends UpdateStudentInputBody {
-    id: string;
-}
-
-export interface Student {
-    id: string;
-    tuition: number | null;
-    admission_date: string | null;
-    discharge_date: string | null;
-    principal_id: string | null;
-    grade: string;
-    student_phone: string | null;
-    guardian_phone: string | null;
-    school_name: string | null;
-    class_name: string | null;
-    student_name: string;
-    teacher: string | null;
-    status: '재원' | '휴원' | '퇴원';
-    subject: string;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface MutationStatus<TData = unknown, TError = Error> {
-    isPending: boolean;
-    isError: boolean;
-    error: TError | null;
-    isSuccess: boolean;
-    data?: TData | undefined;
-}
-
-export const GRADE_LEVELS = [
-    '초1', '초2', '초3', '초4', '초5', '초6',
-    '중1', '중2', '중3',
-    '고1', '고2', '고3',
-];
-
+// [유지] 다른 파일과의 호환성을 위해 쿼리 키를 'students'로 유지합니다.
 export const STUDENTS_QUERY_KEY = 'students';
 
-export function useStudentDataWithRQ() {
+/**
+ * [수정]
+ * 특정 학원의 재원생(enrollment) 데이터를 관리하는 React Query 훅.
+ * 외부 인터페이스(반환값)는 기존 'student' 명칭을 유지하여 UI 코드 변경을 최소화합니다.
+ * @param academyId - 관리할 대상 학원의 ID.
+ */
+export function useStudentDataWithRQ(academyId: string | null | undefined) {
     const queryClient = useQueryClient();
 
+    // API로부터 Enrollment[] 타입을 받지만, 변수명은 students로 유지합니다.
     const {
         data: students = [],
         isLoading: isLoadingStudents,
         isError: isStudentsError,
         error: studentsError,
-        refetch: fetchStudents
-    } = useQuery<Student[], Error>({
-        queryKey: [STUDENTS_QUERY_KEY],
-        queryFn: fetchStudentsAPI,
+        refetch: fetchStudents,
+    } = useQuery<Enrollment[], Error, Student[]>({ // [수정] select 옵션을 통해 타입을 Student[]로 변환 (타입 별칭 덕분에 사실상 동일)
+        queryKey: [STUDENTS_QUERY_KEY, academyId],
+        queryFn: () => fetchEnrollmentsAPI(academyId!),
+        enabled: !!academyId,
     });
 
-    const addStudentMutation = useMutation<Student, Error, CreateStudentInput>({
-        mutationFn: addStudentAPI,
-        onSuccess: (newStudent) => {
-            // 새 학생 추가 성공 시, 서버에 목록을 재요청하는 대신 캐시를 직접 업데이트합니다.
-            queryClient.setQueryData<Student[]>([STUDENTS_QUERY_KEY], (oldData = []) => 
-                [...oldData, newStudent]
+    const addStudentMutation = useMutation<Enrollment, Error, CreateEnrollmentInput>({
+        mutationFn: addEnrollmentAPI,
+        onSuccess: (newEnrollment) => {
+            queryClient.setQueryData<Enrollment[]>([STUDENTS_QUERY_KEY, newEnrollment.academyId], (oldData = []) => 
+                [...oldData, newEnrollment]
             );
         },
-        onError: () => {
-            // 에러 발생 시 데이터 정합성을 위해 캐시를 무효화하고 다시 동기화합니다.
-            queryClient.invalidateQueries({ queryKey: [STUDENTS_QUERY_KEY] });
+        onError: (_error, variables) => {
+            queryClient.invalidateQueries({ queryKey: [STUDENTS_QUERY_KEY, variables.academyId] });
         }
     });
 
-    const updateStudentMutation = useMutation<Student, Error, UpdateStudentInput>({
-        mutationFn: updateStudentAPI,
-        onSuccess: (updatedStudent) => {
-            queryClient.setQueryData<Student[]>([STUDENTS_QUERY_KEY], (oldData = []) =>
-                oldData.map(s => s.id === updatedStudent.id ? updatedStudent : s)
+    const updateStudentMutation = useMutation<Enrollment, Error, UpdateEnrollmentInput>({
+        mutationFn: updateEnrollmentAPI,
+        onSuccess: (updatedEnrollment) => {
+            queryClient.setQueryData<Enrollment[]>([STUDENTS_QUERY_KEY, updatedEnrollment.academyId], (oldData = []) =>
+                oldData.map(e => e.id === updatedEnrollment.id ? updatedEnrollment : e)
             );
         },
         onError: () => {
@@ -116,11 +58,11 @@ export function useStudentDataWithRQ() {
     });
 
     const deleteStudentMutation = useMutation<{ message: string, id: string }, Error, string>({
-        mutationFn: deleteStudentAPI,
+        mutationFn: deleteEnrollmentAPI,
         onSuccess: (data) => {
-            queryClient.setQueryData<Student[]>([STUDENTS_QUERY_KEY], (oldData = []) =>
-                oldData.filter(s => s.id !== data.id)
-            );
+            console.log(`Enrollment ${data.id} deleted successfully.`, data.message);
+            // 캐시를 무효화하여 서버로부터 최신 데이터를 다시 가져옵니다.
+            queryClient.invalidateQueries({ queryKey: [STUDENTS_QUERY_KEY] });
         },
         onError: () => {
             queryClient.invalidateQueries({ queryKey: [STUDENTS_QUERY_KEY] });
@@ -138,28 +80,9 @@ export function useStudentDataWithRQ() {
         updateStudent: updateStudentMutation.mutateAsync,
         deleteStudent: deleteStudentMutation.mutateAsync,
 
-        addStudentStatus: {
-            isPending: addStudentMutation.isPending,
-            isError: addStudentMutation.isError,
-            error: addStudentMutation.error,
-            isSuccess: addStudentMutation.isSuccess,
-            data: addStudentMutation.data,
-        } as MutationStatus<Student, Error>,
-
-        updateStudentStatus: {
-            isPending: updateStudentMutation.isPending,
-            isError: updateStudentMutation.isError,
-            error: updateStudentMutation.error,
-            isSuccess: updateStudentMutation.isSuccess,
-            data: updateStudentMutation.data,
-        } as MutationStatus<Student, Error>,
-
-        deleteStudentStatus: {
-            isPending: deleteStudentMutation.isPending,
-            isError: deleteStudentMutation.isError,
-            error: deleteStudentMutation.error,
-            isSuccess: deleteStudentMutation.isSuccess,
-            data: deleteStudentMutation.data,
-        } as MutationStatus<{ message: string, id: string }, Error>,
+        // mutation status 객체도 기존 이름을 유지하며, 타입을 명시해줍니다.
+        addStudentStatus: addStudentMutation,
+        updateStudentStatus: updateStudentMutation,
+        deleteStudentStatus: deleteStudentMutation,
     };
 }

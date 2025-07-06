@@ -1,26 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    useStudentDataWithRQ, 
+    GRADE_LEVELS, 
     type Student, 
-    type UpdateStudentInput, 
-    GRADE_LEVELS 
-} from '../../../entities/student/model/useStudentDataWithRQ';
+    type UpdateEnrollmentInput 
+} from '../../../entities/student/model/types';
+import { useStudentDataWithRQ } from '../../../entities/student/model/useStudentDataWithRQ';
 import CategoryInput from '../../student-registration/ui/CategoryInput';
 import '../../student-registration/ui/StudentRegistrationForm.css';
 
 interface StudentEditFormProps {
     student: Student;
     onSuccess: () => void;
+    academyId: string;
 }
 
-const statusOptions: Student['status'][] = ['재원', '휴원', '퇴원'];
-
-// [최종 수정] reduce를 사용하여 타입 안정성을 높인 getUniqueValues 함수
-const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K): (string | number)[] => {
-    if (!items || items.length === 0) { // 오타 수정
+const getUniqueValues = <T extends object>(items: T[], key: keyof T): (string | number)[] => {
+    if (!items || items.length === 0) {
         return [];
     }
-
     const uniqueValues = items.reduce((acc: Set<string | number>, item) => {
         const value = item[key];
         if (typeof value === 'string' && value.trim() !== '') {
@@ -30,13 +27,12 @@ const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K
         }
         return acc;
     }, new Set<string | number>());
-
     return Array.from(uniqueValues);
 };
 
 
-const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess }) => {
-    const { students, updateStudent, updateStudentStatus } = useStudentDataWithRQ();
+const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, academyId }) => {
+    const { students, updateStudent, updateStudentStatus } = useStudentDataWithRQ(academyId);
 
     const [name, setName] = useState('');
     const [grade, setGrade] = useState('');
@@ -49,6 +45,7 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
     const [schoolName, setSchoolName] = useState('');
     const [tuition, setTuition] = useState('');
 
+    // [수정됨] camelCase 키 접근을 snake_case로 변경
     const uniqueClassNames = useMemo(() => getUniqueValues(students, 'class_name').sort(), [students]);
     const uniqueSubjects = useMemo(() => getUniqueValues(students, 'subject').sort(), [students]);
     const uniqueSchoolNames = useMemo(() => getUniqueValues(students, 'school_name').sort(), [students]);
@@ -77,18 +74,19 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const updatedData: UpdateStudentInput = {
+        
+        const updatedData: UpdateEnrollmentInput = {
             id: student.id,
             student_name: name.trim(),
             grade: grade.trim(),
-            class_name: className.trim() || null,
             subject: subject.trim(),
-            teacher: teacher.trim() || null,
             status: status,
+            class_name: className.trim() || null,
+            teacher: teacher.trim() || null,
             student_phone: studentPhone.trim() || null,
             guardian_phone: guardianPhone.trim() || null,
             school_name: schoolName.trim() || null,
-            tuition: tuition ? Number(String(tuition).replace(/,/g, '')) : 0,
+            tuition: tuition ? Number(String(tuition).replace(/,/g, '')) : null,
         };
         try {
             await updateStudent(updatedData);
@@ -97,6 +95,8 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
         }
     };
     
+    const statusOptions: Student['status'][] = ['재원', '휴원', '퇴원'];
+
     return (
         <div className="student-registration-container">
             <h4 className="registration-form-title">학생 정보 수정</h4>
@@ -120,14 +120,7 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
                     onChange={setGrade}
                     suggestions={GRADE_LEVELS}
                     hideInput={true}
-                />
-
-                <CategoryInput 
-                    label="반" 
-                    value={className} 
-                    onChange={setClassName} 
-                    suggestions={uniqueClassNames} 
-                    placeholder="직접 입력 (예: 1반, 심화반)"
+                    required={true}
                 />
 
                 <CategoryInput 
@@ -136,6 +129,15 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
                     onChange={setSubject} 
                     suggestions={uniqueSubjects} 
                     placeholder="직접 입력 (예: 수학, 영어)"
+                    required={true}
+                />
+                
+                <CategoryInput 
+                    label="반" 
+                    value={className} 
+                    onChange={setClassName} 
+                    suggestions={uniqueClassNames} 
+                    placeholder="직접 입력 (예: 1반, 심화반)"
                 />
                 <CategoryInput 
                     label="담당 강사" 
@@ -164,7 +166,7 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
                     label="학교명" 
                     value={schoolName} 
                     onChange={setSchoolName} 
-                    suggestions={uniqueSchoolNames} 
+                    suggestions={uniqueSchoolNames}
                     placeholder="직접 입력 (예: OO고등학교)"
                 />
                 <CategoryInput 
@@ -177,7 +179,7 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess })
                 />
                 <div className="form-actions">
                     {updateStudentStatus.isError && <p className="form-error-message">수정 실패: {updateStudentStatus.error?.message}</p>}
-                    <button type="submit" className="submit-button" disabled={updateStudentStatus.isPending || !name}>
+                    <button type="submit" className="submit-button" disabled={updateStudentStatus.isPending || !name.trim()}>
                         {updateStudentStatus.isPending ? '저장 중...' : '변경 내용 저장'}
                     </button>
                 </div>

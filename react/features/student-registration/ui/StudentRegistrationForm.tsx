@@ -1,16 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useStudentDataWithRQ, type CreateStudentInput, GRADE_LEVELS } from '../../../entities/student/model/useStudentDataWithRQ';
+import { GRADE_LEVELS, type CreateEnrollmentInput, type Student } from '../../../entities/student/model/types';
+import { useStudentDataWithRQ } from '../../../entities/student/model/useStudentDataWithRQ';
 import CategoryInput from './CategoryInput';
 import './StudentRegistrationForm.css';
 import { LuUserPlus } from 'react-icons/lu';
 
 interface StudentRegistrationFormProps {
     onSuccess?: () => void;
+    academyId: string; // 학생을 등록할 학원의 ID
 }
 
-// [최종 수정] reduce를 사용하여 타입 안정성을 높인 getUniqueValues 함수
-const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K): (string | number)[] => {
-    if (!items || items.length === 0) { // 오타 수정
+const getUniqueValues = <T extends object>(items: T[], key: keyof T): (string | number)[] => {
+    if (!items || items.length === 0) {
         return [];
     }
 
@@ -28,8 +29,8 @@ const getUniqueValues = <T extends object, K extends keyof T>(items: T[], key: K
 };
 
 
-const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuccess }) => {
-    const { students, addStudent, addStudentStatus } = useStudentDataWithRQ();
+const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuccess, academyId }) => {
+    const { students, addStudent, addStudentStatus } = useStudentDataWithRQ(academyId);
 
     const [name, setName] = useState('');
     const [grade, setGrade] = useState('');
@@ -41,6 +42,7 @@ const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuc
     const [schoolName, setSchoolName] = useState('');
     const [tuition, setTuition] = useState('');
 
+    // [수정됨] camelCase 키 접근을 snake_case로 변경
     const uniqueClassNames = useMemo(() => getUniqueValues(students, 'class_name').sort(), [students]);
     const uniqueSubjects = useMemo(() => getUniqueValues(students, 'subject').sort(), [students]);
     const uniqueSchoolNames = useMemo(() => getUniqueValues(students, 'school_name').sort(), [students]);
@@ -48,8 +50,15 @@ const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuc
     const uniqueTeachers = useMemo(() => getUniqueValues(students, 'teacher').sort(), [students]);
 
     const resetForm = () => {
-        setName(''); setGrade(''); setSubject(''); setClassName(''); setTeacher('');
-        setStudentPhone(''); setGuardianPhone(''); setSchoolName(''); setTuition('');
+        setName(''); 
+        setGrade(''); 
+        setSubject(''); 
+        setClassName(''); 
+        setTeacher('');
+        setStudentPhone(''); 
+        setGuardianPhone('');
+        setSchoolName(''); 
+        setTuition('');
     };
     
     useEffect(() => {
@@ -63,20 +72,22 @@ const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuc
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const newStudent: CreateStudentInput = {
+        
+        const newStudentData: CreateEnrollmentInput = {
+            academy_id: academyId,
             student_name: name.trim(),
             grade: grade.trim(),
-            class_name: className.trim() || null,
             subject: subject.trim(),
+            status: '재원',
+            class_name: className.trim() || null,
             teacher: teacher.trim() || null,
             student_phone: studentPhone.trim() || null,
             guardian_phone: guardianPhone.trim() || null,
             school_name: schoolName.trim() || null,
-            tuition: tuition ? Number(String(tuition).replace(/,/g, '')) : 0,
-            status: '재원',
+            tuition: tuition ? Number(String(tuition).replace(/,/g, '')) : null,
         };
         try {
-            await addStudent(newStudent);
+            await addStudent(newStudentData);
         } catch (err) {
             console.error('Failed to add student:', err);
         }
@@ -99,12 +110,27 @@ const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuc
                     onChange={setGrade}
                     suggestions={GRADE_LEVELS}
                     hideInput={true}
+                    required={true}
+                />
+                <CategoryInput 
+                    label="과목" 
+                    value={subject} 
+                    onChange={setSubject} 
+                    suggestions={uniqueSubjects} 
+                    placeholder="직접 입력 (예: 수학, 영어)"
+                    required={true}
                 />
                 <CategoryInput label="반" value={className} onChange={setClassName} suggestions={uniqueClassNames} placeholder="직접 입력 (예: 1반, 심화반)"/>
-                <CategoryInput label="과목" value={subject} onChange={setSubject} suggestions={uniqueSubjects} placeholder="직접 입력 (예: 수학, 영어)"/>
                 <CategoryInput label="담당 강사" value={teacher} onChange={setTeacher} suggestions={uniqueTeachers} placeholder="직접 입력 (예: 김리액)"/>
                 <CategoryInput label="학생 연락처" value={studentPhone} onChange={setStudentPhone} suggestions={[]} placeholder="010-1234-5678" type="tel"/>
-                <CategoryInput label="학부모 연락처" value={guardianPhone} onChange={setGuardianPhone} suggestions={[]} placeholder="010-9876-5432" type="tel"/>
+                <CategoryInput 
+                    label="학부모 연락처" 
+                    value={guardianPhone} 
+                    onChange={setGuardianPhone} 
+                    suggestions={[]} 
+                    placeholder="010-9876-5432" 
+                    type="tel"
+                />
                 <CategoryInput label="학교명" value={schoolName} onChange={setSchoolName} suggestions={uniqueSchoolNames} placeholder="직접 입력 (예: OO고등학교)"/>
                 <CategoryInput label="수강료" value={tuition} onChange={setTuition} suggestions={uniqueTuitions} placeholder="직접 입력 (숫자만)" type="text"/>
 
@@ -112,7 +138,7 @@ const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuc
                     {addStudentStatus.isError && (
                         <p className="form-error-message">등록 실패: {addStudentStatus.error?.message}</p>
                     )}
-                    <button type="submit" className="submit-button" disabled={addStudentStatus.isPending || !name.trim()}>
+                    <button type="submit" className="submit-button" disabled={addStudentStatus.isPending || !name.trim() || !grade.trim() || !subject.trim()}>
                         {addStudentStatus.isPending ? '등록 중...' : '학생 등록하기'}
                     </button>
                 </div>

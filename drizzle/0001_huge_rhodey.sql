@@ -1,0 +1,1 @@
+ALTER TABLE "enrollments" ADD COLUMN "guardian_phone" text;

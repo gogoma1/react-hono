@@ -13,7 +13,7 @@ import { useProblemPublishingStore, type ProcessedProblem } from '../../features
 import LatexHelpPanel from '../../features/latex-help/ui/LatexHelpPanel';
 import JsonViewerPanel from '../../features/json-viewer/ui/JsonViewerPanel';
 import ExamTimerDisplay from '../../features/exam-timer-display/ui/ExamTimerDisplay';
-import SelectedStudentsPanel from '../../features/selected-students-viewer/ui/SelectedStudentsPanel'; // [핵심] 신규 패널 임포트
+import SelectedStudentsPanel from '../../features/selected-students-viewer/ui/SelectedStudentsPanel';
 
 const SettingsIcon = () => <LuSettings2 size={20} />;
 const CloseRightSidebarIcon = () => <LuChevronRight size={22} />;
@@ -23,7 +23,7 @@ const PromptIcon = () => <LuClipboardList size={20} />;
 const LatexHelpIcon = () => <LuBookMarked size={20} />;
 const SearchIcon = () => <LuSearch size={20} />;
 const JsonViewIcon = () => <LuFileJson2 size={20} />;
-const SelectedStudentsIcon = () => <LuUsers size={20} />; // [핵심] 신규 아이콘
+const SelectedStudentsIcon = () => <LuUsers size={20} />;
 
 interface ProblemEditorWrapperProps {
     isSaving?: boolean;
@@ -52,9 +52,12 @@ const SidebarContentRenderer: React.FC = () => {
         return null;
     }
 
+    // [수정됨] contentConfig.props를 구조분해 할당하여 사용
+    const { props } = contentConfig;
+
     switch(contentConfig.type) {
         case 'problemEditor': {
-            const { onSave, onRevert, onClose, onProblemChange, isSaving } = contentConfig.props || {};
+            const { onSave, onRevert, onClose, onProblemChange, isSaving } = props || {};
             const { editingProblemId } = useProblemPublishingStore.getState();
             if (!editingProblemId) return <div>선택된 문제가 없습니다.</div>;
             
@@ -69,12 +72,18 @@ const SidebarContentRenderer: React.FC = () => {
             );
         }
         case 'register':
-            return <StudentRegistrationForm onSuccess={pageActions.onClose || (() => {})} />;
+            // [수정됨] academyId가 있는지 명확하게 확인
+            if (!props?.academyId) {
+                return <div>학원 정보가 없어 학생을 등록할 수 없습니다.</div>;
+            }
+            return <StudentRegistrationForm onSuccess={pageActions.onClose || (() => {})} academyId={props.academyId} />;
         
         case 'edit': {
-            const { student } = contentConfig.props || {};
-            if (!student) return <div>학생 정보를 불러오는 중...</div>;
-            return <StudentEditForm student={student} onSuccess={pageActions.onClose || (() => {})} />;
+            // [수정됨] student와 academyId가 모두 있는지 명확하게 확인
+            if (!props?.student || !props?.academyId) {
+                return <div>수정할 학생 정보가 올바르지 않습니다.</div>;
+            }
+            return <StudentEditForm onSuccess={pageActions.onClose || (() => {})} student={props.student} academyId={props.academyId} />;
         }
 
         case 'settings': {
@@ -97,18 +106,16 @@ const SidebarContentRenderer: React.FC = () => {
         }
 
         case 'prompt':
-            return <PromptCollection {...(contentConfig.props as any)} />;
+            return <PromptCollection {...(props as any)} />;
         
         case 'latexHelp':
             return <LatexHelpPanel />;
             
         case 'jsonViewer': {
-            const { problems } = contentConfig.props || {};
-            if (!problems) return <div>JSON으로 변환할 데이터가 없습니다.</div>;
-            return <JsonViewerPanel problems={problems} />;
+            if (!props?.problems) return <div>JSON으로 변환할 데이터가 없습니다.</div>;
+            return <JsonViewerPanel problems={props.problems} />;
         }
         
-        // [핵심] '선택된 학생' 패널 렌더링 케이스 추가
         case 'selectedStudents':
             return <SelectedStudentsPanel />;
 
@@ -125,7 +132,7 @@ const SidebarContentRenderer: React.FC = () => {
 
 const GlassSidebarRight: React.FC = () => {
     const { contentConfig, isExtraWide } = useLayoutStore(selectRightSidebarConfig);
-    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, jsonViewTrigger, selectedStudentsTrigger, onClose } = useSidebarTriggers(); // [핵심]
+    const { registerTrigger, settingsTrigger, promptTrigger, latexHelpTrigger, searchTrigger, jsonViewTrigger, selectedStudentsTrigger, onClose } = useSidebarTriggers();
     const { mobileSidebarType, currentBreakpoint } = useUIStore();
     
     const isRightSidebarExpanded = contentConfig.type !== null;
@@ -172,7 +179,6 @@ const GlassSidebarRight: React.FC = () => {
                                 </Tippy>
                             )}
                             
-                            {/* [핵심] '선택된 학생' 버튼 추가 */}
                             {selectedStudentsTrigger && (
                                 <Tippy content={selectedStudentsTrigger.tooltip} placement="left" theme="custom-glass" animation="perspective" delay={[300, 0]}>
                                     <button

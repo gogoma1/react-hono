@@ -147,6 +147,7 @@ import {
     pgEnum,
     date,
     jsonb,
+    primaryKey,
 } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 
@@ -154,36 +155,68 @@ export const studentStatusEnum = pgEnum('student_status_enum', ['재원', '휴�
 export const examAssignmentStatusEnum = pgEnum('exam_assignment_status_enum', ['not_started', 'in_progress', 'completed', 'graded', 'expired']);
 
 
+/**
+ * 역할 정보 테이블 (신규)
+ * 시스템에 존재하는 모든 역할 목록을 관리합니다.
+ */
+export const rolesTable = pgTable("roles", {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    name: text("name").notNull().unique(), // 예: '원장', '강사', '학생', '학부모', '과외선생님'
+    description: text("description"),
+});
 
 /**
- * 사용자 프로필 테이블 (인증 시스템과 연동)
+ * 사용자 프로필 테이블 (수정)
+ * 역할(position) 컬럼을 제거하고, 순수 사용자 정보(이름, 전화번호 등)만 관리합니다.
  */
 export const profilesTable = pgTable("profiles", {
     id: uuid("id").primaryKey(), // Supabase auth.users.id 참조
     email: text("email").notNull().unique(),
     name: text("name").notNull(),
-    position: text("position").notNull(),
-    academy_name: text("academy_name").notNull(),
+    phone: text("phone"),
+    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+});
+
+/**
+ * 사용자-역할 연결 테이블 (신규, 다대다 관계)
+ */
+export const userRolesTable = pgTable("user_roles", {
+    user_id: uuid("user_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
+    role_id: uuid("role_id").notNull().references(() => rolesTable.id, { onDelete: 'cascade' }),
+}, (table) => ({
+    pk: primaryKey({ columns: [table.user_id, table.role_id] }),
+}));
+
+/**
+ * 학원 정보 테이블 (신규)
+ */
+export const academiesTable = pgTable("academies", {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    principal_id: uuid("principal_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }), // 원장 프로필 ID
+    name: text("name").notNull(),
     region: text("region").notNull(),
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
     updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
 
 /**
- * 학생 정보 테이블
+ * 학생 재원 정보 테이블 (신규)
+ * 기존 studentsTable을 대체하며, 한 학생이 여러 학원에 등록될 수 있도록 합니다.
  */
-export const studentsTable = pgTable("students", {
+export const enrollmentsTable = pgTable("enrollments", {
     id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
-    principal_id: uuid("principal_id").references(() => profilesTable.id, { onDelete: 'set null' }),
+    academy_id: uuid("academy_id").notNull().references(() => academiesTable.id, { onDelete: 'cascade' }),
+    student_profile_id: uuid("student_profile_id").references(() => profilesTable.id, { onDelete: 'set null' }).unique(),
     student_name: text("student_name").notNull(),
+    student_phone: text("student_phone"),
+    guardian_phone: text("guardian_phone"),
     grade: text("grade").notNull(),
-    status: studentStatusEnum("status").notNull(),
     subject: text("subject").notNull(),
+    status: studentStatusEnum("status").notNull(),
     tuition: integer("tuition"),
     admission_date: date("admission_date"),
     discharge_date: date("discharge_date"),
-    student_phone: text("student_phone"),
-    guardian_phone: text("guardian_phone"),
     school_name: text("school_name"),
     class_name: text("class_name"),
     teacher: text("teacher"),
@@ -192,24 +225,26 @@ export const studentsTable = pgTable("students", {
 });
 
 /**
- * 선생님이 생성한 개별 시험지 세트 정보 테이블
+ * 시험지 세트 정보 테이블
  */
 export const examSetsTable = pgTable("exam_sets", {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
     creator_id: uuid("creator_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
     title: text("title").notNull(),
-    problem_ids: jsonb("problem_ids").$type<string[]>().notNull(), // D1에 저장된 문제들의 ID 목록
-    header_info: jsonb("header_info"), //exam-header-title의 text 내용
+    problem_ids: jsonb("problem_ids").$type<string[]>().notNull(),
+    header_info: jsonb("header_info"),
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
 
 /**
- * 시험지 할당 정보 테이블 (학생과 시험지 세트 연결)
+ * 시험지 할당 정보 테이블
+ * [요청사항 반영] 학생을 식별할 때, 학원 재원 정보(enrollment) 대신 학생의 프로필(profile)을 직접 참조합니다.
+ * 이는 어떤 학원에 소속되어 있든, 학생의 통합 계정으로 시험을 관리하겠다는 의미입니다.
  */
 export const examAssignmentsTable = pgTable("exam_assignments", {
     id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     exam_set_id: uuid("exam_set_id").notNull().references(() => examSetsTable.id, { onDelete: 'cascade' }),
-    student_id: uuid("student_id").notNull().references(() => studentsTable.id, { onDelete: 'cascade' }),
+    student_id: uuid("student_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }), // 학생 프로필 ID 참조
     status: examAssignmentStatusEnum("status").default('not_started').notNull(),
     correct_rate: real("correct_rate"),
     total_pure_time_seconds: integer("total_pure_time_seconds"),
@@ -221,7 +256,7 @@ export const examAssignmentsTable = pgTable("exam_assignments", {
 }));
 
 /**
- * 사용자 구매 정보 테이블 (권한 관리용)
+ * [요청사항 반영] 사용자 구매 정보 테이블
  */
 export const userPurchaseTable = pgTable("user_purchase", {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -235,19 +270,53 @@ export const userPurchaseTable = pgTable("user_purchase", {
 });
 
 
-export const examAssignmentsRelations = relations(examAssignmentsTable, ({ one }) => ({
-    examSet: one(examSetsTable, {
-        fields: [examAssignmentsTable.exam_set_id],
-        references: [examSetsTable.id],
-    }),
-    student: one(studentsTable, {
-        fields: [examAssignmentsTable.student_id],
-        references: [studentsTable.id],
-    }),
+export const profileRelations = relations(profilesTable, ({ many }) => ({
+    userRoles: many(userRolesTable),
+    ownedAcademies: many(academiesTable, { relationName: 'ownedAcademies' }),
+    enrollmentsAsStudent: many(enrollmentsTable, { relationName: 'enrollmentsAsStudent' }),
+    examAssignments: many(examAssignmentsTable),
+    purchases: many(userPurchaseTable),
 }));
 
+export const roleRelations = relations(rolesTable, ({ many }) => ({
+    userRoles: many(userRolesTable),
+}));
+
+export const userRolesRelations = relations(userRolesTable, ({ one }) => ({
+    profile: one(profilesTable, { fields: [userRolesTable.user_id], references: [profilesTable.id] }),
+    role: one(rolesTable, { fields: [userRolesTable.role_id], references: [rolesTable.id] }),
+}));
+
+export const academyRelations = relations(academiesTable, ({ one, many }) => ({
+    principal: one(profilesTable, { fields: [academiesTable.principal_id], references: [profilesTable.id], relationName: 'ownedAcademies' }),
+    enrollments: many(enrollmentsTable),
+}));
+
+export const enrollmentRelations = relations(enrollmentsTable, ({ one }) => ({
+    academy: one(academiesTable, { fields: [enrollmentsTable.academy_id], references: [academiesTable.id] }),
+    studentProfile: one(profilesTable, { fields: [enrollmentsTable.student_profile_id], references: [profilesTable.id], relationName: 'enrollmentsAsStudent' }),
+}));
+
+export const examSetRelations = relations(examSetsTable, ({ one, many }) => ({
+    creator: one(profilesTable, { fields: [examSetsTable.creator_id], references: [profilesTable.id] }),
+    assignments: many(examAssignmentsTable),
+}));
+
+export const examAssignmentsRelations = relations(examAssignmentsTable, ({ one }) => ({
+    examSet: one(examSetsTable, { fields: [examAssignmentsTable.exam_set_id], references: [examSetsTable.id] }),
+    student: one(profilesTable, { fields: [examAssignmentsTable.student_id], references: [profilesTable.id] }),
+}));
+
+export const userPurchaseRelations = relations(userPurchaseTable, ({ one }) => ({
+    user: one(profilesTable, { fields: [userPurchaseTable.user_id], references: [profilesTable.id] }),
+}));
+
+
+export type DbRole = typeof rolesTable.$inferSelect;
 export type DbProfile = typeof profilesTable.$inferSelect;
-export type DbStudent = typeof studentsTable.$inferSelect;
+export type DbUserRole = typeof userRolesTable.$inferSelect;
+export type DbAcademy = typeof academiesTable.$inferSelect;
+export type DbEnrollment = typeof enrollmentsTable.$inferSelect;
 export type DbExamSet = typeof examSetsTable.$inferSelect;
 export type DbExamAssignment = typeof examAssignmentsTable.$inferSelect;
 export type DbUserPurchase = typeof userPurchaseTable.$inferSelect;
@@ -263,6 +332,7 @@ import problemRoutes from './routes/manage/problems';
 import r2ImageRoutes from './routes/r2/image';
 import examRoutes from './routes/exam/examlogs';
 import mobileExamRoutes from './routes/exam/exam.mobile';
+import academyRoutes from './routes/manage/academies';
 
 export type AppEnv = {
     Bindings: Env;
@@ -294,6 +364,7 @@ app.route('/manage/problems', problemRoutes);
 app.route('/r2', r2ImageRoutes);
 
 app.route('/exam', examRoutes);
+app.route('/academies', academyRoutes);
 
 app.route('/exam/mobile', mobileExamRoutes); 
 
@@ -315,9 +386,9 @@ import * as schema from '../../db/schema.pg';
 
 const publishExamSetSchema = z.object({
   title: z.string().min(1, '제목은 필수입니다.'),
-  problemIds: z.array(z.string()).min(1, '문제는 하나 이상 포함되어야 합니다.'),
-  studentIds: z.array(z.string().uuid()).min(1, '학생은 한 명 이상 선택되어야 합니다.'),
-  headerInfo: z.record(z.any()).nullable().optional(),
+  problem_ids: z.array(z.string()).min(1, '문제는 하나 이상 포함되어야 합니다.'),
+  student_ids: z.array(z.string().uuid()).min(1, '학생은 한 명 이상 선택되어야 합니다.'),
+  header_info: z.record(z.any()).nullable().optional(),
 });
 
 const mobileExamRoutes = new Hono<AppEnv>();
@@ -377,26 +448,26 @@ mobileExamRoutes.post(
         const [newExamSet] = await tx.insert(schema.examSetsTable).values({
           creator_id: user.id,
           title: body.title,
-          problem_ids: body.problemIds,
-          header_info: body.headerInfo,
+          problem_ids: body.problem_ids,
+          header_info: body.header_info,
         }).returning();
 
         if (!newExamSet) {
           throw new Error("시험지 세트 생성에 실패했습니다.");
         }
 
-        const assignments = body.studentIds.map(studentId => ({
+        const assignments = body.student_ids.map(studentId => ({
           exam_set_id: newExamSet.id,
           student_id: studentId,
         }));
         
         await tx.insert(schema.examAssignmentsTable).values(assignments);
 
-        return { examSetId: newExamSet.id, assignedCount: assignments.length };
+        return { exam_set_id: newExamSet.id, assigned_count: assignments.length };
       });
 
       return c.json({ 
-        message: `${result.assignedCount}명의 학생에게 시험지가 성공적으로 할당되었습니다.`,
+        message: `${result.assigned_count}명의 학생에게 시험지가 성공적으로 할당되었습니다.`,
         ...result 
       }, 201);
 
@@ -424,23 +495,23 @@ import * as schema from '../../db/schema.pg';
 
 const publishExamSetSchema = z.object({
   title: z.string().min(1, '제목은 필수입니다.'),
-  problemIds: z.array(z.string()).min(1, '문제는 하나 이상 포함되어야 합니다.'),
-  studentIds: z.array(z.string().uuid()).min(1, '학생은 한 명 이상 선택되어야 합니다.'),
-  headerInfo: z.record(z.any()).optional(),
+  problem_ids: z.array(z.string()).min(1, '문제는 하나 이상 포함되어야 합니다.'),
+  student_ids: z.array(z.string().uuid()).min(1, '학생은 한 명 이상 선택되어야 합니다.'),
+  header_info: z.record(z.any()).optional(),
 });
 
 const submitAssignmentSchema = z.object({
-  examStartTime: z.string().datetime(),
-  examEndTime: z.string().datetime(),
-  totalPureTimeSeconds: z.number().int().nonnegative(),
-  correctRate: z.number().min(0).max(100).nullable(),
-  problemLogs: z.array(z.object({
-    problemId: z.string(),
-    timeTakenSeconds: z.number().int().nonnegative(),
-    finalAnswer: z.any().optional(),
-    finalStatus: z.enum(['A', 'B', 'C', 'D']).optional(), 
-    isModified: z.boolean(),
-    answerHistory: z.array(z.any()),
+  exam_start_time: z.string().datetime(),
+  exam_end_time: z.string().datetime(),
+  total_pure_time_seconds: z.number().int().nonnegative(),
+  correct_rate: z.number().min(0).max(100).nullable(),
+  problem_logs: z.array(z.object({
+    problem_id: z.string(),
+    time_taken_seconds: z.number().int().nonnegative(),
+    final_answer: z.any().optional(),
+    final_status: z.enum(['A', 'B', 'C', 'D']).optional(), 
+    is_modified: z.boolean(),
+    answer_history: z.array(z.any()),
   })),
 });
 
@@ -465,26 +536,26 @@ examRoutes.post(
         const [newExamSet] = await tx.insert(schema.examSetsTable).values({
           creator_id: user.id,
           title: body.title,
-          problem_ids: body.problemIds,
-          header_info: body.headerInfo,
+          problem_ids: body.problem_ids,
+          header_info: body.header_info,
         }).returning();
 
         if (!newExamSet) {
           throw new Error("시험지 세트 생성에 실패했습니다.");
         }
 
-        const assignments = body.studentIds.map(studentId => ({
+        const assignments = body.student_ids.map(studentId => ({
           exam_set_id: newExamSet.id,
           student_id: studentId,
         }));
         
         await tx.insert(schema.examAssignmentsTable).values(assignments);
 
-        return { examSetId: newExamSet.id, assignedCount: assignments.length };
+        return { exam_set_id: newExamSet.id, assigned_count: assignments.length };
       });
 
       return c.json({ 
-        message: `${result.assignedCount}명의 학생에게 시험지가 성공적으로 할당되었습니다.`,
+        message: `${result.assigned_count}명의 학생에게 시험지가 성공적으로 할당되었습니다.`,
         ...result 
       }, 201);
 
@@ -521,11 +592,11 @@ examRoutes.post(
     try {
         const [updatedAssignment] = await db.update(schema.examAssignmentsTable)
             .set({
-                status: body.correctRate === null ? 'completed' : 'graded',
-                started_at: new Date(body.examStartTime),
-                completed_at: new Date(body.examEndTime),
-                total_pure_time_seconds: body.totalPureTimeSeconds,
-                correct_rate: body.correctRate,
+                status: body.correct_rate === null ? 'completed' : 'graded',
+                started_at: new Date(body.exam_start_time),
+                completed_at: new Date(body.exam_end_time),
+                total_pure_time_seconds: body.total_pure_time_seconds,
+                correct_rate: body.correct_rate,
             })
             .where(and(
                 eq(schema.examAssignmentsTable.id, assignmentId),
@@ -546,7 +617,7 @@ examRoutes.post(
 
     c.executionCtx.waitUntil((async () => {
         try {
-            const bucket = logBucket; // <- 미리 확인한 버킷 변수 사용
+            const bucket = logBucket;
 
             const now = new Date();
             const year = now.getUTCFullYear();
@@ -579,6 +650,47 @@ examRoutes.post(
 
 
 export default examRoutes;
+----- ./api/routes/manage/academies.ts -----
+import { Hono } from 'hono';
+import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { eq } from 'drizzle-orm';
+import type { AppEnv } from '../../index';
+import * as schema from '../../db/schema.pg';
+
+const academyRoutes = new Hono<AppEnv>();
+
+/**
+ * GET /my - 로그인한 원장이 소유한 학원 목록을 조회합니다.
+ * Supabase 미들웨어를 통해 인증된 사용자의 ID를 기반으로 동작합니다.
+ */
+academyRoutes.get('/my', async (c) => {
+    const user = c.get('user');
+
+    if (!user || !user.id) {
+        return c.json({ error: '인증 정보가 필요합니다.' }, 401);
+    }
+
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+        const myAcademies = await db.query.academiesTable.findMany({
+            where: eq(schema.academiesTable.principal_id, user.id),
+            orderBy: (academies, { asc }) => [asc(academies.created_at)],
+        });
+
+        return c.json(myAcademies);
+
+    } catch (error: any) {
+        console.error('Failed to fetch my academies:', error.message);
+        return c.json({ error: '내 학원 목록을 조회하는 중 오류가 발생했습니다.' }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
+export default academyRoutes;
 ----- ./api/routes/manage/problems.ts -----
 import { Hono } from 'hono';
 import { drizzle, DrizzleD1Database } from 'drizzle-orm/d1';
@@ -910,7 +1022,7 @@ export default problemRoutes;
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
@@ -918,196 +1030,268 @@ import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
 
 
-const createStudentBodySchema = z.object({
-  student_name: z.string().min(1),
-  grade: z.string().min(1),
+const enrollmentSchemaBase = z.object({
+  student_name: z.string().min(1, "학생 이름은 필수입니다."),
+  grade: z.string().min(1, "학년은 필수입니다."),
+  subject: z.string().min(1, "과목은 필수입니다."),
   status: z.enum(schema.studentStatusEnum.enumValues),
-  subject: z.string().min(1),
-  tuition: z.union([z.string(), z.number()]).transform(val => Number(val)).pipe(z.number().nonnegative()),
-  admission_date: z.string().nullable().optional(),
-  student_phone: z.string().nullable().optional(),
-  guardian_phone: z.string().nullable().optional(),
-  school_name: z.string().nullable().optional(),
-  class_name: z.string().nullable().optional(), // `class`는 예약어이므로 `class_name` 사용
-  teacher: z.string().nullable().optional(),
+  tuition: z.number().nonnegative().optional().nullable(),
+  admission_date: z.string().date("YYYY-MM-DD 형식의 날짜여야 합니다.").optional().nullable(),
+  student_phone: z.string().optional().nullable(),
+  school_name: z.string().optional().nullable(),
+  class_name: z.string().optional().nullable(),
+  teacher: z.string().optional().nullable(),
+  student_profile_id: z.string().uuid().optional().nullable(),
 });
-type CreateStudentInput = z.infer<typeof createStudentBodySchema>;
 
-const updateStudentBodySchema = createStudentBodySchema.partial().extend({
-    discharge_date: z.string().nullable().optional(),
+const createEnrollmentSchema = enrollmentSchemaBase.extend({
+    academy_id: z.string().uuid("유효한 학원 ID가 필요합니다."),
 });
-type UpdateStudentInput = z.infer<typeof updateStudentBodySchema>;
 
-const bulkUpdateStatusBodySchema = z.object({
-    ids: z.array(z.string().uuid()),
+const updateEnrollmentSchema = enrollmentSchemaBase.partial().extend({
+    discharge_date: z.string().date("YYYY-MM-DD 형식의 날짜여야 합니다.").optional().nullable(),
+});
+
+const bulkUpdateStatusSchema = z.object({
+    enrollment_ids: z.array(z.string().uuid()).min(1, "하나 이상의 ID가 필요합니다."),
     status: z.enum(schema.studentStatusEnum.enumValues),
+    academy_id: z.string().uuid("유효한 학원 ID가 필요합니다."), // 권한 확인용
 });
 
-const bulkDeleteBodySchema = z.object({
-    ids: z.array(z.string().uuid()),
+const bulkDeleteSchema = z.object({
+    enrollment_ids: z.array(z.string().uuid()).min(1, "하나 이상의 ID가 필요합니다."),
+    academy_id: z.string().uuid("유효한 학원 ID가 필요합니다."), // 권한 확인용
 });
-
 
 
 const studentRoutes = new Hono<AppEnv>();
 
-studentRoutes.get('/', async (c) => {
+
+/**
+ * GET /:academyId - 특정 학원의 모든 재원생 목록 조회
+ * 원장은 자신이 소유한 학원의 학생 목록만 조회할 수 있습니다.
+ */
+studentRoutes.get('/:academyId', async (c) => {
     const user = c.get('user')!;
+    const academyId = c.req.param('academyId');
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const db = drizzle(sql, { schema });
+
     try {
-        const students = await db.query.studentsTable.findMany({
-            where: eq(schema.studentsTable.principal_id, user.id),
-            orderBy: (students, { asc }) => [asc(students.student_name)],
+        const academy = await db.query.academiesTable.findFirst({
+            where: and(
+                eq(schema.academiesTable.id, academyId),
+                eq(schema.academiesTable.principal_id, user.id)
+            )
         });
-        return c.json(students);
+
+        if (!academy) {
+            return c.json({ error: '학원을 찾을 수 없거나 조회 권한이 없습니다.' }, 404);
+        }
+
+        const enrollments = await db.query.enrollmentsTable.findMany({
+            where: eq(schema.enrollmentsTable.academy_id, academyId),
+            orderBy: desc(schema.enrollmentsTable.created_at),
+        });
+        return c.json(enrollments);
     } catch (error: any) {
-        console.error('Failed to fetch students:', error.message);
-        return c.json({ error: 'Database query failed' }, 500);
+        console.error('Failed to fetch enrollments:', error.message);
+        return c.json({ error: '데이터베이스 조회에 실패했습니다.' }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }
 });
 
-studentRoutes.post('/', zValidator('json', createStudentBodySchema), async (c) => {
+/**
+ * POST / - 특정 학원에 새로운 재원생 등록
+ */
+studentRoutes.post('/', zValidator('json', createEnrollmentSchema), async (c) => {
     const user = c.get('user')!;
-    const validatedData = c.req.valid('json') as CreateStudentInput;
+    const { academy_id, ...enrollmentData } = c.req.valid('json');
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const db = drizzle(sql, { schema });
+
     try {
-        const [newStudent] = await db.insert(schema.studentsTable)
-            .values({ ...validatedData, principal_id: user.id })
+        const academy = await db.query.academiesTable.findFirst({
+            where: and(
+                eq(schema.academiesTable.id, academy_id),
+                eq(schema.academiesTable.principal_id, user.id)
+            )
+        });
+
+        if (!academy) {
+            return c.json({ error: '학생을 등록할 학원을 찾을 수 없거나 권한이 없습니다.' }, 403);
+        }
+
+        const [newEnrollment] = await db.insert(schema.enrollmentsTable)
+            .values({ ...enrollmentData, academy_id })
             .returning();
-        if (!newStudent) throw new Error('Student creation failed, no data returned.');
-        return c.json(newStudent, 201);
+            
+        return c.json(newEnrollment, 201);
     } catch (error: any) {
-        console.error('Failed to create student:', error.message);
-        return c.json({ error: 'Database query failed' }, 500);
+        console.error('Failed to create enrollment:', error.message);
+        return c.json({ error: '데이터베이스 오류로 학생 등록에 실패했습니다.' }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }
 });
 
-studentRoutes.post('/bulk-update-status', zValidator('json', bulkUpdateStatusBodySchema), async (c) => {
+/**
+ * PUT /:enrollmentId - 특정 재원생 정보 수정
+ */
+studentRoutes.put('/:enrollmentId', zValidator('json', updateEnrollmentSchema), async (c) => {
     const user = c.get('user')!;
-    const { ids, status } = c.req.valid('json');
-
-    if (!ids || ids.length === 0) {
-        return c.json({ error: 'No student IDs provided' }, 400);
+    const enrollmentId = c.req.param('enrollmentId');
+    const validatedData = c.req.valid('json');
+    
+    if (Object.keys(validatedData).length === 0) {
+        return c.json({ error: '수정할 내용이 없습니다.' }, 400);
     }
 
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const db = drizzle(sql, { schema });
 
     try {
-        const updatedStudents = await db.update(schema.studentsTable)
+        const enrollment = await db.query.enrollmentsTable.findFirst({
+            where: eq(schema.enrollmentsTable.id, enrollmentId),
+            with: { academy: { columns: { principal_id: true } } }
+        });
+
+        if (!enrollment || enrollment.academy.principal_id !== user.id) {
+            return c.json({ error: '수정할 학생 정보를 찾을 수 없거나 권한이 없습니다.' }, 404);
+        }
+
+        const [updatedEnrollment] = await db.update(schema.enrollmentsTable)
+            .set({ ...validatedData, updated_at: new Date() })
+            .where(eq(schema.enrollmentsTable.id, enrollmentId))
+            .returning();
+
+        return c.json(updatedEnrollment);
+    } catch (error: any) {
+        console.error(`Failed to update enrollment ${enrollmentId}:`, error);
+        return c.json({ error: '데이터베이스 오류로 업데이트에 실패했습니다.' }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
+
+/**
+ * DELETE /:enrollmentId - 특정 재원생 퇴원 처리 (Soft Delete)
+ */
+studentRoutes.delete('/:enrollmentId', async (c) => {
+    const user = c.get('user')!;
+    const enrollmentId = c.req.param('enrollmentId');
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+        const enrollment = await db.query.enrollmentsTable.findFirst({
+            where: eq(schema.enrollmentsTable.id, enrollmentId),
+            with: { academy: { columns: { principal_id: true } } }
+        });
+
+        if (!enrollment || enrollment.academy.principal_id !== user.id) {
+            return c.json({ error: '퇴원 처리할 학생 정보를 찾을 수 없거나 권한이 없습니다.' }, 404);
+        }
+
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const [softDeleted] = await db.update(schema.enrollmentsTable)
+            .set({ 
+                status: '퇴원', 
+                discharge_date: today,
+                updated_at: new Date() 
+            })
+            .where(eq(schema.enrollmentsTable.id, enrollmentId))
+            .returning({ id: schema.enrollmentsTable.id });
+
+        return c.json({ message: '퇴원 처리가 완료되었습니다.', id: softDeleted.id });
+
+    } catch (error: any) {
+        console.error(`Failed to soft-delete enrollment ${enrollmentId}:`, error);
+        return c.json({ error: '데이터베이스 오류가 발생했습니다.' }, 500);
+    } finally {
+        c.executionCtx.waitUntil(sql.end());
+    }
+});
+
+/**
+ * POST /bulk-update-status - 여러 재원생 상태 일괄 변경
+ */
+studentRoutes.post('/bulk-update-status', zValidator('json', bulkUpdateStatusSchema), async (c) => {
+    const user = c.get('user')!;
+    const { enrollment_ids, status, academy_id } = c.req.valid('json');
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
+
+    try {
+        const academy = await db.query.academiesTable.findFirst({
+            where: and(
+                eq(schema.academiesTable.id, academy_id),
+                eq(schema.academiesTable.principal_id, user.id)
+            )
+        });
+
+        if (!academy) {
+            return c.json({ error: '요청한 학원에 대한 권한이 없습니다.' }, 403);
+        }
+
+        const result = await db.update(schema.enrollmentsTable)
             .set({ status: status, updated_at: new Date() })
             .where(and(
-                inArray(schema.studentsTable.id, ids),
-                eq(schema.studentsTable.principal_id, user.id)
+                inArray(schema.enrollmentsTable.id, enrollment_ids),
+                eq(schema.enrollmentsTable.academy_id, academy_id) // 재확인
             ))
             .returning();
-
-        return c.json(updatedStudents);
+        
+        return c.json({ message: `${result.length}명의 학생 상태가 변경되었습니다.`, updated: result });
     } catch (error: any) {
-        console.error('Failed to bulk update student status:', error.message);
-        return c.json({ error: 'Database query failed' }, 500);
+        console.error('Failed to bulk update student status:', error);
+        return c.json({ error: '데이터베이스 오류가 발생했습니다.' }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }
 });
 
-studentRoutes.post('/bulk-delete', zValidator('json', bulkDeleteBodySchema), async (c) => {
+
+/**
+ * POST /bulk-delete - 여러 재원생 일괄 퇴원 처리 (Soft Delete)
+ */
+studentRoutes.post('/bulk-delete', zValidator('json', bulkDeleteSchema), async (c) => {
     const user = c.get('user')!;
-    const { ids } = c.req.valid('json');
+    const { enrollment_ids, academy_id } = c.req.valid('json');
+    const sql = postgres(c.env.HYPERDRIVE.connectionString);
+    const db = drizzle(sql, { schema });
     
-    if (!ids || ids.length === 0) {
-        return c.json({ error: 'No student IDs provided' }, 400);
-    }
-
-    const sql = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sql, { schema });
-
     try {
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
-        const deletedStudents = await db.update(schema.studentsTable)
+        const academy = await db.query.academiesTable.findFirst({
+            where: and(
+                eq(schema.academiesTable.id, academy_id),
+                eq(schema.academiesTable.principal_id, user.id)
+            )
+        });
+
+        if (!academy) {
+            return c.json({ error: '요청한 학원에 대한 권한이 없습니다.' }, 403);
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        const result = await db.update(schema.enrollmentsTable)
             .set({ 
                 status: '퇴원', 
                 discharge_date: today,
                 updated_at: new Date() 
             })
             .where(and(
-                inArray(schema.studentsTable.id, ids),
-                eq(schema.studentsTable.principal_id, user.id)
+                inArray(schema.enrollmentsTable.id, enrollment_ids),
+                eq(schema.enrollmentsTable.academy_id, academy_id)
             ))
-            .returning({ id: schema.studentsTable.id });
+            .returning({ id: schema.enrollmentsTable.id });
             
-        return c.json({ message: 'Students marked as deleted successfully', deletedIds: deletedStudents.map(s => s.id) });
+        return c.json({ message: `${result.length}명의 학생이 퇴원 처리되었습니다.`, deletedIds: result.map(s => s.id) });
     } catch (error: any) {
-        console.error('Failed to bulk delete students:', error.message);
-        return c.json({ error: 'Database query failed' }, 500);
-    } finally {
-        c.executionCtx.waitUntil(sql.end());
-    }
-});
-
-studentRoutes.put('/:id', zValidator('json', updateStudentBodySchema), async (c) => {
-    const user = c.get('user')!;
-    const studentId = c.req.param('id');
-    const validatedData = c.req.valid('json') as UpdateStudentInput;
-    if (Object.keys(validatedData).length === 0) {
-        return c.json({ error: 'No fields to update' }, 400);
-    }
-    const sql = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sql, { schema });
-    try {
-        const [updatedStudent] = await db.update(schema.studentsTable)
-            .set({ ...validatedData, updated_at: new Date() })
-            .where(and(
-                eq(schema.studentsTable.id, studentId),
-                eq(schema.studentsTable.principal_id, user.id)
-            ))
-            .returning();
-        if (!updatedStudent) {
-            return c.json({ error: 'Student not found or not authorized to update' }, 404);
-        }
-        return c.json(updatedStudent);
-    } catch (error: any) {
-        console.error('Failed to update student:', error.message);
-        return c.json({ error: 'Database query failed' }, 500);
-    } finally {
-        c.executionCtx.waitUntil(sql.end());
-    }
-});
-
-studentRoutes.delete('/:id', async (c) => {
-    const user = c.get('user')!;
-    const studentId = c.req.param('id');
-    const sql = postgres(c.env.HYPERDRIVE.connectionString);
-    const db = drizzle(sql, { schema });
-    try {
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
-
-        const [softDeletedStudent] = await db.update(schema.studentsTable)
-            .set({ 
-                status: '퇴원', 
-                discharge_date: today,
-                updated_at: new Date() 
-            })
-            .where(and(
-                eq(schema.studentsTable.id, studentId),
-                eq(schema.studentsTable.principal_id, user.id)
-            ))
-            .returning({ id: schema.studentsTable.id });
-
-        if (!softDeletedStudent) {
-            return c.json({ error: 'Student not found or not authorized to delete' }, 404);
-        }
-        return c.json({ message: 'Student deleted successfully', id: softDeletedStudent.id });
-
-    } catch (error: any) {
-        console.error('Failed to soft delete student:', error.message);
-        return c.json({ error: 'Database query failed' }, 500);
+        console.error('Failed to bulk delete students:', error);
+        return c.json({ error: '데이터베이스 오류가 발생했습니다.' }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }
@@ -1176,40 +1360,43 @@ export const supabaseMiddleware = (): MiddlewareHandler => {
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq } from 'drizzle-orm'; // [수정] sql 임포트 제거
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
 import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
 
-const POSITIONS = ['학생', '원장', '강사', '학부모'] as const;
-
 const profileSetupSchema = z.object({
   name: z.string().min(1, "이름은 필수 항목입니다.").max(100),
-  position: z.enum(POSITIONS),
-  academyName: z.string().min(1, "학원 이름은 필수 항목입니다.").max(150),
-  region: z.string().min(1, "지역은 필수 항목입니다.").max(100),
+  phone: z.string().optional(),
+  role_name: z.enum(['원장', '학생', '강사', '학부모', '과외 선생님']), 
+  academy_name: z.string().optional(),
+  region: z.string().optional(),
+}).refine(data => {
+    if (data.role_name === '원장') {
+        return !!data.academy_name && !!data.region;
+    }
+    return true;
+}, {
+    message: "원장으로 가입 시 학원 이름과 지역은 필수입니다.",
+    path: ["academy_name", "region"],
 });
 
-
 const profileRoutes = new Hono<AppEnv>();
-
 
 profileRoutes.get('/academies', async (c) => {
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const db = drizzle(sql, { schema });
 
     try {
-        const academies = await db
-            .selectDistinct({
-                academyName: schema.profilesTable.academy_name,
-                region: schema.profilesTable.region,
-            })
-            .from(schema.profilesTable)
-            .where(eq(schema.profilesTable.position, '원장'));
-        
-        academies.sort((a, b) => a.academyName.localeCompare(b.academyName));
+        const academies = await db.select({
+            id: schema.academiesTable.id,
+            name: schema.academiesTable.name,
+            region: schema.academiesTable.region,
+        })
+        .from(schema.academiesTable)
+        .orderBy(schema.academiesTable.name);
         
         return c.json(academies);
 
@@ -1220,7 +1407,6 @@ profileRoutes.get('/academies', async (c) => {
         c.executionCtx.waitUntil(sql.end());
     }
 });
-
 
 profileRoutes.get('/exists', async (c) => {
     const user = c.get('user');
@@ -1244,60 +1430,79 @@ profileRoutes.get('/exists', async (c) => {
     } finally {
       c.executionCtx.waitUntil(sql.end());
     }
-  });
+});
   
-  
-  profileRoutes.post(
+profileRoutes.post(
     '/setup',
-    zValidator('json', profileSetupSchema, (result, c) => {
-      if (!result.success) {
-        console.error('Validation failed:', result.error.flatten());
-        return c.json({ error: 'Invalid input', details: result.error.flatten().fieldErrors }, 400);
-      }
-    }),
+    zValidator('json', profileSetupSchema),
     async (c) => {
-      const user = c.get('user');
-      const { name, position, academyName, region } = c.req.valid('json');
-  
-      if (!user?.id || !user?.email) {
-        return c.json({ error: 'Authentication required' }, 401);
-      }
-      
-      const sql = postgres(c.env.HYPERDRIVE.connectionString);
-      const db = drizzle(sql, { schema });
-  
-      try {
-        const newProfile = await db.insert(schema.profilesTable).values({
-          id: user.id,
-          email: user.email,
-          name: name,
-          position: position,
-          academy_name: academyName,
-          region: region,
-        })
-        .returning({
-          insertedId: schema.profilesTable.id 
-        });
-  
-        if (newProfile.length === 0) {
-          throw new Error('Profile insertion failed, no data returned.');
+        const user = c.get('user');
+        const { name, phone, role_name, academy_name, region } = c.req.valid('json'); // [수정됨]
+
+        if (!user?.id || !user?.email) {
+            return c.json({ error: '인증이 필요합니다.' }, 401);
         }
         
-        console.log(`New profile created for user: ${newProfile[0].insertedId}`);
-  
-        return c.json({ success: true, profileId: newProfile[0].insertedId }, 201);
-  
-      } catch (error: any) {
-        console.error('Failed to create profile:', error.message);
-        if (error.code === '23505') {
-          return c.json({ error: 'Profile for this user already exists.' }, 409);
+        const sql = postgres(c.env.HYPERDRIVE.connectionString);
+        const db = drizzle(sql, { schema });
+
+        try {
+            const result = await db.transaction(async (tx) => {
+                const existingProfile = await tx.query.profilesTable.findFirst({
+                    where: eq(schema.profilesTable.id, user.id)
+                });
+
+                if (existingProfile) {
+                    throw new Error('Profile for this user already exists.');
+                }
+                
+                const [newProfile] = await tx.insert(schema.profilesTable).values({
+                    id: user.id,
+                    email: user.email!,
+                    name: name,
+                    phone: phone,
+                }).returning();
+
+                const role = await tx.query.rolesTable.findFirst({
+                    where: eq(schema.rolesTable.name, role_name) // [수정됨]
+                });
+
+                if (!role) {
+                    throw new Error(`'${role_name}' 역할을 찾을 수 없습니다. DB에 역할이 미리 등록되어 있어야 합니다.`); // [수정됨]
+                }
+
+                await tx.insert(schema.userRolesTable).values({
+                    user_id: newProfile.id,
+                    role_id: role.id,
+                });
+
+                if (role_name === '원장') { // [수정됨]
+                    if (!academy_name || !region) { // [수정됨]
+                         throw new Error('원장은 학원 이름과 지역 정보가 필수입니다.');
+                    }
+                    await tx.insert(schema.academiesTable).values({
+                        name: academy_name, // [수정됨]
+                        region: region,
+                        principal_id: newProfile.id,
+                    });
+                }
+                
+                return { profileId: newProfile.id };
+            });
+
+            return c.json({ success: true, ...result }, 201);
+
+        } catch (error: any) {
+            console.error('Failed to create profile:', error.message);
+            if (error.message.includes('already exists')) {
+                return c.json({ error: '이미 존재하는 프로필입니다.' }, 409);
+            }
+            return c.json({ error: '프로필 생성 중 데이터베이스 오류가 발생했습니다.', details: error.message }, 500);
+        } finally {
+            c.executionCtx.waitUntil(sql.end());
         }
-        return c.json({ error: 'Database query failed' }, 500);
-      } finally {
-        c.executionCtx.waitUntil(sql.end());
-      }
     }
-  );
+);
 
 export default profileRoutes;
 ----- ./api/routes/r2/image.ts -----

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useAcademiesQuery } from '../../../entities/academy/model/useAcademiesQuery';
+// [수정됨] useAllAcademiesQuery로 이름이 변경되었습니다.
+import { useAllAcademiesQuery } from '../../../entities/academy/model/useAcademiesQuery';
 import type { Academy } from '../../../entities/academy/model/types';
 import { LuSearch, LuChevronDown } from 'react-icons/lu';
 import './AcademySearch.css';
@@ -13,13 +14,15 @@ export const AcademySearch: React.FC<AcademySearchProps> = ({ onAcademySelect })
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const { data: academies = [], isLoading: isLoadingAcademies } = useAcademiesQuery();
+    // [수정됨] useAcademiesQuery -> useAllAcademiesQuery
+    const { data: academies = [], isLoading: isLoadingAcademies } = useAllAcademiesQuery();
 
     const filteredAcademies = useMemo(() => {
         if (!searchTerm.trim()) return academies;
         const lowercasedTerm = searchTerm.toLowerCase();
+        // [수정됨] academy.academyName -> academy.name
         return academies.filter(academy =>
-            academy.academyName.toLowerCase().includes(lowercasedTerm) ||
+            academy.name.toLowerCase().includes(lowercasedTerm) ||
             academy.region.toLowerCase().includes(lowercasedTerm)
         );
     }, [academies, searchTerm]);
@@ -41,7 +44,6 @@ export const AcademySearch: React.FC<AcademySearchProps> = ({ onAcademySelect })
     }, []);
 
     return (
-        // [핵심] 이 form-group이 드롭다운의 위치 기준점이 됩니다.
         <div className="form-group academy-search-container" ref={dropdownRef}>
             <label htmlFor="academySearch" className="form-label">학원 검색</label>
             <div className="academy-search-wrapper">
@@ -62,13 +64,13 @@ export const AcademySearch: React.FC<AcademySearchProps> = ({ onAcademySelect })
                 </button>
             </div>
             
-            {/* [핵심] 드롭다운 목록을 wrapper 밖으로 이동시켜서 위치를 독립적으로 제어합니다. */}
             {isDropdownOpen && (
                 <ul className="academy-dropdown-list">
                     {filteredAcademies.length > 0 ? (
                         filteredAcademies.map(academy => (
-                            <li key={academy.academyName + academy.region} onClick={() => handleSelect(academy)}>
-                                <strong>{academy.academyName}</strong>
+                            // [수정됨] key와 표시되는 이름 모두 academy.name 사용
+                            <li key={academy.name + academy.region} onClick={() => handleSelect(academy)}>
+                                <strong>{academy.name}</strong>
                                 <span>{academy.region}</span>
                             </li>
                         ))
