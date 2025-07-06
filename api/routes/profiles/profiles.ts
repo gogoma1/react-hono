@@ -1,14 +1,13 @@
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq, and } from 'drizzle-orm'; // [수정] and 임포트
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
 import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
 
-// [수정] 강사, 학부모, 학생 모두 academy_id를 필수로 받도록 스키마 수정
 const profileSetupSchema = z.object({
   name: z.string().min(1, "이름은 필수 항목입니다.").max(100),
   phone: z.string().optional(),
@@ -20,7 +19,6 @@ const profileSetupSchema = z.object({
     if (data.role_name === '원장') {
         return !!data.academy_name && !!data.region;
     }
-    // [수정] 강사, 학생, 학부모 역할일 때 academy_id가 필수임을 검증
     if (['강사', '학생', '학부모'].includes(data.role_name)) {
         return !!data.academy_id;
     }
@@ -38,13 +36,15 @@ profileRoutes.get('/academies', async (c) => {
 
     try {
         const academies = await db.query.academiesTable.findMany({
+            where: eq(schema.academiesTable.status, '운영중'),
             orderBy: (academies, { asc }) => [asc(academies.name)],
         });
         
         const result = academies.map(a => ({
             id: a.id,
             name: a.name,
-            region: a.region
+            region: a.region,
+            status: a.status,
         }));
         
         return c.json(result);
@@ -95,6 +95,9 @@ profileRoutes.post(
         const sql = postgres(c.env.HYPERDRIVE.connectionString);
         const db = drizzle(sql, { schema });
 
+        // [핵심] API가 받은 전화번호를 DB와 비교하기 전에 항상 정제(sanitize)합니다.
+        const sanitizedPhone = phone ? phone.replace(/-/g, '') : undefined;
+
         try {
             const result = await db.transaction(async (tx) => {
                 const existingProfile = await tx.query.profilesTable.findFirst({
@@ -105,11 +108,30 @@ profileRoutes.post(
                     throw new Error('Profile for this user already exists.');
                 }
                 
+                let enrollmentRecord: schema.DbEnrollment | undefined;
+                if (['학생', '강사', '학부모'].includes(role_name)) {
+                    if (!academy_id || !sanitizedPhone) {
+                        throw new Error("학원 소속원은 학원 ID와 전화번호가 모두 필요합니다.");
+                    }
+
+                    enrollmentRecord = await tx.query.enrollmentsTable.findFirst({
+                        where: and(
+                            eq(schema.enrollmentsTable.academy_id, academy_id),
+                            eq(schema.enrollmentsTable.student_phone, sanitizedPhone)
+                        )
+                    });
+
+                    if (!enrollmentRecord) {
+                        // 이 에러는 catch 블록에서 잡아서 404로 변환됩니다.
+                        throw new Error('Enrollment not found'); 
+                    }
+                }
+                
                 const [newProfile] = await tx.insert(schema.profilesTable).values({
                     id: user.id,
                     email: user.email!,
                     name: name,
-                    phone: phone,
+                    phone: sanitizedPhone, // DB에는 정제된 번호를 저장합니다.
                 }).returning();
 
                 const role = await tx.query.rolesTable.findFirst({
@@ -117,7 +139,7 @@ profileRoutes.post(
                 });
 
                 if (!role) {
-                    throw new Error(`'${role_name}' 역할을 찾을 수 없습니다. DB에 역할이 미리 등록되어 있어야 합니다.`);
+                    throw new Error(`'${role_name}' 역할을 찾을 수 없습니다.`);
                 }
 
                 await tx.insert(schema.userRolesTable).values({
@@ -133,21 +155,17 @@ profileRoutes.post(
                         name: academy_name,
                         region: region,
                         principal_id: newProfile.id,
+                        status: '운영중',
                     });
                 }
                 
-                // [수정] 강사, 학부모는 아직 학원과 직접적인 DB 연결 테이블이 없으므로 학생만 처리합니다.
-                // 이 부분은 향후 강사/학부모 관리 기능이 추가되면 확장해야 합니다.
-                if (role_name === '학생' && academy_id) {
-                    await tx.insert(schema.enrollmentsTable).values({
-                        academy_id: academy_id,
-                        student_profile_id: newProfile.id,
-                        student_name: newProfile.name,
-                        student_phone: newProfile.phone,
-                        grade: '미지정',
-                        subject: '미지정',
-                        status: '재원',
-                    });
+                if (['학생', '강사', '학부모'].includes(role_name) && enrollmentRecord) {
+                    await tx.update(schema.enrollmentsTable)
+                        .set({
+                            student_profile_id: newProfile.id,
+                            updated_at: new Date()
+                        })
+                        .where(eq(schema.enrollmentsTable.id, enrollmentRecord.id));
                 }
                 
                 return { profileId: newProfile.id };
@@ -157,6 +175,10 @@ profileRoutes.post(
 
         } catch (error: any) {
             console.error('Failed to create profile:', error.message);
+
+            if (error.message === 'Enrollment not found') {
+                return c.json({ error: 'Enrollment not found' }, 404);
+            }
             if (error.message.includes('already exists')) {
                 return c.json({ error: '이미 존재하는 프로필입니다.' }, 409);
             }

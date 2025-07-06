@@ -153,6 +153,7 @@ import { sql, relations } from "drizzle-orm";
 
 export const studentStatusEnum = pgEnum('student_status_enum', ['재원', '휴원', '퇴원']);
 export const examAssignmentStatusEnum = pgEnum('exam_assignment_status_enum', ['not_started', 'in_progress', 'completed', 'graded', 'expired']);
+export const academyStatusEnum = pgEnum('academy_status_enum', ['운영중', '휴업', '폐업']);
 
 
 /**
@@ -196,6 +197,7 @@ export const academiesTable = pgTable("academies", {
     principal_id: uuid("principal_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }), // 원장 프로필 ID
     name: text("name").notNull(),
     region: text("region").notNull(),
+    status: academyStatusEnum("status").default('운영중').notNull(),
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
     updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
@@ -1360,7 +1362,7 @@ export const supabaseMiddleware = (): MiddlewareHandler => {
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
@@ -1373,14 +1375,18 @@ const profileSetupSchema = z.object({
   role_name: z.enum(['원장', '학생', '강사', '학부모', '과외 선생님']), 
   academy_name: z.string().optional(),
   region: z.string().optional(),
+  academy_id: z.string().uuid().optional(),
 }).refine(data => {
     if (data.role_name === '원장') {
         return !!data.academy_name && !!data.region;
     }
+    if (['강사', '학생', '학부모'].includes(data.role_name)) {
+        return !!data.academy_id;
+    }
     return true;
 }, {
-    message: "원장으로 가입 시 학원 이름과 지역은 필수입니다.",
-    path: ["academy_name", "region"],
+    message: "원장은 학원/지역, 그 외 학원 소속원은 학원 ID가 필수입니다.",
+    path: ["academy_name", "region", "academy_id"],
 });
 
 const profileRoutes = new Hono<AppEnv>();
@@ -1390,15 +1396,19 @@ profileRoutes.get('/academies', async (c) => {
     const db = drizzle(sql, { schema });
 
     try {
-        const academies = await db.select({
-            id: schema.academiesTable.id,
-            name: schema.academiesTable.name,
-            region: schema.academiesTable.region,
-        })
-        .from(schema.academiesTable)
-        .orderBy(schema.academiesTable.name);
+        const academies = await db.query.academiesTable.findMany({
+            where: eq(schema.academiesTable.status, '운영중'),
+            orderBy: (academies, { asc }) => [asc(academies.name)],
+        });
         
-        return c.json(academies);
+        const result = academies.map(a => ({
+            id: a.id,
+            name: a.name,
+            region: a.region,
+            status: a.status,
+        }));
+        
+        return c.json(result);
 
     } catch (error: any) {
         console.error('Failed to fetch academies:', error.message);
@@ -1437,7 +1447,7 @@ profileRoutes.post(
     zValidator('json', profileSetupSchema),
     async (c) => {
         const user = c.get('user');
-        const { name, phone, role_name, academy_name, region } = c.req.valid('json'); // [수정됨]
+        const { name, phone, role_name, academy_name, region, academy_id } = c.req.valid('json');
 
         if (!user?.id || !user?.email) {
             return c.json({ error: '인증이 필요합니다.' }, 401);
@@ -1445,6 +1455,8 @@ profileRoutes.post(
         
         const sql = postgres(c.env.HYPERDRIVE.connectionString);
         const db = drizzle(sql, { schema });
+
+        const sanitizedPhone = phone ? phone.replace(/-/g, '') : undefined;
 
         try {
             const result = await db.transaction(async (tx) => {
@@ -1456,19 +1468,37 @@ profileRoutes.post(
                     throw new Error('Profile for this user already exists.');
                 }
                 
+                let enrollmentRecord: schema.DbEnrollment | undefined;
+                if (['학생', '강사', '학부모'].includes(role_name)) {
+                    if (!academy_id || !sanitizedPhone) {
+                        throw new Error("학원 소속원은 학원 ID와 전화번호가 모두 필요합니다.");
+                    }
+
+                    enrollmentRecord = await tx.query.enrollmentsTable.findFirst({
+                        where: and(
+                            eq(schema.enrollmentsTable.academy_id, academy_id),
+                            eq(schema.enrollmentsTable.student_phone, sanitizedPhone)
+                        )
+                    });
+
+                    if (!enrollmentRecord) {
+                        throw new Error('Enrollment not found'); 
+                    }
+                }
+                
                 const [newProfile] = await tx.insert(schema.profilesTable).values({
                     id: user.id,
                     email: user.email!,
                     name: name,
-                    phone: phone,
+                    phone: sanitizedPhone, // DB에는 정제된 번호를 저장합니다.
                 }).returning();
 
                 const role = await tx.query.rolesTable.findFirst({
-                    where: eq(schema.rolesTable.name, role_name) // [수정됨]
+                    where: eq(schema.rolesTable.name, role_name)
                 });
 
                 if (!role) {
-                    throw new Error(`'${role_name}' 역할을 찾을 수 없습니다. DB에 역할이 미리 등록되어 있어야 합니다.`); // [수정됨]
+                    throw new Error(`'${role_name}' 역할을 찾을 수 없습니다.`);
                 }
 
                 await tx.insert(schema.userRolesTable).values({
@@ -1476,15 +1506,25 @@ profileRoutes.post(
                     role_id: role.id,
                 });
 
-                if (role_name === '원장') { // [수정됨]
-                    if (!academy_name || !region) { // [수정됨]
+                if (role_name === '원장') {
+                    if (!academy_name || !region) {
                          throw new Error('원장은 학원 이름과 지역 정보가 필수입니다.');
                     }
                     await tx.insert(schema.academiesTable).values({
-                        name: academy_name, // [수정됨]
+                        name: academy_name,
                         region: region,
                         principal_id: newProfile.id,
+                        status: '운영중',
                     });
+                }
+                
+                if (['학생', '강사', '학부모'].includes(role_name) && enrollmentRecord) {
+                    await tx.update(schema.enrollmentsTable)
+                        .set({
+                            student_profile_id: newProfile.id,
+                            updated_at: new Date()
+                        })
+                        .where(eq(schema.enrollmentsTable.id, enrollmentRecord.id));
                 }
                 
                 return { profileId: newProfile.id };
@@ -1494,6 +1534,10 @@ profileRoutes.post(
 
         } catch (error: any) {
             console.error('Failed to create profile:', error.message);
+
+            if (error.message === 'Enrollment not found') {
+                return c.json({ error: 'Enrollment not found' }, 404);
+            }
             if (error.message.includes('already exists')) {
                 return c.json({ error: '이미 존재하는 프로필입니다.' }, 409);
             }

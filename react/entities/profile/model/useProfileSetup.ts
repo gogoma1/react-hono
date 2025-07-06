@@ -75,6 +75,10 @@ export const useProfileSetup = () => {
     }, [name, phone, selectedPosition, academyName, selectedCity, selectedDistrict, selectedAcademy, needsAcademySelection]);
 
     const scrollToBottom = useCallback(() => {
+        // --- [핵심 수정] ---
+        // 지연 시간을 100ms에서 160ms로 늘립니다.
+        // 이는 입력 필드에 포커스를 주는 시간(150ms)보다 약간 길게 설정하여
+        // 새로운 UI가 완전히 렌더링되고 자리를 잡은 후에 스크롤이 실행되도록 보장합니다.
         setTimeout(() => {
             if (containerRef.current) {
                 containerRef.current.scrollTo({
@@ -82,30 +86,33 @@ export const useProfileSetup = () => {
                     behavior: 'smooth',
                 });
             }
-        }, 100);
+        }, 160);
     }, []);
+
+    useEffect(() => {
+        if (step > 1) {
+            scrollToBottom();
+        }
+    }, [step, selectedPosition, selectedAcademy, selectedCity, selectedDistrict, scrollToBottom]);
+
 
     const handleNextStep = useCallback((nextStep: number) => {
         const newErrors: ValidationErrors = {};
         if (nextStep > 2 && !name.trim()) {
             newErrors.name = "이름을 입력해주세요";
+            return;
         }
         
         const phoneRegex = /^[0-9]{3}-[0-9]{3,4}-[0-9]{4}$/;
         if (nextStep > 3 && !phoneRegex.test(phone)) {
             newErrors.phone = "올바른 전화번호를 입력해주세요";
-        }
-
-        setValidationErrors(newErrors);
-
-        if (Object.keys(newErrors).length > 0) {
             return;
         }
 
+        setValidationErrors(newErrors);
         setStep(nextStep);
         setEditingField(null);
-        scrollToBottom();
-    }, [name, phone, scrollToBottom]);
+    }, [name, phone]);
 
     useEffect(() => {
         const focusTimeout = setTimeout(() => {
@@ -130,8 +137,7 @@ export const useProfileSetup = () => {
     const handlePositionSelect = useCallback((position: PositionType) => {
         setSelectedPosition(position);
         setStep(2);
-        scrollToBottom();
-    }, [scrollToBottom]);
+    }, []);
 
     const handleNameSubmit = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
@@ -140,7 +146,6 @@ export const useProfileSetup = () => {
         }
     }, [handleNextStep]);
     
-    // [핵심 최종 수정] 전화번호 하이픈 자동 입력 로직
     const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const numbers = e.target.value.replace(/[^0-9]/g, "");
 
@@ -149,19 +154,15 @@ export const useProfileSetup = () => {
         } else if (numbers.length <= 7) {
             const middle = numbers.slice(3);
             let formatted = `010-${middle}`;
-            // 중간 4자리가 모두 입력되면 바로 하이픈 추가
-            if (middle.length === 4) {
-                formatted += '-';
-            }
+            if (middle.length === 4) formatted += '-';
             setPhone(formatted);
-        } else { // 8자리 이상 입력 시
+        } else {
             const middle = numbers.slice(3, 7);
             const end = numbers.slice(7, 11);
             setPhone(`010-${middle}-${end}`);
         }
         setValidationErrors(prev => ({...prev, phone: undefined }));
     }, []);
-
 
     const handlePhoneSubmit = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
@@ -173,8 +174,8 @@ export const useProfileSetup = () => {
     const handleAcademySelect = useCallback((academy: Academy) => {
         setSelectedAcademy(academy);
         setValidationErrors(prev => ({ ...prev, academy: undefined }));
-        scrollToBottom();
-    }, [scrollToBottom]);
+        setApiErrorMessage('');
+    }, []);
 
     const handleReset = useCallback(() => {
         setStep(1);
@@ -192,6 +193,7 @@ export const useProfileSetup = () => {
 
     const handleSaveProfile = useCallback(async (event: React.FormEvent) => {
         event.preventDefault();
+        setApiErrorMessage('');
 
         const newErrors: ValidationErrors = {};
         if (!name.trim()) newErrors.name = '이름을 입력해주세요';
@@ -206,11 +208,11 @@ export const useProfileSetup = () => {
         }
 
         setIsSubmitting(true);
-        setApiErrorMessage('');
+        const sanitizedPhone = phone.replace(/-/g, '');
 
         const payload: ProfileSetupPayload = {
             name,
-            phone,
+            phone: sanitizedPhone,
             role_name: selectedPosition,
         };
         
@@ -234,7 +236,10 @@ export const useProfileSetup = () => {
                 navigate('/dashboard', { replace: true });
             } else {
                 const data = await response.json();
-                setApiErrorMessage(data.error || '프로필 저장에 실패했습니다. 관리자에게 문의하세요.');
+                const friendlyMessage = data.error === 'Enrollment not found' 
+                    ? `선택하신 학원에 회원님의 전화번호(${phone})로 등록된 정보가 없습니다. 학원을 다시 선택하시거나, 담당 선생님께 문의하여 등록을 요청해주세요.`
+                    : data.error || '프로필 저장에 실패했습니다. 관리자에게 문의하세요.';
+                setApiErrorMessage(friendlyMessage);
             }
         } catch (error) {
             setApiErrorMessage('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
@@ -242,52 +247,15 @@ export const useProfileSetup = () => {
             setIsSubmitting(false);
         }
     }, [isFormComplete, user, selectedPosition, isSubmitting, name, phone, academyName, selectedCity, selectedDistrict, selectedAcademy, navigate, needsAcademySelection]);
-
-    useEffect(() => {
-        if (selectedCity || selectedDistrict) {
-            scrollToBottom();
-        }
-    }, [selectedCity, selectedDistrict, scrollToBottom]);
     
     return {
-        // Ref
-        containerRef,
-        nameInputRef,
-        phoneInputRef,
-        academyNameInputRef,
-        academySearchInputRef,
-        // 상태
-        isLoadingAuth,
-        isSubmitting,
-        step,
-        editingField,
-        selectedPosition,
-        name,
-        phone,
-        academyName,
-        selectedCity,
-        selectedDistrict,
-        selectedAcademy,
-        apiErrorMessage,
-        isFormComplete,
-        validationErrors,
-        needsAcademySelection,
-        // 상태 설정 함수
-        setEditingField,
-        setName,
-        setAcademyName,
-        setSelectedCity,
-        setSelectedDistrict,
-        setSelectedAcademy,
-        // 이벤트 핸들러
-        handlePositionSelect,
-        handleAcademySelect,
-        handleNameSubmit,
-        handlePhoneChange,
-        handlePhoneSubmit,
-        handleReset,
-        handleSaveProfile,
-        handleNextStep,
-        handleFinishEditing,
+        containerRef, nameInputRef, phoneInputRef, academyNameInputRef, academySearchInputRef,
+        isLoadingAuth, isSubmitting, step, editingField, selectedPosition, name, phone,
+        academyName, selectedCity, selectedDistrict, selectedAcademy, apiErrorMessage,
+        isFormComplete, validationErrors, needsAcademySelection,
+        setEditingField, setName, setAcademyName, setSelectedCity, setSelectedDistrict,
+        setSelectedAcademy, handlePositionSelect, handleAcademySelect, handleNameSubmit,
+        handlePhoneChange, handlePhoneSubmit, handleReset, handleSaveProfile,
+        handleNextStep, handleFinishEditing,
     };
 };

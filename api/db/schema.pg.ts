@@ -14,6 +14,7 @@ import { sql, relations } from "drizzle-orm";
 
 export const studentStatusEnum = pgEnum('student_status_enum', ['재원', '휴원', '퇴원']);
 export const examAssignmentStatusEnum = pgEnum('exam_assignment_status_enum', ['not_started', 'in_progress', 'completed', 'graded', 'expired']);
+export const academyStatusEnum = pgEnum('academy_status_enum', ['운영중', '휴업', '폐업']);
 
 
 /**
@@ -57,6 +58,7 @@ export const academiesTable = pgTable("academies", {
     principal_id: uuid("principal_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }), // 원장 프로필 ID
     name: text("name").notNull(),
     region: text("region").notNull(),
+    status: academyStatusEnum("status").default('운영중').notNull(),
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
     updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });

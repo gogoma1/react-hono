@@ -14,7 +14,6 @@ import ProblemWorkbenchPage from './pages/ProblemWorkbenchPage';
 import JsonRendererPage from './pages/JsonRendererPage';
 import ProblemPublishingPage from './pages/ProblemPublishingPage'; 
 import MobileExamPage from './pages/MobileExamPage';
-import './App.css'; 
 
 const queryClient = new QueryClient({
   defaultOptions: {
