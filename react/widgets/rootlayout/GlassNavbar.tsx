@@ -1,27 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router'; // [수정] react-router -> react-router-dom
+import { Link, useLocation } from 'react-router';
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, useSidebarTriggers } from '../../shared/store/layoutStore'; 
-import { useMobileExamTimeStore } from '../../features/mobile-exam-session/model/mobileExamTimeStore'; // [핵심 수정]
+import { useMobileExamTimeStore } from '../../features/mobile-exam-session/model/mobileExamTimeStore';
 import { 
     LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, 
     LuSettings2, LuSearch, LuClipboardList, LuBookMarked,
+    LuFileJson2, LuUsers
 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
 import GlassPopover from '../../shared/components/GlassPopover';
 import ProfileMenuContent from '../../features/popovermenu/ProfileMenuContent';
+import { SidebarButtonType } from '../../shared/store/layout.config';
 
 const LogoIcon = () => <LuLayoutDashboard size={26} className="navbar-logo-icon" />;
 const HamburgerIcon = () => <LuMenu size={22} />;
 const ProfileIcon = () => <LuCircleUserRound size={22} />;
 
-const RegisterIcon = () => <LuCirclePlus size={22} />;
-const SettingsIcon = () => <LuSettings2 size={22} />;
-const SearchIcon = () => <LuSearch size={22} />;
-const PromptIcon = () => <LuClipboardList size={22} />;
-const LatexHelpIcon = () => <LuBookMarked size={22} />;
+const mobileIconMap: Record<SidebarButtonType, React.FC> = {
+    register: () => <LuCirclePlus size={22} />,
+    settings: () => <LuSettings2 size={22} />,
+    search: () => <LuSearch size={22} />,
+    prompt: () => <LuClipboardList size={22} />,
+    latexHelp: () => <LuBookMarked size={22} />,
+    jsonView: () => <LuFileJson2 size={22} />,
+    selectedStudents: () => <LuUsers size={22} />,
+};
 
 const getProgressBarColor = (minute: number): string => {
     if (minute < 1) return '#3498db'; 
@@ -30,7 +36,6 @@ const getProgressBarColor = (minute: number): string => {
     if (minute < 4) return '#e67e22'; 
     return '#c0392b'; 
 };
-
 
 const GlassNavbar: React.FC = () => {
     const location = useLocation();
@@ -41,16 +46,10 @@ const GlassNavbar: React.FC = () => {
         closeMobileSidebar,
     } = useUIStore();
     
-    const { 
-        registerTrigger, 
-        settingsTrigger, 
-        searchTrigger, 
-        promptTrigger, 
-        latexHelpTrigger 
-    } = useSidebarTriggers();
+    const { triggers } = useSidebarTriggers();
 
     const timerDisplay = useLayoutStore(state => state.timerDisplay);
-    const currentProblemTimer = useMobileExamTimeStore(state => state.currentTimer); // [핵심 수정]
+    const currentProblemTimer = useMobileExamTimeStore(state => state.currentTimer);
 
     const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
     const profileButtonRef = useRef<HTMLButtonElement>(null);
@@ -131,41 +130,18 @@ const GlassNavbar: React.FC = () => {
             <div className="navbar-right">
                 {currentBreakpoint === 'mobile' && (
                     <div className="mobile-right-actions">
-                        {registerTrigger?.onClick && (
-                            <Tippy content={registerTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
-                                <button onClick={registerTrigger.onClick} className="navbar-icon-button" aria-label={registerTrigger.tooltip}>
-                                    <RegisterIcon />
-                                </button>
-                            </Tippy>
-                        )}
-                        {searchTrigger?.onClick && (
-                             <Tippy content={searchTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
-                                <button onClick={searchTrigger.onClick} className="navbar-icon-button" aria-label={searchTrigger.tooltip}>
-                                    <SearchIcon />
-                                </button>
-                            </Tippy>
-                        )}
-                        {promptTrigger?.onClick && (
-                             <Tippy content={promptTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
-                                <button onClick={promptTrigger.onClick} className="navbar-icon-button" aria-label={promptTrigger.tooltip}>
-                                    <PromptIcon />
-                                </button>
-                            </Tippy>
-                        )}
-                        {latexHelpTrigger?.onClick && (
-                             <Tippy content={latexHelpTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
-                                <button onClick={latexHelpTrigger.onClick} className="navbar-icon-button" aria-label={latexHelpTrigger.tooltip}>
-                                    <LatexHelpIcon />
-                                </button>
-                            </Tippy>
-                        )}
-                        {settingsTrigger?.onClick && (
-                             <Tippy content={settingsTrigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
-                                <button onClick={settingsTrigger.onClick} className="navbar-icon-button" aria-label={settingsTrigger.tooltip}>
-                                    <SettingsIcon />
-                                </button>
-                            </Tippy>
-                        )}
+                        {triggers.map((trigger) => {
+                            const IconComponent = mobileIconMap[trigger.type];
+                            if (!IconComponent) return null;
+                            
+                            return (
+                                <Tippy key={trigger.type} content={trigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
+                                    <button onClick={trigger.onClick} className="navbar-icon-button" aria-label={trigger.tooltip}>
+                                        <IconComponent />
+                                    </button>
+                                </Tippy>
+                            );
+                        })}
                     </div>
                 )}
 

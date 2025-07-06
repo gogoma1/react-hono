@@ -1,5 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-// [수정됨] useAllAcademiesQuery로 이름이 변경되었습니다.
+import { useState, useMemo, useEffect, useRef, forwardRef } from 'react';
 import { useAllAcademiesQuery } from '../../../entities/academy/model/useAcademiesQuery';
 import type { Academy } from '../../../entities/academy/model/types';
 import { LuSearch, LuChevronDown } from 'react-icons/lu';
@@ -9,18 +8,17 @@ interface AcademySearchProps {
     onAcademySelect: (academy: Academy) => void;
 }
 
-export const AcademySearch: React.FC<AcademySearchProps> = ({ onAcademySelect }) => {
+// [핵심 수정] forwardRef로 컴포넌트를 감싸고, props와 함께 ref를 두 번째 인자로 받습니다.
+export const AcademySearch = forwardRef<HTMLInputElement, AcademySearchProps>(({ onAcademySelect }, ref) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // [수정됨] useAcademiesQuery -> useAllAcademiesQuery
     const { data: academies = [], isLoading: isLoadingAcademies } = useAllAcademiesQuery();
 
     const filteredAcademies = useMemo(() => {
         if (!searchTerm.trim()) return academies;
         const lowercasedTerm = searchTerm.toLowerCase();
-        // [수정됨] academy.academyName -> academy.name
         return academies.filter(academy =>
             academy.name.toLowerCase().includes(lowercasedTerm) ||
             academy.region.toLowerCase().includes(lowercasedTerm)
@@ -29,7 +27,7 @@ export const AcademySearch: React.FC<AcademySearchProps> = ({ onAcademySelect })
 
     const handleSelect = (academy: Academy) => {
         onAcademySelect(academy);
-        setSearchTerm('');
+        setSearchTerm(''); // 선택 후 검색어 초기화
         setIsDropdownOpen(false);
     };
 
@@ -49,6 +47,7 @@ export const AcademySearch: React.FC<AcademySearchProps> = ({ onAcademySelect })
             <div className="academy-search-wrapper">
                 <LuSearch className="search-icon" />
                 <input
+                    ref={ref} // [핵심 수정] 전달받은 ref를 실제 input 요소에 연결합니다.
                     type="text"
                     id="academySearch"
                     value={searchTerm}
@@ -68,7 +67,6 @@ export const AcademySearch: React.FC<AcademySearchProps> = ({ onAcademySelect })
                 <ul className="academy-dropdown-list">
                     {filteredAcademies.length > 0 ? (
                         filteredAcademies.map(academy => (
-                            // [수정됨] key와 표시되는 이름 모두 academy.name 사용
                             <li key={academy.name + academy.region} onClick={() => handleSelect(academy)}>
                                 <strong>{academy.name}</strong>
                                 <span>{academy.region}</span>
@@ -81,4 +79,6 @@ export const AcademySearch: React.FC<AcademySearchProps> = ({ onAcademySelect })
             )}
         </div>
     );
-};
+});
+
+AcademySearch.displayName = 'AcademySearch';

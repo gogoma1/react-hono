@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router';
+import { Outlet, useLocation } from 'react-router'; 
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore } from '../../shared/store/layoutStore';
 import BackgroundBlobs from './BackgroundBlobs';
@@ -14,7 +14,8 @@ const RootLayout = () => {
     const { 
       updateLayoutForPath, 
       searchBoxProps,
-      rightSidebar: { contentConfig, isExtraWide: isRightSidebarExtraWide }
+      // [수정] content를 바로 가져오지 않고, rightSidebar 객체 전체를 가져옵니다.
+      rightSidebar
     } = useLayoutStore();
     
     useEffect(() => {
@@ -43,7 +44,9 @@ const RootLayout = () => {
         return () => clearTimeout(timer);
     }, [searchBoxProps]);
     
-    const isRightSidebarExpanded = contentConfig.type !== null;
+    // [핵심 수정] 옵셔널 체이닝(?.')을 사용하여 안전하게 type에 접근합니다.
+    const isRightSidebarExpanded = rightSidebar?.content?.type !== 'closed';
+    const isRightSidebarExtraWide = rightSidebar?.isExtraWide ?? false;
 
     const parsedSuggestionGroups = useMemo(() => {
         if (searchBoxProps?.suggestionGroups) {
@@ -59,7 +62,6 @@ const RootLayout = () => {
     
     const showOverlay = currentBreakpoint === 'mobile' && mobileSidebarType !== null;
 
-    // [핵심 수정] 현재 경로가 모바일 시험지 페이지인지 확인
     const isMobileExamPage = location.pathname === '/mobile-exam';
     
     const appContainerClasses = `

@@ -10,7 +10,8 @@ import './PdfOptionsModal.css';
 
 const ProblemPublishingPage: React.FC = () => {
     const {
-        allProblems, isLoadingProblems, selectedIds, toggleRow, toggleItems, clearSelection,
+        allProblems, isLoadingProblems,
+        selectedIds, toggleRow, toggleItems, clearSelection,
         selectedProblems, distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap,
         headerInfo, useSequentialNumbering, baseFontSize, contentFontSizeEm, measuredHeights,
         onHeightUpdate, onProblemClick, onHeaderUpdate, handleDeselectProblem,
@@ -124,7 +125,6 @@ const ProblemPublishingPage: React.FC = () => {
                 </div>
             </Modal>
 
-            {/* [핵심] 모바일 출제 모달에 수정된 props 전달 */}
             <Modal
                 isOpen={isMobilePublishModalOpen}
                 onClose={onCloseMobilePublishModal}
@@ -132,8 +132,8 @@ const ProblemPublishingPage: React.FC = () => {
                 isConfirming={isPublishing}
                 title="모바일 시험지 출제 확인"
                 confirmText="출제하기"
-                confirmLoadingText="출제 중..." /* [수정] 올바른 로딩 텍스트 전달 */
-                isConfirmDestructive={false}    /* [수정] 이 액션은 파괴적이지 않으므로 false */
+                confirmLoadingText="출제 중..."
+                isConfirmDestructive={false}
                 size="medium"
             >
                 <div className="publish-confirm-container">
@@ -141,6 +141,7 @@ const ProblemPublishingPage: React.FC = () => {
                         아래 <strong>{selectedStudentCount}</strong>명의 학생에게 <strong>{selectedProblemCount}</strong>개의 문제로 구성된 시험지를 출제합니다.
                     </p>
                     
+                    {/* [수정] isLoading prop을 제거합니다. */}
                     <SelectedStudentsPanel 
                         hideTitle={true} 
                         className="in-modal" 

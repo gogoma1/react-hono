@@ -5,9 +5,11 @@ import CategoryInput from './CategoryInput';
 import './StudentRegistrationForm.css';
 import { LuUserPlus } from 'react-icons/lu';
 
+// [수정] Props 타입에 allStudents 추가
 interface StudentRegistrationFormProps {
     onSuccess?: () => void;
-    academyId: string; // 학생을 등록할 학원의 ID
+    academyId: string;
+    allStudents: Student[];
 }
 
 const getUniqueValues = <T extends object>(items: T[], key: keyof T): (string | number)[] => {
@@ -28,9 +30,9 @@ const getUniqueValues = <T extends object>(items: T[], key: keyof T): (string | 
     return Array.from(uniqueValues);
 };
 
-
-const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuccess, academyId }) => {
-    const { students, addStudent, addStudentStatus } = useStudentDataWithRQ(academyId);
+const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuccess, academyId, allStudents }) => {
+    // [수정] add 관련 훅만 사용하고, 데이터는 props로 받은 allStudents를 기반으로 생성
+    const { addStudent, addStudentStatus } = useStudentDataWithRQ(academyId);
 
     const [name, setName] = useState('');
     const [grade, setGrade] = useState('');
@@ -42,12 +44,12 @@ const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuc
     const [schoolName, setSchoolName] = useState('');
     const [tuition, setTuition] = useState('');
 
-    // [수정됨] camelCase 키 접근을 snake_case로 변경
-    const uniqueClassNames = useMemo(() => getUniqueValues(students, 'class_name').sort(), [students]);
-    const uniqueSubjects = useMemo(() => getUniqueValues(students, 'subject').sort(), [students]);
-    const uniqueSchoolNames = useMemo(() => getUniqueValues(students, 'school_name').sort(), [students]);
-    const uniqueTuitions = useMemo(() => getUniqueValues(students, 'tuition').sort((a,b) => (a as number) - (b as number)), [students]);
-    const uniqueTeachers = useMemo(() => getUniqueValues(students, 'teacher').sort(), [students]);
+    // [수정] useMemo의 의존성을 props로 받은 allStudents로 변경
+    const uniqueClassNames = useMemo(() => getUniqueValues(allStudents, 'class_name').sort(), [allStudents]);
+    const uniqueSubjects = useMemo(() => getUniqueValues(allStudents, 'subject').sort(), [allStudents]);
+    const uniqueSchoolNames = useMemo(() => getUniqueValues(allStudents, 'school_name').sort(), [allStudents]);
+    const uniqueTuitions = useMemo(() => getUniqueValues(allStudents, 'tuition').sort((a,b) => (a as number) - (b as number)), [allStudents]);
+    const uniqueTeachers = useMemo(() => getUniqueValues(allStudents, 'teacher').sort(), [allStudents]);
 
     const resetForm = () => {
         setName(''); 

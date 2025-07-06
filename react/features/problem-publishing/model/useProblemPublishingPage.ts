@@ -1,6 +1,7 @@
 import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { useProblemPublishing } from './useProblemPublishing';
 import { useExamLayoutStore } from './examLayoutStore';
+// [수정] 올바른 임포트 경로로 변경
 import { useExamLayoutManager } from './useExamLayoutManager';
 import { useExamHeaderState } from '../hooks/useExamHeaderState';
 import { useProblemEditor } from '../hooks/useProblemEditor';
@@ -15,7 +16,7 @@ import { usePublishExamSetMutation } from '../../../entities/exam-set/model/useE
 
 export function useProblemPublishingPage() {
     const { allProblems, isLoadingProblems } = useProblemPublishing();
-
+    
     const { 
         selectedProblemIds, 
         toggleProblem: toggleRow, 
@@ -23,7 +24,8 @@ export function useProblemPublishingPage() {
         clearSelection, 
     } = useProblemPublishingSelectionStore();
     
-    const { studentIds: selectedStudentIds, clearStudentIds } = useProblemSetStudentStore();
+    const { students: selectedStudentsFromStore, clearStudents } = useProblemSetStudentStore();
+    const selectedStudentIds = useMemo(() => selectedStudentsFromStore.map(s => s.id), [selectedStudentsFromStore]);
     
     const selectedProblems = useMemo(() => allProblems.filter(p => selectedProblemIds.has(p.uniqueId)), [allProblems, selectedProblemIds]);
     
@@ -43,37 +45,30 @@ export function useProblemPublishingPage() {
     const { distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap } = useExamLayoutStore();
     const { headerInfo, onHeaderUpdate, setHeaderInfo } = useExamHeaderState();
     const { onProblemClick } = useProblemEditor({ problemBoxMinHeight: displayMinHeight });
-    const { setRightSidebarConfig } = useLayoutStore.getState();
+    
+    const { setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
 
     const handleCloseSidebar = useCallback(() => {
-        setRightSidebarConfig({ contentConfig: { type: null } });
+        closeRightSidebar();
         setRightSidebarExpanded(false);
-    }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    }, [closeRightSidebar, setRightSidebarExpanded]);
 
     const handleOpenLatexHelpSidebar = useCallback(() => {
-        setRightSidebarConfig({ contentConfig: { type: 'latexHelp' } });
+        setRightSidebarContent({ type: 'latexHelp' });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
 
     const handleOpenSettingsSidebar = useCallback(() => {
-        setRightSidebarConfig({ contentConfig: { type: 'settings' } });
+        setRightSidebarContent({ type: 'settings' });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
     
     const handleOpenSelectedStudentsSidebar = useCallback(() => {
-        setRightSidebarConfig({ contentConfig: { type: 'selectedStudents' } });
+        setRightSidebarContent({ type: 'selectedStudents' });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarConfig, setRightSidebarExpanded]);
-    
-    const handleOpenPromptSidebar = useCallback(() => {
-        setRightSidebarConfig({
-            contentConfig: { type: 'prompt', props: { workbenchContent: jsonStringToCombineRef.current } },
-            isExtraWide: false
-        });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarConfig, setRightSidebarExpanded]);
-    
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
+
     const jsonStringToCombine = useMemo(() => {
         const problemsToConvert = selectedProblems.length > 0 ? selectedProblems : allProblems.slice(0, 1);
         if (problemsToConvert.length === 0) return '';
@@ -92,9 +87,49 @@ export function useProblemPublishingPage() {
     useEffect(() => {
         jsonStringToCombineRef.current = jsonStringToCombine;
     }, [jsonStringToCombine]);
+    
+    const handleOpenPromptSidebar = useCallback(() => {
+        setRightSidebarContent({
+            type: 'prompt', 
+            props: { workbenchContent: jsonStringToCombineRef.current }
+        });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
+    
+    const handleOpenJsonViewSidebar = useCallback(() => {
+        if (selectedProblems.length === 0) {
+            alert('JSON으로 변환할 문제가 선택되지 않았습니다.');
+            return;
+        }
+        setRightSidebarContent({
+            type: 'jsonViewer',
+            props: { problems: selectedProblems }
+        }, true);
+        setRightSidebarExpanded(true);
+    }, [selectedProblems, setRightSidebarContent, setRightSidebarExpanded]);
 
-    usePublishingPageSetup({ handleCloseSidebar, handleOpenLatexHelpSidebar, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleOpenSelectedStudentsSidebar });
-    useEffect(() => { if (selectedProblems.length > 0) { const newSource = selectedProblems[0].source || '정보 없음'; setHeaderInfo(prev => ({ ...prev, source: newSource })); } else { setHeaderInfo(prev => ({ ...prev, source: '정보 없음' })); } }, [selectedProblems, setHeaderInfo]);
+    const handleOpenSearchSidebar = useCallback(() => {
+        console.log("Search sidebar action triggered from page, but handled by child component.");
+    }, []);
+
+    usePublishingPageSetup({ 
+        handleCloseSidebar, 
+        handleOpenLatexHelpSidebar, 
+        handleOpenSettingsSidebar, 
+        handleOpenPromptSidebar, 
+        handleOpenSelectedStudentsSidebar,
+        handleOpenJsonViewSidebar,
+        handleOpenSearchSidebar,
+    });
+    
+    useEffect(() => { 
+        if (selectedProblems.length > 0) { 
+            const newSource = selectedProblems[0].source || '정보 없음'; 
+            setHeaderInfo(prev => ({ ...prev, source: newSource })); 
+        } else { 
+            setHeaderInfo(prev => ({ ...prev, source: '정보 없음' })); 
+        } 
+    }, [selectedProblems, setHeaderInfo]);
 
     const previewAreaRef = useRef<HTMLDivElement>(null);
     const { isGeneratingPdf, generatePdf, pdfProgress } = usePdfGenerator({ previewAreaRef, getExamTitle: () => headerInfo.title, getSelectedProblemCount: () => selectedProblems.length });
@@ -125,7 +160,6 @@ export function useProblemPublishingPage() {
     }, []);
 
     const handleConfirmMobilePublish = useCallback(() => {
-        // [수정됨] payload의 키를 모두 snake_case로 변경
         const payload = {
             title: headerInfo.title,
             problem_ids: Array.from(selectedProblemIds),
@@ -135,12 +169,12 @@ export function useProblemPublishingPage() {
         
         publishExam(payload, {
             onSuccess: () => {
-                clearStudentIds();
+                clearStudents();
                 clearSelection();
                 handleCloseMobilePublishModal();
             },
         });
-    }, [selectedStudentIds, selectedProblemIds, headerInfo, publishExam, clearStudentIds, clearSelection, handleCloseMobilePublishModal]);
+    }, [selectedStudentIds, selectedProblemIds, headerInfo, publishExam, clearStudents, clearSelection, handleCloseMobilePublishModal]);
 
     return {
         allProblems,

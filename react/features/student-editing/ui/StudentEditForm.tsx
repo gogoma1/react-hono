@@ -8,10 +8,12 @@ import { useStudentDataWithRQ } from '../../../entities/student/model/useStudent
 import CategoryInput from '../../student-registration/ui/CategoryInput';
 import '../../student-registration/ui/StudentRegistrationForm.css';
 
+// [수정] Props 타입에 allStudents 추가
 interface StudentEditFormProps {
     student: Student;
     onSuccess: () => void;
     academyId: string;
+    allStudents: Student[];
 }
 
 const getUniqueValues = <T extends object>(items: T[], key: keyof T): (string | number)[] => {
@@ -30,9 +32,9 @@ const getUniqueValues = <T extends object>(items: T[], key: keyof T): (string | 
     return Array.from(uniqueValues);
 };
 
-
-const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, academyId }) => {
-    const { students, updateStudent, updateStudentStatus } = useStudentDataWithRQ(academyId);
+const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, academyId, allStudents }) => {
+    // [수정] update 관련 훅만 사용하고, 데이터는 props로 받은 allStudents를 기반으로 생성
+    const { updateStudent, updateStudentStatus } = useStudentDataWithRQ(academyId);
 
     const [name, setName] = useState('');
     const [grade, setGrade] = useState('');
@@ -45,11 +47,11 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, a
     const [schoolName, setSchoolName] = useState('');
     const [tuition, setTuition] = useState('');
 
-    // [수정됨] camelCase 키 접근을 snake_case로 변경
-    const uniqueClassNames = useMemo(() => getUniqueValues(students, 'class_name').sort(), [students]);
-    const uniqueSubjects = useMemo(() => getUniqueValues(students, 'subject').sort(), [students]);
-    const uniqueSchoolNames = useMemo(() => getUniqueValues(students, 'school_name').sort(), [students]);
-    const uniqueTeachers = useMemo(() => getUniqueValues(students, 'teacher').sort(), [students]);
+    // [수정] useMemo의 의존성을 props로 받은 allStudents로 변경
+    const uniqueClassNames = useMemo(() => getUniqueValues(allStudents, 'class_name').sort(), [allStudents]);
+    const uniqueSubjects = useMemo(() => getUniqueValues(allStudents, 'subject').sort(), [allStudents]);
+    const uniqueSchoolNames = useMemo(() => getUniqueValues(allStudents, 'school_name').sort(), [allStudents]);
+    const uniqueTeachers = useMemo(() => getUniqueValues(allStudents, 'teacher').sort(), [allStudents]);
     
     useEffect(() => {
         if (student) {

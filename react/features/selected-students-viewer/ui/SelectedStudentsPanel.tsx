@@ -1,15 +1,13 @@
-import React, { useMemo } from 'react';
-import { useStudentDataWithRQ } from '../../../entities/student/model/useStudentDataWithRQ';
+import React from 'react';
 import { useProblemSetStudentStore } from '../../../shared/store/problemSetStudentStore';
 import { LuX, LuUsersRound } from 'react-icons/lu';
 import Badge from '../../../shared/ui/Badge/Badge';
 import './SelectedStudentsPanel.css';
+import type { Student } from '../../../entities/student/model/types'; 
 
-// [핵심] 재사용성을 위해 Props 인터페이스를 정의합니다.
 interface SelectedStudentsPanelProps {
-    /** true일 경우, 컴포넌트의 h4 타이틀을 숨깁니다. */
+    // [수정] isLoading prop을 제거합니다.
     hideTitle?: boolean;
-    /** 추가적인 CSS 클래스를 적용할 수 있습니다. */
     className?: string;
 }
 
@@ -17,37 +15,23 @@ const SelectedStudentsPanel: React.FC<SelectedStudentsPanelProps> = ({
     hideTitle = false,
     className = '',
 }) => {
-    // 전체 학생 목록을 가져옵니다.
-    const { students: allStudents, isLoadingStudents } = useStudentDataWithRQ();
-    // '문제 출제'를 위해 선택된 학생 ID 목록과 상태 변경 함수를 가져옵니다.
-    const { studentIds: selectedStudentIds, setStudentIds } = useProblemSetStudentStore();
+    const { students: selectedStudents, setStudents } = useProblemSetStudentStore();
 
-    // 선택된 학생 ID를 기반으로 실제 학생 객체 목록을 필터링합니다.
-    const selectedStudents = useMemo(() => {
-        if (!allStudents || allStudents.length === 0) return [];
-        const idSet = new Set(selectedStudentIds);
-        return allStudents.filter(student => idSet.has(student.id));
-    }, [allStudents, selectedStudentIds]);
-
-    // 목록에서 학생을 제거하는 핸들러입니다.
     const handleDeselect = (studentIdToDeselect: string) => {
-        const newStudentIds = selectedStudentIds.filter(id => id !== studentIdToDeselect);
-        setStudentIds(newStudentIds);
+        const newStudents = selectedStudents.filter(s => s.id !== studentIdToDeselect);
+        setStudents(newStudents);
     };
 
-    // props로 받은 className을 적용합니다.
     const panelClassName = `selected-students-panel ${className}`.trim();
 
     return (
         <div className={panelClassName}>
-            {/* hideTitle prop이 false일 때만 제목을 렌더링합니다. (기본값) */}
             {!hideTitle && (
                 <h4 className="panel-title">선택된 학생 목록 ({selectedStudents.length})</h4>
             )}
             <div className="student-list-container">
-                {isLoadingStudents ? (
-                    <div className="status-text">학생 목록 로딩 중...</div>
-                ) : selectedStudents.length === 0 ? (
+                {/* [수정] 로딩 상태를 표시하는 로직을 제거합니다. 스토어에 데이터가 없으면 '선택된 학생 없음'이 표시됩니다. */}
+                {selectedStudents.length === 0 ? (
                     <div className="status-text">선택된 학생이 없습니다.</div>
                 ) : (
                     <ul className="student-list">

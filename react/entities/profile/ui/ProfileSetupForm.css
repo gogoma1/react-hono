@@ -48,7 +48,6 @@
     display: none;
 }
 
-
 .profile-setup-title {
     font-size: 2rem;
     font-weight: 600;
@@ -71,16 +70,13 @@
     text-align: left;
 }
 
+/* [수정] ProfileSetupInput으로 이동했으므로 form-group 스타일 간소화 */
 .form-group {
     display: grid;
     gap: 12px;
 }
+/* [수정] ProfileSetupInput으로 이동했으므로 form-label 스타일 삭제 */
 
-.form-label {
-    font-weight: 500;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
 
 .form-divider, .region-divider {
     height: 1px;
@@ -107,11 +103,11 @@
     margin: 0;
 }
 
-/* --- 버튼 스타일 (리퀴드 글래스 포함) --- */
+/* --- 버튼 스타일 --- */
 .position-buttons-group {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .omr-button {
@@ -148,8 +144,9 @@
 
 .position-button.status-button {
     border-radius: 12px;
-    padding: 16px 10px;
-    font-size: 1rem;
+    padding: 18px 10px;
+    font-size: 1.05rem;
+    width: 100%;
 }
 
 .region-button-group {
@@ -182,66 +179,23 @@
     transform: translateY(-2px);
 }
 
-/* --- 입력 필드 스타일 --- */
-.form-input {
-    width: 100%;
-    padding: 12px 16px;
-    background-color: rgba(0, 0, 0, 0.07);
-    border: 1px solid transparent;
+.academy-search-error .academy-search-container {
+    border: 1px solid var(--accent-color);
     border-radius: 12px;
-    font-size: 0.95rem;
-    color: var(--text-primary);
-    outline: none;
-    transition: all 0.2s ease;
-    box-sizing: border-box;
-}
-
-.form-input::placeholder { color: var(--text-placeholder); }
-.form-input:focus {
-    background-color: transparent;
-    border-color: var(--accent-color);
     box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
 }
 
+.academy-error-text {
+    text-align: center;
+    color: var(--accent-color);
+    font-size: 0.85rem;
+    margin-top: 8px;
+}
+
 /* --- 단계별 폼 UI/UX 스타일 --- */
-.step-completed {
-    opacity: 0.6;
-    pointer-events: auto;
-    transition: opacity 0.3s ease;
-    cursor: pointer;
-}
-
-.input-with-button {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.input-with-button .form-input {
-    padding-right: 50px;
-}
-
-.input-with-button .next-step-button {
-    position: absolute;
-    right: 5px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: none;
-    background-color: var(--accent-color);
-    color: var(--text-on-accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.input-with-button .next-step-button:hover {
-    background-color: var(--accent-color-darker);
-    transform: translateY(-50%) scale(1.1);
+.step-1-group.step-completed:hover {
+    background-color: rgba(0,0,0,0.03);
+    border-radius: 12px;
 }
 
 .back-button {
@@ -267,33 +221,72 @@
     color: var(--text-primary);
 }
 
-.selected-info-display {
-    padding: 16px;
-    background-color: rgba(0, 0, 0, 0.07);
-    border-radius: 12px;
-    text-align: center;
-    cursor: pointer;
+.selected-academy-display {
+    text-align: left;
+}
+.selected-academy-display h4 {
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.academy-info-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background-color: rgba(225, 234, 243, 1);
     border: 1px solid transparent;
-    transition: all 0.2s ease;
+    border-radius: 12px;
 }
-.selected-info-display:hover {
-    border-color: var(--accent-color-lighter);
+.academy-info-box .academy-name {
+    flex-grow: 1;
+    font-weight: 600;
+    color: var(--text-primary);
 }
-.selected-info-display p {
-    margin: 0 0 4px 0;
-    font-size: 1rem;
+.academy-info-box .academy-region {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
 }
-.selected-info-display span {
-    font-size: 0.8rem;
-    color: var(--text-tertiary);
+.change-academy-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 4px;
+    border-radius: 6px;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+.change-academy-button:hover {
+    color: var(--text-primary);
+    background-color: rgba(0,0,0,0.1);
 }
 
 /* --- 제출 버튼 및 헬퍼 텍스트 --- */
 .submission-area {
-    min-height: 48px; /* 버튼/헬퍼 텍스트 공간 확보로 레이아웃 이동 방지 */
+    min-height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-top: 10px;
+}
+
+.submission-helper-text {
+    width: 100%;
+    padding: 14px 20px;
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    border: 1px solid rgba(var(--accent-color-rgb), 0.3);
+    color: var(--accent-color);
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.3s ease;
 }
 
 .submit-button {
@@ -311,23 +304,18 @@
 .submit-button:hover:not(:disabled) { background-color: var(--accent-color-darker); }
 .submit-button:disabled { background-color: var(--text-placeholder); opacity: 0.7; cursor: not-allowed; }
 
-/* [요청사항] 헬퍼 텍스트 색상을 accent-color 계열로 수정 */
-.submission-helper-text {
-    width: 100%;
-    padding: 14px 20px;
-    background-color: rgba(var(--accent-color-rgb), 0.1); /* accent color 배경 */
-    border: 1px solid rgba(var(--accent-color-rgb), 0.3);
-    color: var(--accent-color); /* accent color 텍스트 */
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-align: center;
-    transition: all 0.3s ease;
-}
-
 .error-message { margin-top: 4px; color: var(--notification-badge-bg); font-size: 0.8rem; font-weight: 500; text-align: left; }
 .error-message.api-error { text-align: center; margin-top: 15px; font-size: 0.875rem; }
 
-/* --- 애니메이션 --- */
-.fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+.setup-complete-message {
+    padding: 1rem;
+    text-align: center;
+}
+.setup-complete-message h4 {
+    margin: 0 0 0.5rem 0;
+}
+.setup-complete-message p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}

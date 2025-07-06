@@ -1,28 +1,33 @@
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm'; // [수정] and 임포트
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 
 import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
 
-// [수정됨] camelCase -> snake_case
+// [수정] 강사, 학부모, 학생 모두 academy_id를 필수로 받도록 스키마 수정
 const profileSetupSchema = z.object({
   name: z.string().min(1, "이름은 필수 항목입니다.").max(100),
   phone: z.string().optional(),
   role_name: z.enum(['원장', '학생', '강사', '학부모', '과외 선생님']), 
   academy_name: z.string().optional(),
   region: z.string().optional(),
+  academy_id: z.string().uuid().optional(),
 }).refine(data => {
     if (data.role_name === '원장') {
         return !!data.academy_name && !!data.region;
     }
+    // [수정] 강사, 학생, 학부모 역할일 때 academy_id가 필수임을 검증
+    if (['강사', '학생', '학부모'].includes(data.role_name)) {
+        return !!data.academy_id;
+    }
     return true;
 }, {
-    message: "원장으로 가입 시 학원 이름과 지역은 필수입니다.",
-    path: ["academy_name", "region"],
+    message: "원장은 학원/지역, 그 외 학원 소속원은 학원 ID가 필수입니다.",
+    path: ["academy_name", "region", "academy_id"],
 });
 
 const profileRoutes = new Hono<AppEnv>();
@@ -32,15 +37,17 @@ profileRoutes.get('/academies', async (c) => {
     const db = drizzle(sql, { schema });
 
     try {
-        const academies = await db.select({
-            id: schema.academiesTable.id,
-            name: schema.academiesTable.name,
-            region: schema.academiesTable.region,
-        })
-        .from(schema.academiesTable)
-        .orderBy(schema.academiesTable.name);
+        const academies = await db.query.academiesTable.findMany({
+            orderBy: (academies, { asc }) => [asc(academies.name)],
+        });
         
-        return c.json(academies);
+        const result = academies.map(a => ({
+            id: a.id,
+            name: a.name,
+            region: a.region
+        }));
+        
+        return c.json(result);
 
     } catch (error: any) {
         console.error('Failed to fetch academies:', error.message);
@@ -79,7 +86,7 @@ profileRoutes.post(
     zValidator('json', profileSetupSchema),
     async (c) => {
         const user = c.get('user');
-        const { name, phone, role_name, academy_name, region } = c.req.valid('json'); // [수정됨]
+        const { name, phone, role_name, academy_name, region, academy_id } = c.req.valid('json');
 
         if (!user?.id || !user?.email) {
             return c.json({ error: '인증이 필요합니다.' }, 401);
@@ -106,11 +113,11 @@ profileRoutes.post(
                 }).returning();
 
                 const role = await tx.query.rolesTable.findFirst({
-                    where: eq(schema.rolesTable.name, role_name) // [수정됨]
+                    where: eq(schema.rolesTable.name, role_name)
                 });
 
                 if (!role) {
-                    throw new Error(`'${role_name}' 역할을 찾을 수 없습니다. DB에 역할이 미리 등록되어 있어야 합니다.`); // [수정됨]
+                    throw new Error(`'${role_name}' 역할을 찾을 수 없습니다. DB에 역할이 미리 등록되어 있어야 합니다.`);
                 }
 
                 await tx.insert(schema.userRolesTable).values({
@@ -118,14 +125,28 @@ profileRoutes.post(
                     role_id: role.id,
                 });
 
-                if (role_name === '원장') { // [수정됨]
-                    if (!academy_name || !region) { // [수정됨]
+                if (role_name === '원장') {
+                    if (!academy_name || !region) {
                          throw new Error('원장은 학원 이름과 지역 정보가 필수입니다.');
                     }
                     await tx.insert(schema.academiesTable).values({
-                        name: academy_name, // [수정됨]
+                        name: academy_name,
                         region: region,
                         principal_id: newProfile.id,
+                    });
+                }
+                
+                // [수정] 강사, 학부모는 아직 학원과 직접적인 DB 연결 테이블이 없으므로 학생만 처리합니다.
+                // 이 부분은 향후 강사/학부모 관리 기능이 추가되면 확장해야 합니다.
+                if (role_name === '학생' && academy_id) {
+                    await tx.insert(schema.enrollmentsTable).values({
+                        academy_id: academy_id,
+                        student_profile_id: newProfile.id,
+                        student_name: newProfile.name,
+                        student_phone: newProfile.phone,
+                        grade: '미지정',
+                        subject: '미지정',
+                        status: '재원',
                     });
                 }
                 

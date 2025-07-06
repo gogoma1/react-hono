@@ -1,0 +1,123 @@
+/* ./react/entities/profile/ui/ProfileSetupInput.css */
+
+.psi-form-group {
+    display: grid;
+    gap: 12px;
+}
+
+.psi-form-label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.psi-input-with-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* 입력 필드 기본 스타일 */
+.psi-input-with-button .form-input {
+    width: 100%;
+    padding: 12px 16px;
+    background-color: rgba(0, 0, 0, 0.07);
+    border: 1px solid transparent;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    outline: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+/* 다음 단계 버튼 */
+.psi-input-with-button .next-step-button {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background-color: var(--accent-color);
+    color: var(--text-on-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.psi-input-with-button .next-step-button:hover {
+    background-color: var(--accent-color-darker);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.psi-input-with-button .form-input {
+    padding-right: 50px;
+}
+
+/* --- [핵심 수정] --- */
+/* 단계가 완료된 그룹에서는 더 이상 포인터 커서를 사용하지 않습니다. */
+/* 하위 입력창이 자체 커서를 가질 수 있도록 합니다. */
+.psi-form-group.step-completed {
+    transition: all 0.3s ease;
+}
+.psi-form-group.step-completed:hover {
+    background-color: rgba(0,0,0,0.03);
+    border-radius: 12px;
+}
+
+/* 완료된 입력창의 스타일 (커서 속성 제거) */
+.form-input.input-completed {
+    background-color: rgba(225, 234, 243, 1);
+    border-color: transparent;
+    color: var(--text-primary);
+    /* cursor: pointer; 속성을 제거하여 기본 커서(text)가 표시되도록 함 */
+}
+.form-input.input-completed:hover {
+    background-color: #d1dbe5;
+    border-color: transparent;
+}
+
+
+.form-input:focus {
+    background-color: transparent;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+
+.form-input.input-error {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+}
+.form-input.input-error::placeholder {
+    color: var(--accent-color);
+    font-weight: 500;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--text-primary) !important;
+    box-shadow: 0 0 0px 1000px rgba(0, 0, 0, 0.07) inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+input.input-completed:-webkit-autofill,
+input.input-completed:-webkit-autofill:hover,
+input.input-completed:-webkit-autofill:focus,
+input.input-completed:-webkit-autofill:active {
+    box-shadow: 0 0 0px 1000px rgba(225, 234, 243, 1) inset !important;
+}
+
+.fade-in { 
+    animation: fadeIn 0.5s ease-in-out forwards; 
+}
+
+@keyframes fadeIn { 
+    from { opacity: 0; transform: translateY(-10px); } 
+    to { opacity: 1; transform: translateY(0); } 
+}

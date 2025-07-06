@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useImageUploadManager } from '../features/image-upload/model/useImageUploadManager';
 import ImageManager from '../features/image-upload/ui/ImageManager';
 import './ProblemWorkbenchPage.css';
-import { useLayoutStore } from '../shared/store/layoutStore';
+import { useLayoutStore, type RegisteredPageActions } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
 import { LuCopy, LuCopyCheck, LuFilePlus } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
@@ -12,7 +12,13 @@ import PreviewPanel from '../shared/components/workbench/PreviewPanel';
 const LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH = 'problem-workbench-draft';
 
 const ProblemWorkbenchPage: React.FC = () => {
-    const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
+    // [수정] 새로운 액션 함수들을 가져옵니다.
+    const { 
+        registerPageActions,
+        unregisterPageActions,
+        setRightSidebarContent, 
+        closeRightSidebar 
+    } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
 
     const initialContent = useMemo(() => `# Mathpix Markdown 에디터에 오신 것을 환영합니다! 👋
@@ -72,57 +78,44 @@ const ProblemWorkbenchPage: React.FC = () => {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [markdownContent, initialContent]);
 
+    // [수정] 핸들러 함수들이 새로운 액션을 사용하도록 변경합니다.
     const handleOpenSettingsSidebar = useCallback(() => {
-        setRightSidebarConfig({
-            contentConfig: { type: 'settings' },
-            isExtraWide: false
-        });
+        setRightSidebarContent({ type: 'settings' });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
 
     const handleOpenPromptSidebar = useCallback(() => {
-        setRightSidebarConfig({ 
-            contentConfig: { 
-                type: 'prompt',
-                props: { workbenchContent: markdownContent } 
-            },
-            isExtraWide: false
+        setRightSidebarContent({ 
+            type: 'prompt',
+            props: { workbenchContent: markdownContent } 
         });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarConfig, setRightSidebarExpanded, markdownContent]);
+    }, [setRightSidebarContent, setRightSidebarExpanded, markdownContent]);
 
-    // [추가] LaTeX 도우미 사이드바를 여는 함수
     const handleOpenLatexHelpSidebar = useCallback(() => {
-        setRightSidebarConfig({
-            contentConfig: { type: 'latexHelp' },
-            isExtraWide: false
-        });
+        setRightSidebarContent({ type: 'latexHelp' });
         setRightSidebarExpanded(true);
-    }, [setRightSidebarConfig, setRightSidebarExpanded]);
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
 
     const handleCloseSidebar = useCallback(() => {
+        closeRightSidebar();
         setRightSidebarExpanded(false);
-        setTimeout(() => setRightSidebarConfig({ contentConfig: { type: null } }), 300);
-    }, [setRightSidebarExpanded, setRightSidebarConfig]);
+    }, [closeRightSidebar, setRightSidebarExpanded]);
 
+    // [수정] useEffect 로직을 새로운 액션 등록/해제 방식으로 변경
     useEffect(() => {
-        // [수정] registerPageActions에 openLatexHelpSidebar 추가
-        registerPageActions({
+        const pageActionsToRegister: Partial<RegisteredPageActions> = {
             openSettingsSidebar: handleOpenSettingsSidebar,
             openPromptSidebar: handleOpenPromptSidebar,
             openLatexHelpSidebar: handleOpenLatexHelpSidebar,
             onClose: handleCloseSidebar,
-        });
-        return () => {
-            registerPageActions({
-                openSettingsSidebar: undefined,
-                openPromptSidebar: undefined,
-                openLatexHelpSidebar: undefined, // [수정] 클린업
-                onClose: undefined,
-            });
-            handleCloseSidebar();
         };
-    }, [registerPageActions, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleOpenLatexHelpSidebar, handleCloseSidebar]);
+        registerPageActions(pageActionsToRegister);
+        
+        return () => {
+            unregisterPageActions(Object.keys(pageActionsToRegister) as (keyof RegisteredPageActions)[]);
+        };
+    }, [registerPageActions, unregisterPageActions, handleOpenSettingsSidebar, handleOpenPromptSidebar, handleOpenLatexHelpSidebar, handleCloseSidebar]);
 
     const handleApplyUrls = useCallback(() => {
         const { extractedImages, uploadedUrls, canApply } = imageManager;
