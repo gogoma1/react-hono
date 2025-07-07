@@ -2,30 +2,33 @@ import React, { useRef, useCallback, useMemo } from 'react';
 import MobileExamProblem from '../../entities/exam/ui/MobileExamProblem';
 import { useExamLayoutStore } from '../../features/problem-publishing/model/examLayoutStore';
 import { useMobileExamController } from './useMobileExamController';
-import { useMobileExamSync } from './useMobileExamSync'; // [핵심] 신규 훅 임포트
+import { useMobileExamSync } from './useMobileExamSync';
 import { useMobileExamSessionStore } from '../../features/mobile-exam-session/model/mobileExamSessionStore';
 import { useMobileExamAnswerStore } from '../../features/mobile-exam-session/model/mobileExamAnswerStore';
+import type { ProcessedProblem } from '../../features/problem-publishing';
 import type { MarkingStatus } from '../../features/omr-marking';
 import './MobileExamView.css';
 
-const MobileExamView: React.FC = () => {
-    // 1. 상태 및 컨트롤러 가져오기
-    const { orderedProblems, activeProblemId, skippedProblemIds } = useMobileExamSessionStore();
+// [신규] MobileExamView가 받을 props 타입 정의
+interface MobileExamViewProps {
+    problems: ProcessedProblem[];
+    isPreview?: boolean;
+}
+
+const MobileExamView: React.FC<MobileExamViewProps> = ({ problems: orderedProblems, isPreview = false }) => {
+    // [수정] 이제 props로 orderedProblems를 받으므로, 스토어에서 가져올 필요가 없습니다.
+    const { activeProblemId, skippedProblemIds } = useMobileExamSessionStore();
     const { answers, subjectiveAnswers, statuses, markAnswer, markSubjectiveAnswer } = useMobileExamAnswerStore();
     const { baseFontSize, contentFontSizeEm, useSequentialNumbering } = useExamLayoutStore();
     
-    // 컨트롤러는 사용자 액션에 대한 순수 로직을 담당
-    const controller = useMobileExamController();
+    const controller = useMobileExamController({ isPreview });
     
-    // 2. DOM 요소 참조 및 동기화 로직 분리
     const problemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-    // [핵심] 모든 useEffect 로직을 useMobileExamSync 훅으로 위임
     const { startNavigating } = useMobileExamSync({ orderedProblems, problemRefs });
 
-    // 3. 이벤트 핸들러 정의
     const handleNavClick = useCallback((problemId: string) => {
-        startNavigating(); // 스크롤이 사용자 클릭에 의한 것임을 알림
+        startNavigating();
         controller.handleNavClick(problemId);
     }, [controller, startNavigating]);
 
@@ -33,7 +36,7 @@ const MobileExamView: React.FC = () => {
         const currentIndex = orderedProblems.findIndex(p => p.uniqueId === currentProblemId);
         if (currentIndex > -1 && currentIndex < orderedProblems.length - 1) {
             const nextProblemId = orderedProblems[currentIndex + 1].uniqueId;
-            startNavigating(); // 다음 문제로 이동하는 것도 사용자 액션으로 간주
+            startNavigating();
             controller.handleNavClick(nextProblemId);
         }
     }, [orderedProblems, controller, startNavigating]);
@@ -55,13 +58,11 @@ const MobileExamView: React.FC = () => {
             ? (currentSubjectiveAnswers.get(problemId) || '').trim() !== ''
             : (currentAnswers.get(problemId)?.size || 0) > 0;
         
-        // C(모름)를 선택했거나, 답을 이미 마킹한 상태에서 상태를 선택하면 다음 문제로 이동
         if (status === 'C' || isAnswered) {
             moveToNextProblem(problemId);
         }
     }, [controller, orderedProblems, moveToNextProblem]);
 
-    // 4. 렌더링 로직 (Memoization)
     const navButtonStates = useMemo(() => {
         return orderedProblems.map(problem => {
             const isCurrent = activeProblemId === problem.uniqueId;
@@ -89,7 +90,6 @@ const MobileExamView: React.FC = () => {
         });
     }, [activeProblemId, statuses, skippedProblemIds, answers, subjectiveAnswers, orderedProblems]);
 
-    // 5. 최종 JSX 렌더링
     if (orderedProblems.length === 0) {
         return (
             <div className="mobile-exam-status">
@@ -101,7 +101,9 @@ const MobileExamView: React.FC = () => {
     
     return (
         <div className="mobile-exam-view" style={{ '--base-font-size': baseFontSize } as React.CSSProperties}>
-            <header className="mobile-exam-title-header"><h1>모바일 시험지</h1></header>
+            <header className="mobile-exam-title-header">
+                <h1>{isPreview ? '시험지 미리보기' : '모바일 시험지'}</h1>
+            </header>
             
             <nav className="mobile-exam-nav-container">
                 <div className="mobile-exam-nav-scroll-area">
@@ -145,9 +147,12 @@ const MobileExamView: React.FC = () => {
                         onMarkSubjectiveAnswer={markSubjectiveAnswer}
                     />
                 ))}
-                <button type="button" className="omr-button submit-exam-button" onClick={controller.handleSubmitExam}>
-                    시험지 제출하기
-                </button>
+                {/* [수정] isPreview가 아닐 때만 제출 버튼 표시 */}
+                {!isPreview && (
+                    <button type="button" className="omr-button submit-exam-button" onClick={controller.handleSubmitExam}>
+                        시험지 제출하기
+                    </button>
+                )}
             </div>
         </div>
     );

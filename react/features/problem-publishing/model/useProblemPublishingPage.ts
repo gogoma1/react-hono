@@ -1,7 +1,6 @@
 import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { useProblemPublishing } from './useProblemPublishing';
 import { useExamLayoutStore } from './examLayoutStore';
-// [수정] 올바른 임포트 경로로 변경
 import { useExamLayoutManager } from './useExamLayoutManager';
 import { useExamHeaderState } from '../hooks/useExamHeaderState';
 import { useProblemEditor } from '../hooks/useProblemEditor';
@@ -12,7 +11,7 @@ import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useUIStore } from '../../../shared/store/uiStore';
 import { useProblemSetStudentStore } from '../../../shared/store/problemSetStudentStore';
 import { useProblemPublishingSelectionStore } from './problemPublishingSelectionStore';
-import { usePublishExamSetMutation } from '../../../entities/exam-set/model/useExamSetMutations';
+import { usePublishExamSetMutation } from '../../../entities/exam-set/model/useExamSetMutations'; // [신규]
 
 export function useProblemPublishingPage() {
     const { allProblems, isLoadingProblems } = useProblemPublishing();
@@ -140,6 +139,7 @@ export function useProblemPublishingPage() {
     const handleConfirmPdfDownload = useCallback(() => { setIsPdfModalOpen(false); setTimeout(() => { generatePdf(pdfOptions); }, 100); }, [generatePdf, pdfOptions]);
     const handleClosePdfModal = useCallback(() => { setIsPdfModalOpen(false); }, []);
     
+    // --- [핵심] 모바일 시험지 출제 로직 추가 ---
     const { mutate: publishExam, isPending: isPublishing } = usePublishExamSetMutation();
     const [isMobilePublishModalOpen, setIsMobilePublishModalOpen] = useState(false);
 
@@ -169,6 +169,7 @@ export function useProblemPublishingPage() {
         
         publishExam(payload, {
             onSuccess: () => {
+                // 출제 성공 후, 선택된 학생과 문제 목록을 초기화하여 재출제를 방지합니다.
                 clearStudents();
                 clearSelection();
                 handleCloseMobilePublishModal();
@@ -207,6 +208,7 @@ export function useProblemPublishingPage() {
         onPdfOptionChange: handlePdfOptionChange,
         onConfirmPdfDownload: handleConfirmPdfDownload,
         
+        // [신규] 모바일 출제 관련 상태와 핸들러 반환
         isMobilePublishModalOpen,
         onOpenMobilePublishModal: handleOpenMobilePublishModal,
         onCloseMobilePublishModal: handleCloseMobilePublishModal,

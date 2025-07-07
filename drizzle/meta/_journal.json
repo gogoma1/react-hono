@@ -8,6 +8,13 @@
       "when": 1751880736682,
       "tag": "0000_superb_silver_samurai",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1751892833061,
+      "tag": "0001_breezy_naoko",
+      "breakpoints": true
     }
   ]
 }

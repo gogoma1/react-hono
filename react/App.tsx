@@ -15,13 +15,14 @@ import JsonRendererPage from './pages/JsonRendererPage';
 import ProblemPublishingPage from './pages/ProblemPublishingPage'; 
 import MobileExamPage from './pages/MobileExamPage';
 import AccountSettingsModal from './features/account-settings/ui/AccountSettingsModal';
+// [신규] 생성할 페이지 컴포넌트 임포트
+import PublishedExamsPage from './pages/PublishedExamsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
       staleTime: 1000 * 60 * 5,
-
     },
   },
 });
@@ -32,14 +33,12 @@ function App() {
     return (
         <QueryClientProvider client={queryClient}>
             <AuthInitializer />
-            {/* 모달을 여기서 호출하지 않습니다. */}
             {isLoadingAuth ? (
                 <div className="app-loading-container">
                     <h1>애플리케이션 로딩 중...</h1>
                 </div>
             ) : (
                 <Router>
-                    {/* [수정] 모달을 <Router> 안, <Routes> 바깥으로 이동합니다. */}
                     <AccountSettingsModal />
                     
                     <Routes>
@@ -55,7 +54,12 @@ function App() {
                                 <Route path="/problem-publishing" element={<ProblemPublishingPage />} />
                                 <Route path="/json-renderer" element={<JsonRendererPage />} /> 
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
+                                
+                                {/* 학생 및 선생님 체험용 공용 시험 페이지 */}
                                 <Route path="/mobile-exam" element={<MobileExamPage />} /> 
+
+                                {/* [신규] 선생님용 출제 목록 페이지 */}
+                                <Route path="/published-exams" element={<PublishedExamsPage />} />
                             </Route>
                         </Route>
                         <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,6 +1,5 @@
 import { handleApiResponse } from '../../../shared/api/api.utils';
 
-// [수정됨] camelCase -> snake_case
 export interface PublishExamSetPayload {
     title: string;
     problem_ids: string[];
@@ -8,11 +7,19 @@ export interface PublishExamSetPayload {
     header_info: Record<string, any> | null;
 }
 
-// [수정됨] camelCase -> snake_case
 export interface PublishExamSetResponse {
     message: string;
     exam_set_id: string;
     assigned_count: number;
+}
+
+// [신규] 내가 출제한 시험지 목록 API의 응답 타입
+export interface MyPublishedExamSet {
+    id: string;
+    title: string;
+    problem_ids: string[];
+    created_at: string;
+    assigned_student_count: number;
 }
 
 const API_BASE_URL = '/api/exam/mobile';
@@ -23,8 +30,6 @@ const API_BASE_URL = '/api/exam/mobile';
  * @returns 성공 메시지 및 생성된 시험지 세트 정보
  */
 export const publishExamSetAPI = async (payload: PublishExamSetPayload): Promise<PublishExamSetResponse> => {
-    // [수정됨] 백엔드로 보낼 payload의 키가 snake_case이므로,
-    // JSON.stringify가 자동으로 snake_case 키를 가진 JSON 문자열을 생성합니다.
     const res = await fetch(`${API_BASE_URL}/sets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -32,4 +37,17 @@ export const publishExamSetAPI = async (payload: PublishExamSetPayload): Promise
         body: JSON.stringify(payload),
     });
     return handleApiResponse<PublishExamSetResponse>(res);
+};
+
+/**
+ * [신규] 내가 출제한 모바일 시험지 목록을 가져오는 API
+ * @returns 내가 출제한 시험지 요약 정보 배열
+ */
+export const fetchMyPublishedExamSetsAPI = async (): Promise<MyPublishedExamSet[]> => {
+    const res = await fetch(`${API_BASE_URL}/sets/my`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+    });
+    return handleApiResponse<MyPublishedExamSet[]>(res);
 };

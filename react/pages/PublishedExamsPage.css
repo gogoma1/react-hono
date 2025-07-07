@@ -1,0 +1,117 @@
+.published-exams-page {
+    padding: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.published-exams-page .page-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.published-exams-page .page-header h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--color-text-primary);
+}
+
+.published-exams-page .page-header p {
+    font-size: 1rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.published-exams-page .page-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    background-color: var(--color-background-glass);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.exam-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.exam-list-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s, transform 0.2s;
+    text-align: left;
+    color: var(--color-text-primary);
+}
+
+.exam-list-item:hover {
+    transform: translateY(-2px);
+    background-color: var(--color-background-interactive-hover);
+    border-color: var(--color-accent);
+}
+
+.item-icon-wrapper {
+    margin-right: 16px;
+    color: var(--color-accent);
+}
+
+.item-info-wrapper {
+    flex-grow: 1;
+}
+
+.item-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 6px;
+}
+
+.item-details {
+    display: flex;
+    gap: 16px;
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+}
+
+.item-details span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.item-action-wrapper {
+    color: var(--color-text-secondary);
+    transition: color 0.2s;
+}
+
+.exam-list-item:hover .item-action-wrapper {
+    color: var(--color-accent);
+}
+
+.status-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--color-text-secondary);
+    text-align: center;
+}
+
+.status-container.error {
+    color: var(--color-danger);
+}
+
+.status-container .spinner-icon {
+    animation: spin 1.5s linear infinite;
+    font-size: 32px;
+    margin-bottom: 12px;
+}

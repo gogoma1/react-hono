@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router';
 import MobileExamView from '../widgets/mobile-exam-view/MobileExamView';
-import { useLayoutStore } from '../shared/store/layoutStore';
+import { useLayoutStore, type RegisteredPageActions } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
 import { useMobileExamSessionStore } from '../features/mobile-exam-session/model/mobileExamSessionStore';
 import { useMyAssignmentQuery } from '../entities/exam-assignment/model/useMyAssignmentQuery';
@@ -9,23 +10,33 @@ import type { ProcessedProblem } from '../features/problem-publishing';
 import './MobileExamPage.css';
 
 const MobileExamPage: React.FC = () => {
-    // --- 1. 레이아웃 및 세션 스토어 관련 훅 ---
-    const { registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
+    // --- 1. 스토어 및 라우터 훅 ---
+    const { registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
     const { resetSession, initializeSession, isSessionActive } = useMobileExamSessionStore();
+    const [searchParams] = useSearchParams();
 
-    // --- 2. [데이터 로딩] 학생의 최신 시험 과제 정보 가져오기 ---
+    // --- 2. 모드 구분 ---
+    const mode = searchParams.get('mode');
+    const isTeacherPreviewMode = mode === 'teacher-preview';
+
+    // --- 3. 데이터 로딩 ---
     const { 
         data: assignmentData, 
         isLoading: isLoadingAssignment, 
         isError: isAssignmentError,
         error: assignmentError 
-    } = useMyAssignmentQuery();
+    } = useMyAssignmentQuery({
+        enabled: !isTeacherPreviewMode,
+    });
 
-    // --- 3. [데이터 추출] 과제 정보에서 문제 ID 목록 추출 ---
-    const problemIds = useMemo(() => assignmentData?.examSet.problem_ids, [assignmentData]);
+    const teacherPreviewProblemIds = useMemo(() => {
+        if (!isTeacherPreviewMode) return undefined;
+        return searchParams.get('problemIds')?.split(',');
+    }, [isTeacherPreviewMode, searchParams]);
 
-    // --- 4. [데이터 로딩] 문제 ID 목록으로 실제 문제 데이터들 가져오기 ---
+    const problemIds = isTeacherPreviewMode ? teacherPreviewProblemIds : assignmentData?.examSet.problem_ids;
+
     const { 
         data: problems, 
         isLoading: isLoadingProblems,
@@ -33,60 +44,66 @@ const MobileExamPage: React.FC = () => {
         error: problemsError
     } = useProblemsByIdsQuery(problemIds);
 
-    // --- 5. [데이터 가공] 가져온 문제들을 시험 세션에서 사용할 형태로 가공 ---
+    // --- 4. 데이터 가공 ---
     const orderedProblems = useMemo((): ProcessedProblem[] => {
         if (!problems) return [];
-
-        // 백엔드에서 ID 순서대로 정렬해서 보내주므로, 받은 순서를 그대로 사용합니다.
-        // 문제 번호 표시 방식 등, UI에 필요한 추가 정보를 가공합니다.
         return problems.map((p): ProcessedProblem => ({
             ...p,
             uniqueId: p.problem_id,
             display_question_number: p.problem_type === '서답형' ? `서답형 ${p.question_number}` : String(p.question_number),
         }));
     }, [problems]);
-
-    // --- 6. [세션 초기화] 문제 데이터가 준비되면 시험 세션을 시작 ---
+    
+    // --- 5. 세션 및 레이아웃 관리 useEffect ---
     useEffect(() => {
-        // 이 효과는 가공된 문제 배열이 준비되고, 아직 세션이 활성화되지 않았을 때만 실행됩니다.
-        if (orderedProblems.length > 0 && !isSessionActive) {
-            console.log("🚀 Initializing mobile exam session with fetched problems.");
-            initializeSession(orderedProblems);
-        }
-    }, [orderedProblems, isSessionActive, initializeSession]);
-
-    // --- 7. [공통 로직] 컴포넌트 마운트/언마운트 시 처리 ---
-    useEffect(() => {
+        // 이 효과는 페이지 진입/이탈 시 단 한번만 실행되어야 하므로 의존성 배열을 비웁니다.
+        resetSession();
         document.documentElement.classList.add('mobile-exam-layout-active');
-        
-        // 페이지를 떠날 때(컴포넌트 언마운트 시) 세션을 초기화하여 깨끗한 상태로 만듭니다.
         return () => {
-            document.documentElement.classList.remove('mobile-exam-layout-active');
             resetSession();
+            document.documentElement.classList.remove('mobile-exam-layout-active');
         };
     }, [resetSession]);
 
-    // --- 8. [UI 로직] 사이드바 관련 핸들러 설정 ---
+    useEffect(() => {
+        if (orderedProblems.length > 0 && !isSessionActive) {
+            console.log(`🚀 Initializing mobile exam session. Mode: ${isTeacherPreviewMode ? 'Teacher Preview' : 'Student'}`);
+            initializeSession(orderedProblems);
+        }
+    }, [orderedProblems, isSessionActive, initializeSession, isTeacherPreviewMode]);
+    
+    // --- 6. [핵심 수정] 사이드바 액션 등록 useEffect ---
     useEffect(() => {
         const handleOpenSettingsSidebar = () => {
-            setRightSidebarConfig({ contentConfig: { type: 'settings' } });
+            // 오른쪽 사이드바의 내용을 'settings' 타입으로 설정합니다.
+            // RightSidebar.tsx는 이 타입을 보고 ExamTimerDisplay를 렌더링할 것입니다.
+            setRightSidebarContent({ type: 'settings' });
             setRightSidebarExpanded(true);
         };
         const handleCloseSidebar = () => {
+            closeRightSidebar();
             setRightSidebarExpanded(false);
-            setTimeout(() => setRightSidebarConfig({ contentConfig: { type: null } }), 300);
         };
         
-        registerPageActions({ openSettingsSidebar: handleOpenSettingsSidebar, onClose: handleCloseSidebar });
+        const pageActions: Partial<RegisteredPageActions> = {
+            openSettingsSidebar: handleOpenSettingsSidebar,
+            onClose: handleCloseSidebar
+        };
+
+        registerPageActions(pageActions);
         
         return () => {
-            registerPageActions({ openSettingsSidebar: undefined, onClose: undefined });
+            unregisterPageActions(Object.keys(pageActions) as Array<keyof RegisteredPageActions>);
             handleCloseSidebar();
         };
-    }, [registerPageActions, setRightSidebarConfig, setRightSidebarExpanded]);
+    }, [registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar, setRightSidebarExpanded]);
 
-    // --- 9. [UI 렌더링] 로딩 및 에러 상태에 따른 UI 분기 처리 ---
-    if (isLoadingAssignment || isLoadingProblems) {
+    // --- 7. 로딩 및 에러 처리 ---
+    const isLoading = isLoadingAssignment || isLoadingProblems;
+    const isError = isAssignmentError || isProblemsError;
+    const error = assignmentError || problemsError;
+
+    if (isLoading) {
         return (
             <div className="mobile-exam-page-status">
                 <h2>시험지 로딩 중...</h2>
@@ -95,17 +112,17 @@ const MobileExamPage: React.FC = () => {
         );
     }
 
-    if (isAssignmentError || isProblemsError) {
+    if (isError) {
         return (
             <div className="mobile-exam-page-status error">
                 <h2>오류 발생</h2>
                 <p>시험지를 불러오는 데 실패했습니다.</p>
-                <pre>{assignmentError?.message || problemsError?.message}</pre>
+                <pre>{error?.message}</pre>
             </div>
         );
     }
 
-    if (!assignmentData) {
+    if (!isTeacherPreviewMode && !assignmentData) {
         return (
             <div className="mobile-exam-page-status">
                 <h2>시험지 없음</h2>
@@ -114,10 +131,10 @@ const MobileExamPage: React.FC = () => {
         );
     }
     
-    // --- 10. [최종 렌더링] 모든 데이터가 준비되면 실제 시험 뷰 렌더링 ---
+    // --- 8. 최종 렌더링 ---
     return (
         <div className="mobile-exam-page">
-            <MobileExamView />
+            <MobileExamView problems={orderedProblems} isPreview={isTeacherPreviewMode} />
         </div>
     );
 };

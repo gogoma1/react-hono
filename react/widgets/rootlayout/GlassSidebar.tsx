@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router'; // [수정] react-router-dom에서 NavLink import
+import { NavLink } from 'react-router';
 import Tippy from '@tippyjs/react';
 import 'tippy.js/dist/tippy.css';
 import 'tippy.js/themes/light.css';
@@ -10,7 +10,7 @@ import { useUIStore } from '../../shared/store/uiStore';
 import {
     LuLayoutDashboard, LuCheck, LuLibrary, LuHeart, LuActivity,
     LuChartBar, LuFileText, LuChevronLeft, LuChevronRight,
-    LuMove, LuFile, LuPrinter, LuSmartphone // [복원] 모바일 아이콘 임포트
+    LuFile, LuPrinter, LuFileJson2, LuFileClock
 } from 'react-icons/lu';
 
 interface MenuItemData {
@@ -24,18 +24,8 @@ interface MenuItemData {
 const DashboardIcon = () => <LuLayoutDashboard size={18} />;
 const ProblemIcon = () => <LuFile size={18} />;
 const ProblemPublishingIcon = () => <LuPrinter size={18} />;
-const SmartphoneIcon = () => <LuSmartphone size={18} />; // [복원] 모바일 아이콘 컴포넌트
-const MoveIcon = () => <LuMove size={18} />; 
-const ActivityIcon = () => <LuActivity size={18} />;
-const StatisticIcon = () => <LuChartBar size={18} />;
-const PerformanceIcon = () => <LuFileText size={18} />;
-const TasksIcon = () => <LuCheck size={18} />;
-const LibrariesIcon = () => <LuLibrary size={18} />;
-const SavedIcon = () => <LuHeart size={18} />;
-const CloseLeftSidebarIcon = () => <LuChevronLeft size={22} />;
-const TabletToggleChevronLeftIcon = () => <LuChevronLeft size={20} />;
-const TabletToggleChevronRightIcon = () => <LuChevronRight size={20} />;
-const JsonIcon = () => <LuFile size={18} />; 
+const JsonIcon = () => <LuFileJson2 size={18} />; 
+const PublishedExamsIcon = () => <LuFileClock size={18} />;
 
 export const allMenuItems: MenuItemData[] = [
      { 
@@ -54,9 +44,9 @@ export const allMenuItems: MenuItemData[] = [
         icon: <ProblemPublishingIcon />
     },
     {
-        path: '/mobile-exam', // [복원] '모바일 시험지' 메뉴 아이템
-        name: '모바일 시험지',
-        icon: <SmartphoneIcon />
+        path: '/published-exams',
+        name: '모바일 시험지 목록',
+        icon: <PublishedExamsIcon />,
     },
     {
         path: '/json-renderer',
@@ -87,7 +77,6 @@ const GlassSidebar: React.FC = () => {
         }
     };
     
-
     return (
         <aside className={`glass-sidebar
             ${sidebarShouldBeCollapsed ? 'collapsed' : ''}
@@ -101,7 +90,7 @@ const GlassSidebar: React.FC = () => {
                         <span className="sidebar-header-text">메뉴</span>
                         <Tippy content="닫기" placement="bottom" theme="custom-glass" animation="perspective" delay={[200, 0]}>
                             <button onClick={closeMobileSidebar} className="sidebar-close-button mobile-only lgs-close-btn" aria-label="메뉴 닫기">
-                                <CloseLeftSidebarIcon />
+                                <LuChevronLeft size={22} />
                             </button>
                         </Tippy>
                     </>
@@ -121,7 +110,7 @@ const GlassSidebar: React.FC = () => {
                             className="sidebar-toggle-button left-sidebar-toggle tablet-control"
                             aria-label={isLeftSidebarExpanded ? "메뉴 축소" : "메뉴 확장"}
                         >
-                            {isLeftSidebarExpanded ? <TabletToggleChevronLeftIcon /> : <TabletToggleChevronRightIcon />}
+                            {isLeftSidebarExpanded ? <LuChevronLeft size={20} /> : <LuChevronRight size={20} />}
                         </button>
                     </Tippy>
                 </div>

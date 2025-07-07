@@ -14,19 +14,16 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 
-// Enum 정의
 export const profileStatusEnum = pgEnum('profile_status_enum', ['active', 'inactive', 'deleted']);
-export const examAssignmentStatusEnum = pgEnum('exam_assignment_status_enum', ['not_started', 'in_progress', 'completed', 'graded', 'expired']);
+export const examAssignmentStatusEnum = pgEnum('exam_assignment_status_enum', ['assigned', 'not_started', 'in_progress', 'completed', 'graded', 'expired']);
 export const academyStatusEnum = pgEnum('academy_status_enum', ['운영중', '휴업', '폐업']);
 export const subscriptionStatusEnum = pgEnum('subscription_status_enum', ['active', 'canceled', 'past_due', 'incomplete']);
 export const billingIntervalEnum = pgEnum('billing_interval_enum', ['month', 'year']);
 
-// [최종] 학원 구성원의 상태와 유형을 위한 Enum (teacher 포함)
 export const memberStatusEnum = pgEnum('member_status_enum', ['active', 'inactive', 'resigned']);
 export const memberTypeEnum = pgEnum('member_type_enum', ['student', 'teacher', 'parent']);
 
 
-// 테이블 정의
 export const rolesTable = pgTable("roles", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
@@ -61,13 +58,9 @@ export const academiesTable = pgTable("academies", {
   updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
 
-/**
- * [최종] 학원 구성원 정보 테이블 (기존 enrollmentsTable 대체)
- */
 export const academyMembersTable = pgTable("academy_members", {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   academy_id: uuid("academy_id").notNull().references(() => academiesTable.id, { onDelete: 'cascade' }),
-  // profile_id는 Null 허용 (원장이 먼저 등록하는 시나리오 지원)
   profile_id: uuid("profile_id").references(() => profilesTable.id, { onDelete: 'set null' }),
   member_type: memberTypeEnum("member_type").notNull(),
   status: memberStatusEnum("status").notNull().default('active'),
@@ -75,24 +68,21 @@ export const academyMembersTable = pgTable("academy_members", {
   end_date: date("end_date"),
 
   details: jsonb("details").$type<{
-    student_name?: string;   // 학생, 강사 공통 사용 가능
-    student_phone?: string;  // 학생, 강사 공통 사용 가능
-    guardian_phone?: string; // 학생 전용
-    grade?: string;          // 학생 전용
-    school_name?: string;    // 학생 전용
-    class_name?: string;     // 학생 전용
-    subject?: string;        // 강사 전용
-    teacher?: string;        // 학생의 담당 선생님 이름
-    tuition?: number;        // 학생 전용
+    student_name?: string;
+    student_phone?: string;
+    guardian_phone?: string;
+    grade?: string;
+    school_name?: string;
+    class_name?: string;
+    subject?: string;
+    teacher?: string;
+    tuition?: number;
   }>(),
 
   created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
   updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 }, (table) => ({
-  // profile_id가 null이 아닐 때만 unique 제약조건 적용
   unq_academy_member: uniqueIndex('unq_academy_member_idx').on(table.academy_id, table.profile_id, table.member_type).where(sql`${table.profile_id} IS NOT NULL`),
-
-  // details 컬럼 검색 성능 향상을 위한 GIN 인덱스
   details_idx: sql`CREATE INDEX IF NOT EXISTS "details_gin_idx" ON "academy_members" USING GIN ("details")`,
 }));
 
@@ -108,15 +98,15 @@ export const examSetsTable = pgTable("exam_sets", {
 export const examAssignmentsTable = pgTable("exam_assignments", {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   exam_set_id: uuid("exam_set_id").notNull().references(() => examSetsTable.id, { onDelete: 'cascade' }),
-  student_id: uuid("student_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
-  status: examAssignmentStatusEnum("status").default('not_started').notNull(),
+  student_member_id: uuid("student_member_id").notNull().references(() => academyMembersTable.id, { onDelete: 'cascade' }),
+  status: examAssignmentStatusEnum("status").default('assigned').notNull(),
   correct_rate: real("correct_rate"),
   total_pure_time_seconds: integer("total_pure_time_seconds"),
   assigned_at: timestamp("assigned_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
   started_at: timestamp("started_at", { mode: "date", withTimezone: true }),
   completed_at: timestamp("completed_at", { mode: "date", withTimezone: true }),
 }, (table) => ({
-  unqExamStudent: sql`UNIQUE (${table.exam_set_id}, ${table.student_id})`
+  unqExamStudent: sql`UNIQUE (${table.exam_set_id}, ${table.student_member_id})`
 }));
 
 export const productsTable = pgTable("products", {
@@ -151,12 +141,10 @@ export const problemSetEntitlementsTable = pgTable("problem_set_entitlements", {
   created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
 
-// 관계(Relations) 정의
 export const profileRelations = relations(profilesTable, ({ many }) => ({
   userRoles: many(userRolesTable),
   ownedAcademies: many(academiesTable, { relationName: 'ownedAcademies' }),
   academyMemberships: many(academyMembersTable),
-  examAssignments: many(examAssignmentsTable),
   subscriptions: many(subscriptionsTable),
   entitlements: many(problemSetEntitlementsTable),
 }));
@@ -175,9 +163,10 @@ export const academyRelations = relations(academiesTable, ({ one, many }) => ({
   members: many(academyMembersTable),
 }));
 
-export const academyMembersRelations = relations(academyMembersTable, ({ one }) => ({
+export const academyMembersRelations = relations(academyMembersTable, ({ one, many }) => ({
   academy: one(academiesTable, { fields: [academyMembersTable.academy_id], references: [academiesTable.id] }),
   profile: one(profilesTable, { fields: [academyMembersTable.profile_id], references: [profilesTable.id] }),
+  examAssignments: many(examAssignmentsTable),
 }));
 
 export const examSetRelations = relations(examSetsTable, ({ one, many }) => ({
@@ -187,7 +176,7 @@ export const examSetRelations = relations(examSetsTable, ({ one, many }) => ({
 
 export const examAssignmentsRelations = relations(examAssignmentsTable, ({ one }) => ({
   examSet: one(examSetsTable, { fields: [examAssignmentsTable.exam_set_id], references: [examSetsTable.id] }),
-  student: one(profilesTable, { fields: [examAssignmentsTable.student_id], references: [profilesTable.id] }),
+  studentMember: one(academyMembersTable, { fields: [examAssignmentsTable.student_member_id], references: [academyMembersTable.id] }),
 }));
 
 export const productRelations = relations(productsTable, ({ many }) => ({
@@ -204,7 +193,6 @@ export const problemSetEntitlementRelations = relations(problemSetEntitlementsTa
   subscription: one(subscriptionsTable, { fields: [problemSetEntitlementsTable.access_granted_by], references: [subscriptionsTable.id] }),
 }));
 
-// 타입(Types) 정의
 export type DbRole = typeof rolesTable.$inferSelect;
 export type DbProfile = typeof profilesTable.$inferSelect;
 export type DbUserRole = typeof userRolesTable.$inferSelect;
