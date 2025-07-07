@@ -58,9 +58,6 @@
     padding-right: 50px;
 }
 
-/* --- [핵심 수정] --- */
-/* 단계가 완료된 그룹에서는 더 이상 포인터 커서를 사용하지 않습니다. */
-/* 하위 입력창이 자체 커서를 가질 수 있도록 합니다. */
 .psi-form-group.step-completed {
     transition: all 0.3s ease;
 }
@@ -69,23 +66,23 @@
     border-radius: 12px;
 }
 
-/* 완료된 입력창의 스타일 (커서 속성 제거) */
+/* --- [핵심 수정 1] --- */
+/* 완료된 입력창의 스타일 우선순위를 높이고, 배경색을 !important로 지정합니다. */
 .form-input.input-completed {
-    background-color: rgba(225, 234, 243, 1);
-    border-color: transparent;
-    color: var(--text-primary);
-    /* cursor: pointer; 속성을 제거하여 기본 커서(text)가 표시되도록 함 */
+    background-color: rgba(225, 234, 243, 1) !important; /* 하늘색 배경 강제 */
+    border-color: transparent !important;
+    color: var(--text-primary) !important;
 }
 .form-input.input-completed:hover {
-    background-color: #d1dbe5;
-    border-color: transparent;
+    background-color: #d1dbe5 !important;
+    border-color: transparent !important;
 }
 
 
 .form-input:focus {
-    background-color: transparent;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
+    background-color: transparent !important;
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2) !important;
 }
 
 .form-input.input-error {
@@ -97,15 +94,19 @@
     font-weight: 500;
 }
 
+/* --- [핵심 수정 2] --- */
+/* 브라우저의 자동 완성 스타일을 재정의합니다. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
 input:-webkit-autofill:active {
     -webkit-text-fill-color: var(--text-primary) !important;
+    /* 기본 배경색을 회색 계열로 유지 */
     box-shadow: 0 0 0px 1000px rgba(0, 0, 0, 0.07) inset !important;
     transition: background-color 5000s ease-in-out 0s;
 }
 
+/* .input-completed 클래스가 자동 완성된 input에 적용될 때, 배경색을 하늘색으로 덮어씁니다. */
 input.input-completed:-webkit-autofill,
 input.input-completed:-webkit-autofill:hover,
 input.input-completed:-webkit-autofill:focus,

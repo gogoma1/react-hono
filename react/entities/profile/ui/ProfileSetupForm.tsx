@@ -1,13 +1,13 @@
 import React, { forwardRef, Ref } from 'react';
 import type { FormEvent, KeyboardEvent, ChangeEvent } from 'react';
 import BackgroundBlobs from '../../../widgets/rootlayout/BackgroundBlobs';
-import { REGIONS } from './regionData';
 import './ProfileSetupForm.css';
 import { LuArrowRight, LuArrowLeft, LuRefreshCcw } from 'react-icons/lu';
 import { POSITIONS, type PositionType } from '../model/types';
-import { AcademySearch } from '../../../features/academy-search/ui/AcademySearch';
 import type { Academy } from '../../academy/model/types';
 import ProfileSetupInput from './ProfileSetupInput';
+// [신규] 분리된 RoleAcademyForm 컴포넌트를 import 합니다.
+import { RoleAcademyForm } from '../../../features/profile-role-management/ui/RoleAcademyForm'; 
 
 const PrincipalSubmissionHelper: React.FC<{
     academyName: string;
@@ -40,7 +40,6 @@ interface ProfileSetupFormProps {
     validationErrors: { name?: string; phone?: string; academy?: string };
     needsAcademySelection: boolean;
     setName: (name: string) => void;
-    setPhone: (phone: string) => void;
     setAcademyName: (name: string) => void;
     setSelectedCity: (city: string) => void;
     setSelectedDistrict: (district: string) => void;
@@ -65,11 +64,13 @@ export const ProfileSetupForm = forwardRef<HTMLDivElement, ProfileSetupFormProps
         const {
             isLoadingAuth, isSubmitting, step, editingField, setEditingField, selectedPosition,
             name, phone, academyName, selectedCity, selectedDistrict, selectedAcademy,
-            apiErrorMessage, isFormComplete, validationErrors, needsAcademySelection, setName, setPhone, setAcademyName,
-            setSelectedCity, setSelectedDistrict, setSelectedAcademy,
-            handlePositionSelect, handleAcademySelect, handleNameSubmit, handlePhoneChange, handlePhoneSubmit, 
+            apiErrorMessage, isFormComplete, validationErrors, needsAcademySelection, setName,
+            handlePositionSelect, handleNameSubmit, handlePhoneChange, handlePhoneSubmit, 
             handleReset, handleSaveProfile, handleNextStep, handleFinishEditing,
-            nameInputRef, phoneInputRef, academyNameInputRef, academySearchInputRef
+            nameInputRef, phoneInputRef,
+            // [수정] RoleAcademyForm으로 전달할 props들을 props 객체에서 바로 구조분해 할당합니다.
+            setAcademyName, setSelectedCity, setSelectedDistrict, setSelectedAcademy, handleAcademySelect,
+            academyNameInputRef, academySearchInputRef
         } = props;
         
         if (isLoadingAuth) {
@@ -171,80 +172,26 @@ export const ProfileSetupForm = forwardRef<HTMLDivElement, ProfileSetupFormProps
                         )}
 
                         {step >= 4 && (
-                            <div className="details-form-group fade-in">
-                                {selectedPosition === '원장' && (
-                                    <>
-                                        <ProfileSetupInput
-                                            id="academyName"
-                                            label="학원 이름"
-                                            value={academyName}
-                                            onChange={(e) => setAcademyName(e.target.value)}
-                                            onKeyDown={(e) => {if (e.key === 'Enter') e.preventDefault()}}
-                                            onBlur={handleFinishEditing}
-                                            placeholder="학원 이름을 입력하세요"
-                                            isCompleted={false} // 원장 학원이름은 다음 단계가 없으므로 항상 false
-                                            isEditing={true} // 항상 수정 가능한 상태로
-                                            onStartEdit={() => {}}
-                                            readOnly={false}
-                                            ref={academyNameInputRef}
-                                        />
-                                        <div className="form-divider"/>
-                                        <div className="region-selection-area">
-                                            <div className="form-group">
-                                                <label className="form-label">지역 (시/도)</label>
-                                                <div className="region-button-group">
-                                                    {Object.keys(REGIONS).map(city => (
-                                                        <button type="button" key={city} onClick={() => { setSelectedCity(city); setSelectedDistrict(''); }} className={`region-button ${selectedCity === city ? 'active' : ''}`}>{city}</button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            {selectedCity && (
-                                                <>
-                                                    <div className="region-divider"></div>
-                                                    <div className="form-group fade-in">
-                                                        <label className="form-label">지역 (시/군/구)</label>
-                                                        <div className="region-button-group">
-                                                            {REGIONS[selectedCity as keyof typeof REGIONS]?.map(district => (
-                                                                <button type="button" key={district} onClick={() => setSelectedDistrict(district)} className={`region-button ${selectedDistrict === district ? 'active' : ''}`}>{district}</button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
-
-                                {needsAcademySelection && !selectedAcademy && (
-                                    <div className={validationErrors.academy ? 'academy-search-error' : ''}>
-                                        <AcademySearch ref={academySearchInputRef} onAcademySelect={handleAcademySelect} />
-                                        {validationErrors.academy && <p className="error-message academy-error-text">{validationErrors.academy}</p>}
-                                    </div>
-                                )}
-
-                                {needsAcademySelection && selectedAcademy && (
-                                    <div className="selected-academy-display">
-                                        <h4>선택된 학원</h4>
-                                        <div className="academy-info-box">
-                                            <span className="academy-name">{selectedAcademy.name}</span>
-                                            <span className="academy-region">{selectedAcademy.region}</span>
-                                            <button type="button" onClick={() => setSelectedAcademy(null)} className="change-academy-button">
-                                                <LuRefreshCcw size={14} />
-                                                <span>다시 선택</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {selectedPosition === '과외 선생님' && (
-                                    <div className="setup-complete-message">
-                                        <h4>프로필 설정 준비 완료!</h4>
-                                        <p>아래 '저장하고 시작하기' 버튼을 눌러주세요.</p>
-                                    </div>
-                                )}
-                                {apiErrorMessage && <p className="error-message api-error">{apiErrorMessage}</p>}
-                            </div>
+                            // [핵심] 기존의 복잡한 JSX를 RoleAcademyForm 컴포넌트로 대체합니다.
+                            <RoleAcademyForm
+                                selectedPosition={selectedPosition}
+                                academyName={academyName}
+                                selectedCity={selectedCity}
+                                selectedDistrict={selectedDistrict}
+                                selectedAcademy={selectedAcademy}
+                                needsAcademySelection={needsAcademySelection}
+                                validationErrors={validationErrors}
+                                setAcademyName={setAcademyName}
+                                setSelectedCity={setSelectedCity}
+                                setSelectedDistrict={setSelectedDistrict}
+                                handleAcademySelect={handleAcademySelect}
+                                setSelectedAcademy={setSelectedAcademy}
+                                academyNameInputRef={academyNameInputRef}
+                                academySearchInputRef={academySearchInputRef}
+                            />
                         )}
+
+                        {apiErrorMessage && <p className="error-message api-error">{apiErrorMessage}</p>}
                         
                         <div className="submission-area">
                             {isFormComplete ? (

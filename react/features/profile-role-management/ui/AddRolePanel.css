@@ -1,0 +1,63 @@
+/* AddRolePanel.css */
+/* 기존 ProfileSetupForm.css 와 FormPanels.css 의 스타일을 일부 재활용합니다. */
+
+/* 역할 선택 버튼 그룹 */
+.position-buttons-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* 모든 페이지에서 공통으로 사용될 기본 스타일 */
+.position-button {
+    font-size: 0.9rem;
+    padding: 10px 16px;
+    border-radius: 20px;
+    transition: all 0.2s ease-in-out;
+    border: 1px solid var(--border-color-light);
+    background-color: var(--background-color-main-glass-light); /* 기본 배경색 */
+    color: var(--text-secondary);
+}
+
+.position-button.active {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    font-weight: 600;
+}
+
+/* 
+  [핵심] AccountSettingsModal 내부('.in-add-role-mode' 클래스 하위)에서만 
+  적용될 스타일 재정의(override)
+*/
+
+.in-add-role-mode .position-button {
+    background-color: rgba(210, 180, 150, 0.1); 
+    border-color: rgba(210, 180, 150, 0.3);
+    box-shadow: none; /* [수정] 그림자 제거 */
+}
+
+.in-add-role-mode .position-button:hover:not(.active) {
+    background-color: rgba(210, 180, 150, 0.2);
+    border-color: rgba(210, 180, 150, 0.5);
+    box-shadow: none; /* [수정] 호버 시에도 그림자 제거 */
+}
+
+.in-add-role-mode .position-button.active {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--text-primary); 
+    box-shadow: none; /* [수정] 활성화 시에도 그림자 제거 */
+}
+
+/* API 에러 메시지 */
+.api-error {
+    margin-top: 1rem;
+    background-color: rgba(255, 0, 0, 0.1);
+    border: 1px solid rgba(255, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 4px;
+    color: #e74c3c;
+    text-align: center;
+}

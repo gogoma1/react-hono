@@ -1,0 +1,134 @@
+/* ./react/features/account-settings/ui/AccountSettingsModal.css */
+
+/* 모달 내부 콘텐츠의 메인 레이아웃 */
+.account-settings-content {
+    display: flex;
+    height: 700px; 
+}
+
+/* [신규] 모달 헤더 뒤로가기 버튼 스타일 */
+.modal-back-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.1rem; /* modal-title과 동일한 폰트 크기 */
+    font-weight: 600;  /* modal-title과 동일한 굵기 */
+    color: var(--text-primary);
+    padding: 4px; /* 클릭 영역 확보 */
+    margin: -4px; /* 패딩으로 인한 레이아웃 밀림 방지 */
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.modal-back-button:hover {
+    background-color: var(--menu-item-hover-bg);
+}
+
+
+/* 좌측 섹션 메뉴바 */
+.settings-sidebar {
+    width: 180px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border-color-light);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* 좌측 메뉴 버튼 */
+.sidebar-button {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    text-align: left;
+}
+
+.sidebar-button:hover {
+    background-color: var(--menu-item-hover-bg);
+    color: var(--text-primary);
+}
+
+.sidebar-button.active {
+    background-color: var(--menu-item-active-bg);
+    color: var(--menu-item-active-text);
+    font-weight: 600;
+}
+
+.sidebar-button .sidebar-icon {
+    flex-shrink: 0;
+    color: var(--icon-color);
+    transition: color 0.2s;
+}
+
+.sidebar-button:hover .sidebar-icon,
+.sidebar-button.active .sidebar-icon {
+    color: var(--icon-active-color);
+}
+
+/* 우측 메인 콘텐츠 영역 */
+.settings-main-content {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    overflow-y: hidden;
+    display: flex;
+}
+
+.settings-main-content > .settings-panel-container,
+.settings-main-content > .add-role-panel-wrapper {
+    width: 100%;
+    height: 100%;
+}
+
+/* 로딩 및 에러 상태 */
+.settings-loading-container,
+.settings-error-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: var(--text-secondary);
+}
+
+.settings-error-container {
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.settings-error-container pre {
+    background-color: rgba(239, 68, 68, 0.05);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    color: var(--destructive-color, #ef4444);
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.settings-main-content.full-width {
+    flex-grow: 1;
+}
+
+.add-role-panel-wrapper {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.add-role-panel-wrapper > .settings-panel-container {
+    flex-grow: 1;
+}

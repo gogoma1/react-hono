@@ -9,13 +9,14 @@ interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
     onConfirm?: () => void;
-    title: string;
+    // [핵심 수정] title의 타입을 string에서 React.ReactNode로 변경합니다.
+    title: React.ReactNode; 
     children: React.ReactNode;
     confirmText?: string;
     cancelText?: string;
     isConfirming?: boolean;
-    confirmLoadingText?: string; // [신규] 확인 버튼 로딩 텍스트
-    isConfirmDestructive?: boolean; // [신규] 확인 버튼이 파괴적 액션인지 여부
+    confirmLoadingText?: string;
+    isConfirmDestructive?: boolean;
     hideFooter?: boolean;
     size?: 'small' | 'medium' | 'large';
 }
@@ -29,8 +30,8 @@ const Modal: React.FC<ModalProps> = ({
     confirmText = '확인',
     cancelText = '취소',
     isConfirming = false,
-    confirmLoadingText = '처리 중...', // [신규]
-    isConfirmDestructive = false,   // [신규]
+    confirmLoadingText = '처리 중...',
+    isConfirmDestructive = false,
     hideFooter = false,
     size = 'medium'
 }) => {
@@ -56,14 +57,18 @@ const Modal: React.FC<ModalProps> = ({
         return null;
     }
 
-    // [핵심] 확인 버튼의 클래스를 동적으로 결정
     const confirmButtonClassName = `primary ${isConfirmDestructive ? 'destructive' : ''}`.trim();
 
     const modalContent = (
         <div className="modal-backdrop" onClick={onClose}>
             <div className={`modal-content-wrapper ${size}`} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3 className="modal-title">{title}</h3>
+                    {/* [수정] h3 태그로 감싸지 않고, 전달받은 title을 그대로 렌더링합니다. */}
+                    {typeof title === 'string' ? (
+                        <h3 className="modal-title">{title}</h3>
+                    ) : (
+                        title // title이 JSX 요소(버튼 등)일 경우 그대로 렌더링
+                    )}
                     <button className="modal-close-button" onClick={onClose} aria-label="닫기">
                         <LuX size={22} />
                     </button>
@@ -81,7 +86,7 @@ const Modal: React.FC<ModalProps> = ({
                                 onClick={onConfirm}
                                 isLoading={isConfirming}
                                 className={confirmButtonClassName}
-                                loadingText={confirmLoadingText} // [수정] prop 사용
+                                loadingText={confirmLoadingText}
                             >
                                 {confirmText}
                             </LoadingButton>

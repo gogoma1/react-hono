@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
+import settingsRoutes from './settings';
 
 import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
@@ -132,6 +133,7 @@ profileRoutes.post(
                     email: user.email!,
                     name: name,
                     phone: sanitizedPhone, // DB에는 정제된 번호를 저장합니다.
+                    status: 'active',
                 }).returning();
 
                 const role = await tx.query.rolesTable.findFirst({
@@ -188,5 +190,7 @@ profileRoutes.post(
         }
     }
 );
+
+profileRoutes.route('/', settingsRoutes);
 
 export default profileRoutes;

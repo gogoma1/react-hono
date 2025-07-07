@@ -1,0 +1,195 @@
+/* =================================================================
+   FormPanels.css - 계정 설정 패널 공통 스타일
+================================================================= */
+
+/* --- 1. 패널 기본 레이아웃 --- */
+.settings-panel-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 1.5rem 2rem;
+    box-sizing: border-box;
+    max-width: 640px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* --- 2. 패널 헤더 --- */
+.panel-header {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color-light);
+    margin-bottom: 1.5rem;
+    flex-shrink: 0;
+}
+
+.panel-header .panel-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+    color: var(--text-primary);
+}
+
+.panel-header .panel-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* --- 3. 폼 레이아웃 및 요소 --- */
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    flex-grow: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 8px;
+    margin-right: -8px;
+    scrollbar-gutter: stable;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    border: 1px solid var(--text-placeholder, #d1d5db);
+    border-radius: 8px;
+    background-color: var(--main-content-bg-color);
+    color: var(--text-primary);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);
+}
+
+.form-input:disabled {
+    background-color: rgba(0,0,0,0.05);
+    border-color: transparent;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.form-input.input-error {
+    border-color: #e74c3c;
+}
+
+.error-message {
+    font-size: 0.8rem;
+    color: #e74c3c;
+}
+
+/* --- 4. 역할(Role) 표시 영역 --- */
+.role-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.add-role-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--accent-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.add-role-button:hover {
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+}
+
+.role-display-area {
+    background-color: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.role-item {
+    font-size: 0.9rem;
+}
+
+.role-name {
+    font-weight: 600;
+    margin-right: 8px;
+    background-color: rgba(0,0,0,0.05);
+    padding: 3px 7px;
+    border-radius: 6px;
+}
+
+.role-detail {
+    color: var(--text-secondary);
+}
+
+/* --- 5. 폼 푸터 (버튼 영역) --- */
+.form-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 1.5rem;
+    margin-top: auto;
+    border-top: 1px solid var(--border-color-light);
+    flex-shrink: 0;
+}
+
+/* --- 6. 위험 구역(Danger Zone) 스타일 --- */
+.danger-zone-header {
+    border-left: 3px solid var(--destructive-color, #ef4444);
+    padding-left: 1rem;
+    border-bottom: none;
+}
+
+.danger-zone-header .panel-title {
+    color: var(--destructive-color, #ef4444);
+}
+
+.action-button.destructive,
+.loading-button.destructive {
+    background-color: #ef4444;
+    border-color: #ef4444;
+    color: white;
+}
+
+.action-button.destructive:hover:not(:disabled),
+.loading-button.destructive:hover:not(:disabled) {
+    background-color: #dc2626;
+    border-color: #dc2626;
+}
+
+.loading-button.destructive.loading {
+    background-color: #ef4444 !important;
+}
+
+/* 
+  [핵심 수정] 
+  AccountSettingsModal 내부(.account-settings-content)의 비활성화된 버튼에만
+  적용될 커서 스타일을 재정의합니다.
+*/
+.account-settings-content .action-button:disabled,
+.account-settings-content .loading-button:disabled {
+    cursor: auto; /* not-allowed 대신 기본 커서로 변경 */
+}

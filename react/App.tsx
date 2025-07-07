@@ -14,6 +14,7 @@ import ProblemWorkbenchPage from './pages/ProblemWorkbenchPage';
 import JsonRendererPage from './pages/JsonRendererPage';
 import ProblemPublishingPage from './pages/ProblemPublishingPage'; 
 import MobileExamPage from './pages/MobileExamPage';
+import AccountSettingsModal from './features/account-settings/ui/AccountSettingsModal';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,12 +32,16 @@ function App() {
     return (
         <QueryClientProvider client={queryClient}>
             <AuthInitializer />
+            {/* 모달을 여기서 호출하지 않습니다. */}
             {isLoadingAuth ? (
                 <div className="app-loading-container">
                     <h1>애플리케이션 로딩 중...</h1>
                 </div>
             ) : (
                 <Router>
+                    {/* [수정] 모달을 <Router> 안, <Routes> 바깥으로 이동합니다. */}
+                    <AccountSettingsModal />
+                    
                     <Routes>
                         <Route path="/login" element={<LoginPage />} />
                         <Route element={<ProtectedRoute />}>

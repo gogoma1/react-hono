@@ -15,6 +15,13 @@
       "when": 1751611269415,
       "tag": "0001_thin_blue_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1751866655012,
+      "tag": "0002_spooky_tenebrous",
+      "breakpoints": true
     }
   ]
 }

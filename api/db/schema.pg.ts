@@ -9,39 +9,49 @@ import {
     date,
     jsonb,
     primaryKey,
+    boolean,
 } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 
+// --- Enums: 재사용 가능한 상태 값들 ---
+
+export const profileStatusEnum = pgEnum('profile_status_enum', ['active', 'inactive', 'deleted']);
 export const studentStatusEnum = pgEnum('student_status_enum', ['재원', '휴원', '퇴원']);
 export const examAssignmentStatusEnum = pgEnum('exam_assignment_status_enum', ['not_started', 'in_progress', 'completed', 'graded', 'expired']);
 export const academyStatusEnum = pgEnum('academy_status_enum', ['운영중', '휴업', '폐업']);
+export const subscriptionStatusEnum = pgEnum('subscription_status_enum', ['active', 'canceled', 'past_due', 'incomplete']);
+export const billingIntervalEnum = pgEnum('billing_interval_enum', ['month', 'year']);
 
+
+// --- 테이블 정의 ---
 
 /**
- * 역할 정보 테이블 (신규)
+ * 역할 정보 테이블
  * 시스템에 존재하는 모든 역할 목록을 관리합니다.
  */
 export const rolesTable = pgTable("roles", {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    name: text("name").notNull().unique(), // 예: '원장', '강사', '학생', '학부모', '과외선생님'
+    name: text("name").notNull().unique(), // 예: '원장', '강사', '학생', '학부모', '과외 선생님'
     description: text("description"),
 });
 
 /**
- * 사용자 프로필 테이블 (수정)
- * 역할(position) 컬럼을 제거하고, 순수 사용자 정보(이름, 전화번호 등)만 관리합니다.
+ * 사용자 프로필 테이블
+ * [수정] Soft Delete를 위한 status 및 deleted_at 컬럼 추가.
  */
 export const profilesTable = pgTable("profiles", {
     id: uuid("id").primaryKey(), // Supabase auth.users.id 참조
     email: text("email").notNull().unique(),
     name: text("name").notNull(),
     phone: text("phone"),
+    status: profileStatusEnum("status").default('active').notNull(),
+    deleted_at: timestamp("deleted_at", { mode: "date", withTimezone: true }),
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
     updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
 
 /**
- * 사용자-역할 연결 테이블 (신규, 다대다 관계)
+ * 사용자-역할 연결 테이블 (다대다 관계)
  */
 export const userRolesTable = pgTable("user_roles", {
     user_id: uuid("user_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
@@ -51,11 +61,11 @@ export const userRolesTable = pgTable("user_roles", {
 }));
 
 /**
- * 학원 정보 테이블 (신규)
+ * 학원 정보 테이블
  */
 export const academiesTable = pgTable("academies", {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    principal_id: uuid("principal_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }), // 원장 프로필 ID
+    principal_id: uuid("principal_id").notNull().references(() => profilesTable.id), // 원장 프로필 ID
     name: text("name").notNull(),
     region: text("region").notNull(),
     status: academyStatusEnum("status").default('운영중').notNull(),
@@ -64,8 +74,7 @@ export const academiesTable = pgTable("academies", {
 });
 
 /**
- * 학생 재원 정보 테이블 (신규)
- * 기존 studentsTable을 대체하며, 한 학생이 여러 학원에 등록될 수 있도록 합니다.
+ * 학생 재원 정보 테이블
  */
 export const enrollmentsTable = pgTable("enrollments", {
     id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -88,7 +97,7 @@ export const enrollmentsTable = pgTable("enrollments", {
 });
 
 /**
- * 시험지 세트 정보 테이블
+ * 시험지 세트 정보 테이블 (선생님이 학생에게 할당하는 '시험지')
  */
 export const examSetsTable = pgTable("exam_sets", {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -101,13 +110,11 @@ export const examSetsTable = pgTable("exam_sets", {
 
 /**
  * 시험지 할당 정보 테이블
- * [요청사항 반영] 학생을 식별할 때, 학원 재원 정보(enrollment) 대신 학생의 프로필(profile)을 직접 참조합니다.
- * 이는 어떤 학원에 소속되어 있든, 학생의 통합 계정으로 시험을 관리하겠다는 의미입니다.
  */
 export const examAssignmentsTable = pgTable("exam_assignments", {
     id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     exam_set_id: uuid("exam_set_id").notNull().references(() => examSetsTable.id, { onDelete: 'cascade' }),
-    student_id: uuid("student_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }), // 학생 프로필 ID 참조
+    student_id: uuid("student_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
     status: examAssignmentStatusEnum("status").default('not_started').notNull(),
     correct_rate: real("correct_rate"),
     total_pure_time_seconds: integer("total_pure_time_seconds"),
@@ -118,27 +125,60 @@ export const examAssignmentsTable = pgTable("exam_assignments", {
     unqExamStudent: sql`UNIQUE (${table.exam_set_id}, ${table.student_id})`,
 }));
 
+
+// --- [신규] 구독 및 권한 관련 테이블 ---
+
 /**
- * [요청사항 반영] 사용자 구매 정보 테이블
+ * 판매 상품(플랜) 정보 테이블
  */
-export const userPurchaseTable = pgTable("user_purchase", {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    user_id: uuid("user_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
-    problem_set_id: text("problem_set_id"),
-    purchase_date: timestamp("purchase_date", { mode: "date", withTimezone: true }),
-    purchase_price: integer("purchase_price"),
-    license_period: integer("license_period"),
+export const productsTable = pgTable("products", {
+    id: text("id").primaryKey(), // 예: "basic_monthly_plan"
+    active: boolean("active").default(true).notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    price: integer("price"),
+    billing_interval: billingIntervalEnum("billing_interval"),
     created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
-    updated_at: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
 });
 
+/**
+ * 사용자 구독 정보 테이블
+ */
+export const subscriptionsTable = pgTable("subscriptions", {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    user_id: uuid("user_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
+    product_id: text("product_id").notNull().references(() => productsTable.id),
+    status: subscriptionStatusEnum("status").notNull(),
+    current_period_start: timestamp("current_period_start", { mode: "date", withTimezone: true }).notNull(),
+    current_period_end: timestamp("current_period_end", { mode: "date", withTimezone: true }).notNull(),
+    canceled_at: timestamp("canceled_at", { mode: "date", withTimezone: true }),
+    payment_gateway: text("payment_gateway").notNull(),
+    payment_gateway_subscription_id: text("payment_gateway_subscription_id").notNull().unique(),
+    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+});
+
+/**
+ * 문제집 접근 권한 테이블
+ */
+export const problemSetEntitlementsTable = pgTable("problem_set_entitlements", {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    user_id: uuid("user_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
+    problem_set_id: text("problem_set_id").notNull(), // D1의 problem_set_id 참조
+    access_granted_by: uuid("access_granted_by").references(() => subscriptionsTable.id),
+    access_expires_at: timestamp("access_expires_at", { mode: "date", withTimezone: true }),
+    created_at: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
+});
+
+
+// --- Relations: 테이블 관계 정의 ---
 
 export const profileRelations = relations(profilesTable, ({ many }) => ({
     userRoles: many(userRolesTable),
     ownedAcademies: many(academiesTable, { relationName: 'ownedAcademies' }),
     enrollmentsAsStudent: many(enrollmentsTable, { relationName: 'enrollmentsAsStudent' }),
     examAssignments: many(examAssignmentsTable),
-    purchases: many(userPurchaseTable),
+    subscriptions: many(subscriptionsTable),
+    entitlements: many(problemSetEntitlementsTable),
 }));
 
 export const roleRelations = relations(rolesTable, ({ many }) => ({
@@ -170,10 +210,22 @@ export const examAssignmentsRelations = relations(examAssignmentsTable, ({ one }
     student: one(profilesTable, { fields: [examAssignmentsTable.student_id], references: [profilesTable.id] }),
 }));
 
-export const userPurchaseRelations = relations(userPurchaseTable, ({ one }) => ({
-    user: one(profilesTable, { fields: [userPurchaseTable.user_id], references: [profilesTable.id] }),
+export const productRelations = relations(productsTable, ({ many }) => ({
+    subscriptions: many(subscriptionsTable),
 }));
 
+export const subscriptionRelations = relations(subscriptionsTable, ({ one }) => ({
+    user: one(profilesTable, { fields: [subscriptionsTable.user_id], references: [profilesTable.id] }),
+    product: one(productsTable, { fields: [subscriptionsTable.product_id], references: [productsTable.id] }),
+}));
+
+export const problemSetEntitlementRelations = relations(problemSetEntitlementsTable, ({ one }) => ({
+    user: one(profilesTable, { fields: [problemSetEntitlementsTable.user_id], references: [profilesTable.id] }),
+    subscription: one(subscriptionsTable, { fields: [problemSetEntitlementsTable.access_granted_by], references: [subscriptionsTable.id] }),
+}));
+
+
+// --- Types: Drizzle ORM 타입 추론 ---
 
 export type DbRole = typeof rolesTable.$inferSelect;
 export type DbProfile = typeof profilesTable.$inferSelect;
@@ -182,4 +234,6 @@ export type DbAcademy = typeof academiesTable.$inferSelect;
 export type DbEnrollment = typeof enrollmentsTable.$inferSelect;
 export type DbExamSet = typeof examSetsTable.$inferSelect;
 export type DbExamAssignment = typeof examAssignmentsTable.$inferSelect;
-export type DbUserPurchase = typeof userPurchaseTable.$inferSelect;
+export type DbProduct = typeof productsTable.$inferSelect;
+export type DbSubscription = typeof subscriptionsTable.$inferSelect;
+export type DbProblemSetEntitlement = typeof problemSetEntitlementsTable.$inferSelect;
