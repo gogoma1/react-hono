@@ -1,8 +1,9 @@
+// ./react/features/student-status-changer/ui/StudentStatusChanger.tsx
+
 import React from 'react';
 import Badge from '../../../shared/ui/Badge/Badge';
-import type { Student } from '../../../entities/student/model/useStudentDataWithRQ';
+import type { Student } from '../../../entities/student/model/types';
 import './StudentStatusChanger.css';
-// [추가] 뒤로가기 아이콘과 툴팁을 import 합니다.
 import { LuUndo2 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
@@ -11,20 +12,20 @@ type StatusValue = Student['status'];
 interface StudentStatusChangerProps {
     studentId: string;
     onStatusSelect: (studentId: string, status: StatusValue | 'delete') => void;
-    onCancel: () => void; // [추가] 취소 함수를 위한 prop
+    onCancel: () => void;
 }
 
 const StudentStatusChanger: React.FC<StudentStatusChangerProps> = ({ studentId, onStatusSelect, onCancel }) => {
-    const statuses: { label: string, value: StatusValue | 'delete', className: string }[] = [
-        { label: '재원', value: '재원', className: 'status-enroll' },
-        { label: '휴원', value: '휴원', className: 'status-pause' },
-        { label: '퇴원', value: '퇴원', className: 'status-leave' },
-        { label: '삭제', value: 'delete', className: 'status-delete' },
+    const statuses: { label: string, value: StatusValue, className: string }[] = [
+        { label: '재원', value: 'active', className: 'status-enroll' },
+        { label: '휴원', value: 'inactive', className: 'status-pause' },
+        { label: '퇴원', value: 'resigned', className: 'status-leave' },
     ];
+    // '삭제'는 위험한 액션이므로 별도 버튼으로 분리하거나 다른 방식으로 처리하는 것이 좋습니다.
+    // 여기서는 기존 구조를 유지하되, label과 value를 명확히 구분합니다.
 
     return (
         <div className="status-changer-container">
-            {/* [추가] 뒤로가기(취소) 아이콘 버튼 */}
             <Tippy content="취소" theme="custom-glass" placement="top">
                 <button
                     type="button"
@@ -39,7 +40,6 @@ const StudentStatusChanger: React.FC<StudentStatusChangerProps> = ({ studentId, 
                 </button>
             </Tippy>
 
-            {/* 기존 Badge 그룹 */}
             {statuses.map(({ label, value, className }) => (
                 <Badge
                     key={value}

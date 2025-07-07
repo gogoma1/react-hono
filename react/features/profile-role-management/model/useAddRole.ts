@@ -1,8 +1,11 @@
+// ./react/features/profile-role-management/model/useAddRole.ts
+
 import { useState, useMemo, useCallback, useRef } from 'react';
-import type { PositionType } from '../../../entities/profile/model/types';
+import type { PositionType, AddRolePayload } from '../../../entities/profile/model/types';
+import { POSITIONS } from '../../../entities/profile/model/types';
 import type { Academy } from '../../../entities/academy/model/types';
-import { useAddRoleMutation } from '../../../entities/profile/model/useProfileQuery';
-import type { AddRolePayload } from '../../../entities/profile/model/types';
+import { useAddRoleMutation, useMyProfileQuery } from '../../../entities/profile/model/useProfileQuery';
+import { STAFF_GROUP, MEMBER_GROUP } from '../../../entities/profile/model/role-groups';
 
 type ValidationErrors = {
     position?: string;
@@ -18,7 +21,8 @@ export const useAddRole = (onSuccess?: () => void) => {
     const academySearchInputRef = useRef<HTMLInputElement>(null);
 
     const addRoleMutation = useAddRoleMutation();
-    
+    const { data: myProfile } = useMyProfileQuery();
+
     const [selectedPosition, setSelectedPosition] = useState<PositionType | ''>('');
     const [academyName, setAcademyName] = useState('');
     const [selectedCity, setSelectedCity] = useState('');
@@ -40,22 +44,82 @@ export const useAddRole = (onSuccess?: () => void) => {
         if (needsAcademySelection) {
             return !!selectedAcademy;
         }
-        return true; // '과외 선생님' 등
+        return true;
     }, [selectedPosition, academyName, selectedCity, selectedDistrict, selectedAcademy, needsAcademySelection]);
+
+    const disabledRoles = useMemo(() => {
+        const disabled = new Map<PositionType, string>();
+        if (!myProfile) return disabled;
+
+        const targetAcademyId = needsAcademySelection && selectedAcademy ? selectedAcademy.id : null;
+
+        // 사용자의 역할을 학원별로 그룹화합니다.
+        const userRolesByAcademy = new Map<string, Set<string>>();
+        myProfile.roles.forEach(role => {
+            const key = role.academyId || 'global'; // 학원 소속이 아닌 역할은 'global' 키 사용
+            if (!userRolesByAcademy.has(key)) {
+                userRolesByAcademy.set(key, new Set<string>());
+            }
+            userRolesByAcademy.get(key)!.add(role.name);
+        });
+
+        const globalRoles = userRolesByAcademy.get('global') || new Set<string>();
+        const academyRoles = targetAcademyId ? userRolesByAcademy.get(targetAcademyId) || new Set<string>() : new Set<string>();
+        
+        const hasStaffRoleInAcademy = [...academyRoles].some(r => STAFF_GROUP.includes(r));
+        const hasMemberRoleInAcademy = [...academyRoles].some(r => MEMBER_GROUP.includes(r));
+
+        POSITIONS.forEach((pos: PositionType) => {
+            if (globalRoles.has(pos)) {
+                disabled.set(pos, "이미 보유한 역할입니다.");
+                return;
+            }
+
+            // 학원이 선택된 경우, 해당 학원 내에서의 역할 충돌을 검사합니다.
+            if (targetAcademyId) {
+                if (academyRoles.has(pos)) {
+                    disabled.set(pos, "이미 이 학원에서 동일한 역할을 가지고 있습니다.");
+                    return;
+                }
+                
+                const isAddingStaff = STAFF_GROUP.includes(pos);
+                const isAddingMember = MEMBER_GROUP.includes(pos);
+                
+                if (isAddingStaff && hasMemberRoleInAcademy) {
+                    disabled.set(pos, "이미 소속원 역할이 있어 추가할 수 없습니다.");
+                } else if (isAddingMember && hasStaffRoleInAcademy) {
+                    disabled.set(pos, "이미 관리자 역할이 있어 추가할 수 없습니다.");
+                } else if (pos === '학생' && academyRoles.has('학부모')) {
+                    disabled.set(pos, "이미 학부모 역할이 있어 추가할 수 없습니다.");
+                } else if (pos === '학부모' && academyRoles.has('학생')) {
+                    disabled.set(pos, "이미 학생 역할이 있어 추가할 수 없습니다.");
+                }
+            } else if (needsAcademySelection) { // 학원 선택이 필요한데 아직 안 한 경우
+                 disabled.set(pos, "학원을 먼저 선택해야 합니다.");
+            }
+        });
+
+        return disabled;
+    }, [myProfile, selectedAcademy, needsAcademySelection]);
+
 
     const handlePositionSelect = useCallback((position: PositionType) => {
         setSelectedPosition(position);
-        // 역할이 바뀌면 하위 선택사항 초기화
-        setAcademyName('');
-        setSelectedCity('');
-        setSelectedDistrict('');
-        setSelectedAcademy(null);
+        // '원장'이나 학원 소속 역할이 아닌 경우, 학원 관련 상태를 초기화합니다.
+        if (!['원장', '강사', '학생', '학부모'].includes(position)) {
+            setAcademyName('');
+            setSelectedCity('');
+            setSelectedDistrict('');
+            setSelectedAcademy(null);
+        }
         setValidationErrors({});
         setApiErrorMessage('');
     }, []);
 
     const handleAcademySelect = useCallback((academy: Academy) => {
         setSelectedAcademy(academy);
+        // 학원을 선택하면, 선택 가능한 역할을 다시 고르도록 유도합니다.
+        setSelectedPosition('');
         setValidationErrors(prev => ({ ...prev, academy: undefined }));
         setApiErrorMessage('');
     }, []);
@@ -71,55 +135,28 @@ export const useAddRole = (onSuccess?: () => void) => {
             return;
         }
 
-        const payload: AddRolePayload = {
-            role_name: selectedPosition,
-        };
-        
+        const payload: AddRolePayload = { role_name: selectedPosition };
         if (selectedPosition === '원장') {
             payload.academy_name = academyName;
             payload.region = `${selectedCity} ${selectedDistrict}`;
         }
-        
         if (needsAcademySelection && selectedAcademy) {
             payload.academy_id = selectedAcademy.id;
         }
 
         addRoleMutation.mutate(payload, {
-            onSuccess: () => {
-                onSuccess?.();
-            },
-            onError: (error) => {
-                const friendlyMessage = error.message.includes('Enrollment not found') 
-                    ? `선택하신 학원에 회원님의 전화번호로 등록된 정보가 없습니다. 학원을 다시 선택하시거나, 담당 선생님께 문의하여 등록을 요청해주세요.`
-                    : error.message || '역할 추가에 실패했습니다.';
-                setApiErrorMessage(friendlyMessage);
-            }
+            onSuccess: () => onSuccess?.(),
+            onError: (error) => setApiErrorMessage(error.message || '역할 추가에 실패했습니다.')
         });
-
     }, [isFormComplete, addRoleMutation, selectedPosition, academyName, selectedCity, selectedDistrict, selectedAcademy, needsAcademySelection, onSuccess]);
 
     return {
-        // Refs
-        academyNameInputRef,
-        academySearchInputRef,
-        // State
-        selectedPosition,
-        academyName,
-        selectedCity,
-        selectedDistrict,
-        selectedAcademy,
-        needsAcademySelection,
-        validationErrors,
-        apiErrorMessage,
-        isFormComplete,
+        academyNameInputRef, academySearchInputRef,
+        selectedPosition, academyName, selectedCity, selectedDistrict, selectedAcademy,
+        needsAcademySelection, validationErrors, apiErrorMessage, isFormComplete,
         isSubmitting: addRoleMutation.isPending,
-        // Setters & Handlers
-        setAcademyName,
-        setSelectedCity,
-        setSelectedDistrict,
-        setSelectedAcademy,
-        handlePositionSelect,
-        handleAcademySelect,
-        handleSave,
+        disabledRoles,
+        setAcademyName, setSelectedCity, setSelectedDistrict, setSelectedAcademy,
+        handlePositionSelect, handleAcademySelect, handleSave,
     };
 };

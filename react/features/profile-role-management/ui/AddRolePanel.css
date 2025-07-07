@@ -61,3 +61,18 @@
     color: #e74c3c;
     text-align: center;
 }
+
+.disabled-button-wrapper {
+    display: inline-block; /* Tippy가 올바르게 위치를 잡도록 함 */
+    cursor: not-allowed;
+}
+
+.role-selection-disabled-overlay {
+    background-color: rgba(0, 0, 0, 0.03);
+    border: 1px dashed rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}

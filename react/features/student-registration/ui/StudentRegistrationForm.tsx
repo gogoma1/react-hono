@@ -1,37 +1,37 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { GRADE_LEVELS, type CreateEnrollmentInput, type Student } from '../../../entities/student/model/types';
+import { 
+    GRADE_LEVELS, 
+    type Student, 
+    type CreateStudentInput,
+    type MemberDetails // [신규] MemberDetails 타입 임포트
+} from '../../../entities/student/model/types';
 import { useStudentDataWithRQ } from '../../../entities/student/model/useStudentDataWithRQ';
 import CategoryInput from './CategoryInput';
 import './StudentRegistrationForm.css';
 import { LuUserPlus } from 'react-icons/lu';
 
-// [수정] Props 타입에 allStudents 추가
 interface StudentRegistrationFormProps {
     onSuccess?: () => void;
     academyId: string;
     allStudents: Student[];
 }
 
-const getUniqueValues = <T extends object>(items: T[], key: keyof T): (string | number)[] => {
-    if (!items || items.length === 0) {
-        return [];
+// [신규] 타입-안전한 헬퍼 함수 정의
+const getUniqueValuesFromDetails = (students: Student[], key: keyof MemberDetails): (string | number)[] => {
+    if (!students || students.length === 0) return [];
+    
+    const values = students
+        .map(student => student.details?.[key])
+        .filter((value): value is string | number => value !== null && value !== undefined && String(value).trim() !== '');
+        
+    const uniqueValues = Array.from(new Set(values));
+    if (uniqueValues.length > 0 && typeof uniqueValues[0] === 'number') {
+        return uniqueValues.sort((a, b) => (a as number) - (b as number));
     }
-
-    const uniqueValues = items.reduce((acc: Set<string | number>, item) => {
-        const value = item[key];
-        if (typeof value === 'string' && value.trim() !== '') {
-            acc.add(value);
-        } else if (typeof value === 'number') {
-            acc.add(value);
-        }
-        return acc;
-    }, new Set<string | number>());
-
-    return Array.from(uniqueValues);
+    return uniqueValues.sort();
 };
 
 const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuccess, academyId, allStudents }) => {
-    // [수정] add 관련 훅만 사용하고, 데이터는 props로 받은 allStudents를 기반으로 생성
     const { addStudent, addStudentStatus } = useStudentDataWithRQ(academyId);
 
     const [name, setName] = useState('');
@@ -44,23 +44,16 @@ const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuc
     const [schoolName, setSchoolName] = useState('');
     const [tuition, setTuition] = useState('');
 
-    // [수정] useMemo의 의존성을 props로 받은 allStudents로 변경
-    const uniqueClassNames = useMemo(() => getUniqueValues(allStudents, 'class_name').sort(), [allStudents]);
-    const uniqueSubjects = useMemo(() => getUniqueValues(allStudents, 'subject').sort(), [allStudents]);
-    const uniqueSchoolNames = useMemo(() => getUniqueValues(allStudents, 'school_name').sort(), [allStudents]);
-    const uniqueTuitions = useMemo(() => getUniqueValues(allStudents, 'tuition').sort((a,b) => (a as number) - (b as number)), [allStudents]);
-    const uniqueTeachers = useMemo(() => getUniqueValues(allStudents, 'teacher').sort(), [allStudents]);
+    // [수정] 새로운 헬퍼 함수를 사용하도록 변경
+    const uniqueClassNames = useMemo(() => getUniqueValuesFromDetails(allStudents, 'class_name'), [allStudents]);
+    const uniqueSubjects = useMemo(() => getUniqueValuesFromDetails(allStudents, 'subject'), [allStudents]);
+    const uniqueSchoolNames = useMemo(() => getUniqueValuesFromDetails(allStudents, 'school_name'), [allStudents]);
+    const uniqueTeachers = useMemo(() => getUniqueValuesFromDetails(allStudents, 'teacher'), [allStudents]);
+    const uniqueTuitions = useMemo(() => getUniqueValuesFromDetails(allStudents, 'tuition'), [allStudents]);
 
     const resetForm = () => {
-        setName(''); 
-        setGrade(''); 
-        setSubject(''); 
-        setClassName(''); 
-        setTeacher('');
-        setStudentPhone(''); 
-        setGuardianPhone('');
-        setSchoolName(''); 
-        setTuition('');
+        setName(''); setGrade(''); setSubject(''); setClassName(''); setTeacher('');
+        setStudentPhone(''); setGuardianPhone(''); setSchoolName(''); setTuition('');
     };
     
     useEffect(() => {
@@ -75,18 +68,20 @@ const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuc
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        const newStudentData: CreateEnrollmentInput = {
+        const newStudentData: CreateStudentInput = {
             academy_id: academyId,
-            student_name: name.trim(),
-            grade: grade.trim(),
-            subject: subject.trim(),
-            status: '재원',
-            class_name: className.trim() || null,
-            teacher: teacher.trim() || null,
-            student_phone: studentPhone.trim() || null,
-            guardian_phone: guardianPhone.trim() || null,
-            school_name: schoolName.trim() || null,
-            tuition: tuition ? Number(String(tuition).replace(/,/g, '')) : null,
+            member_type: 'student',
+            details: {
+                student_name: name.trim(),
+                grade: grade.trim(),
+                subject: subject.trim(),
+                class_name: className.trim() || undefined,
+                teacher: teacher.trim() || undefined,
+                student_phone: studentPhone.trim() || undefined,
+                guardian_phone: guardianPhone.trim() || undefined,
+                school_name: schoolName.trim() || undefined,
+                tuition: tuition ? Number(String(tuition).replace(/,/g, '')) : undefined,
+            }
         };
         try {
             await addStudent(newStudentData);

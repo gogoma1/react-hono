@@ -1,78 +1,76 @@
 /**
- * [수정]
- * 학생(Student)이 아닌 재원 정보(Enrollment)를 나타내는 기본 타입입니다.
- * 백엔드의 enrollmentsTable 스키마와 일치하도록 필드를 snake_case로 수정합니다.
+ * [신규] academy_members 테이블의 details 필드 타입을 정의합니다.
  */
-export interface Enrollment {
+export interface MemberDetails {
+    student_name?: string;
+    student_phone?: string;
+    guardian_phone?: string;
+    grade?: string;
+    school_name?: string;
+    class_name?: string;
+    subject?: string;
+    teacher?: string;
+    tuition?: number;
+}
+
+/**
+ * [신규] academy_members 테이블의 전체 구조를 나타내는 기본 타입입니다.
+ * 백엔드의 DbAcademyMember 타입과 일치합니다.
+ */
+export interface AcademyMember {
     id: string;
     academy_id: string;
-    student_profile_id: string | null;
-    
-    student_name: string;
-    student_phone: string | null;
-    guardian_phone: string | null;
-    grade: string;
-    subject: string;
-    status: '재원' | '휴원' | '퇴원';
-    tuition: number | null;
-    admission_date: string | null;
-    discharge_date: string | null;
-    school_name: string | null;
-    class_name: string | null;
-    teacher: string | null;
-    
+    profile_id: string | null;
+    member_type: 'student' | 'teacher' | 'parent';
+    status: 'active' | 'inactive' | 'resigned';
+    start_date: string | null;
+    end_date: string | null;
+    details: MemberDetails | null;
     created_at: string;
     updated_at: string;
 }
 
 /**
- * [수정]
- * 신규 재원생 등록 시 API에 보내는 데이터 타입입니다.
- * 백엔드 스키마와 일관성을 위해 snake_case로 수정합니다.
+ * [신규] 새 구성원 생성 시 API에 보내는 데이터 타입입니다.
  */
-export interface CreateEnrollmentInput {
+export interface CreateMemberInput {
     academy_id: string;
-    student_name: string;
-    grade: string;
-    subject: string;
-    status: '재원' | '휴원' | '퇴원';
-    
-    student_phone?: string | null;
-    guardian_phone?: string | null;
-    tuition?: number | null;
-    admission_date?: string | null;
-    school_name?: string | null;
-    class_name?: string | null;
-    teacher?: string | null;
-    student_profile_id?: string | null;
+    member_type: 'student' | 'teacher' | 'parent';
+    details: MemberDetails;
+    profile_id?: string | null;
 }
 
 /**
- * [수정]
- * 재원생 정보 수정 시 API Body에 담길 데이터의 타입입니다.
+ * [신규] 구성원 정보 수정 시 API Body에 담길 데이터 타입입니다.
  */
-export interface UpdateEnrollmentInputBody extends Partial<Omit<CreateEnrollmentInput, 'academy_id'>> {
-    discharge_date?: string | null;
+export interface UpdateMemberInputBody {
+    status?: 'active' | 'inactive' | 'resigned';
+    details?: Partial<MemberDetails>;
+    start_date?: string | null;
+    end_date?: string | null;
 }
-
 
 /**
- * [수정]
- * 재원생 정보 수정 함수(updateEnrollmentAPI)에 전달될 최종 데이터 타입입니다.
- * id는 URL 파라미터로, 나머지는 body로 전송됩니다.
+ * [신규] 구성원 정보 수정 함수에 전달될 최종 데이터 타입입니다.
  */
-export interface UpdateEnrollmentInput extends UpdateEnrollmentInputBody {
-    id: string;
+export interface UpdateMemberInput extends UpdateMemberInputBody {
+    id: string; // memberId는 URL 파라미터로 전송됩니다.
 }
 
 
-// 타입 별칭(alias)은 기존대로 유지하여 다른 파일의 코드 변경을 최소화합니다.
-export type Student = Enrollment;
-export type CreateStudentInput = CreateEnrollmentInput;
-export type UpdateStudentInput = UpdateEnrollmentInput;
-export type UpdateStudentInputBody = UpdateEnrollmentInputBody;
+// --- 기존 타입들을 새로운 타입의 별칭(alias)으로 유지하여 하위 호환성을 높임 ---
+// 이렇게 하면 features나 widgets 레이어의 코드 변경을 최소화할 수 있습니다.
+export type Student = AcademyMember;
+export type Enrollment = AcademyMember;
+export type CreateStudentInput = CreateMemberInput;
+export type CreateEnrollmentInput = CreateMemberInput;
+export type UpdateStudentInput = UpdateMemberInput;
+export type UpdateEnrollmentInput = UpdateMemberInput;
+export type UpdateStudentInputBody = UpdateMemberInputBody;
+export type UpdateEnrollmentInputBody = UpdateMemberInputBody;
 
 
+// --- 상수 ---
 export const GRADE_LEVELS = [
     '초1', '초2', '초3', '초4', '초5', '초6',
     '중1', '중2', '중3',

@@ -1,9 +1,10 @@
+// ./react/features/account-settings/ui/ProfileInfoPanel.tsx
+
 import React from 'react';
-// [신규] setActiveSection 타입을 import 합니다.
-import type { useAccountSettings, AccountSettingsSection } from '../model/useAccountSettings';
+import type { useAccountSettings } from '../model/useAccountSettings';
 import LoadingButton from '../../../shared/ui/loadingbutton/LoadingButton';
 import './FormPanels.css';
-import { LuCirclePlus } from 'react-icons/lu'; // 아이콘 추가
+import { LuCirclePlus, LuTrash2 } from 'react-icons/lu';
 
 type ProfileInfoPanelProps = {
     settings: ReturnType<typeof useAccountSettings>;
@@ -18,11 +19,14 @@ const ProfileInfoPanel: React.FC<ProfileInfoPanelProps> = ({ settings }) => {
         formErrors,
         isDirty,
         isUpdating,
-        // [신규] setActiveSection을 가져옵니다.
         setActiveSection,
+        handleDeleteRole,
+        isDeletingRole,
     } = settings;
 
     if (!profile) return null;
+    
+    const canDeleteRole = profile.roles.length > 1;
 
     return (
         <div className="settings-panel-container">
@@ -73,11 +77,10 @@ const ProfileInfoPanel: React.FC<ProfileInfoPanelProps> = ({ settings }) => {
                      {formErrors.phone && <p className="error-message">{formErrors.phone.message}</p>}
                 </div>
 
-                {/* 역할 정보 (읽기 전용) */}
+                {/* 역할 정보 */}
                 <div className="form-group">
                     <div className="role-header">
                         <label className="form-label">역할 및 소속</label>
-                        {/* [신규] 역할 추가 버튼 */}
                         <button 
                             type="button" 
                             className="add-role-button" 
@@ -88,20 +91,33 @@ const ProfileInfoPanel: React.FC<ProfileInfoPanelProps> = ({ settings }) => {
                         </button>
                     </div>
                     <div className="role-display-area">
-                        {profile.roles.map((role, index) => (
-                            <div key={index} className="role-item">
-                                <span className="role-name">{role.name}</span>
-                                {role.academy_name && (
-                                    <span className="role-detail">
-                                        ({role.academy_name} - {role.region})
-                                    </span>
-                                )}
+                        {profile.roles.map((role) => (
+                            <div key={role.id} className="role-item">
+                                <div className="role-info-group">
+                                    <span className="role-name">{role.name}</span>
+                                    {/* [핵심 수정] academyName, region 필드 사용 */}
+                                    {role.academyName && (
+                                        <span className="role-detail">
+                                            ({role.academyName} - {role.region})
+                                        </span>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    className="delete-role-button"
+                                    onClick={() => handleDeleteRole(role.id, role.name)}
+                                    disabled={!canDeleteRole || isDeletingRole}
+                                    title={canDeleteRole ? `'${role.name}' 역할 삭제` : '마지막 역할은 삭제할 수 없습니다.'}
+                                    aria-label={`'${role.name}' 역할 삭제`}
+                                >
+                                    <LuTrash2 size={16} />
+                                </button>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                {/* 폼 액션 버튼 */}
+                {/* 폼 푸터 */}
                 <footer className="form-footer">
                     <button
                         type="button"
@@ -115,7 +131,7 @@ const ProfileInfoPanel: React.FC<ProfileInfoPanelProps> = ({ settings }) => {
                         type="submit"
                         className="primary"
                         isLoading={isUpdating}
-                        disabled={!isDirty}
+                        disabled={!isDirty || isUpdating}
                         loadingText="저장 중..."
                     >
                         변경 내용 저장

@@ -130,8 +130,29 @@
 }
 
 .role-item {
+    /* [수정] Flexbox로 레이아웃 설정 */
+    display: flex;
+    justify-content: space-between; /* 양쪽 끝으로 정렬 */
+    align-items: center;
+
+    /* 기존 스타일 유지 및 보완 */
     font-size: 0.9rem;
+    padding: 0.5rem 0.75rem; /* 패딩 조정 */
+    background-color: transparent; /* role-display-area 배경색을 사용하므로 투명 처리 */
+    border-radius: 6px;
+    transition: background-color 0.2s;
 }
+
+.role-item:hover {
+    background-color: rgba(0, 0, 0, 0.04); /* 호버 효과 */
+}
+
+.role-info-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 
 .role-name {
     font-weight: 600;
@@ -144,6 +165,31 @@
 .role-detail {
     color: var(--text-secondary);
 }
+
+.delete-role-button {
+    background: none;
+    border: none;
+    color: var(--text-secondary); /* 기본 색상 */
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.delete-role-button:hover:not(:disabled) {
+    color: var(--destructive-color, #ef4444); /* 호버 시 위험 색상 */
+    background-color: rgba(var(--destructive-color-rgb, 239, 68, 68), 0.1); /* 위험 색상 배경 */
+}
+
+.delete-role-button:disabled {
+    color: #d1d5db; /* 비활성화 색상 */
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 
 /* --- 5. 폼 푸터 (버튼 영역) --- */
 .form-footer {

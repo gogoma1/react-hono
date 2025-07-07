@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchProblemsAPI, fetchProblemsByIdsAPI } from '../api/problemApi'; // [수정] fetchProblemsByIdsAPI 임포트
+import { fetchProblemsAPI, fetchProblemsByIdsAPI } from '../api/problemApi';
 import type { Problem } from './types';
 
 export const PROBLEMS_QUERY_KEY = 'problems';
@@ -11,6 +11,8 @@ export function useProblemsQuery() {
     return useQuery<Problem[], Error>({
         queryKey: [PROBLEMS_QUERY_KEY],
         queryFn: fetchProblemsAPI,
+        // [핵심 개선] staleTime 추가. 문제 목록은 자주 바뀌지 않으므로 길게 설정 (예: 10분)
+        staleTime: 1000 * 60 * 10,
     });
 }
 
@@ -20,13 +22,11 @@ export function useProblemsQuery() {
  */
 export function useProblemsByIdsQuery(problemIds: string[] | undefined) {
     return useQuery<Problem[], Error>({
-        // 쿼리 키에 problemIds를 포함하여, ID 목록이 바뀔 때마다 새로운 쿼리가 실행되도록 합니다.
-        // 이렇게 하면 React Query가 다른 ID 목록에 대한 데이터를 별도로 캐싱할 수 있습니다.
         queryKey: [PROBLEMS_QUERY_KEY, 'byIds', problemIds],
         
-        // problemIds가 유효할 때(undefined가 아니고 길이가 0보다 클 때)만 쿼리를 실행합니다.
-        // `!`는 TypeScript에게 problemIds가 이 시점에는 undefined가 아님을 알려줍니다.
         queryFn: () => fetchProblemsByIdsAPI(problemIds!),
         enabled: !!problemIds && problemIds.length > 0,
+        // [개선] 여기에도 staleTime을 적용할 수 있습니다.
+        staleTime: 1000 * 60 * 5,
     });
 }

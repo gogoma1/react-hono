@@ -1,5 +1,5 @@
 {
-  "id": "281813dd-d5b2-4a02-95ad-f6b6c917acca",
+  "id": "1349ce38-b02e-4899-97e7-54b078519a66",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -33,6 +33,14 @@
           "primaryKey": false,
           "notNull": true
         },
+        "status": {
+          "name": "status",
+          "type": "academy_status_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'운영중'"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -60,7 +68,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -70,8 +78,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.enrollments": {
-      "name": "enrollments",
+    "public.academy_members": {
+      "name": "academy_members",
       "schema": "",
       "columns": {
         "id": {
@@ -87,76 +95,42 @@
           "primaryKey": false,
           "notNull": true
         },
-        "student_profile_id": {
-          "name": "student_profile_id",
+        "profile_id": {
+          "name": "profile_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "student_name": {
-          "name": "student_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "student_phone": {
-          "name": "student_phone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "grade": {
-          "name": "grade",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject": {
-          "name": "subject",
-          "type": "text",
+        "member_type": {
+          "name": "member_type",
+          "type": "member_type_enum",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
         "status": {
           "name": "status",
-          "type": "student_status_enum",
+          "type": "member_status_enum",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'active'"
         },
-        "tuition": {
-          "name": "tuition",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "admission_date": {
-          "name": "admission_date",
+        "start_date": {
+          "name": "start_date",
           "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "discharge_date": {
-          "name": "discharge_date",
+        "end_date": {
+          "name": "end_date",
           "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "school_name": {
-          "name": "school_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "class_name": {
-          "name": "class_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "teacher": {
-          "name": "teacher",
-          "type": "text",
+        "details": {
+          "name": "details",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -175,11 +149,40 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "unq_academy_member_idx": {
+          "name": "unq_academy_member_idx",
+          "columns": [
+            {
+              "expression": "academy_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "member_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"academy_members\".\"profile_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
-        "enrollments_academy_id_academies_id_fk": {
-          "name": "enrollments_academy_id_academies_id_fk",
-          "tableFrom": "enrollments",
+        "academy_members_academy_id_academies_id_fk": {
+          "name": "academy_members_academy_id_academies_id_fk",
+          "tableFrom": "academy_members",
           "tableTo": "academies",
           "columnsFrom": [
             "academy_id"
@@ -190,12 +193,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "enrollments_student_profile_id_profiles_id_fk": {
-          "name": "enrollments_student_profile_id_profiles_id_fk",
-          "tableFrom": "enrollments",
+        "academy_members_profile_id_profiles_id_fk": {
+          "name": "academy_members_profile_id_profiles_id_fk",
+          "tableFrom": "academy_members",
           "tableTo": "profiles",
           "columnsFrom": [
-            "student_profile_id"
+            "profile_id"
           ],
           "columnsTo": [
             "id"
@@ -205,15 +208,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "enrollments_student_profile_id_unique": {
-          "name": "enrollments_student_profile_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "student_profile_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -381,6 +376,142 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.problem_set_entitlements": {
+      "name": "problem_set_entitlements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "problem_set_id": {
+          "name": "problem_set_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "access_granted_by": {
+          "name": "access_granted_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_expires_at": {
+          "name": "access_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "problem_set_entitlements_user_id_profiles_id_fk": {
+          "name": "problem_set_entitlements_user_id_profiles_id_fk",
+          "tableFrom": "problem_set_entitlements",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "problem_set_entitlements_access_granted_by_subscriptions_id_fk": {
+          "name": "problem_set_entitlements_access_granted_by_subscriptions_id_fk",
+          "tableFrom": "problem_set_entitlements",
+          "tableTo": "subscriptions",
+          "columnsFrom": [
+            "access_granted_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.products": {
+      "name": "products",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price": {
+          "name": "price",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "billing_interval": {
+          "name": "billing_interval",
+          "type": "billing_interval_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.profiles": {
       "name": "profiles",
       "schema": "",
@@ -406,6 +537,20 @@
         "phone": {
           "name": "phone",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "profile_status_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -480,8 +625,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.user_purchase": {
-      "name": "user_purchase",
+    "public.subscriptions": {
+      "name": "subscriptions",
       "schema": "",
       "columns": {
         "id": {
@@ -497,39 +642,51 @@
           "primaryKey": false,
           "notNull": true
         },
-        "problem_set_id": {
-          "name": "problem_set_id",
+        "product_id": {
+          "name": "product_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "purchase_date": {
-          "name": "purchase_date",
+        "status": {
+          "name": "status",
+          "type": "subscription_status_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_period_start": {
+          "name": "current_period_start",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_period_end": {
+          "name": "current_period_end",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "canceled_at": {
+          "name": "canceled_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "purchase_price": {
-          "name": "purchase_price",
-          "type": "integer",
+        "payment_gateway": {
+          "name": "payment_gateway",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "license_period": {
-          "name": "license_period",
-          "type": "integer",
+        "payment_gateway_subscription_id": {
+          "name": "payment_gateway_subscription_id",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -538,9 +695,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "user_purchase_user_id_profiles_id_fk": {
-          "name": "user_purchase_user_id_profiles_id_fk",
-          "tableFrom": "user_purchase",
+        "subscriptions_user_id_profiles_id_fk": {
+          "name": "subscriptions_user_id_profiles_id_fk",
+          "tableFrom": "subscriptions",
           "tableTo": "profiles",
           "columnsFrom": [
             "user_id"
@@ -550,10 +707,31 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "subscriptions_product_id_products_id_fk": {
+          "name": "subscriptions_product_id_products_id_fk",
+          "tableFrom": "subscriptions",
+          "tableTo": "products",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "subscriptions_payment_gateway_subscription_id_unique": {
+          "name": "subscriptions_payment_gateway_subscription_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "payment_gateway_subscription_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -620,6 +798,23 @@
     }
   },
   "enums": {
+    "public.academy_status_enum": {
+      "name": "academy_status_enum",
+      "schema": "public",
+      "values": [
+        "운영중",
+        "휴업",
+        "폐업"
+      ]
+    },
+    "public.billing_interval_enum": {
+      "name": "billing_interval_enum",
+      "schema": "public",
+      "values": [
+        "month",
+        "year"
+      ]
+    },
     "public.exam_assignment_status_enum": {
       "name": "exam_assignment_status_enum",
       "schema": "public",
@@ -631,13 +826,41 @@
         "expired"
       ]
     },
-    "public.student_status_enum": {
-      "name": "student_status_enum",
+    "public.member_status_enum": {
+      "name": "member_status_enum",
       "schema": "public",
       "values": [
-        "재원",
-        "휴원",
-        "퇴원"
+        "active",
+        "inactive",
+        "resigned"
+      ]
+    },
+    "public.member_type_enum": {
+      "name": "member_type_enum",
+      "schema": "public",
+      "values": [
+        "student",
+        "teacher",
+        "parent"
+      ]
+    },
+    "public.profile_status_enum": {
+      "name": "profile_status_enum",
+      "schema": "public",
+      "values": [
+        "active",
+        "inactive",
+        "deleted"
+      ]
+    },
+    "public.subscription_status_enum": {
+      "name": "subscription_status_enum",
+      "schema": "public",
+      "values": [
+        "active",
+        "canceled",
+        "past_due",
+        "incomplete"
       ]
     }
   },

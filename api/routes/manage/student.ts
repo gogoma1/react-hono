@@ -8,48 +8,47 @@ import { zValidator } from '@hono/zod-validator';
 import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
 
-
-const enrollmentSchemaBase = z.object({
-  student_name: z.string().min(1, "학생 이름은 필수입니다."),
-  grade: z.string().min(1, "학년은 필수입니다."),
-  subject: z.string().min(1, "과목은 필수입니다."),
-  status: z.enum(schema.studentStatusEnum.enumValues),
-  tuition: z.number().nonnegative().optional().nullable(),
-  admission_date: z.string().date("YYYY-MM-DD 형식의 날짜여야 합니다.").optional().nullable(),
-  student_phone: z.string().optional().nullable(),
-  school_name: z.string().optional().nullable(),
-  class_name: z.string().optional().nullable(),
-  teacher: z.string().optional().nullable(),
-  student_profile_id: z.string().uuid().optional().nullable(),
+// [수정] details의 각 필드에서 .nullable() 제거. 대신 .transform으로 null을 undefined로 변환
+const memberDetailsSchema = z.object({
+    student_name: z.string().min(1, "학생 이름은 필수입니다."),
+    grade: z.string().min(1, "학년은 필수입니다."),
+    subject: z.string().min(1, "과목은 필수입니다."),
+    student_phone: z.string().optional().transform(v => v || undefined),
+    guardian_phone: z.string().optional().transform(v => v || undefined),
+    school_name: z.string().optional().transform(v => v || undefined),
+    class_name: z.string().optional().transform(v => v || undefined),
+    teacher: z.string().optional().transform(v => v || undefined),
+    tuition: z.number().nonnegative().optional(),
 });
 
-const createEnrollmentSchema = enrollmentSchemaBase.extend({
+const createMemberSchema = z.object({
     academy_id: z.string().uuid("유효한 학원 ID가 필요합니다."),
+    member_type: z.enum(schema.memberTypeEnum.enumValues),
+    details: memberDetailsSchema,
+    profile_id: z.string().uuid().optional().nullable(),
 });
 
-const updateEnrollmentSchema = enrollmentSchemaBase.partial().extend({
-    discharge_date: z.string().date("YYYY-MM-DD 형식의 날짜여야 합니다.").optional().nullable(),
+const updateMemberSchema = z.object({
+    status: z.enum(schema.memberStatusEnum.enumValues).optional(),
+    details: memberDetailsSchema.partial().optional(),
+    start_date: z.string().date("YYYY-MM-DD 형식의 날짜여야 합니다.").optional().nullable(),
+    end_date: z.string().date("YYYY-MM-DD 형식의 날짜여야 합니다.").optional().nullable(),
 });
 
 const bulkUpdateStatusSchema = z.object({
-    enrollment_ids: z.array(z.string().uuid()).min(1, "하나 이상의 ID가 필요합니다."),
-    status: z.enum(schema.studentStatusEnum.enumValues),
-    academy_id: z.string().uuid("유효한 학원 ID가 필요합니다."), // 권한 확인용
+    member_ids: z.array(z.string().uuid()).min(1, "하나 이상의 ID가 필요합니다."),
+    status: z.enum(schema.memberStatusEnum.enumValues),
+    academy_id: z.string().uuid("유효한 학원 ID가 필요합니다."),
 });
 
 const bulkDeleteSchema = z.object({
-    enrollment_ids: z.array(z.string().uuid()).min(1, "하나 이상의 ID가 필요합니다."),
-    academy_id: z.string().uuid("유효한 학원 ID가 필요합니다."), // 권한 확인용
+    member_ids: z.array(z.string().uuid()).min(1, "하나 이상의 ID가 필요합니다."),
+    academy_id: z.string().uuid("유효한 학원 ID가 필요합니다."),
 });
 
 
 const studentRoutes = new Hono<AppEnv>();
 
-
-/**
- * GET /:academyId - 특정 학원의 모든 재원생 목록 조회
- * 원장은 자신이 소유한 학원의 학생 목록만 조회할 수 있습니다.
- */
 studentRoutes.get('/:academyId', async (c) => {
     const user = c.get('user')!;
     const academyId = c.req.param('academyId');
@@ -58,218 +57,183 @@ studentRoutes.get('/:academyId', async (c) => {
 
     try {
         const academy = await db.query.academiesTable.findFirst({
-            where: and(
-                eq(schema.academiesTable.id, academyId),
-                eq(schema.academiesTable.principal_id, user.id)
-            )
+            where: and(eq(schema.academiesTable.id, academyId), eq(schema.academiesTable.principal_id, user.id))
         });
+        if (!academy) return c.json({ error: '학원을 찾을 수 없거나 조회 권한이 없습니다.' }, 404);
 
-        if (!academy) {
-            return c.json({ error: '학원을 찾을 수 없거나 조회 권한이 없습니다.' }, 404);
-        }
-
-        const enrollments = await db.query.enrollmentsTable.findMany({
-            where: eq(schema.enrollmentsTable.academy_id, academyId),
-            orderBy: desc(schema.enrollmentsTable.created_at),
+        const members = await db.query.academyMembersTable.findMany({
+            where: eq(schema.academyMembersTable.academy_id, academyId),
+            orderBy: desc(schema.academyMembersTable.created_at),
         });
-        return c.json(enrollments);
+        return c.json(members);
     } catch (error: any) {
-        console.error('Failed to fetch enrollments:', error.message);
+        console.error('Failed to fetch academy members:', error.message);
         return c.json({ error: '데이터베이스 조회에 실패했습니다.' }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }
 });
 
-/**
- * POST / - 특정 학원에 새로운 재원생 등록
- */
-studentRoutes.post('/', zValidator('json', createEnrollmentSchema), async (c) => {
+studentRoutes.post('/', zValidator('json', createMemberSchema), async (c) => {
     const user = c.get('user')!;
-    const { academy_id, ...enrollmentData } = c.req.valid('json');
+    const { academy_id, member_type, details, profile_id } = c.req.valid('json');
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const db = drizzle(sql, { schema });
 
     try {
         const academy = await db.query.academiesTable.findFirst({
-            where: and(
-                eq(schema.academiesTable.id, academy_id),
-                eq(schema.academiesTable.principal_id, user.id)
-            )
+            where: and(eq(schema.academiesTable.id, academy_id), eq(schema.academiesTable.principal_id, user.id))
         });
-
-        if (!academy) {
-            return c.json({ error: '학생을 등록할 학원을 찾을 수 없거나 권한이 없습니다.' }, 403);
-        }
-
-        const [newEnrollment] = await db.insert(schema.enrollmentsTable)
-            .values({ ...enrollmentData, academy_id })
+        if (!academy) return c.json({ error: '구성원을 등록할 학원을 찾을 수 없거나 권한이 없습니다.' }, 403);
+        
+        // [핵심 수정] Zod 스키마에서 이미 null을 undefined로 변환했으므로,
+        // `details` 객체는 Drizzle 타입과 완벽하게 호환됩니다.
+        const [newMember] = await db.insert(schema.academyMembersTable)
+            .values({
+                academy_id,
+                member_type,
+                details, // 이제 타입이 일치합니다.
+                profile_id,
+                status: 'active'
+            })
             .returning();
             
-        return c.json(newEnrollment, 201);
+        return c.json(newMember, 201);
     } catch (error: any) {
-        console.error('Failed to create enrollment:', error.message);
-        return c.json({ error: '데이터베이스 오류로 학생 등록에 실패했습니다.' }, 500);
+        console.error('Failed to create member:', error.message);
+        if (error.code === '23505') {
+            return c.json({ error: '해당 사용자는 이미 이 학원에 동일한 유형으로 등록되어 있습니다.' }, 409);
+        }
+        return c.json({ error: '데이터베이스 오류로 구성원 등록에 실패했습니다.' }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }
 });
 
-/**
- * PUT /:enrollmentId - 특정 재원생 정보 수정
- */
-studentRoutes.put('/:enrollmentId', zValidator('json', updateEnrollmentSchema), async (c) => {
+studentRoutes.put('/:memberId', zValidator('json', updateMemberSchema), async (c) => {
     const user = c.get('user')!;
-    const enrollmentId = c.req.param('enrollmentId');
+    const memberId = c.req.param('memberId');
     const validatedData = c.req.valid('json');
     
-    if (Object.keys(validatedData).length === 0) {
-        return c.json({ error: '수정할 내용이 없습니다.' }, 400);
-    }
+    if (Object.keys(validatedData).length === 0) return c.json({ error: '수정할 내용이 없습니다.' }, 400);
 
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const db = drizzle(sql, { schema });
 
     try {
-        const enrollment = await db.query.enrollmentsTable.findFirst({
-            where: eq(schema.enrollmentsTable.id, enrollmentId),
+        const member = await db.query.academyMembersTable.findFirst({
+            where: eq(schema.academyMembersTable.id, memberId),
             with: { academy: { columns: { principal_id: true } } }
         });
 
-        if (!enrollment || enrollment.academy.principal_id !== user.id) {
-            return c.json({ error: '수정할 학생 정보를 찾을 수 없거나 권한이 없습니다.' }, 404);
+        if (!member || member.academy.principal_id !== user.id) {
+            return c.json({ error: '수정할 구성원 정보를 찾을 수 없거나 권한이 없습니다.' }, 404);
+        }
+        
+        const dataToUpdate: Partial<schema.DbAcademyMember> = {
+            updated_at: new Date()
+        };
+
+        if(validatedData.status) dataToUpdate.status = validatedData.status;
+        if(validatedData.start_date) dataToUpdate.start_date = validatedData.start_date;
+        if(validatedData.end_date) dataToUpdate.end_date = validatedData.end_date;
+        
+        if(validatedData.details) {
+            // [핵심 수정] 여기서도 null을 undefined로 변환하는 로직을 추가하거나,
+            // Zod 스키마를 신뢰하고 그대로 사용합니다.
+            // update 스키마도 transform을 적용하면 더 안전합니다.
+            const transformedDetails = Object.fromEntries(
+                Object.entries(validatedData.details).map(([key, value]) => [key, value === null ? undefined : value])
+            );
+            dataToUpdate.details = { ...member.details, ...transformedDetails };
         }
 
-        const [updatedEnrollment] = await db.update(schema.enrollmentsTable)
-            .set({ ...validatedData, updated_at: new Date() })
-            .where(eq(schema.enrollmentsTable.id, enrollmentId))
+        const [updatedMember] = await db.update(schema.academyMembersTable)
+            .set(dataToUpdate)
+            .where(eq(schema.academyMembersTable.id, memberId))
             .returning();
 
-        return c.json(updatedEnrollment);
+        return c.json(updatedMember);
     } catch (error: any) {
-        console.error(`Failed to update enrollment ${enrollmentId}:`, error);
+        console.error(`Failed to update member ${memberId}:`, error);
         return c.json({ error: '데이터베이스 오류로 업데이트에 실패했습니다.' }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }
 });
 
-
-/**
- * DELETE /:enrollmentId - 특정 재원생 퇴원 처리 (Soft Delete)
- */
-studentRoutes.delete('/:enrollmentId', async (c) => {
+studentRoutes.delete('/:memberId', async (c) => {
     const user = c.get('user')!;
-    const enrollmentId = c.req.param('enrollmentId');
+    const memberId = c.req.param('memberId');
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const db = drizzle(sql, { schema });
 
     try {
-        const enrollment = await db.query.enrollmentsTable.findFirst({
-            where: eq(schema.enrollmentsTable.id, enrollmentId),
+        const member = await db.query.academyMembersTable.findFirst({
+            where: eq(schema.academyMembersTable.id, memberId),
             with: { academy: { columns: { principal_id: true } } }
         });
-
-        if (!enrollment || enrollment.academy.principal_id !== user.id) {
-            return c.json({ error: '퇴원 처리할 학생 정보를 찾을 수 없거나 권한이 없습니다.' }, 404);
+        if (!member || member.academy.principal_id !== user.id) {
+            return c.json({ error: '상태를 변경할 구성원 정보를 찾을 수 없거나 권한이 없습니다.' }, 404);
         }
-
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const [softDeleted] = await db.update(schema.enrollmentsTable)
-            .set({ 
-                status: '퇴원', 
-                discharge_date: today,
-                updated_at: new Date() 
-            })
-            .where(eq(schema.enrollmentsTable.id, enrollmentId))
-            .returning({ id: schema.enrollmentsTable.id });
-
-        return c.json({ message: '퇴원 처리가 완료되었습니다.', id: softDeleted.id });
-
+        const today = new Date().toISOString().split('T')[0];
+        const [resignedMember] = await db.update(schema.academyMembersTable)
+            .set({ status: 'resigned', end_date: today, updated_at: new Date() })
+            .where(eq(schema.academyMembersTable.id, memberId))
+            .returning({ id: schema.academyMembersTable.id });
+        return c.json({ message: '상태 변경 처리가 완료되었습니다.', id: resignedMember.id });
     } catch (error: any) {
-        console.error(`Failed to soft-delete enrollment ${enrollmentId}:`, error);
+        console.error(`Failed to soft-delete member ${memberId}:`, error);
         return c.json({ error: '데이터베이스 오류가 발생했습니다.' }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }
 });
 
-/**
- * POST /bulk-update-status - 여러 재원생 상태 일괄 변경
- */
 studentRoutes.post('/bulk-update-status', zValidator('json', bulkUpdateStatusSchema), async (c) => {
     const user = c.get('user')!;
-    const { enrollment_ids, status, academy_id } = c.req.valid('json');
+    const { member_ids, status, academy_id } = c.req.valid('json');
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const db = drizzle(sql, { schema });
 
     try {
         const academy = await db.query.academiesTable.findFirst({
-            where: and(
-                eq(schema.academiesTable.id, academy_id),
-                eq(schema.academiesTable.principal_id, user.id)
-            )
+            where: and(eq(schema.academiesTable.id, academy_id), eq(schema.academiesTable.principal_id, user.id))
         });
-
-        if (!academy) {
-            return c.json({ error: '요청한 학원에 대한 권한이 없습니다.' }, 403);
-        }
-
-        const result = await db.update(schema.enrollmentsTable)
+        if (!academy) return c.json({ error: '요청한 학원에 대한 권한이 없습니다.' }, 403);
+        const result = await db.update(schema.academyMembersTable)
             .set({ status: status, updated_at: new Date() })
-            .where(and(
-                inArray(schema.enrollmentsTable.id, enrollment_ids),
-                eq(schema.enrollmentsTable.academy_id, academy_id) // 재확인
-            ))
+            .where(and(inArray(schema.academyMembersTable.id, member_ids), eq(schema.academyMembersTable.academy_id, academy_id)))
             .returning();
-        
-        return c.json({ message: `${result.length}명의 학생 상태가 변경되었습니다.`, updated: result });
+        return c.json({ message: `${result.length}명의 구성원 상태가 변경되었습니다.`, updated: result });
     } catch (error: any) {
-        console.error('Failed to bulk update student status:', error);
+        console.error('Failed to bulk update member status:', error);
         return c.json({ error: '데이터베이스 오류가 발생했습니다.' }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }
 });
 
-
-/**
- * POST /bulk-delete - 여러 재원생 일괄 퇴원 처리 (Soft Delete)
- */
 studentRoutes.post('/bulk-delete', zValidator('json', bulkDeleteSchema), async (c) => {
     const user = c.get('user')!;
-    const { enrollment_ids, academy_id } = c.req.valid('json');
+    const { member_ids, academy_id } = c.req.valid('json');
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const db = drizzle(sql, { schema });
-    
     try {
         const academy = await db.query.academiesTable.findFirst({
-            where: and(
-                eq(schema.academiesTable.id, academy_id),
-                eq(schema.academiesTable.principal_id, user.id)
-            )
+            where: and(eq(schema.academiesTable.id, academy_id), eq(schema.academiesTable.principal_id, user.id))
         });
-
-        if (!academy) {
-            return c.json({ error: '요청한 학원에 대한 권한이 없습니다.' }, 403);
-        }
-
+        if (!academy) return c.json({ error: '요청한 학원에 대한 권한이 없습니다.' }, 403);
         const today = new Date().toISOString().split('T')[0];
-        const result = await db.update(schema.enrollmentsTable)
-            .set({ 
-                status: '퇴원', 
-                discharge_date: today,
-                updated_at: new Date() 
-            })
-            .where(and(
-                inArray(schema.enrollmentsTable.id, enrollment_ids),
-                eq(schema.enrollmentsTable.academy_id, academy_id)
-            ))
-            .returning({ id: schema.enrollmentsTable.id });
-            
-        return c.json({ message: `${result.length}명의 학생이 퇴원 처리되었습니다.`, deletedIds: result.map(s => s.id) });
-    } catch (error: any) {
-        console.error('Failed to bulk delete students:', error);
+        const result = await db.update(schema.academyMembersTable)
+            .set({ status: 'resigned', end_date: today, updated_at: new Date() })
+            .where(and(inArray(schema.academyMembersTable.id, member_ids), eq(schema.academyMembersTable.academy_id, academy_id)))
+            .returning({ id: schema.academyMembersTable.id });
+        return c.json({ message: `${result.length}명의 구성원이 퇴사/퇴원 처리되었습니다.`, changedIds: result.map(s => s.id) });
+    }
+    catch (error: any)
+    {
+        console.error('Failed to bulk delete members:', error);
         return c.json({ error: '데이터베이스 오류가 발생했습니다.' }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());

@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
     GRADE_LEVELS, 
     type Student, 
-    type UpdateEnrollmentInput 
+    type UpdateStudentInput,
+    type MemberDetails
 } from '../../../entities/student/model/types';
 import { useStudentDataWithRQ } from '../../../entities/student/model/useStudentDataWithRQ';
 import CategoryInput from '../../student-registration/ui/CategoryInput';
 import '../../student-registration/ui/StudentRegistrationForm.css';
 
-// [수정] Props 타입에 allStudents 추가
+// [수정] 이 컴포넌트에서만 사용하는 Props 타입을 명확히 정의합니다.
 interface StudentEditFormProps {
     student: Student;
     onSuccess: () => void;
@@ -16,24 +17,21 @@ interface StudentEditFormProps {
     allStudents: Student[];
 }
 
-const getUniqueValues = <T extends object>(items: T[], key: keyof T): (string | number)[] => {
-    if (!items || items.length === 0) {
-        return [];
+const getUniqueValuesFromDetails = (students: Student[], key: keyof MemberDetails): (string | number)[] => {
+    if (!students || students.length === 0) return [];
+    
+    const values = students
+        .map(student => student.details?.[key])
+        .filter((value): value is string | number => value !== null && value !== undefined && String(value).trim() !== '');
+        
+    const uniqueValues = Array.from(new Set(values));
+    if (uniqueValues.length > 0 && typeof uniqueValues[0] === 'number') {
+        return uniqueValues.sort((a, b) => (a as number) - (b as number));
     }
-    const uniqueValues = items.reduce((acc: Set<string | number>, item) => {
-        const value = item[key];
-        if (typeof value === 'string' && value.trim() !== '') {
-            acc.add(value);
-        } else if (typeof value === 'number') {
-            acc.add(value);
-        }
-        return acc;
-    }, new Set<string | number>());
-    return Array.from(uniqueValues);
+    return uniqueValues.sort();
 };
 
 const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, academyId, allStudents }) => {
-    // [수정] update 관련 훅만 사용하고, 데이터는 props로 받은 allStudents를 기반으로 생성
     const { updateStudent, updateStudentStatus } = useStudentDataWithRQ(academyId);
 
     const [name, setName] = useState('');
@@ -41,30 +39,29 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, a
     const [className, setClassName] = useState('');
     const [subject, setSubject] = useState('');
     const [teacher, setTeacher] = useState('');
-    const [status, setStatus] = useState<Student['status']>('재원');
+    const [status, setStatus] = useState<Student['status']>('active');
     const [studentPhone, setStudentPhone] = useState('');
     const [guardianPhone, setGuardianPhone] = useState('');
     const [schoolName, setSchoolName] = useState('');
     const [tuition, setTuition] = useState('');
 
-    // [수정] useMemo의 의존성을 props로 받은 allStudents로 변경
-    const uniqueClassNames = useMemo(() => getUniqueValues(allStudents, 'class_name').sort(), [allStudents]);
-    const uniqueSubjects = useMemo(() => getUniqueValues(allStudents, 'subject').sort(), [allStudents]);
-    const uniqueSchoolNames = useMemo(() => getUniqueValues(allStudents, 'school_name').sort(), [allStudents]);
-    const uniqueTeachers = useMemo(() => getUniqueValues(allStudents, 'teacher').sort(), [allStudents]);
+    const uniqueClassNames = useMemo(() => getUniqueValuesFromDetails(allStudents, 'class_name'), [allStudents]);
+    const uniqueSubjects = useMemo(() => getUniqueValuesFromDetails(allStudents, 'subject'), [allStudents]);
+    const uniqueSchoolNames = useMemo(() => getUniqueValuesFromDetails(allStudents, 'school_name'), [allStudents]);
+    const uniqueTeachers = useMemo(() => getUniqueValuesFromDetails(allStudents, 'teacher'), [allStudents]);
     
     useEffect(() => {
         if (student) {
-            setName(student.student_name);
-            setGrade(student.grade);
-            setClassName(student.class_name || '');
-            setSubject(student.subject);
+            setName(student.details?.student_name || '');
+            setGrade(student.details?.grade || '');
+            setClassName(student.details?.class_name || '');
+            setSubject(student.details?.subject || '');
             setStatus(student.status);
-            setTeacher(student.teacher || '');
-            setStudentPhone(student.student_phone || '');
-            setGuardianPhone(student.guardian_phone || '');
-            setSchoolName(student.school_name || '');
-            setTuition(String(student.tuition || ''));
+            setTeacher(student.details?.teacher || '');
+            setStudentPhone(student.details?.student_phone || '');
+            setGuardianPhone(student.details?.guardian_phone || '');
+            setSchoolName(student.details?.school_name || '');
+            setTuition(String(student.details?.tuition || ''));
         }
     }, [student]);
 
@@ -77,18 +74,20 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, a
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        const updatedData: UpdateEnrollmentInput = {
+        const updatedData: UpdateStudentInput = {
             id: student.id,
-            student_name: name.trim(),
-            grade: grade.trim(),
-            subject: subject.trim(),
             status: status,
-            class_name: className.trim() || null,
-            teacher: teacher.trim() || null,
-            student_phone: studentPhone.trim() || null,
-            guardian_phone: guardianPhone.trim() || null,
-            school_name: schoolName.trim() || null,
-            tuition: tuition ? Number(String(tuition).replace(/,/g, '')) : null,
+            details: {
+                student_name: name.trim(),
+                grade: grade.trim(),
+                subject: subject.trim(),
+                class_name: className.trim() || undefined,
+                teacher: teacher.trim() || undefined,
+                student_phone: studentPhone.trim() || undefined,
+                guardian_phone: guardianPhone.trim() || undefined,
+                school_name: schoolName.trim() || undefined,
+                tuition: tuition ? Number(String(tuition).replace(/,/g, '')) : undefined,
+            }
         };
         try {
             await updateStudent(updatedData);
@@ -97,7 +96,7 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, a
         }
     };
     
-    const statusOptions: Student['status'][] = ['재원', '휴원', '퇴원'];
+    const statusOptions: Student['status'][] = ['active', 'inactive', 'resigned'];
 
     return (
         <div className="student-registration-container">
@@ -107,78 +106,15 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, a
                     <label htmlFor="student-name-edit" className="form-label">이름 *</label>
                     <input id="student-name-edit" type="text" value={name} onChange={e => setName(e.target.value)} required className="form-input" />
                 </div>
-                
-                <CategoryInput
-                    label="상태"
-                    value={status}
-                    onChange={(newStatus) => setStatus(newStatus as Student['status'])}
-                    suggestions={statusOptions}
-                    hideInput={true}
-                />
-                
-                <CategoryInput
-                    label="학년"
-                    value={grade}
-                    onChange={setGrade}
-                    suggestions={GRADE_LEVELS}
-                    hideInput={true}
-                    required={true}
-                />
-
-                <CategoryInput 
-                    label="과목" 
-                    value={subject} 
-                    onChange={setSubject} 
-                    suggestions={uniqueSubjects} 
-                    placeholder="직접 입력 (예: 수학, 영어)"
-                    required={true}
-                />
-                
-                <CategoryInput 
-                    label="반" 
-                    value={className} 
-                    onChange={setClassName} 
-                    suggestions={uniqueClassNames} 
-                    placeholder="직접 입력 (예: 1반, 심화반)"
-                />
-                <CategoryInput 
-                    label="담당 강사" 
-                    value={teacher} 
-                    onChange={setTeacher} 
-                    suggestions={uniqueTeachers} 
-                    placeholder="직접 입력 (예: 김리액)"
-                />
-                <CategoryInput 
-                    label="학생 연락처" 
-                    value={studentPhone} 
-                    onChange={setStudentPhone} 
-                    suggestions={[]} 
-                    placeholder="010-1234-5678" 
-                    type="tel"
-                />
-                <CategoryInput 
-                    label="학부모 연락처" 
-                    value={guardianPhone} 
-                    onChange={setGuardianPhone} 
-                    suggestions={[]} 
-                    placeholder="010-9876-5432" 
-                    type="tel"
-                />
-                <CategoryInput 
-                    label="학교명" 
-                    value={schoolName} 
-                    onChange={setSchoolName} 
-                    suggestions={uniqueSchoolNames}
-                    placeholder="직접 입력 (예: OO고등학교)"
-                />
-                <CategoryInput 
-                    label="수강료" 
-                    value={tuition} 
-                    onChange={setTuition} 
-                    suggestions={[]} 
-                    placeholder="직접 입력 (숫자만)" 
-                    type="text"
-                />
+                <CategoryInput label="상태" value={status} onChange={(newStatus) => setStatus(newStatus as Student['status'])} suggestions={statusOptions} hideInput={true} />
+                <CategoryInput label="학년" value={grade} onChange={setGrade} suggestions={GRADE_LEVELS} hideInput={true} required={true} />
+                <CategoryInput label="과목" value={subject} onChange={setSubject} suggestions={uniqueSubjects} placeholder="직접 입력 (예: 수학, 영어)" required={true} />
+                <CategoryInput label="반" value={className} onChange={setClassName} suggestions={uniqueClassNames} placeholder="직접 입력 (예: 1반, 심화반)" />
+                <CategoryInput label="담당 강사" value={teacher} onChange={setTeacher} suggestions={uniqueTeachers} placeholder="직접 입력 (예: 김리액)" />
+                <CategoryInput label="학생 연락처" value={studentPhone} onChange={setStudentPhone} suggestions={[]} placeholder="010-1234-5678" type="tel" />
+                <CategoryInput label="학부모 연락처" value={guardianPhone} onChange={setGuardianPhone} suggestions={[]} placeholder="010-9876-5432" type="tel" />
+                <CategoryInput label="학교명" value={schoolName} onChange={setSchoolName} suggestions={uniqueSchoolNames} placeholder="직접 입력 (예: OO고등학교)" />
+                <CategoryInput label="수강료" value={tuition} onChange={setTuition} suggestions={[]} placeholder="직접 입력 (숫자만)" type="text" />
                 <div className="form-actions">
                     {updateStudentStatus.isError && <p className="form-error-message">수정 실패: {updateStudentStatus.error?.message}</p>}
                     <button type="submit" className="submit-button" disabled={updateStudentStatus.isPending || !name.trim()}>

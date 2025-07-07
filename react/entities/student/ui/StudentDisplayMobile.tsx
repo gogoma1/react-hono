@@ -1,9 +1,29 @@
+// ./react/entities/student/ui/StudentDisplayMobile.tsx
+
 import React from 'react';
 import Badge from '../../../shared/ui/Badge/Badge';
-import type { Student } from '../model/useStudentDataWithRQ';
+import type { Student } from '../model/types';
 import StudentActionButtons from '../../../features/student-actions/ui/StudentActionButtons';
 import { useVisibleColumns } from '../../../shared/hooks/useVisibleColumns';
 import './StudentDisplayMobile.css';
+
+// [신규] 전화번호 포맷팅 유틸리티 함수 (재사용)
+const formatPhoneNumber = (phone: string | null | undefined): string => {
+    if (!phone) return '-';
+    const cleaned = ('' + phone).replace(/\D/g, '');
+    const match = cleaned.match(/^(\d{3})(\d{3,4})(\d{4})$/);
+    if (match) {
+        return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+    return phone;
+};
+
+// [신규] 상태(status) 한글 매핑 객체 (재사용)
+const statusMap: Record<Student['status'], string> = {
+    active: '재원',
+    inactive: '휴원',
+    resigned: '퇴원',
+};
 
 type StatusValue = Student['status'];
 
@@ -18,72 +38,70 @@ interface MobileStudentCardProps {
     onStatusUpdate: (studentId: string, status: StatusValue | 'delete') => void;
     onCancel: () => void;
     closeActiveCard: () => void;
-    selectedIds: Set<string>; // [핵심] 선택된 ID Set을 props로 받습니다.
+    selectedIds: Set<string>;
 }
 
 const MobileStudentCard: React.FC<MobileStudentCardProps> = ({
     student, activeCardId, onCardClick, editingStatusRowId, onEdit,
     onNavigate, onToggleStatusEditor, onStatusUpdate, onCancel, closeActiveCard,
-    selectedIds, // [핵심] props에서 selectedIds를 받습니다.
+    selectedIds,
 }) => {
     const isActive = activeCardId === student.id;
     const isEditingStatus = editingStatusRowId === student.id;
     const visibleColumns = useVisibleColumns();
-    const isSelected = selectedIds.has(student.id); // [핵심] 현재 카드가 선택되었는지 확인합니다.
+    const isSelected = selectedIds.has(student.id);
 
-    const onEditRequest = () => {
-        onEdit(student);
-        closeActiveCard();
-    };
-
+    const onEditRequest = () => { onEdit(student); closeActiveCard(); };
     const onNavigateRequest = () => onNavigate(student.id);
     const onToggleStatusEditorRequest = () => onToggleStatusEditor(student.id);
 
-    // [핵심] isSelected 값에 따라 'selected' 클래스를 동적으로 추가합니다.
     const cardClassName = `mobile-student-card ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''}`.trim();
+
+    const studentName = student.details?.student_name || '이름 없음';
 
     return (
         <div 
             className={cardClassName}
             onClick={() => onCardClick(student.id)}
-            role="button"
-            tabIndex={0}
-            aria-expanded={isActive}
-            aria-selected={isSelected} // [핵심] 접근성을 위해 aria-selected 속성을 추가합니다.
+            role="button" tabIndex={0}
+            aria-expanded={isActive} aria-selected={isSelected}
         >
             <div className="card-content-wrapper">
                 <div className="card-main-info">
                     <div className="main-info-name-status">
-                        <span className="main-info-name">{student.student_name}</span>
-                        {visibleColumns.status && <Badge className={`status-${student.status.toLowerCase()}`}>{student.status}</Badge>}
+                        <span className="main-info-name">{studentName}</span>
+                        {/* [핵심 수정] statusMap 사용 */}
+                        {visibleColumns.status && <Badge className={`status-${student.status.toLowerCase()}`}>{statusMap[student.status] || student.status}</Badge>}
                     </div>
                     <div className="main-info-tags">
-                        {visibleColumns.grade && <span>{student.grade}</span>}
-                        {visibleColumns.subject && <span>{student.subject}</span>}
-                        {student.class_name && <span>{student.class_name}</span>}
+                        {visibleColumns.grade && <span>{student.details?.grade}</span>}
+                        {visibleColumns.subject && <span>{student.details?.subject}</span>}
+                        {student.details?.class_name && <span>{student.details.class_name}</span>}
                     </div>
                 </div>
                 <div className="card-details-grid">
                     <div className="detail-item phones">
-                        {visibleColumns.guardian_phone && <span>학부모: {student.guardian_phone || '-'}</span>}
-                        {visibleColumns.student_phone && <span>학생: {student.student_phone || '-'}</span>}
+                        {/* [핵심 수정] formatPhoneNumber 사용 */}
+                        {visibleColumns.guardian_phone && <span>학부모: {formatPhoneNumber(student.details?.guardian_phone)}</span>}
+                        {visibleColumns.student_phone && <span>학생: {formatPhoneNumber(student.details?.student_phone)}</span>}
                     </div>
                     <div className="detail-item school-tuition">
-                        {visibleColumns.school_name && <span>학교: {student.school_name || '-'}</span>}
-                        {visibleColumns.tuition && <span>수강료: {student.tuition ? student.tuition.toLocaleString() : '-'}</span>}
+                        {visibleColumns.school_name && <span>학교: {student.details?.school_name || '-'}</span>}
+                        {visibleColumns.tuition && <span>수강료: {student.details?.tuition ? student.details.tuition.toLocaleString() : '-'}</span>}
                     </div>
                     <div className="detail-item dates">
-                        {visibleColumns.admission_date && <span>입원일: {student.admission_date ? new Date(student.admission_date).toLocaleDateString() : '-'}</span>}
-                        {visibleColumns.discharge_date && <span>퇴원일: {student.discharge_date ? new Date(student.discharge_date).toLocaleDateString() : '-'}</span>}
+                        {/* [핵심 수정] start_date와 end_date를 사용 */}
+                        {visibleColumns.admission_date && <span>입원일: {student.start_date ? new Date(student.start_date).toLocaleDateString() : '-'}</span>}
+                        {visibleColumns.discharge_date && <span>퇴원일: {student.end_date ? new Date(student.end_date).toLocaleDateString() : '-'}</span>}
                     </div>
                     <div className="detail-item teacher-info">
-                        {visibleColumns.teacher && <span>담당 강사: {student.teacher || '-'}</span>}
+                        {visibleColumns.teacher && <span>담당 강사: {student.details?.teacher || '-'}</span>}
                     </div>
                 </div>
             </div>
             <div className="card-actions">
                 <StudentActionButtons
-                    studentId={student.id} studentName={student.student_name} isEditing={isEditingStatus}
+                    studentId={student.id} studentName={studentName} isEditing={isEditingStatus}
                     onEdit={onEditRequest} onNavigate={onNavigateRequest} onToggleStatusEditor={onToggleStatusEditorRequest}
                     onStatusUpdate={onStatusUpdate} onCancel={onCancel}
                 />
@@ -104,25 +122,22 @@ type StudentDisplayProps = {
     activeCardId: string | null;
     onCardClick: (studentId: string) => void;
     closeActiveCard: () => void;
-    selectedIds: Set<string>; // 이 prop이 MobileStudentCard로 전달됩니다.
+    selectedIds: Set<string>;
 };
 
 const StudentDisplayMobile: React.FC<StudentDisplayProps> = (props) => {
     const { students, isLoading, selectedIds, ...rest } = props;
 
-    if (isLoading) {
-        return <div className="mobile-loading-state">로딩 중...</div>;
-    }
-    if (students.length === 0) {
-        return <div className="mobile-loading-state">표시할 학생 정보가 없습니다.</div>;
-    }
+    if (isLoading) return <div className="mobile-loading-state">로딩 중...</div>;
+    if (students.length === 0) return <div className="mobile-loading-state">표시할 학생 정보가 없습니다.</div>;
+
     return (
         <div className="mobile-student-list-container">
             {students.map(student => (
                 <MobileStudentCard 
                     key={student.id} 
                     student={student}
-                    selectedIds={selectedIds} // [핵심] selectedIds를 MobileStudentCard로 전달합니다.
+                    selectedIds={selectedIds}
                     {...rest}
                 />
             ))}

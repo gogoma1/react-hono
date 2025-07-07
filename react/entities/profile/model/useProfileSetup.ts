@@ -1,3 +1,5 @@
+// ./react/entities/profile/model/useProfileSetup.ts
+
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuthStore, selectUser, selectIsLoadingAuth } from '../../../shared/store/authStore';
@@ -16,7 +18,7 @@ interface ProfileSetupPayload {
 type ValidationErrors = {
     name?: string;
     phone?: string;
-    academy?: string;
+    academy?: string; // 학원 선택 관련 에러
 };
 
 export const useProfileSetup = () => {
@@ -38,7 +40,7 @@ export const useProfileSetup = () => {
 
     const [selectedPosition, setSelectedPosition] = useState<PositionType | ''>('');
     const [name, setName] = useState('');
-    const [phone, setPhone] = useState('010-');
+    const [phone, setPhone] = useState(''); // 초기값을 비워둡니다.
 
     const [academyName, setAcademyName] = useState('');
     const [selectedCity, setSelectedCity] = useState('');
@@ -51,7 +53,20 @@ export const useProfileSetup = () => {
     useEffect(() => {
         if (user) {
             setName(user.user_metadata?.name || '');
-            setPhone(user.phone || '010-');
+            // 전화번호가 있다면 형식에 맞춰주고, 없다면 '010-'으로 시작하도록 설정합니다.
+            const userPhone = user.phone;
+            if (userPhone) {
+                const numbers = userPhone.replace(/[^0-9]/g, "");
+                if (numbers.length === 11) {
+                    setPhone(`010-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`);
+                } else if (numbers.length === 10) {
+                     setPhone(`010-${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`);
+                } else {
+                    setPhone('010-');
+                }
+            } else {
+                setPhone('010-');
+            }
         }
     }, [isLoadingAuth, user]);
     
@@ -71,14 +86,11 @@ export const useProfileSetup = () => {
             return !!selectedAcademy;
         }
         
+        // '과외 선생님' 등 다른 역할은 여기까지만 확인
         return true;
     }, [name, phone, selectedPosition, academyName, selectedCity, selectedDistrict, selectedAcademy, needsAcademySelection]);
 
     const scrollToBottom = useCallback(() => {
-        // --- [핵심 수정] ---
-        // 지연 시간을 100ms에서 160ms로 늘립니다.
-        // 이는 입력 필드에 포커스를 주는 시간(150ms)보다 약간 길게 설정하여
-        // 새로운 UI가 완전히 렌더링되고 자리를 잡은 후에 스크롤이 실행되도록 보장합니다.
         setTimeout(() => {
             if (containerRef.current) {
                 containerRef.current.scrollTo({
@@ -100,16 +112,18 @@ export const useProfileSetup = () => {
         const newErrors: ValidationErrors = {};
         if (nextStep > 2 && !name.trim()) {
             newErrors.name = "이름을 입력해주세요";
+            setValidationErrors(newErrors);
             return;
         }
         
         const phoneRegex = /^[0-9]{3}-[0-9]{3,4}-[0-9]{4}$/;
         if (nextStep > 3 && !phoneRegex.test(phone)) {
             newErrors.phone = "올바른 전화번호를 입력해주세요";
+            setValidationErrors(newErrors);
             return;
         }
 
-        setValidationErrors(newErrors);
+        setValidationErrors({});
         setStep(nextStep);
         setEditingField(null);
     }, [name, phone]);
@@ -210,6 +224,7 @@ export const useProfileSetup = () => {
         setIsSubmitting(true);
         const sanitizedPhone = phone.replace(/-/g, '');
 
+        // [핵심 수정] API 페이로드 구성
         const payload: ProfileSetupPayload = {
             name,
             phone: sanitizedPhone,
@@ -236,6 +251,7 @@ export const useProfileSetup = () => {
                 navigate('/dashboard', { replace: true });
             } else {
                 const data = await response.json();
+                // [핵심 수정] 백엔드 에러 메시지 처리
                 const friendlyMessage = data.error === 'Enrollment not found' 
                     ? `선택하신 학원에 회원님의 전화번호(${phone})로 등록된 정보가 없습니다. 학원을 다시 선택하시거나, 담당 선생님께 문의하여 등록을 요청해주세요.`
                     : data.error || '프로필 저장에 실패했습니다. 관리자에게 문의하세요.';

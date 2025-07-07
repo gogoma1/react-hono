@@ -21,6 +21,8 @@ export const PROBLEM_PUBLISHING_COLUMN_CONFIG = [
 
 export const STUDENT_DASHBOARD_COLUMN_CONFIG = [
   { key: 'grade', label: '학년', defaultHidden: false },
+  // [추가] class_name이 여기에 정의되어 있어야 합니다.
+  { key: 'class_name', label: '반', defaultHidden: false }, 
   { key: 'subject', label: '과목', defaultHidden: false },
   { key: 'status', label: '상태', defaultHidden: false },
   { key: 'teacher', label: '담당 강사', defaultHidden: false },

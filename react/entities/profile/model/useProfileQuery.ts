@@ -1,7 +1,8 @@
+// ./react/entities/profile/model/useProfileQuery.ts
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-// [신규] addRoleAPI와 AddRolePayload를 import 합니다.
-import { fetchMyProfileAPI, updateMyProfileAPI, deactivateAccountAPI, addRoleAPI } from '../api/profileApi';
+import { fetchMyProfileAPI, updateMyProfileAPI, deactivateAccountAPI, addRoleAPI, deleteRoleAPI } from '../api/profileApi';
 import type { MyProfile, UpdateProfilePayload, DbProfile, AddRolePayload } from './types';
 import { useAuthStore } from '../../../shared/store/authStore';
 
@@ -34,6 +35,24 @@ export function useAddRoleMutation() {
         }
     });
 }
+
+/**
+ * [신규] 내 프로필에서 역할을 삭제하는 Mutation
+ */
+export function useDeleteRoleMutation() {
+    const queryClient = useQueryClient();
+    return useMutation<{ message: string }, Error, string>({
+        mutationFn: deleteRoleAPI,
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: [MY_PROFILE_QUERY_KEY] });
+            alert(data.message);
+        },
+        onError: (error) => {
+            alert(`역할 삭제 실패: ${error.message}`);
+        }
+    });
+}
+
 
 /**
  * 내 프로필 정보(이름/전화번호)를 수정하는 Mutation

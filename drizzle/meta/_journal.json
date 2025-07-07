@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1751696306602,
-      "tag": "0000_sudden_exodus",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1751703247290,
-      "tag": "0001_huge_rhodey",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1751789916745,
-      "tag": "0002_loose_bullseye",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1751866575235,
-      "tag": "0003_clever_puppet_master",
+      "when": 1751880736682,
+      "tag": "0000_superb_silver_samurai",
       "breakpoints": true
     }
   ]

@@ -10,19 +10,45 @@ interface UpdateProblemVariables {
   fields: Partial<Problem>;
 }
 
+// [핵심] onMutate에서 반환될 컨텍스트 타입을 정의합니다.
+interface ProblemMutationContext {
+    previousProblems?: Problem[];
+}
+
 /**
  * 문제 수정을 위한 React Query Mutation
  */
 export function useUpdateProblemMutation() {
     const queryClient = useQueryClient();
-    return useMutation<Problem, Error, UpdateProblemVariables>({
+    const queryKey = [PROBLEMS_QUERY_KEY]; // 전체 문제 목록에 대한 쿼리 키
+
+    // [핵심 수정] useMutation의 제네릭에 컨텍스트 타입을 추가합니다.
+    return useMutation<Problem, Error, UpdateProblemVariables, ProblemMutationContext>({
         mutationFn: (variables) => updateProblemAPI(variables.id, variables.fields),
-        onSuccess: (_updatedProblem) => {
-            queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
+        // [개선] 낙관적 업데이트 적용
+        onMutate: async (updatedProblem) => {
+            await queryClient.cancelQueries({ queryKey });
+            const previousProblems = queryClient.getQueryData<Problem[]>(queryKey);
+
+            if (previousProblems) {
+                queryClient.setQueryData<Problem[]>(queryKey, old => 
+                    old?.map(problem => 
+                        problem.problem_id === updatedProblem.id 
+                            ? { ...problem, ...updatedProblem.fields }
+                            : problem
+                    ) ?? []
+                );
+            }
+            return { previousProblems };
         },
-        onError: (error) => {
-            alert(`문제 업데이트 실패: ${error.message}`);
-            console.error('Update failed:', error);
+        onError: (_err, _newProblem, context) => {
+            // [수정] context 타입이 올바르게 추론되어 오류가 사라집니다.
+            if (context?.previousProblems) {
+                queryClient.setQueryData(queryKey, context.previousProblems);
+            }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey });
         },
     });
 }
@@ -32,17 +58,33 @@ export function useUpdateProblemMutation() {
  */
 export function useDeleteProblemsMutation() {
     const queryClient = useQueryClient();
-    return useMutation<{ message: string, deleted_count: number }, Error, string[]>({
+    return useMutation<{ message: string, deleted_count: number }, Error, string[], ProblemMutationContext>({
         mutationFn: (problemIds) => deleteProblemsAPI(problemIds),
         
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
-            alert(data.message || '문제가 삭제되었습니다.');
+        onMutate: async (problemIdsToDelete) => {
+            const queryKey = [PROBLEMS_QUERY_KEY];
+            await queryClient.cancelQueries({ queryKey });
+            const previousProblems = queryClient.getQueryData<Problem[]>(queryKey);
+
+            if (previousProblems) {
+                const idsToDeleteSet = new Set(problemIdsToDelete);
+                queryClient.setQueryData<Problem[]>(queryKey, old => 
+                    old?.filter(p => !idsToDeleteSet.has(p.problem_id)) ?? []
+                );
+            }
+            return { previousProblems };
         },
-        
-        onError: (error) => {
-            alert(`문제 삭제 실패: ${error.message}`);
-            console.error('Problem delete failed:', error);
+        onError: (err, _vars, context) => {
+            alert(`문제 삭제 실패: ${err.message}`);
+            if(context?.previousProblems) {
+                queryClient.setQueryData([PROBLEMS_QUERY_KEY], context.previousProblems);
+            }
+        },
+        onSettled: (data) => {
+            if (data?.message) {
+                alert(data.message);
+            }
+            queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
         },
     });
 }
@@ -54,7 +96,6 @@ export function useUploadProblemsMutation() {
     const queryClient = useQueryClient();
     return useMutation<UploadResponse, Error, Problem[]>({
         mutationFn: (problems) => uploadProblemsAPI(problems),
-        // [수정] 성공 시 더 상세한 메시지 표시 및 데이터 갱신
         onSuccess: (data) => {
             let message = "작업이 완료되었습니다.";
             if (data.created > 0 && data.updated > 0) {

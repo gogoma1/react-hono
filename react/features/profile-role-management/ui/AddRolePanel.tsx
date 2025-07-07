@@ -1,8 +1,11 @@
+// ./react/features/profile-role-management/ui/AddRolePanel.tsx
+
 import React from 'react';
 import { useAddRole } from '../model/useAddRole';
 import { RoleAcademyForm } from './RoleAcademyForm';
 import LoadingButton from '../../../shared/ui/loadingbutton/LoadingButton';
 import { POSITIONS } from '../../../entities/profile/model/types';
+import Tippy from '@tippyjs/react';
 import './AddRolePanel.css';
 
 interface AddRolePanelProps {
@@ -15,7 +18,7 @@ export const AddRolePanel: React.FC<AddRolePanelProps> = ({ onCancel }) => {
         isSubmitting,
         isFormComplete,
         apiErrorMessage,
-        // RoleAcademyForm에 전달할 props
+        disabledRoles,
         ...roleAcademyFormProps
     } = useAddRole(onCancel);
 
@@ -31,28 +34,51 @@ export const AddRolePanel: React.FC<AddRolePanelProps> = ({ onCancel }) => {
             </header>
 
             <form onSubmit={handleSave} className="settings-form" noValidate>
-                <div className="form-group">
-                    <label className="form-label">역할 선택 *</label>
-                    <div className="position-buttons-group">
-                        {POSITIONS.map((pos) => (
-                            <button
-                                type="button"
-                                key={pos}
-                                className={`position-button omr-button status-button ${roleAcademyFormProps.selectedPosition === pos ? 'active' : ''}`}
-                                onClick={() => roleAcademyFormProps.handlePositionSelect(pos)}
-                            >
-                                {pos}
-                            </button>
-                        ))}
+                {/* [핵심 수정] 학원 선택 UI를 먼저 보여줍니다. */}
+                <RoleAcademyForm {...roleAcademyFormProps} />
+                
+                {/* [핵심 수정] 학원 선택이 필요한데 아직 선택되지 않았다면, 역할 선택 UI를 비활성화합니다. */}
+                {roleAcademyFormProps.needsAcademySelection && !roleAcademyFormProps.selectedAcademy ? (
+                    <div className="form-group">
+                        <label className="form-label">역할 선택</label>
+                        <div className="role-selection-disabled-overlay">
+                            학원을 먼저 선택해주세요.
+                        </div>
                     </div>
-                    {roleAcademyFormProps.validationErrors.position && (
-                        <p className="error-message">{roleAcademyFormProps.validationErrors.position}</p>
-                    )}
-                </div>
+                ) : (
+                    <div className="form-group">
+                        <label className="form-label">역할 선택 *</label>
+                        <div className="position-buttons-group">
+                            {POSITIONS.map((pos) => {
+                                const disabledReason = disabledRoles.get(pos);
+                                const isDisabled = !!disabledReason;
 
-                {/* 역할이 선택되면 RoleAcademyForm 렌더링 */}
-                {roleAcademyFormProps.selectedPosition && (
-                    <RoleAcademyForm {...roleAcademyFormProps} />
+                                const button = (
+                                    <button
+                                        type="button"
+                                        key={pos}
+                                        className={`position-button omr-button status-button ${roleAcademyFormProps.selectedPosition === pos ? 'active' : ''}`}
+                                        onClick={() => roleAcademyFormProps.handlePositionSelect(pos)}
+                                        disabled={isDisabled}
+                                    >
+                                        {pos}
+                                    </button>
+                                );
+
+                                // 비활성화된 버튼에 툴팁을 적용합니다.
+                                return isDisabled ? (
+                                    <Tippy content={disabledReason} theme="custom-glass" key={pos}>
+                                        <span className="disabled-button-wrapper">{button}</span>
+                                    </Tippy>
+                                ) : (
+                                    button
+                                );
+                            })}
+                        </div>
+                        {roleAcademyFormProps.validationErrors.position && (
+                            <p className="error-message">{roleAcademyFormProps.validationErrors.position}</p>
+                        )}
+                    </div>
                 )}
 
                 {apiErrorMessage && (

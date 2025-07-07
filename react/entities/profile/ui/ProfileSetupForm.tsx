@@ -1,3 +1,5 @@
+// ./react/entities/profile/ui/ProfileSetupForm.tsx
+
 import React, { forwardRef, Ref } from 'react';
 import type { FormEvent, KeyboardEvent, ChangeEvent } from 'react';
 import BackgroundBlobs from '../../../widgets/rootlayout/BackgroundBlobs';
@@ -6,7 +8,6 @@ import { LuArrowRight, LuArrowLeft, LuRefreshCcw } from 'react-icons/lu';
 import { POSITIONS, type PositionType } from '../model/types';
 import type { Academy } from '../../academy/model/types';
 import ProfileSetupInput from './ProfileSetupInput';
-// [신규] 분리된 RoleAcademyForm 컴포넌트를 import 합니다.
 import { RoleAcademyForm } from '../../../features/profile-role-management/ui/RoleAcademyForm'; 
 
 const PrincipalSubmissionHelper: React.FC<{
@@ -68,7 +69,6 @@ export const ProfileSetupForm = forwardRef<HTMLDivElement, ProfileSetupFormProps
             handlePositionSelect, handleNameSubmit, handlePhoneChange, handlePhoneSubmit, 
             handleReset, handleSaveProfile, handleNextStep, handleFinishEditing,
             nameInputRef, phoneInputRef,
-            // [수정] RoleAcademyForm으로 전달할 props들을 props 객체에서 바로 구조분해 할당합니다.
             setAcademyName, setSelectedCity, setSelectedDistrict, setSelectedAcademy, handleAcademySelect,
             academyNameInputRef, academySearchInputRef
         } = props;
@@ -172,7 +172,6 @@ export const ProfileSetupForm = forwardRef<HTMLDivElement, ProfileSetupFormProps
                         )}
 
                         {step >= 4 && (
-                            // [핵심] 기존의 복잡한 JSX를 RoleAcademyForm 컴포넌트로 대체합니다.
                             <RoleAcademyForm
                                 selectedPosition={selectedPosition}
                                 academyName={academyName}
@@ -214,3 +213,5 @@ export const ProfileSetupForm = forwardRef<HTMLDivElement, ProfileSetupFormProps
         );
     }
 );
+
+ProfileSetupForm.displayName = 'ProfileSetupForm';

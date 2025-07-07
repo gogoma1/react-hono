@@ -1,20 +1,21 @@
+// ./react/features/account-settings/model/useAccountSettings.ts
+
 import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMyProfileQuery, useUpdateProfileMutation, useDeactivateAccountMutation } from '../../../entities/profile/model/useProfileQuery';
+import { useMyProfileQuery, useUpdateProfileMutation, useDeactivateAccountMutation, useDeleteRoleMutation } from '../../../entities/profile/model/useProfileQuery';
 import { updateProfileSchema, type UpdateProfileSchema, type UpdateProfilePayload } from '../../../entities/profile/model/types';
 
-// [수정] 'addRole' 상태를 추가합니다.
 export type AccountSettingsSection = 'general' | 'account' | 'addRole';
 
 export function useAccountSettings() {
-    // [수정] Section 타입 적용
     const [activeSection, setActiveSection] = useState<AccountSettingsSection>('general');
 
     const { data: profile, isLoading: isLoadingProfile, isError, error } = useMyProfileQuery();
 
     const { mutate: updateProfile, isPending: isUpdating } = useUpdateProfileMutation();
     const { mutate: deactivateAccount, isPending: isDeactivating } = useDeactivateAccountMutation();
+    const { mutate: deleteRole, isPending: isDeletingRole } = useDeleteRoleMutation(); // [신규] 역할 삭제 mutation
 
     const {
         register,
@@ -41,7 +42,6 @@ export function useAccountSettings() {
         }
     }, [profile, reset]);
 
-    // [신규] '역할 추가' 패널에서 성공 또는 취소 시 '일반' 섹션으로 돌아가는 함수
     const handleReturnToGeneral = useCallback(() => {
         setActiveSection('general');
     }, []);
@@ -51,8 +51,9 @@ export function useAccountSettings() {
             name: formData.name,
         };
 
-        if (formData.phone && formData.phone.trim() !== '') {
-            payload.phone = formData.phone;
+        const phoneTrimmed = formData.phone?.trim();
+        if (phoneTrimmed) {
+            payload.phone = phoneTrimmed;
         }
         
         updateProfile(payload, {
@@ -72,6 +73,13 @@ export function useAccountSettings() {
             alert("'비활성화'를 정확히 입력해주세요.");
         }
     }, [isDeactivationConfirmed, deactivateAccount]);
+    
+    const handleDeleteRole = useCallback((roleId: string, roleName: string) => {
+        if (window.confirm(`정말로 '${roleName}' 역할을 삭제하시겠습니까?`)) {
+            deleteRole(roleId);
+        }
+    }, [deleteRole]);
+
 
     return {
         activeSection,
@@ -95,7 +103,9 @@ export function useAccountSettings() {
         handleDeactivateAccount,
         isDeactivating,
 
-        // [신규] 반환
         handleReturnToGeneral,
+        
+        handleDeleteRole,
+        isDeletingRole,
     };
 }
