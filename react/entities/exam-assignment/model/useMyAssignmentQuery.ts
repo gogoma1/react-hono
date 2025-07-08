@@ -1,23 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchMyAssignmentAPI, type ExamAssignmentWithSet } from '../api/examAssignmentApi';
+import { fetchMyAssignmentsAPI, type ExamAssignmentWithSet } from '../api/examAssignmentApi';
 
-export const MY_ASSIGNMENT_QUERY_KEY = 'myAssignment';
+export const MY_ASSIGNMENTS_QUERY_KEY = 'myAssignments';
 
-// [신규] 쿼리 옵션을 위한 인터페이스
-interface UseMyAssignmentQueryOptions {
+// [수정] 옵션 타입을 명확히 하고, 선택적으로 만듭니다.
+interface UseMyAssignmentsQueryOptions {
     enabled?: boolean;
 }
 
 /**
- * 로그인한 학생의 최신 시험 과제 정보를 가져오는 React Query 훅.
- * @param {UseMyAssignmentQueryOptions} options - React Query 옵션 (예: enabled)
+ * [수정] 로그인한 학생의 '모든' 시험 과제 목록을 가져오는 React Query 훅.
+ * @param {UseMyAssignmentsQueryOptions} options - React Query 옵션 (예: enabled)
  */
-export function useMyAssignmentQuery(options: UseMyAssignmentQueryOptions = {}) {
-    const { enabled = true } = options; // 기본값은 true
+// [수정] options 객체를 받도록 시그니처를 수정합니다.
+export function useMyAssignmentsQuery(options: UseMyAssignmentsQueryOptions = {}) {
+    const { enabled = true } = options; // 기본값은 true로 설정
 
-    return useQuery<ExamAssignmentWithSet, Error>({
-        queryKey: [MY_ASSIGNMENT_QUERY_KEY],
-        queryFn: fetchMyAssignmentAPI,
+    return useQuery<ExamAssignmentWithSet[], Error>({
+        queryKey: [MY_ASSIGNMENTS_QUERY_KEY],
+        queryFn: fetchMyAssignmentsAPI,
         enabled: enabled, // 인자로 받은 enabled 값을 사용
     });
 }

@@ -16,7 +16,6 @@ const publishExamSetSchema = z.object({
   header_info: z.record(z.any()).optional(),
 });
 
-// [수정됨] camelCase -> snake_case
 const submitAssignmentSchema = z.object({
   exam_start_time: z.string().datetime(),
   exam_end_time: z.string().datetime(),
@@ -61,9 +60,11 @@ examRoutes.post(
           throw new Error("시험지 세트 생성에 실패했습니다.");
         }
 
-        const assignments = body.student_ids.map(studentId => ({
+        // [수정] 'student_id'를 스키마에 정의된 'student_member_id'로 변경합니다.
+        // `body.student_ids`는 `academy_members.id`를 담고 있으므로 변수명은 그대로 사용해도 괜찮습니다.
+        const assignments = body.student_ids.map(studentMemberId => ({
           exam_set_id: newExamSet.id,
-          student_id: studentId,
+          student_member_id: studentMemberId,
         }));
         
         await tx.insert(schema.examAssignmentsTable).values(assignments);
@@ -107,7 +108,26 @@ examRoutes.post(
     const db = drizzle(sql, { schema });
     
     try {
-        // [수정됨] body의 키들을 snake_case로 변경
+        // [수정] 제출 권한을 확인하고 상태를 업데이트하는 로직 개선
+        
+        // 1. 제출하려는 시험 할당 정보를 가져옵니다.
+        const assignment = await db.query.examAssignmentsTable.findFirst({
+            where: eq(schema.examAssignmentsTable.id, assignmentId),
+            with: {
+                studentMember: { // academyMembersTable과의 관계를 이용합니다.
+                    columns: {
+                        profile_id: true // 학생의 profile_id를 가져옵니다.
+                    }
+                }
+            }
+        });
+        
+        // 2. 시험이 존재하지 않거나, 할당된 학생의 profile_id가 현재 로그인한 사용자의 id와 다르면 권한 오류를 반환합니다.
+        if (!assignment || assignment.studentMember?.profile_id !== user.id) {
+            return c.json({ error: '유효하지 않은 시험이거나 제출 권한이 없습니다.' }, 404);
+        }
+
+        // 3. 권한이 확인되었으므로, assignmentId를 기준으로 상태를 업데이트합니다.
         const [updatedAssignment] = await db.update(schema.examAssignmentsTable)
             .set({
                 status: body.correct_rate === null ? 'completed' : 'graded',
@@ -116,14 +136,12 @@ examRoutes.post(
                 total_pure_time_seconds: body.total_pure_time_seconds,
                 correct_rate: body.correct_rate,
             })
-            .where(and(
-                eq(schema.examAssignmentsTable.id, assignmentId),
-                eq(schema.examAssignmentsTable.student_id, user.id)
-            ))
+            .where(eq(schema.examAssignmentsTable.id, assignmentId))
             .returning({ id: schema.examAssignmentsTable.id });
-
+        
         if (!updatedAssignment) {
-            return c.json({ error: '유효하지 않은 시험이거나 제출 권한이 없습니다.' }, 404);
+            // 이 경우는 거의 발생하지 않지만, 방어 코드로 남겨둡니다.
+            return c.json({ error: '시험 상태 업데이트에 실패했습니다. 다시 시도해주세요.' }, 500);
         }
 
     } catch (error) {

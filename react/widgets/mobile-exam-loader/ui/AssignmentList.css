@@ -1,0 +1,127 @@
+/* ./react/widgets/mobile-exam-loader/ui/AssignmentList.css */
+
+.assignment-list-page {
+    padding: 24px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    background-color: var(--app-bg-color, #fdfcfa);
+}
+
+.assignment-list-page .page-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color-light, #e0e0e0);
+    text-align: center;
+}
+
+.assignment-list-page .page-header h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--text-primary);
+}
+
+.assignment-list-page .page-header p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.assignment-list-page .page-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    /* 스크롤바가 나타날 때 레이아웃 밀림 방지 */
+    scrollbar-gutter: stable;
+    padding: 0 4px;
+}
+
+.assignment-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.assignment-list-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color-light, #e0e0e0);
+    border-radius: 12px;
+    background-color: var(--main-content-bg-color, #fefefe);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s, transform 0.2s;
+    text-align: left;
+    color: var(--text-primary);
+}
+
+.assignment-list-item:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-color);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.item-icon-wrapper {
+    margin-right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 상태별 아이콘 색상 */
+.item-icon-wrapper.not-started { color: #3498db; } /* Blue */
+.item-icon-wrapper.in-progress { color: #f39c12; } /* Orange */
+.item-icon-wrapper.completed { color: #2ecc71; } /* Green */
+.item-icon-wrapper.graded { color: #8e44ad; } /* Purple */
+.item-icon-wrapper.expired { color: #7f8c8d; } /* Gray */
+
+.item-info-wrapper {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.item-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.item-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.item-details span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 상태별 텍스트 색상 */
+.status-text { font-weight: 500; }
+.status-text.not-started { color: #3498db; }
+.status-text.in-progress { color: #f39c12; }
+.status-text.completed { color: #2ecc71; }
+.status-text.graded { color: #8e44ad; }
+.status-text.expired { color: #7f8c8d; }
+
+
+.item-action-wrapper {
+    color: var(--text-secondary);
+    transition: color 0.2s;
+    margin-left: 16px;
+}
+
+.assignment-list-item:hover .item-action-wrapper {
+    color: var(--accent-color);
+}

@@ -1,4 +1,3 @@
-// ----- ./react/widgets/mobile-exam-view/MobileExamView.tsx -----
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import MobileExamProblem from '../../entities/exam/ui/MobileExamProblem';
 import { useExamLayoutStore } from '../../features/problem-publishing/model/examLayoutStore';
@@ -8,7 +7,7 @@ import { useMobileExamSessionStore } from '../../features/mobile-exam-session/mo
 import { useMobileExamAnswerStore } from '../../features/mobile-exam-session/model/mobileExamAnswerStore';
 import { useMobileExamTimeStore } from '../../features/mobile-exam-session/model/mobileExamTimeStore';
 
-// [핵심 수정] 변경된 파일명을 import 경로에 반영합니다.
+// 변경된 파일명을 import 경로에 반영합니다.
 import { ProblemNavBar as MobileProblemNavBar } from '../../features/mobile-exam-session/ui/MboileProblemNavBar'; 
 
 import type { MarkingStatus } from '../../features/omr-marking';
@@ -87,11 +86,22 @@ const MobileExamView: React.FC<MobileExamViewProps> = ({ problems }) => {
         }
 
         if (status) {
+            // 'A', 'B', 'C', 'D' 버튼을 누른 경우: 원본 로직 유지
             markStatus(problemId, status);
             finalizeProblemTime(problemId);
         } else {
-            if (!isCompleted) skipProblem(problemId);
-            if (!isCompleted || answerChanged) finalizeProblemTime(problemId);
+            // '넘기기' 버튼을 누른 경우
+            
+            // [핵심 수정 1] finalStatus(A,B,C,D)가 없을 때만 스킵 처리
+            if (!finalStatus) { 
+                skipProblem(problemId);
+            }
+            
+            // [핵심 수정 2] 원본의 시간 기록 로직을 그대로 보존
+            // A,B 상태가 아니거나, 답안이 변경되었을 때만 시간 기록
+            if (!isCompleted || answerChanged) {
+                finalizeProblemTime(problemId);
+            }
         }
         
         moveToNextProblem(problemId);
@@ -127,7 +137,6 @@ const MobileExamView: React.FC<MobileExamViewProps> = ({ problems }) => {
             <div className="mobile-exam-problem-list">
                 {orderedProblems.map((problem) => (
                     <MobileExamProblem
-                        // [핵심 수정] 각 라인을 중괄호로 감싸서 반환 값이 없도록(void) 만듭니다.
                         ref={el => {
                             if (el) {
                                 problemRefs.current.set(problem.uniqueId, el);
