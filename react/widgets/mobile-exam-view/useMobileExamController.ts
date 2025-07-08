@@ -1,56 +1,76 @@
+// ----- ./react/widgets/mobile-exam-view/useMobileExamController.ts -----
 import { useCallback } from 'react';
 import { useMobileExamSessionStore } from '../../features/mobile-exam-session/model/mobileExamSessionStore';
 import { useMobileExamAnswerStore } from '../../features/mobile-exam-session/model/mobileExamAnswerStore';
 import { useMobileExamTimeStore } from '../../features/mobile-exam-session/model/mobileExamTimeStore';
 import type { MarkingStatus } from '../../features/omr-marking';
 
-// [신규] 컨트롤러 옵션 인터페이스
 interface MobileExamControllerOptions {
     isPreview?: boolean;
 }
 
-/**
- * MobileExamView의 사용자 인터랙션을 처리하는 핸들러 함수들을 제공하는 훅.
- * @param {MobileExamControllerOptions} options - 컨트롤러의 동작을 제어하는 옵션
- */
+interface NextClickOptions {
+    isCompleted: boolean;
+    answerChanged: boolean;
+}
+
 export function useMobileExamController(options: MobileExamControllerOptions = {}) {
+    // isPreview는 여기서 받아두지만, 상태 변경 로직 자체를 막는 데에는 사용하지 않습니다.
     const { isPreview = false } = options;
+
+    const { setActiveProblemId, skipProblem, completeExam } = useMobileExamSessionStore();
+    const { markStatus } = useMobileExamAnswerStore();
+    const { finalizeProblemTime } = useMobileExamTimeStore();
     
     const handleNavClick = useCallback((problemId: string) => {
-        const { activeProblemId, setActiveProblemId } = useMobileExamSessionStore.getState();
-        if (activeProblemId === problemId) return;
+        console.log(`[Controller] handleNavClick 호출됨. problemId: ${problemId}`);
+        if (useMobileExamSessionStore.getState().activeProblemId === problemId) {
+            console.log(`[Controller] 이미 활성화된 문제이므로 액션 중단.`);
+            return;
+        }
         
         setActiveProblemId(problemId);
-    }, []);
+    }, [setActiveProblemId]);
 
-    const handleNextClick = useCallback((problemId: string) => {
-        // 미리보기 모드에서는 다음 문제로 넘어가도 스킵 처리하지 않음
-        if (!isPreview) {
-            useMobileExamSessionStore.getState().skipProblem(problemId);
+    const handleNextClick = useCallback((problemId: string, { isCompleted, answerChanged }: NextClickOptions) => {
+        console.log(`[Controller] handleNextClick 호출됨. problemId: ${problemId}`, { isCompleted, answerChanged });
+        
+        // [핵심 수정] isPreview 체크 제거
+        if (!isCompleted) {
+            console.log(`[Controller] '풀이 미완료' 상태. skipProblem 실행.`);
+            skipProblem(problemId);
+        } else {
+            console.log(`[Controller] '풀이 완료' 상태. skipProblem 실행 안 함.`);
         }
-    }, [isPreview]);
+
+        if (!isCompleted || answerChanged) {
+            console.log(`[Controller] '풀이 미완료' 또는 '답안 변경됨' 상태. finalizeProblemTime 실행.`);
+            finalizeProblemTime(problemId);
+        } else {
+            console.log(`[Controller] '풀이 완료' 상태이고 '답안 변경 없음'. finalizeProblemTime 실행 안 함.`);
+        }
+    }, [skipProblem, finalizeProblemTime]);
 
     const handleMarkStatus = useCallback((problemId: string, status: MarkingStatus) => {
-        useMobileExamAnswerStore.getState().markStatus(problemId, status);
-        // 미리보기 모드에서는 시간 기록을 확정하지 않음
-        if (!isPreview) {
-            useMobileExamTimeStore.getState().finalizeProblemTime(problemId);
-        }
-    }, [isPreview]);
+        console.log(`[Controller] handleMarkStatus 호출됨. problemId: ${problemId}, status: ${status}`);
+        
+        // [핵심 수정] isPreview 체크 제거
+        console.log(`[Controller] markStatus 실행.`);
+        markStatus(problemId, status);
+        console.log(`[Controller] finalizeProblemTime 실행.`);
+        finalizeProblemTime(problemId);
+    }, [markStatus, finalizeProblemTime]);
 
     const handleSubmitExam = useCallback(() => {
-        // [핵심] isPreview 값에 따라 분기 처리
+        console.log(`[Controller] handleSubmitExam 호출됨.`);
+        // 최종 제출과 같은 영구적인 액션은 isPreview에 따라 분기 처리하는 것이 좋습니다.
         if (isPreview) {
             alert("시험 체험이 완료되었습니다. 실제 학생은 이 단계에서 시험지가 제출되고 결과 분석이 시작됩니다.");
-            // 미리보기 모드에서는 세션만 종료
-            useMobileExamSessionStore.getState().completeExam();
         } else {
-            // 실제 학생 시험 모드에서는 제출 로직 실행
-            useMobileExamSessionStore.getState().completeExam();
-            // TODO: 실제 서버로 답안 데이터를 전송하는 API 호출 로직 추가
             alert("시험이 제출되었습니다! 수고하셨습니다.");
         }
-    }, [isPreview]);
+        completeExam();
+    }, [isPreview, completeExam]);
 
     return {
         handleNavClick,

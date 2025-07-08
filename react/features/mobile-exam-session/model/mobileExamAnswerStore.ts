@@ -1,16 +1,15 @@
+// ----- ./react/features/mobile-exam-session/model/mobileExamAnswerStore.ts -----
 import { create } from 'zustand';
-// [핵심 수정] './ui/OmrMarkingCard' 대신 피처의 index 파일에서 타입을 가져옵니다.
 import type { AnswerNumber, MarkingStatus } from '../../omr-marking';
 
-// 답안지 관련 상태 인터페이스
 interface MobileExamAnswerState {
     answers: Map<string, Set<AnswerNumber>>;
     subjectiveAnswers: Map<string, string>;
     statuses: Map<string, MarkingStatus>;
     answerHistory: Map<string, (AnswerNumber | MarkingStatus | string)[]>;
+    modifiedProblemIds: Set<string>;
 }
 
-// 답안지 관련 액션 인터페이스
 interface MobileExamAnswerActions {
     markAnswer: (problemId: string, answer: AnswerNumber) => void;
     markSubjectiveAnswer: (problemId: string, answer: string) => void;
@@ -23,34 +22,57 @@ const initialAnswerState: MobileExamAnswerState = {
     subjectiveAnswers: new Map(),
     statuses: new Map(),
     answerHistory: new Map(),
+    modifiedProblemIds: new Set(),
 };
 
-export const useMobileExamAnswerStore = create<MobileExamAnswerState & MobileExamAnswerActions>((set) => ({
+export const useMobileExamAnswerStore = create<MobileExamAnswerState & MobileExamAnswerActions>((set, get) => ({
     ...initialAnswerState,
 
-    markAnswer: (problemId, answer) => set(state => {
-        const newAnswers = new Map(state.answers);
+    markAnswer: (problemId, answer) => {
+        const { answers, statuses, modifiedProblemIds } = get();
+        const newAnswers = new Map(answers);
         const answerSet = new Set(newAnswers.get(problemId) || []);
+        
+        // [핵심 수정] 정답 변경 여부 판단 기준을 '답이 있었는가'에서
+        // '풀이 완료 상태(A,B,C,D)가 기록되었는가'로 변경합니다.
+        const wasCommitted = statuses.has(problemId);
         
         answerSet.has(answer) ? answerSet.delete(answer) : answerSet.add(answer);
         
         if (answerSet.size === 0) newAnswers.delete(problemId);
         else newAnswers.set(problemId, answerSet);
         
-        const newHistory = new Map(state.answerHistory);
+        const newHistory = new Map(get().answerHistory);
         const history = [...(newHistory.get(problemId) || []), answer];
         newHistory.set(problemId, history);
 
-        return { answers: newAnswers, answerHistory: newHistory };
-    }),
+        const newModifiedIds = new Set(modifiedProblemIds);
+        if (wasCommitted) {
+            newModifiedIds.add(problemId);
+        }
 
-    markSubjectiveAnswer: (problemId, answer) => set(state => {
-        const newSubjectiveAnswers = new Map(state.subjectiveAnswers).set(problemId, answer);
-        const newHistory = new Map(state.answerHistory);
+        set({ answers: newAnswers, answerHistory: newHistory, modifiedProblemIds: newModifiedIds });
+    },
+
+    markSubjectiveAnswer: (problemId, answer) => {
+        const { subjectiveAnswers, statuses, modifiedProblemIds } = get();
+        
+        // [핵심 수정] 여기도 동일하게 풀이 완료 상태를 기준으로 변경 여부를 판단합니다.
+        const wasCommitted = statuses.has(problemId);
+
+        const newSubjectiveAnswers = new Map(subjectiveAnswers).set(problemId, answer);
+        
+        const newHistory = new Map(get().answerHistory);
         const history = [...(newHistory.get(problemId) || []), answer];
         newHistory.set(problemId, history);
-        return { subjectiveAnswers: newSubjectiveAnswers, answerHistory: newHistory };
-    }),
+
+        const newModifiedIds = new Set(modifiedProblemIds);
+        if (wasCommitted) {
+            newModifiedIds.add(problemId);
+        }
+        
+        set({ subjectiveAnswers: newSubjectiveAnswers, answerHistory: newHistory, modifiedProblemIds: newModifiedIds });
+    },
 
     markStatus: (problemId, status) => set(state => {
         const newStatuses = new Map(state.statuses).set(problemId, status);

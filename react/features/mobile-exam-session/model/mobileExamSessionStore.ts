@@ -48,7 +48,7 @@ export const useMobileExamSessionStore = create<MobileExamSessionState & MobileE
         
         timeStore.startExam();
         if (firstProblemId) {
-            timeStore.setActiveProblemTimer(firstProblemId, undefined, new Map(), new Map());
+            timeStore.setActiveProblemTimer(firstProblemId);
         }
     },
 
@@ -59,36 +59,34 @@ export const useMobileExamSessionStore = create<MobileExamSessionState & MobileE
     },
 
     setActiveProblemId: (problemId) => {
-        const { orderedProblems, activeProblemId } = get();
+        const { activeProblemId: currentActiveId } = get();
+        if (currentActiveId === problemId) return;
 
-        if (activeProblemId) {
-            useMobileExamTimeStore.getState().finalizeProblemTime(activeProblemId);
+        if (currentActiveId) {
+            useMobileExamTimeStore.getState().finalizeProblemTime(currentActiveId);
         }
-
-        const problemBeingLeft = orderedProblems.find(p => p.uniqueId === activeProblemId);
         
         set({ activeProblemId: problemId });
-
-        const { answers, subjectiveAnswers } = useMobileExamAnswerStore.getState();
-        useMobileExamTimeStore.getState().setActiveProblemTimer(
-            problemId,
-            problemBeingLeft,
-            answers,
-            subjectiveAnswers
-        );
+        
+        useMobileExamTimeStore.getState().setActiveProblemTimer(problemId);
     },
 
     skipProblem: (problemId) => {
-        // ✨ [핵심 수정] 불필요한 setActiveProblemId 호출을 제거합니다.
-        // 이 액션은 오직 'skipped' 상태만 책임지도록 수정합니다.
-        set(state => ({
-            skippedProblemIds: new Set(state.skippedProblemIds).add(problemId)
-        }));
+        // 🐛 [디버깅 로그] 상태가 실제로 변경되는 시점을 확인합니다.
+        console.log(`[Store] skipProblem 실행. ID: ${problemId}를 skippedProblemIds에 추가합니다.`);
+        set(state => {
+            const newSkippedIds = new Set(state.skippedProblemIds).add(problemId);
+            console.log(`[Store] 상태 변경 후 skippedProblemIds:`, newSkippedIds);
+            return { skippedProblemIds: newSkippedIds };
+        });
     },
 
     completeExam: () => {
-        get().setActiveProblemId(''); 
-        useMobileExamTimeStore.getState().stopExam(); // 전체 시험 타이머 중지
-        set({ isSessionActive: false });
+        const { activeProblemId } = get();
+        if (activeProblemId) {
+             useMobileExamTimeStore.getState().finalizeProblemTime(activeProblemId);
+        }
+        useMobileExamTimeStore.getState().stopExam();
+        set({ isSessionActive: false, activeProblemId: null });
     },
 }));

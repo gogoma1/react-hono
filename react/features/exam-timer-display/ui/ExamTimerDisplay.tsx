@@ -1,8 +1,10 @@
+// ./react/features/exam-timer-display/ui/ExamTimerDisplay.tsx
 import React from 'react';
 import type { AnswerNumber, MarkingStatus } from '../../omr-marking';
 import { useMobileExamSessionStore } from '../../mobile-exam-session/model/mobileExamSessionStore';
 import { useMobileExamTimeStore } from '../../mobile-exam-session/model/mobileExamTimeStore';
-import { useMobileExamAnswerStore } from '../../mobile-exam-session/model/mobileExamAnswerStore'; // [핵심]
+// ✨ [핵심 수정 1] `modifiedProblemIds`를 `mobileExamAnswerStore`에서 가져오도록 import 경로를 변경합니다.
+import { useMobileExamAnswerStore } from '../../mobile-exam-session/model/mobileExamAnswerStore';
 import { useExamLayoutStore } from '../../problem-publishing';
 import './ExamTimerDisplay.css';
 
@@ -34,10 +36,10 @@ const numberToCircle = (num: AnswerNumber): string => {
 };
 
 const ExamTimerDisplay: React.FC = () => {
-    // [핵심] 각 store에서 필요한 데이터를 선택적으로 가져옵니다.
     const { orderedProblems: problems } = useMobileExamSessionStore();
-    const { answerHistory, statuses, answers, subjectiveAnswers } = useMobileExamAnswerStore();
-    const { problemTimes, totalElapsedTime, examStartTime, examEndTime, modifiedProblemIds } = useMobileExamTimeStore();
+    // ✨ [핵심 수정 2] time 스토어 대신 answer 스토어에서 `modifiedProblemIds`를 포함한 상태를 가져옵니다.
+    const { answerHistory, statuses, answers, subjectiveAnswers, modifiedProblemIds } = useMobileExamAnswerStore();
+    const { problemTimes, totalElapsedTime, examStartTime, examEndTime } = useMobileExamTimeStore();
     const { useSequentialNumbering } = useExamLayoutStore();
     
     const totalTime = totalElapsedTime;
@@ -113,6 +115,7 @@ const ExamTimerDisplay: React.FC = () => {
                     const problemNumber = useSequentialNumbering ? `${index + 1}` : problem.display_question_number;
                     const time = problemTimes.get(problem.uniqueId);
                     const history = answerHistory.get(problem.uniqueId) || [];
+                    // ✨ [핵심 수정 3] 이 `isModified` 값은 이제 `mobileExamAnswerStore`의 상태를 따르므로, 정확하게 동작합니다.
                     const isModified = modifiedProblemIds.has(problem.uniqueId);
 
                     return (

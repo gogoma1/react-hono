@@ -1,3 +1,4 @@
+// ----- ./react/entities/exam/ui/MobileExamProblem.tsx -----
 import React, { memo, forwardRef } from 'react';
 import type { Problem } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
@@ -16,8 +17,8 @@ interface MobileExamProblemProps {
     currentAnswers: Set<AnswerNumber> | null;
     currentStatus: MarkingStatus | null;
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
-    onMarkStatus: (problemId: string, status: MarkingStatus) => void;
-    onNextClick: (problemId: string) => void;
+    // [핵심 수정] 단일 콜백 시그니처로 다시 변경합니다.
+    onCommitAndProceed: (problemId: string, status?: MarkingStatus) => void;
     isSubjective?: boolean;
     currentSubjectiveAnswer?: string;
     onMarkSubjectiveAnswer?: (problemId: string, answer: string) => void;
@@ -32,8 +33,7 @@ const MobileExamProblem = memo(forwardRef<HTMLDivElement, MobileExamProblemProps
     currentAnswers,
     currentStatus,
     onMarkAnswer,
-    onMarkStatus,
-    onNextClick,
+    onCommitAndProceed, // 단일 콜백을 받습니다.
     isSubjective,
     currentSubjectiveAnswer,
     onMarkSubjectiveAnswer,
@@ -70,8 +70,7 @@ const MobileExamProblem = memo(forwardRef<HTMLDivElement, MobileExamProblemProps
                 currentAnswers={currentAnswers}
                 currentStatus={currentStatus}
                 onMarkAnswer={onMarkAnswer}
-                onMarkStatus={onMarkStatus}
-                onNextClick={onNextClick}
+                onCommitAndProceed={onCommitAndProceed} // 그대로 전달합니다.
                 isSubjective={isSubjective}
                 currentSubjectiveAnswer={currentSubjectiveAnswer}
                 onMarkSubjectiveAnswer={onMarkSubjectiveAnswer}

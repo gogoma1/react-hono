@@ -1,3 +1,4 @@
+// ----- ./react/features/omr-marking/ui/OmrMarkingCard.tsx -----
 import React from 'react';
 import './OmrMarkingCard.css';
 
@@ -9,8 +10,8 @@ interface OmrMarkingCardProps {
     currentAnswers: Set<AnswerNumber> | null;
     currentStatus: MarkingStatus | null;
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
-    onMarkStatus: (problemId: string, status: MarkingStatus) => void;
-    onNextClick: (problemId: string) => void;
+    // [핵심 수정] 단일 콜백으로 다시 통일합니다. status는 선택적 인자입니다.
+    onCommitAndProceed: (problemId: string, status?: MarkingStatus) => void;
     isSubjective?: boolean;
     currentSubjectiveAnswer?: string;
     onMarkSubjectiveAnswer?: (problemId: string, answer: string) => void;
@@ -28,8 +29,7 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
     currentAnswers,
     currentStatus,
     onMarkAnswer,
-    onMarkStatus,
-    onNextClick,
+    onCommitAndProceed, // 단일 콜백을 받습니다.
     isSubjective,
     currentSubjectiveAnswer,
     onMarkSubjectiveAnswer,
@@ -37,18 +37,10 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
     const answerOptions: AnswerNumber[] = [1, 2, 3, 4, 5];
     const statusOptions: MarkingStatus[] = ['A', 'B', 'C', 'D'];
 
-    // --- [핵심 수정] ---
-    // 상태 버튼 클릭 시의 동작을 수정합니다.
+    // 상태 버튼은 status와 함께 콜백을 호출합니다.
     const handleStatusClick = (statusKey: MarkingStatus) => {
-        // 1. 우선 상태를 기록합니다. (Navbar 색상 변경 등 UI가 즉시 반응합니다)
-        onMarkStatus(problemId, statusKey);
-
-        // 2. 만약 클릭한 버튼이 'C' 또는 'D'라면, 다음 문제로 넘어가는 액션을 추가로 호출합니다.
-        if (statusKey === 'C' || statusKey === 'D') {
-            onNextClick(problemId);
-        }
+        onCommitAndProceed(problemId, statusKey);
     };
-    // --- [수정 끝] ---
 
     return (
         <div className="omr-marking-card">
@@ -91,7 +83,7 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
                             key={statusKey}
                             type="button"
                             className={`omr-button status-button ${currentStatus === statusKey ? 'active' : ''}`}
-                            onClick={() => handleStatusClick(statusKey)} // 수정된 핸들러를 연결합니다.
+                            onClick={() => handleStatusClick(statusKey)}
                             aria-pressed={currentStatus === statusKey}
                             aria-label={`${statusLabels[statusKey]} 선택`}
                         >
@@ -101,10 +93,11 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
                     ))}
                 </div>
 
+                {/* '넘기기' 버튼은 status 없이 콜백을 호출합니다. */}
                 <button
                     type="button"
                     className="omr-button next-button"
-                    onClick={() => onNextClick(problemId)}
+                    onClick={() => onCommitAndProceed(problemId)}
                     aria-label="다음 문제로 넘기기"
                 >
                     넘기기
