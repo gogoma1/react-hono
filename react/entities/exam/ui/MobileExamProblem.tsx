@@ -17,7 +17,6 @@ interface MobileExamProblemProps {
     currentAnswers: Set<AnswerNumber> | null;
     currentStatus: MarkingStatus | null;
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
-    // [핵심 수정] 단일 콜백 시그니처로 다시 변경합니다.
     onCommitAndProceed: (problemId: string, status?: MarkingStatus) => void;
     isSubjective?: boolean;
     currentSubjectiveAnswer?: string;
@@ -33,7 +32,7 @@ const MobileExamProblem = memo(forwardRef<HTMLDivElement, MobileExamProblemProps
     currentAnswers,
     currentStatus,
     onMarkAnswer,
-    onCommitAndProceed, // 단일 콜백을 받습니다.
+    onCommitAndProceed,
     isSubjective,
     currentSubjectiveAnswer,
     onMarkSubjectiveAnswer,
@@ -70,7 +69,7 @@ const MobileExamProblem = memo(forwardRef<HTMLDivElement, MobileExamProblemProps
                 currentAnswers={currentAnswers}
                 currentStatus={currentStatus}
                 onMarkAnswer={onMarkAnswer}
-                onCommitAndProceed={onCommitAndProceed} // 그대로 전달합니다.
+                onCommitAndProceed={onCommitAndProceed}
                 isSubjective={isSubjective}
                 currentSubjectiveAnswer={currentSubjectiveAnswer}
                 onMarkSubjectiveAnswer={onMarkSubjectiveAnswer}

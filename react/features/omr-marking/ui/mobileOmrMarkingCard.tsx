@@ -1,6 +1,6 @@
 // ----- ./react/features/omr-marking/ui/OmrMarkingCard.tsx -----
 import React from 'react';
-import './OmrMarkingCard.css';
+import './mobileOmrMarkingCard.css';
 
 export type MarkingStatus = 'A' | 'B' | 'C' | 'D';
 export type AnswerNumber = 1 | 2 | 3 | 4 | 5;
@@ -10,7 +10,6 @@ interface OmrMarkingCardProps {
     currentAnswers: Set<AnswerNumber> | null;
     currentStatus: MarkingStatus | null;
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
-    // [핵심 수정] 단일 콜백으로 다시 통일합니다. status는 선택적 인자입니다.
     onCommitAndProceed: (problemId: string, status?: MarkingStatus) => void;
     isSubjective?: boolean;
     currentSubjectiveAnswer?: string;
@@ -29,7 +28,7 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
     currentAnswers,
     currentStatus,
     onMarkAnswer,
-    onCommitAndProceed, // 단일 콜백을 받습니다.
+    onCommitAndProceed,
     isSubjective,
     currentSubjectiveAnswer,
     onMarkSubjectiveAnswer,
@@ -37,7 +36,6 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
     const answerOptions: AnswerNumber[] = [1, 2, 3, 4, 5];
     const statusOptions: MarkingStatus[] = ['A', 'B', 'C', 'D'];
 
-    // 상태 버튼은 status와 함께 콜백을 호출합니다.
     const handleStatusClick = (statusKey: MarkingStatus) => {
         onCommitAndProceed(problemId, statusKey);
     };
@@ -93,7 +91,6 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
                     ))}
                 </div>
 
-                {/* '넘기기' 버튼은 status 없이 콜백을 호출합니다. */}
                 <button
                     type="button"
                     className="omr-button next-button"

@@ -1,4 +1,4 @@
-// ./react/features/mobile-exam-session/model/mobileExamSessionStore.ts
+// ----- ./react/features/mobile-exam-session/model/mobileExamSessionStore.ts -----
 import { create } from 'zustand';
 import type { ProcessedProblem } from '../../problem-publishing';
 import { useMobileExamTimeStore } from './mobileExamTimeStore';
@@ -30,9 +30,17 @@ export const useMobileExamSessionStore = create<MobileExamSessionState & MobileE
     ...initialState,
 
     initializeSession: (problems) => {
-        if (get().isSessionActive) return;
+        if (get().isSessionActive || problems.length === 0) return;
         
-        const firstProblemId = problems[0]?.uniqueId || null;
+        console.log("[SessionStore] initializeSession: 시험 세션을 시작합니다.", { problemCount: problems.length });
+        
+        const firstProblemId = problems[0].uniqueId;
+        
+        // 다른 스토어들을 먼저 초기화합니다.
+        useMobileExamTimeStore.getState().reset();
+        useMobileExamAnswerStore.getState().reset();
+        
+        // 현재 스토어 상태를 설정합니다.
         set({
             orderedProblems: problems,
             activeProblemId: firstProblemId,
@@ -40,48 +48,39 @@ export const useMobileExamSessionStore = create<MobileExamSessionState & MobileE
             skippedProblemIds: new Set(),
         });
         
-        const timeStore = useMobileExamTimeStore.getState();
-        const answerStore = useMobileExamAnswerStore.getState();
-        
-        timeStore.reset();
-        answerStore.reset();
-        
-        timeStore.startExam();
-        if (firstProblemId) {
-            timeStore.setActiveProblemTimer(firstProblemId);
-        }
+        // 시간 측정을 시작합니다.
+        useMobileExamTimeStore.getState().startExam();
+        useMobileExamTimeStore.getState().setActiveProblemTimer(firstProblemId);
     },
 
     resetSession: () => {
+        console.log("[SessionStore] resetSession: 모든 시험 관련 상태를 초기화합니다.");
         useMobileExamTimeStore.getState().reset();
         useMobileExamAnswerStore.getState().reset();
         set(initialState);
     },
 
     setActiveProblemId: (problemId) => {
-        const { activeProblemId: currentActiveId } = get();
+        const currentActiveId = get().activeProblemId;
         if (currentActiveId === problemId) return;
 
-        if (currentActiveId) {
-            useMobileExamTimeStore.getState().finalizeProblemTime(currentActiveId);
-        }
+        console.log(`[SessionStore] setActiveProblemId: 활성 문제를 ${currentActiveId}에서 ${problemId}로 변경합니다.`);
+        
+        // [핵심] 타이머 상태 변경을 이 곳에서 책임집니다.
+        useMobileExamTimeStore.getState().setActiveProblemTimer(problemId);
         
         set({ activeProblemId: problemId });
-        
-        useMobileExamTimeStore.getState().setActiveProblemTimer(problemId);
     },
 
     skipProblem: (problemId) => {
-        // 🐛 [디버깅 로그] 상태가 실제로 변경되는 시점을 확인합니다.
-        console.log(`[Store] skipProblem 실행. ID: ${problemId}를 skippedProblemIds에 추가합니다.`);
-        set(state => {
-            const newSkippedIds = new Set(state.skippedProblemIds).add(problemId);
-            console.log(`[Store] 상태 변경 후 skippedProblemIds:`, newSkippedIds);
-            return { skippedProblemIds: newSkippedIds };
-        });
+        console.log(`[SessionStore] skipProblem: 문제 ${problemId}를 스킵 처리합니다.`);
+        set(state => ({
+            skippedProblemIds: new Set(state.skippedProblemIds).add(problemId)
+        }));
     },
 
     completeExam: () => {
+        console.log("[SessionStore] completeExam: 시험을 종료합니다.");
         const { activeProblemId } = get();
         if (activeProblemId) {
              useMobileExamTimeStore.getState().finalizeProblemTime(activeProblemId);

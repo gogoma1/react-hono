@@ -33,8 +33,6 @@ export const useMobileExamAnswerStore = create<MobileExamAnswerState & MobileExa
         const newAnswers = new Map(answers);
         const answerSet = new Set(newAnswers.get(problemId) || []);
         
-        // [핵심 수정] 정답 변경 여부 판단 기준을 '답이 있었는가'에서
-        // '풀이 완료 상태(A,B,C,D)가 기록되었는가'로 변경합니다.
         const wasCommitted = statuses.has(problemId);
         
         answerSet.has(answer) ? answerSet.delete(answer) : answerSet.add(answer);
@@ -57,7 +55,6 @@ export const useMobileExamAnswerStore = create<MobileExamAnswerState & MobileExa
     markSubjectiveAnswer: (problemId, answer) => {
         const { subjectiveAnswers, statuses, modifiedProblemIds } = get();
         
-        // [핵심 수정] 여기도 동일하게 풀이 완료 상태를 기준으로 변경 여부를 판단합니다.
         const wasCommitted = statuses.has(problemId);
 
         const newSubjectiveAnswers = new Map(subjectiveAnswers).set(problemId, answer);

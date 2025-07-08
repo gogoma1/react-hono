@@ -1,4 +1,3 @@
-// ----- ./react/features/mobile-exam-session/model/mobileExamTimeStore.ts -----
 import { create } from 'zustand';
 
 let problemTimerIntervalId: NodeJS.Timeout | null = null;
@@ -18,7 +17,7 @@ interface MobileExamTimeState {
 interface MobileExamTimeActions {
     startExam: () => void;
     stopExam: () => void;
-    setActiveProblemTimer: (problemIdToStart: string) => void;
+    setActiveProblemTimer: (problemIdToStart: string | null) => void;
     finalizeProblemTime: (problemId: string) => void;
     reset: () => void;
 }
@@ -56,53 +55,66 @@ export const useMobileExamTimeStore = create<MobileExamTimeState & MobileExamTim
     },
 
     setActiveProblemTimer: (problemIdToStart) => {
+        // [핵심 수정] 기존 타이머를 확실하게 정리합니다.
         if (problemTimerIntervalId) clearInterval(problemTimerIntervalId);
         problemTimerIntervalId = null;
 
-        const { timerStartTime, activeProblemId: problemIdToLeave } = get();
-        const currentAccumulatedTimes = new Map(get().accumulatedTimes);
+        // [핵심 수정] 상태 업데이트를 단일 'set' 호출로 묶어 원자적으로 처리합니다.
+        set(state => {
+            const { timerStartTime, activeProblemId: problemIdToLeave, accumulatedTimes } = state;
+            const newAccumulatedTimes = new Map(accumulatedTimes);
 
-        if (problemIdToLeave && timerStartTime) {
-            const elapsed = (Date.now() - timerStartTime) / 1000;
-            const prevAccumulated = currentAccumulatedTimes.get(problemIdToLeave) || 0;
-            currentAccumulatedTimes.set(problemIdToLeave, prevAccumulated + elapsed);
-        }
+            // 1. 떠나는 문제의 시간을 계산하고 누적합니다.
+            if (problemIdToLeave && timerStartTime) {
+                const elapsed = (Date.now() - timerStartTime) / 1000;
+                const prevAccumulated = newAccumulatedTimes.get(problemIdToLeave) || 0;
+                newAccumulatedTimes.set(problemIdToLeave, prevAccumulated + elapsed);
+            }
 
-        if (problemIdToStart) {
-            const accumulatedTime = currentAccumulatedTimes.get(problemIdToStart) || 0;
-            
-            set({
-                accumulatedTimes: currentAccumulatedTimes,
+            // 2. 새로 시작할 문제가 없다면 타이머를 멈추고 상태를 정리합니다.
+            if (!problemIdToStart) {
+                return {
+                    ...state,
+                    accumulatedTimes: newAccumulatedTimes,
+                    activeProblemId: null,
+                    timerStartTime: null,
+                    currentTimer: 0,
+                };
+            }
+
+            // 3. 새로 시작할 문제의 누적 시간을 가져옵니다.
+            const newProblemBaseTime = newAccumulatedTimes.get(problemIdToStart) || 0;
+
+            // 4. 새로운 문제에 대한 상태를 설정합니다.
+            return {
+                ...state,
+                accumulatedTimes: newAccumulatedTimes,
                 activeProblemId: problemIdToStart,
-                currentTimer: accumulatedTime,
-                timerStartTime: Date.now(),
-            });
-            
+                timerStartTime: Date.now(), // 타이머 시작 시점을 현재로 리셋
+                currentTimer: newProblemBaseTime, // UI에 표시될 타이머를 누적 시간으로 즉시 설정
+            };
+        });
+
+        // [핵심 수정] 상태 업데이트 후, 새로운 setInterval을 설정합니다.
+        // 이렇게 하면 항상 최신 상태를 기반으로 인터벌이 동작합니다.
+        const { activeProblemId, timerStartTime, accumulatedTimes } = get();
+        if (activeProblemId && timerStartTime) {
+            const baseTime = accumulatedTimes.get(activeProblemId) || 0;
+            const newStartTime = timerStartTime; // 이 타이머 세션의 시작 시간
+
             problemTimerIntervalId = setInterval(() => {
-                const { timerStartTime: newTimerStartTime, activeProblemId: currentActiveId } = get();
-                if (newTimerStartTime && currentActiveId === problemIdToStart) {
-                    const elapsed = (Date.now() - newTimerStartTime) / 1000;
-                    set({ currentTimer: accumulatedTime + elapsed });
-                }
+                const elapsedSinceStart = (Date.now() - newStartTime) / 1000;
+                set({ currentTimer: baseTime + elapsedSinceStart });
             }, 1000);
-        } else {
-            set({
-                accumulatedTimes: currentAccumulatedTimes,
-                activeProblemId: null,
-                timerStartTime: null,
-            });
         }
     },
 
     finalizeProblemTime: (problemId) => {
-        // [핵심 수정] 이전에 시간이 기록되었더라도 덮어쓸 수 있도록 return 문을 제거합니다.
-        // 이를 통해 수정된 문제의 누적 시간이 정상적으로 다시 저장됩니다.
-        // if (get().problemTimes.has(problemId)) return;
-        
-        const { timerStartTime, accumulatedTimes } = get();
+        const { timerStartTime, accumulatedTimes, activeProblemId } = get();
         let finalTime = accumulatedTimes.get(problemId) || 0;
 
-        if (get().activeProblemId === problemId && timerStartTime) {
+        // 현재 활성 문제의 시간을 마지막으로 더해줍니다.
+        if (activeProblemId === problemId && timerStartTime) {
             const elapsed = (Date.now() - timerStartTime) / 1000;
             finalTime += elapsed;
         }
