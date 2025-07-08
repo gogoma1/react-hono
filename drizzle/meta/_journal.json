@@ -15,6 +15,27 @@
       "when": 1751892833061,
       "tag": "0001_breezy_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1751973449505,
+      "tag": "0002_deep_layla_miller",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1751975865503,
+      "tag": "0003_huge_the_executioner",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1751976209621,
+      "tag": "0004_damp_warlock",
+      "breakpoints": true
     }
   ]
 }

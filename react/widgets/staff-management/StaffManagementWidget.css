@@ -1,0 +1,98 @@
+.staff-management-widget {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.registered-staff-list {
+    margin-top: 2rem;
+    padding: 0 1rem 1rem;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.list-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-color-light);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color-light);
+    padding-bottom: 0.5rem;
+}
+
+.list-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    color: var(--text-color-light);
+    gap: 0.5rem;
+}
+
+.spinner-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.registered-staff-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.staff-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.5rem;
+    border-radius: 6px;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.staff-item:not(:last-child) {
+    border-bottom: 1px solid var(--border-color-ultralight);
+}
+
+.staff-item:hover {
+    background-color: var(--background-color-hover);
+}
+
+.staff-role-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 1rem;
+    background-color: var(--primary-color-light);
+    color: var(--primary-color-dark);
+    flex-shrink: 0;
+}
+
+.staff-name {
+    font-weight: 600;
+    color: var(--text-color-normal);
+    flex-grow: 1;
+}
+
+.staff-subject {
+    font-size: 0.85rem;
+    color: var(--text-color-light);
+}
+
+.staff-status-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.status-icon.linked {
+    color: var(--accent-color);
+}
+
+.status-icon.unlinked {
+    color: var(--text-color-lighter);
+}

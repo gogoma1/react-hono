@@ -1,5 +1,3 @@
-// ./react/entities/profile/ui/ProfileSetupForm.tsx
-
 import React, { forwardRef, Ref } from 'react';
 import type { FormEvent, KeyboardEvent, ChangeEvent } from 'react';
 import BackgroundBlobs from '../../../widgets/rootlayout/BackgroundBlobs';
@@ -47,6 +45,7 @@ interface ProfileSetupFormProps {
     setSelectedAcademy: (academy: Academy | null) => void;
     handlePositionSelect: (position: PositionType) => void;
     handleAcademySelect: (academy: Academy) => void;
+    handleSelectNoAcademy: () => void; // [추가]
     handleNameSubmit: (e: KeyboardEvent<HTMLInputElement>) => void;
     handlePhoneChange: (e: ChangeEvent<HTMLInputElement>) => void;
     handlePhoneSubmit: (e: KeyboardEvent<HTMLInputElement>) => void;
@@ -70,6 +69,7 @@ export const ProfileSetupForm = forwardRef<HTMLDivElement, ProfileSetupFormProps
             handleReset, handleSaveProfile, handleNextStep, handleFinishEditing,
             nameInputRef, phoneInputRef,
             setAcademyName, setSelectedCity, setSelectedDistrict, setSelectedAcademy, handleAcademySelect,
+            handleSelectNoAcademy, // [추가]
             academyNameInputRef, academySearchInputRef
         } = props;
         
@@ -185,6 +185,7 @@ export const ProfileSetupForm = forwardRef<HTMLDivElement, ProfileSetupFormProps
                                 setSelectedDistrict={setSelectedDistrict}
                                 handleAcademySelect={handleAcademySelect}
                                 setSelectedAcademy={setSelectedAcademy}
+                                handleSelectNoAcademy={handleSelectNoAcademy} // [추가]
                                 academyNameInputRef={academyNameInputRef}
                                 academySearchInputRef={academySearchInputRef}
                             />

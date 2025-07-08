@@ -1,3 +1,5 @@
+// ./api/db/schema.d1.ts 전문
+
 import {
     integer,
     real,
@@ -8,7 +10,19 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { sql, relations } from "drizzle-orm";
 
-// --- 테이블 정의 ---
+
+/**
+ * 문제 유형(problem_type)에 대한 Enum 정의
+ * 허용된 문제 유형 목록을 미리 정의하여 데이터의 일관성을 보장합니다.
+ * 'OX' 유형을 추가합니다.
+ */
+export const problemTypeEnum = [
+    "객관식",
+    "서답형",
+    "논술형",
+    "OX",
+] as const;
+
 
 /**
  * 문제 원본 데이터 테이블 (Cloudflare D1)
@@ -19,7 +33,12 @@ export const problemTable = sqliteTable("problem", {
     page: integer("page"),
     question_number: real("question_number"),
     answer: text("answer"),
-    problem_type: text("problem_type"),
+    
+    /**
+     * problem_type 컬럼을 enum 타입으로 변경합니다.
+     */
+    problem_type: text("problem_type", { enum: problemTypeEnum }),
+
     grade: text("grade"),
     semester: text("semester"),
     creator_id: text("creator_id").notNull(),
@@ -37,7 +56,6 @@ export const problemTable = sqliteTable("problem", {
 
 /**
  * 문제집 정보 테이블 (Cloudflare D1)
- * 서비스에서 판매/제공하는 상업적 '문제집' 콘텐츠
  */
 export const problemSetTable = sqliteTable("problem_set", {
     problem_set_id: text("problem_set_id").primaryKey(),
@@ -53,13 +71,12 @@ export const problemSetTable = sqliteTable("problem_set", {
 });
 
 /**
- * [신규] 문제-문제집 연결 테이블 (Cloudflare D1)
- * 문제와 문제집의 다대다 관계를 정의합니다.
+ * 문제-문제집 연결 테이블 (Cloudflare D1)
  */
 export const problemSetProblemsTable = sqliteTable("problem_set_problems", {
-    problem_set_id: text("problem_set_id").notNull(), // problemSetTable.problem_set_id 참조
-    problem_id: text("problem_id").notNull(),       // problemTable.problem_id 참조
-    order: integer("order").notNull(),              // 문제집 내 순서
+    problem_set_id: text("problem_set_id").notNull(),
+    problem_id: text("problem_id").notNull(),
+    order: integer("order").notNull(),
 }, (table) => ({
     pk: primaryKey({ columns: [table.problem_set_id, table.problem_id] }),
 }));
@@ -92,7 +109,7 @@ export const coreConceptsTable = sqliteTable("core_concepts", {
 });
 
 /**
- * 태그 정보 테이블 (Cloudflare D1) - 이 테이블은 현재 직접 사용되지 않지만 구조상 유지합니다.
+ * 태그 정보 테이블 (Cloudflare D1)
  */
 export const tagTable = sqliteTable("tag", {
     tag_id: text("tag_id").primaryKey(),
@@ -111,23 +128,26 @@ export const problemTagTable = sqliteTable("problem_tag", {
 }));
 
 
-// --- Relations: D1 테이블 관계 정의 ---
+// --- Relations ---
 
 export const problemRelations = relations(problemTable, ({ one, many }) => ({
     majorChapter: one(majorChaptersTable, { fields: [problemTable.major_chapter_id], references: [majorChaptersTable.id], }),
     middleChapter: one(middleChaptersTable, { fields: [problemTable.middle_chapter_id], references: [middleChaptersTable.id], }),
     coreConcept: one(coreConceptsTable, { fields: [problemTable.core_concept_id], references: [coreConceptsTable.id], }),
     problemTags: many(problemTagTable),
-    problemSetProblems: many(problemSetProblemsTable), // [신규] problem to problemSetProblems 관계
+    problemSetProblems: many(problemSetProblemsTable),
 }));
 
 export const problemSetRelations = relations(problemSetTable, ({ many }) => ({
-    problemSetProblems: many(problemSetProblemsTable), // [신규] problemSet to problemSetProblems 관계
+    problemSetProblems: many(problemSetProblemsTable),
 }));
 
 export const problemSetProblemsRelations = relations(problemSetProblemsTable, ({ one }) => ({
     problemSet: one(problemSetTable, { fields: [problemSetProblemsTable.problem_set_id], references: [problemSetTable.problem_set_id] }),
-    problem: one(problemTable, { fields: [problemSetProblemsTable.problem_id], references: [problemTable.problem_id] }),
+    problem: one(problemTable, { 
+        fields: [problemSetProblemsTable.problem_id], 
+        references: [problemTable.problem_id]
+    }),
 }));
 
 export const tagRelations = relations(tagTable, ({ many }) => ({
@@ -135,16 +155,23 @@ export const tagRelations = relations(tagTable, ({ many }) => ({
 }));
 
 export const problemTagRelations = relations(problemTagTable, ({ one }) => ({
-    problem: one(problemTable, { fields: [problemTagTable.problem_id], references: [problemTable.problem_id], }),
-    tag: one(tagTable, { fields: [problemTagTable.tag_id], references: [tagTable.tag_id], }),
+    problem: one(problemTable, { 
+        fields: [problemTagTable.problem_id], 
+        references: [problemTable.problem_id]
+    }),
+    tag: one(tagTable, { 
+        fields: [problemTagTable.tag_id], 
+        references: [tagTable.tag_id] 
+    }),
 }));
 
 
-// --- Types: Drizzle ORM 타입 추론 ---
+// --- Types ---
 
 export type DbProblem = typeof problemTable.$inferSelect;
 export type DbProblemSet = typeof problemSetTable.$inferSelect;
-export type DbProblemSetProblems = typeof problemSetProblemsTable.$inferSelect; // [신규] 타입
+// [오류 수정] $inferselect -> $inferSelect
+export type DbProblemSetProblems = typeof problemSetProblemsTable.$inferSelect; 
 export type DbMajorChapter = typeof majorChaptersTable.$inferSelect;
 export type DbMiddleChapter = typeof middleChaptersTable.$inferSelect;
 export type DbCoreConcept = typeof coreConceptsTable.$inferSelect;

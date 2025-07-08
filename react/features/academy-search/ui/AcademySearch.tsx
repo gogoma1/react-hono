@@ -1,5 +1,3 @@
-// react/features/academy-search/ui/AcademySearch.tsx
-
 import { useState, useMemo, useEffect, useRef, forwardRef } from 'react';
 import { useAllAcademiesQuery } from '../../../entities/academy/model/useAcademiesQuery';
 import type { Academy } from '../../../entities/academy/model/types';
@@ -9,9 +7,10 @@ import './AcademySearch.css';
 
 interface AcademySearchProps {
     onAcademySelect: (academy: Academy) => void;
+    hideLabel?: boolean; // [신규] 레이블 숨김 옵션 추가
 }
 
-export const AcademySearch = forwardRef<HTMLInputElement, AcademySearchProps>(({ onAcademySelect }, ref) => {
+export const AcademySearch = forwardRef<HTMLInputElement, AcademySearchProps>(({ onAcademySelect, hideLabel = false }, ref) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -21,7 +20,6 @@ export const AcademySearch = forwardRef<HTMLInputElement, AcademySearchProps>(({
     const searchableAcademies = useMemo(() => {
         return academies.map(academy => ({
             ...academy,
-            // [핵심 수정 1] 사용자 검색 패턴에 맞춰 region을 name 앞에 배치합니다.
             searchableText: `${academy.region} ${academy.name}`
         }));
     }, [academies]);
@@ -67,7 +65,8 @@ export const AcademySearch = forwardRef<HTMLInputElement, AcademySearchProps>(({
 
     return (
         <div className="form-group academy-search-container" ref={dropdownRef}>
-            <label htmlFor="academySearch" className="form-label">학원 검색</label>
+            {/* [수정] hideLabel prop에 따라 레이블을 조건부 렌더링 */}
+            {!hideLabel && <label htmlFor="academySearch" className="form-label">학원 검색</label>}
             <div className="academy-search-wrapper">
                 <LuSearch className="search-icon" />
                 <input
@@ -77,7 +76,6 @@ export const AcademySearch = forwardRef<HTMLInputElement, AcademySearchProps>(({
                     value={searchTerm}
                     onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }}
                     onClick={() => setIsDropdownOpen(true)}
-                    // [핵심 수정 2] 플레이스홀더도 사용자 친화적으로 수정합니다.
                     placeholder={isLoadingAcademies ? "학원 목록 로딩 중..." : "지역과 학원명으로 검색 (예: 강남 공율)"}
                     className="form-input"
                     autoComplete="off"

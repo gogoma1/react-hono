@@ -1,7 +1,7 @@
 /**
  * 각 페이지별로 우측 사이드바에 표시될 버튼의 종류를 정의합니다.
  */
-export type SidebarButtonType = 'register' | 'settings' | 'prompt' | 'latexHelp' | 'search' | 'jsonView' | 'selectedStudents';
+export type SidebarButtonType = 'register' | 'teacherRegister' | 'settings' | 'prompt' | 'latexHelp' | 'search' | 'jsonView' | 'selectedStudents';
 
 /**
  * 각 페이지의 레이아웃 설정을 정의하는 인터페이스입니다.
@@ -22,6 +22,7 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
   '/dashboard': {
     sidebarButtons: {
       register: { tooltip: '신입생 등록' },
+      teacherRegister: { tooltip: '강사/직원 등록' }, // [신규] 강사/직원 등록 버튼 추가
       settings: { tooltip: '테이블 설정' },
     },
   },
@@ -41,7 +42,7 @@ export const layoutConfigMap: Record<string, PageLayoutConfig> = {
   '/problem-publishing': {
     sidebarButtons: {
       search: { tooltip: '문제 검색 및 필터' },
-      selectedStudents: { tooltip: '선택된 학생' }, // [핵심] '선택된 학생' 탭 추가
+      selectedStudents: { tooltip: '선택된 학생' },
       jsonView: { tooltip: 'JSON으로 변환' },
       prompt: { tooltip: '프롬프트 모음' },
       settings: { tooltip: '테이블 컬럼 설정' },

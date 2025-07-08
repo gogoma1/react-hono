@@ -65,20 +65,17 @@ settingsRoutes.get('/me', async (c) => {
             with: { 
                 userRoles: { with: { role: true } },
                 ownedAcademies: { columns: { id: true, name: true, region: true } },
-                // [핵심 수정] Drizzle 관계를 이용해 멤버십 정보를 한번에 가져옴
                 academyMemberships: { with: { academy: { columns: { id: true, name: true, region: true } } } }
             }
         });
         if (!profileData) return c.json({ error: '활성화된 프로필을 찾을 수 없습니다.' }, 404);
         
-        // [핵심 수정] 가져온 데이터를 기반으로 역할과 소속을 매핑
         const rolesWithAffiliation = profileData.userRoles.map(userRole => {
             const roleInfo: { id: string; name: string; academyId?: string; academyName?: string; region?: string; } = {
                 id: userRole.role.id, name: userRole.role.name,
             };
 
             if (userRole.role.name === '원장') {
-                // 원장은 여러 학원을 소유할 수 있으므로, 일단 첫 번째 학원 정보를 대표로 표시
                 const mainOwnedAcademy = profileData.ownedAcademies[0];
                 if (mainOwnedAcademy) {
                     roleInfo.academyId = mainOwnedAcademy.id;
@@ -86,13 +83,14 @@ settingsRoutes.get('/me', async (c) => {
                     roleInfo.region = mainOwnedAcademy.region;
                 }
             } else {
-                // 강사, 학생, 학부모의 경우, member_type이 역할 이름과 일치하는 소속 정보를 찾음
-                const memberType = userRole.role.name === '강사' ? 'teacher' : (userRole.role.name === '학생' ? 'student' : 'parent');
-                const membership = profileData.academyMemberships.find(m => m.member_type === memberType);
-                if (membership) {
-                    roleInfo.academyId = membership.academy.id;
-                    roleInfo.academyName = membership.academy.name;
-                    roleInfo.region = membership.academy.region;
+                const memberType = userRole.role.name === '강사' ? 'teacher' : (userRole.role.name === '학생' ? 'student' : (userRole.role.name === '학부모' ? 'parent' : null));
+                if (memberType) {
+                    const membership = profileData.academyMemberships.find(m => m.member_type === memberType);
+                    if (membership && membership.academy) {
+                        roleInfo.academyId = membership.academy.id;
+                        roleInfo.academyName = membership.academy.name;
+                        roleInfo.region = membership.academy.region;
+                    }
                 }
             }
             return roleInfo;
@@ -149,7 +147,10 @@ settingsRoutes.post(
 
                     validateRoleAddition(existingRolesInAcademy, role_name);
                     
-                    await tx.insert(schema.userRolesTable).values({ user_id: user.id, role_id: roleToAdd.id });
+                    // [핵심 수정] onConflictDoNothing()을 추가하여 중복 역할 추가 에러를 방지합니다.
+                    await tx.insert(schema.userRolesTable)
+                        .values({ user_id: user.id, role_id: roleToAdd.id })
+                        .onConflictDoNothing();
 
                     const memberType = role_name === '강사' ? 'teacher' : (role_name === '학생' ? 'student' : 'parent');
                     const hasMembership = memberships.some(m => m.member_type === memberType);
@@ -162,11 +163,14 @@ settingsRoutes.post(
                             details: { student_name: profile!.name, student_phone: profile!.phone || undefined }
                         });
                     }
-                } else { // 과외 선생님 등 학원 소속이 아닌 역할
+                } else {
                     const existingUserRoles = await tx.query.userRolesTable.findMany({ where: eq(schema.userRolesTable.user_id, user.id), with: { role: true } });
                     const hasRole = existingUserRoles.some(ur => ur.role.id === roleToAdd.id);
                     if (hasRole) throw new Error(`이미 '${role_name}' 역할을 가지고 있습니다.`);
-                    await tx.insert(schema.userRolesTable).values({ user_id: user.id, role_id: roleToAdd.id });
+                    
+                    await tx.insert(schema.userRolesTable)
+                        .values({ user_id: user.id, role_id: roleToAdd.id })
+                        .onConflictDoNothing();
                 }
             });
             return c.json({ message: "역할이 성공적으로 추가되었습니다." }, 201);

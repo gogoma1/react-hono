@@ -5,9 +5,7 @@ import ProfileSetupInput from '../../../entities/profile/ui/ProfileSetupInput';
 import type { Academy } from '../../../entities/academy/model/types';
 import { LuRefreshCcw } from 'react-icons/lu';
 
-// 이 컴포넌트가 필요로 하는 모든 상태와 핸들러를 Props로 정의합니다.
 interface RoleAcademyFormProps {
-    // 상태 Props
     selectedPosition: string;
     academyName: string;
     selectedCity: string;
@@ -16,14 +14,13 @@ interface RoleAcademyFormProps {
     needsAcademySelection: boolean;
     validationErrors: { academy?: string };
 
-    // 핸들러 Props
     setAcademyName: (name: string) => void;
     setSelectedCity: (city: string) => void;
     setSelectedDistrict: (district: string) => void;
     handleAcademySelect: (academy: Academy) => void;
     setSelectedAcademy: (academy: Academy | null) => void;
+    handleSelectNoAcademy: () => void;
 
-    // Ref Props
     academyNameInputRef: Ref<HTMLInputElement>;
     academySearchInputRef: Ref<HTMLInputElement>;
 }
@@ -43,6 +40,7 @@ export const RoleAcademyForm = forwardRef<HTMLDivElement, RoleAcademyFormProps>(
             setSelectedDistrict,
             handleAcademySelect,
             setSelectedAcademy,
+            handleSelectNoAcademy,
             academyNameInputRef,
             academySearchInputRef,
         } = props;
@@ -93,18 +91,32 @@ export const RoleAcademyForm = forwardRef<HTMLDivElement, RoleAcademyFormProps>(
                 )}
 
                 {needsAcademySelection && !selectedAcademy && (
-                    <div className={validationErrors.academy ? 'academy-search-error' : ''}>
-                        <AcademySearch ref={academySearchInputRef} onAcademySelect={handleAcademySelect} />
-                        {validationErrors.academy && <p className="error-message academy-error-text">{validationErrors.academy}</p>}
-                    </div>
+                    <>
+                        <div className="academy-search-header">
+                            <label htmlFor="academySearch" className="form-label">학원 검색</label>
+                            {['학생', '학부모'].includes(selectedPosition) && (
+                                <button type="button" className="no-academy-button" onClick={handleSelectNoAcademy}>
+                                    등록된 학원이 없거나, 나중에 등록할게요
+                                </button>
+                            )}
+                        </div>
+                        <div className={validationErrors.academy ? 'academy-search-error' : ''}>
+                            <AcademySearch 
+                                ref={academySearchInputRef} 
+                                onAcademySelect={handleAcademySelect} 
+                                hideLabel={true} 
+                            />
+                            {validationErrors.academy && <p className="error-message academy-error-text">{validationErrors.academy}</p>}
+                        </div>
+                    </>
                 )}
 
                 {needsAcademySelection && selectedAcademy && (
                     <div className="selected-academy-display">
                         <h4>선택된 학원</h4>
                         <div className="academy-info-box">
-                            <span className="academy-name">{selectedAcademy.name}</span>
-                            <span className="academy-region">{selectedAcademy.region}</span>
+                            <span className="academy-name">{selectedAcademy.name === '없음' ? '학원 없음' : selectedAcademy.name}</span>
+                            {selectedAcademy.region && <span className="academy-region">{selectedAcademy.region}</span>}
                             <button type="button" onClick={() => setSelectedAcademy(null)} className="change-academy-button">
                                 <LuRefreshCcw size={14} />
                                 <span>다시 선택</span>

@@ -21,7 +21,7 @@ export const subscriptionStatusEnum = pgEnum('subscription_status_enum', ['activ
 export const billingIntervalEnum = pgEnum('billing_interval_enum', ['month', 'year']);
 
 export const memberStatusEnum = pgEnum('member_status_enum', ['active', 'inactive', 'resigned']);
-export const memberTypeEnum = pgEnum('member_type_enum', ['student', 'teacher', 'parent']);
+export const memberTypeEnum = pgEnum('member_type_enum', ['student', 'teacher', 'parent', 'staff']);
 
 
 export const rolesTable = pgTable("roles", {
@@ -66,6 +66,8 @@ export const academyMembersTable = pgTable("academy_members", {
   status: memberStatusEnum("status").notNull().default('active'),
   start_date: date("start_date"),
   end_date: date("end_date"),
+  
+  // managed_by_member_id 컬럼은 여기서 제거합니다.
 
   details: jsonb("details").$type<{
     student_name?: string;
@@ -75,7 +77,7 @@ export const academyMembersTable = pgTable("academy_members", {
     school_name?: string;
     class_name?: string;
     subject?: string;
-    teacher?: string;
+    teacher?: string; 
     tuition?: number;
   }>(),
 
@@ -85,6 +87,7 @@ export const academyMembersTable = pgTable("academy_members", {
   unq_academy_member: uniqueIndex('unq_academy_member_idx').on(table.academy_id, table.profile_id, table.member_type).where(sql`${table.profile_id} IS NOT NULL`),
   details_idx: sql`CREATE INDEX IF NOT EXISTS "details_gin_idx" ON "academy_members" USING GIN ("details")`,
 }));
+
 
 export const examSetsTable = pgTable("exam_sets", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -163,10 +166,46 @@ export const academyRelations = relations(academiesTable, ({ one, many }) => ({
   members: many(academyMembersTable),
 }));
 
+export const studentManagerLinksTable = pgTable("student_manager_links", {
+    // 관리 대상이 되는 학생의 member id
+    student_member_id: uuid("student_member_id").notNull().references(() => academyMembersTable.id, { onDelete: 'cascade' }),
+    // 관리 주체인 강사/직원의 member id
+    manager_member_id: uuid("manager_member_id").notNull().references(() => academyMembersTable.id, { onDelete: 'cascade' }),
+    // (선택적 확장) 담당 과목 등 관계에 대한 추가 정보
+    context: text("context"), 
+}, (table) => ({
+    // 학생과 담당자의 조합은 유일해야 합니다.
+    pk: primaryKey({ columns: [table.student_member_id, table.manager_member_id] }),
+}));
+
 export const academyMembersRelations = relations(academyMembersTable, ({ one, many }) => ({
   academy: one(academiesTable, { fields: [academyMembersTable.academy_id], references: [academiesTable.id] }),
   profile: one(profilesTable, { fields: [academyMembersTable.profile_id], references: [profilesTable.id] }),
   examAssignments: many(examAssignmentsTable),
+
+  /**
+   * [수정] 학생 입장에서 자신의 담당자 목록을 조회하기 위한 관계
+   */
+  managerLinks: many(studentManagerLinksTable, { relationName: 'studentLinks' }),
+  /**
+   * [수정] 담당자 입장에서 자신이 관리하는 학생 목록을 조회하기 위한 관계
+   */
+  managingStudentLinks: many(studentManagerLinksTable, { relationName: 'managerLinks' }),
+}));
+
+export const studentManagerLinksRelations = relations(studentManagerLinksTable, ({ one }) => ({
+    // 링크의 학생 정보를 가져오기 위함
+    student: one(academyMembersTable, {
+        fields: [studentManagerLinksTable.student_member_id],
+        references: [academyMembersTable.id],
+        relationName: 'studentLinks',
+    }),
+    // 링크의 담당자 정보를 가져오기 위함
+    manager: one(academyMembersTable, {
+        fields: [studentManagerLinksTable.manager_member_id],
+        references: [academyMembersTable.id],
+        relationName: 'managerLinks',
+    }),
 }));
 
 export const examSetRelations = relations(examSetsTable, ({ one, many }) => ({

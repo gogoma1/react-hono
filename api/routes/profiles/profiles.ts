@@ -1,5 +1,3 @@
-// ./api/routes/profiles/profiles.ts (최종 수정된 파일)
-
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -11,24 +9,24 @@ import settingsRoutes from './settings';
 import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
 
+// [핵심 수정] zod 스키마 유효성 검사 완화
 const profileSetupSchema = z.object({
   name: z.string().min(1, "이름은 필수 항목입니다.").max(100),
   phone: z.string().optional(),
   role_name: z.enum(['원장', '학생', '강사', '학부모', '과외 선생님']), 
   academy_name: z.string().optional(),
   region: z.string().optional(),
-  academy_id: z.string().uuid().optional(),
+  academy_id: z.string().uuid().optional().nullable(), // nullable() 추가하여 명시적으로 null 허용
 }).refine(data => {
+    // 원장 역할일 때는 여전히 학원 이름과 지역이 필수입니다.
     if (data.role_name === '원장') {
         return !!data.academy_name && !!data.region;
     }
-    if (['강사', '학생', '학부모'].includes(data.role_name)) {
-        return !!data.academy_id;
-    }
+    // 다른 역할(학생, 강사, 학부모 등)에 대한 academy_id 필수 조건은 제거합니다.
     return true;
 }, {
-    message: "역할에 따라 학원/지역 정보 또는 학원 ID가 필수입니다.",
-    path: ["academy_name", "region", "academy_id"],
+    message: "원장 역할 선택 시 학원 이름과 지역 정보는 필수입니다.",
+    path: ["academy_name", "region"],
 });
 
 const profileRoutes = new Hono<AppEnv>();
@@ -111,14 +109,10 @@ profileRoutes.post(
                 
                 let memberRecord: schema.DbAcademyMember | undefined;
 
-                if (['강사', '학생', '학부모'].includes(role_name)) {
-                    if (!academy_id || !sanitizedPhone) {
-                        throw new Error("학원 소속원은 학원 ID와 전화번호가 모두 필요합니다.");
-                    }
-
+                // [핵심 로직] academy_id와 phone 정보가 모두 있을 때만 학원 멤버 연결을 시도합니다.
+                if (['강사', '학생', '학부모'].includes(role_name) && academy_id && sanitizedPhone) {
                     const memberType = role_name === '강사' ? 'teacher' : (role_name === '학생' ? 'student' : 'parent');
                     
-                    // [최종 수정된 부분] `where` 절을 함수형 구문으로 변경
                     memberRecord = await tx.query.academyMembersTable.findFirst({
                         where: (members, { eq, and, sql }) => and(
                             eq(members.academy_id, academy_id),
@@ -161,10 +155,10 @@ profileRoutes.post(
                         principal_id: newProfile.id,
                         status: '운영중',
                     });
-                } else if (memberRecord) { // 강사, 학생, 학부모이고 연결할 레코드를 찾은 경우
+                } else if (memberRecord) { // 강사, 학생, 학부모이고 연결할 레코드를 찾은 경우에만 실행
                     await tx.update(schema.academyMembersTable)
                         .set({
-                            profile_id: newProfile.id, // profile_id 연결
+                            profile_id: newProfile.id,
                             updated_at: new Date()
                         })
                         .where(eq(schema.academyMembersTable.id, memberRecord.id));

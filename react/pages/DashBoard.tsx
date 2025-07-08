@@ -8,7 +8,6 @@ import { useLayoutStore, type RegisteredPageActions } from '../shared/store/layo
 import { useUIStore } from '../shared/store/uiStore';
 import type { Student } from '../entities/student/model/types';
 
-
 const DashBoard: React.FC = () => {
     const {
         students,
@@ -43,6 +42,12 @@ const DashBoard: React.FC = () => {
         setRightSidebarContent({ type: 'register', academyId: selectedAcademyId });
         setRightSidebarExpanded(true);
     }, [setRightSidebarContent, setRightSidebarExpanded, selectedAcademyId]);
+
+    const handleOpenTeacherRegisterSidebar = useCallback(() => {
+        if (!selectedAcademyId) return alert("강사를 등록할 학원을 먼저 선택해주세요.");
+        setRightSidebarContent({ type: 'teacherRegister', academyId: selectedAcademyId });
+        setRightSidebarExpanded(true);
+    }, [setRightSidebarContent, setRightSidebarExpanded, selectedAcademyId]);
     
     const handleOpenSettingsSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'settings' });
@@ -52,6 +57,7 @@ const DashBoard: React.FC = () => {
     useEffect(() => {
         const pageActionsToRegister: Partial<RegisteredPageActions> = {
             openRegisterSidebar: handleOpenRegisterSidebar,
+            openTeacherRegisterSidebar: handleOpenTeacherRegisterSidebar,
             openSettingsSidebar: handleOpenSettingsSidebar,
             onClose: handleCloseSidebar,
             openEditSidebar: onRequestEdit,
@@ -59,10 +65,10 @@ const DashBoard: React.FC = () => {
         registerPageActions(pageActionsToRegister);
         
         return () => {
-            // [수정] unregisterPageActions에 모든 등록된 액션 키를 전달합니다.
-            unregisterPageActions(Object.keys(pageActionsToRegister) as (keyof RegisteredPageActions)[]);
+            const actionKeys = Object.keys(pageActionsToRegister) as (keyof RegisteredPageActions)[];
+            unregisterPageActions(actionKeys);
         };
-    }, [registerPageActions, unregisterPageActions, handleOpenRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar, onRequestEdit]);
+    }, [registerPageActions, unregisterPageActions, handleOpenRegisterSidebar, handleOpenTeacherRegisterSidebar, handleOpenSettingsSidebar, handleCloseSidebar, onRequestEdit]);
 
     const handleAcademySelect = (academyId: string) => {
         onSelectAcademy(academyId);

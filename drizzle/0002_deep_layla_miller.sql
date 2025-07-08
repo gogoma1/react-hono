@@ -1,0 +1,1 @@
+ALTER TYPE "public"."member_type_enum" ADD VALUE 'staff';

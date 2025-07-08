@@ -1,5 +1,3 @@
-// ./react/entities/profile/model/useProfileSetup.ts
-
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuthStore, selectUser, selectIsLoadingAuth } from '../../../shared/store/authStore';
@@ -12,14 +10,17 @@ interface ProfileSetupPayload {
     role_name: PositionType;
     academy_name?: string;
     region?: string;
-    academy_id?: string;
+    academy_id?: string | null;
 }
 
 type ValidationErrors = {
     name?: string;
     phone?: string;
-    academy?: string; // 학원 선택 관련 에러
+    academy?: string;
 };
+
+const NO_ACADEMY_SELECTED = { id: 'none', name: '없음', region: '', principal_id: '', created_at: '', updated_at: '' };
+
 
 export const useProfileSetup = () => {
     const navigate = useNavigate();
@@ -40,7 +41,7 @@ export const useProfileSetup = () => {
 
     const [selectedPosition, setSelectedPosition] = useState<PositionType | ''>('');
     const [name, setName] = useState('');
-    const [phone, setPhone] = useState(''); // 초기값을 비워둡니다.
+    const [phone, setPhone] = useState('');
 
     const [academyName, setAcademyName] = useState('');
     const [selectedCity, setSelectedCity] = useState('');
@@ -53,7 +54,6 @@ export const useProfileSetup = () => {
     useEffect(() => {
         if (user) {
             setName(user.user_metadata?.name || '');
-            // 전화번호가 있다면 형식에 맞춰주고, 없다면 '010-'으로 시작하도록 설정합니다.
             const userPhone = user.phone;
             if (userPhone) {
                 const numbers = userPhone.replace(/[^0-9]/g, "");
@@ -83,10 +83,13 @@ export const useProfileSetup = () => {
         }
         
         if (needsAcademySelection) {
-            return !!selectedAcademy;
+            if (!selectedAcademy) return false;
+            if (selectedPosition === '강사' && selectedAcademy.id === 'none') {
+                return false;
+            }
+            return true;
         }
         
-        // '과외 선생님' 등 다른 역할은 여기까지만 확인
         return true;
     }, [name, phone, selectedPosition, academyName, selectedCity, selectedDistrict, selectedAcademy, needsAcademySelection]);
 
@@ -190,6 +193,12 @@ export const useProfileSetup = () => {
         setValidationErrors(prev => ({ ...prev, academy: undefined }));
         setApiErrorMessage('');
     }, []);
+    
+    const handleSelectNoAcademy = useCallback(() => {
+        setSelectedAcademy(NO_ACADEMY_SELECTED);
+        setValidationErrors(prev => ({ ...prev, academy: undefined }));
+        setApiErrorMessage('');
+    }, []);
 
     const handleReset = useCallback(() => {
         setStep(1);
@@ -213,7 +222,12 @@ export const useProfileSetup = () => {
         if (!name.trim()) newErrors.name = '이름을 입력해주세요';
         const phoneRegex = /^[0-9]{3}-[0-9]{3,4}-[0-9]{4}$/;
         if (!phoneRegex.test(phone)) newErrors.phone = '올바른 전화번호를 입력해주세요';
-        if (needsAcademySelection && !selectedAcademy) newErrors.academy = '소속될 학원을 선택해주세요';
+        
+        if (needsAcademySelection && !selectedAcademy) {
+            newErrors.academy = '소속될 학원을 선택해주세요.';
+        } else if (selectedPosition === '강사' && selectedAcademy?.id === 'none') {
+            newErrors.academy = '강사는 반드시 소속 학원을 선택해야 합니다.';
+        }
 
         setValidationErrors(newErrors);
 
@@ -224,7 +238,6 @@ export const useProfileSetup = () => {
         setIsSubmitting(true);
         const sanitizedPhone = phone.replace(/-/g, '');
 
-        // [핵심 수정] API 페이로드 구성
         const payload: ProfileSetupPayload = {
             name,
             phone: sanitizedPhone,
@@ -236,8 +249,10 @@ export const useProfileSetup = () => {
             payload.region = `${selectedCity} ${selectedDistrict}`;
         }
         
-        if (needsAcademySelection && selectedAcademy) {
+        if (needsAcademySelection && selectedAcademy && selectedAcademy.id !== 'none') {
             payload.academy_id = selectedAcademy.id;
+        } else {
+            payload.academy_id = null;
         }
         
         try {
@@ -248,10 +263,14 @@ export const useProfileSetup = () => {
             });
             
             if (response.ok) {
-                navigate('/dashboard', { replace: true });
+                // [핵심 수정] 성공 시, 역할에 따라 다른 페이지로 리디렉션
+                if (payload.role_name === '학생') {
+                    navigate('/mobile-exam', { replace: true });
+                } else {
+                    navigate('/dashboard', { replace: true });
+                }
             } else {
                 const data = await response.json();
-                // [핵심 수정] 백엔드 에러 메시지 처리
                 const friendlyMessage = data.error === 'Enrollment not found' 
                     ? `선택하신 학원에 회원님의 전화번호(${phone})로 등록된 정보가 없습니다. 학원을 다시 선택하시거나, 담당 선생님께 문의하여 등록을 요청해주세요.`
                     : data.error || '프로필 저장에 실패했습니다. 관리자에게 문의하세요.';
@@ -273,5 +292,6 @@ export const useProfileSetup = () => {
         setSelectedAcademy, handlePositionSelect, handleAcademySelect, handleNameSubmit,
         handlePhoneChange, handlePhoneSubmit, handleReset, handleSaveProfile,
         handleNextStep, handleFinishEditing,
+        handleSelectNoAcademy,
     };
 };

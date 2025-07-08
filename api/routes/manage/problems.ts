@@ -1,3 +1,5 @@
+// ./api/routes/manage/problems.ts 전문
+
 import { Hono } from 'hono';
 import { drizzle, DrizzleD1Database } from 'drizzle-orm/d1';
 import { eq, and, inArray, sql } from 'drizzle-orm';
@@ -6,9 +8,10 @@ import { zValidator } from '@hono/zod-validator';
 import type { BatchItem } from 'drizzle-orm/batch';
 
 import type { AppEnv } from '../../index';
+// [수정] 스키마 파일에서 enum 정의를 가져옵니다.
 import * as schema from '../../db/schema.d1';
 
-// --- Zod 스키마 정의 ---
+// [수정] Zod 스키마 정의
 const problemSchema = z.object({
   problem_id: z.string().optional(),
   question_number: z.number(),
@@ -16,7 +19,11 @@ const problemSchema = z.object({
   answer: z.string().nullable(),
   solution_text: z.string().nullable(),
   page: z.number().nullable(),
-  problem_type: z.string(),
+  /**
+   * [핵심 수정] problem_type의 유효성 검사를 z.string()에서 z.enum()으로 변경합니다.
+   * schema.d1.ts에 정의된 problemTypeEnum을 그대로 사용하여 일관성을 유지합니다.
+   */
+  problem_type: z.enum(schema.problemTypeEnum), 
   grade: z.string(),
   semester: z.string(),
   source: z.string(),
@@ -38,7 +45,6 @@ const deleteProblemsBodySchema = z.object({
     problem_ids: z.array(z.string()).min(1),
 });
 
-// --- [신규] ID 배열로 문제를 조회하기 위한 Zod 스키마 ---
 const getProblemsByIdsSchema = z.object({
     problemIds: z.array(z.string()).min(1, "problemIds 배열은 비어있을 수 없습니다."),
 });
@@ -46,8 +52,6 @@ const getProblemsByIdsSchema = z.object({
 
 const problemRoutes = new Hono<AppEnv>();
 
-// --- 헬퍼 함수: 단원/개념 이름으로 ID를 찾아오거나 새로 생성 ---
-// (기존 코드와 동일)
 async function ensureChapterAndConceptIdsForPut(
     db: DrizzleD1Database<typeof schema>,
     data: { major_chapter_id?: string | null, middle_chapter_id?: string | null, core_concept_id?: string | null },
@@ -88,7 +92,6 @@ async function ensureChapterAndConceptIdsForPut(
 /**
  * GET / - 사용자가 생성한 모든 문제 목록 조회
  */
-// (기존 코드와 동일)
 problemRoutes.get('/', async (c) => {
     const user = c.get('user');
     const d1 = c.env.D1_DATABASE;
@@ -120,7 +123,6 @@ problemRoutes.get('/', async (c) => {
 });
 
 
-// --- [신규] POST /by-ids - ID 배열로 여러 문제 조회 ---
 /**
  * 학생이 시험지를 볼 때 필요한 문제 데이터를 한 번에 가져오기 위해 사용합니다.
  * POST를 사용하는 이유는 GET 요청의 URL 길이 제한을 피하기 위함입니다.
@@ -135,7 +137,6 @@ problemRoutes.post('/by-ids', zValidator('json', getProblemsByIdsSchema), async 
             return c.json([]);
         }
 
-        // Drizzle의 `inArray`를 사용하여 `WHERE problem_id IN (...)` 쿼리를 효율적으로 실행합니다.
         const problemsData = await db.query.problemTable.findMany({
             where: inArray(schema.problemTable.problem_id, problemIds),
             with: {
@@ -145,8 +146,6 @@ problemRoutes.post('/by-ids', zValidator('json', getProblemsByIdsSchema), async 
             }
         });
 
-        // 프론트엔드에서 받은 ID 순서를 유지하기 위해 결과를 다시 정렬합니다.
-        // 이는 시험지의 문제 순서를 보장하는 데 중요합니다.
         const problemsMap = new Map(problemsData.map(p => [p.problem_id, p]));
         const orderedProblems = problemIds
             .map(id => problemsMap.get(id))
@@ -170,7 +169,6 @@ problemRoutes.post('/by-ids', zValidator('json', getProblemsByIdsSchema), async 
 /**
  * POST /upload - 여러 문제 생성 또는 업데이트 (성능 최적화 버전)
  */
-// (기존 코드와 동일)
 problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), async (c) => {
     const user = c.get('user');
     const { problems } = c.req.valid('json');
@@ -273,7 +271,6 @@ problemRoutes.post('/upload', zValidator('json', uploadProblemsBodySchema), asyn
 /**
  * PUT /:id - 특정 문제 업데이트
  */
-// (기존 코드와 동일)
 problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) => {
     const user = c.get('user');
     const problemId = c.req.param('id');
@@ -313,7 +310,6 @@ problemRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c)
 /**
  * DELETE / - 여러 문제 삭제
  */
-// (기존 코드와 동일)
 problemRoutes.delete('/', zValidator('json', deleteProblemsBodySchema), async (c) => {
     const user = c.get('user');
     const { problem_ids } = c.req.valid('json');

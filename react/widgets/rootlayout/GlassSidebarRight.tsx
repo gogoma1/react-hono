@@ -2,8 +2,8 @@ import React from 'react';
 import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, selectRightSidebarConfig, type SidebarTrigger } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2, LuUsers } from 'react-icons/lu';
+import { useLayoutStore, selectRightSidebarConfig } from '../../shared/store/layoutStore';
+import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2, LuUsers, LuUserPlus } from 'react-icons/lu';
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
@@ -16,9 +16,13 @@ import ExamTimerDisplay from '../../features/exam-timer-display/ui/ExamTimerDisp
 import SelectedStudentsPanel from '../../features/selected-students-viewer/ui/SelectedStudentsPanel';
 import { useStudentDataWithRQ } from '../../entities/student/model/useStudentDataWithRQ';
 import type { SidebarButtonType } from '../../shared/store/layout.config';
+// [신규] StaffManagementWidget 임포트
+import StaffManagementWidget from '../staff-management/StaffManagementWidget';
 
 const iconMap: Record<SidebarButtonType, React.FC> = {
     register: () => <LuCirclePlus size={22} />,
+    // [신규] teacherRegister 아이콘 맵핑
+    teacherRegister: () => <LuUserPlus size={22} />,
     settings: () => <LuSettings2 size={20} />,
     prompt: () => <LuClipboardList size={20} />,
     latexHelp: () => <LuBookMarked size={20} />,
@@ -56,7 +60,6 @@ const StudentRelatedSidebarContent: React.FC = () => {
         return <StudentEditForm onSuccess={pageActions.onClose || (() => {})} student={content.student} academyId={content.academyId} allStudents={allStudents} />;
     }
     if (content.type === 'selectedStudents') {
-        // [수정] 불필요한 props를 전달하지 않습니다.
         return <SelectedStudentsPanel />;
     }
     return null;
@@ -64,6 +67,7 @@ const StudentRelatedSidebarContent: React.FC = () => {
 
 const SidebarContentRenderer: React.FC = () => {
     const { content } = useLayoutStore(selectRightSidebarConfig);
+    const { pageActions } = useLayoutStore.getState(); // onSuccess 콜백을 위해 추가
     
     switch(content.type) {
         case 'closed':
@@ -74,6 +78,13 @@ const SidebarContentRenderer: React.FC = () => {
         case 'selectedStudents':
             return <StudentRelatedSidebarContent />;
         
+        // [신규] teacherRegister case 추가
+        case 'teacherRegister':
+            return <StaffManagementWidget 
+                        academyId={content.academyId} 
+                        onSuccess={pageActions.onClose || (() => {})} 
+                    />;
+
         case 'problemEditor':
             return <ProblemEditorWrapper {...content.props} />;
             
@@ -131,6 +142,8 @@ const GlassSidebarRight: React.FC = () => {
     const handleTriggerClick = (type: SidebarButtonType) => {
         const actionMap: Record<SidebarButtonType, (() => void) | undefined> = {
             register: pageActions.openRegisterSidebar,
+            // [신규] teacherRegister 액션 맵핑
+            teacherRegister: pageActions.openTeacherRegisterSidebar,
             settings: pageActions.openSettingsSidebar,
             prompt: pageActions.openPromptSidebar,
             latexHelp: pageActions.openLatexHelpSidebar,

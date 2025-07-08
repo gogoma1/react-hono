@@ -7,6 +7,19 @@
     position: relative;
 }
 
+/* [신규] 헤더 컨테이너 스타일 */
+.academy-search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+}
+
+/* 부모의 .form-label 스타일을 그대로 사용 */
+.academy-search-header .form-label {
+    margin-bottom: 0;
+}
+
 .academy-search-wrapper {
     position: relative;
     display: flex;
@@ -21,7 +34,6 @@
     z-index: 2;
 }
 
-/* form-input의 기본 스타일은 상속받고, 패딩만 덮어씁니다. */
 .academy-search-wrapper .form-input {
     padding-left: 40px;
     padding-right: 40px;
@@ -96,4 +108,19 @@
 .academy-dropdown-list li span {
     font-size: 0.85rem;
     color: var(--text-secondary);
+}
+
+.no-academy-button {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.8rem;
+    color: var(--text-color-light);
+    text-decoration: underline;
+    cursor: pointer;
+    transition: color 0.2s ease-in-out;
+}
+
+.no-academy-button:hover {
+    color: var(--primary-color);
 }

@@ -1,12 +1,24 @@
-// ./react/entities/profile/model/useProfileQuery.ts
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { fetchMyProfileAPI, updateMyProfileAPI, deactivateAccountAPI, addRoleAPI, deleteRoleAPI } from '../api/profileApi';
+import { fetchMyProfileAPI, updateMyProfileAPI, deactivateAccountAPI, addRoleAPI, deleteRoleAPI, checkProfileExistsAPI } from '../api/profileApi';
 import type { MyProfile, UpdateProfilePayload, DbProfile, AddRolePayload } from './types';
 import { useAuthStore } from '../../../shared/store/authStore';
 
 export const MY_PROFILE_QUERY_KEY = 'myProfile';
+export const PROFILE_EXISTS_QUERY_KEY = 'profileExists'; // [신규] 쿼리 키 정의
+
+/**
+ * [신규] 현재 사용자의 프로필 존재 여부를 확인하는 React Query 훅
+ */
+export function useProfileExistsQuery() {
+    return useQuery<{ success: boolean, exists: boolean }, Error>({
+        queryKey: [PROFILE_EXISTS_QUERY_KEY],
+        queryFn: checkProfileExistsAPI,
+        staleTime: Infinity, // 한번 확인하면 바뀌지 않으므로 staleTime을 무한으로 설정
+        gcTime: Infinity,    // gcTime도 무한으로 설정하여 캐시 유지
+        retry: 1,            // 실패 시 1번만 재시도
+    });
+}
 
 /**
  * 내 프로필 정보를 가져오는 React Query 훅
@@ -20,7 +32,7 @@ export function useMyProfileQuery() {
 }
 
 /**
- * [신규] 내 프로필에 새로운 역할을 추가하는 Mutation
+ * 내 프로필에 새로운 역할을 추가하는 Mutation
  */
 export function useAddRoleMutation() {
     const queryClient = useQueryClient();
@@ -37,7 +49,7 @@ export function useAddRoleMutation() {
 }
 
 /**
- * [신규] 내 프로필에서 역할을 삭제하는 Mutation
+ * 내 프로필에서 역할을 삭제하는 Mutation
  */
 export function useDeleteRoleMutation() {
     const queryClient = useQueryClient();
