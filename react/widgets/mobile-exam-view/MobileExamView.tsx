@@ -1,3 +1,4 @@
+// ./react/widgets/mobile-exam-view/MobileExamView.tsx
 import React, { useRef, useCallback, useMemo } from 'react';
 import MobileExamProblem from '../../entities/exam/ui/MobileExamProblem';
 import { useExamLayoutStore } from '../../features/problem-publishing/model/examLayoutStore';
@@ -9,14 +10,12 @@ import type { ProcessedProblem } from '../../features/problem-publishing';
 import type { MarkingStatus } from '../../features/omr-marking';
 import './MobileExamView.css';
 
-// [신규] MobileExamView가 받을 props 타입 정의
 interface MobileExamViewProps {
     problems: ProcessedProblem[];
     isPreview?: boolean;
 }
 
 const MobileExamView: React.FC<MobileExamViewProps> = ({ problems: orderedProblems, isPreview = false }) => {
-    // [수정] 이제 props로 orderedProblems를 받으므로, 스토어에서 가져올 필요가 없습니다.
     const { activeProblemId, skippedProblemIds } = useMobileExamSessionStore();
     const { answers, subjectiveAnswers, statuses, markAnswer, markSubjectiveAnswer } = useMobileExamAnswerStore();
     const { baseFontSize, contentFontSizeEm, useSequentialNumbering } = useExamLayoutStore();
@@ -73,17 +72,19 @@ const MobileExamView: React.FC<MobileExamViewProps> = ({ problems: orderedProble
                 ? (subjectiveAnswers.get(problem.uniqueId) || '').trim() !== ''
                 : (answers.get(problem.uniqueId)?.size ?? 0) > 0;
             
-            const hasCompletingStatus = finalStatus === 'A' || finalStatus === 'B' || finalStatus === 'D';
+            const hasCompletingStatus = finalStatus === 'A' || finalStatus === 'B';
             
             const isSolved = hasAnswer && hasCompletingStatus;
-            const isMarkedAsUnknown = finalStatus === 'C';
+            // ✨ [핵심 수정 1] 'C' 또는 'D' 상태일 때 참이 되도록 조건을 확장합니다.
+            const isMarkedAsDifficultOrUnknown = finalStatus === 'C' || finalStatus === 'D';
 
             const className = [
                 'nav-button',
                 isCurrent && 'active',
-                !isCurrent && isMarkedAsUnknown && 'marked-c',
+                // ✨ [핵심 수정 2] 변경된 조건과 더 명확한 클래스 이름을 사용합니다.
+                !isCurrent && isMarkedAsDifficultOrUnknown && 'marked-unknown',
                 !isCurrent && isSolved && 'solved',
-                !isCurrent && !isSolved && !isMarkedAsUnknown && isSkipped && 'skipped',
+                !isCurrent && !isSolved && !isMarkedAsDifficultOrUnknown && isSkipped && 'skipped',
             ].filter(Boolean).join(' ');
 
             return { uniqueId: problem.uniqueId, className };
@@ -147,7 +148,6 @@ const MobileExamView: React.FC<MobileExamViewProps> = ({ problems: orderedProble
                         onMarkSubjectiveAnswer={markSubjectiveAnswer}
                     />
                 ))}
-                {/* [수정] isPreview가 아닐 때만 제출 버튼 표시 */}
                 {!isPreview && (
                     <button type="button" className="omr-button submit-exam-button" onClick={controller.handleSubmitExam}>
                         시험지 제출하기

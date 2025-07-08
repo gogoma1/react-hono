@@ -1,4 +1,4 @@
-/* react/widgets/mobile-exam-view/MobileExamView.css */
+/* ./react/widgets/mobile-exam-view/MobileExamView.css */
 
 .mobile-exam-view {
     background-color: transparent;
@@ -103,14 +103,15 @@
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* [핵심 수정] 'C' (모름) 버튼 색상을 더 연한 파스텔 핑크로 변경 */
-.nav-button.marked-c {
-    background-color: #dcbbbb; /* Tailwind pink-200 */
-    color: #636363; /* Tailwind pink-700 */
-    border-color: #dcbbbb; /* Tailwind pink-300 */
+/* ✨ [핵심 수정] marked-c 클래스를 삭제하고, marked-unknown 클래스를 새로 정의합니다. */
+.nav-button.marked-unknown {
+    background-color: #dcbbbb;
+    color: #636363;
+    border-color: #dcbbbb;
     font-weight: 600;
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
+
 .nav-button.skipped {
     background-color: #f1c40f;
     color: #2c3e50;
@@ -167,4 +168,3 @@
     transform: scale(0.98);
     box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.3);
 }
-
