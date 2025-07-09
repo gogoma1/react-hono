@@ -1,6 +1,7 @@
 // ----- ./react/entities/exam/ui/MobileExamProblem.tsx -----
+
 import React, { memo, forwardRef } from 'react';
-import type { Problem } from '../../problem/model/types';
+import type { Problem, ProblemType } from '../../problem/model/types';
 import MathpixRenderer from '../../../shared/ui/MathpixRenderer';
 import { OmrMarkingCard } from '../../../features/omr-marking';
 import type { AnswerNumber, MarkingStatus } from '../../../features/omr-marking';
@@ -18,7 +19,8 @@ interface MobileExamProblemProps {
     currentStatus: MarkingStatus | null;
     onMarkAnswer: (problemId: string, answer: AnswerNumber) => void;
     onCommitAndProceed: (problemId: string, status?: MarkingStatus) => void;
-    isSubjective?: boolean;
+    // [핵심 수정] isSubjective 대신 problemType을 받습니다.
+    problemType: ProblemType;
     currentSubjectiveAnswer?: string;
     onMarkSubjectiveAnswer?: (problemId: string, answer: string) => void;
 }
@@ -33,7 +35,7 @@ const MobileExamProblem = memo(forwardRef<HTMLDivElement, MobileExamProblemProps
     currentStatus,
     onMarkAnswer,
     onCommitAndProceed,
-    isSubjective,
+    problemType, // [수정] prop 받기
     currentSubjectiveAnswer,
     onMarkSubjectiveAnswer,
 }, ref) => {
@@ -66,11 +68,12 @@ const MobileExamProblem = memo(forwardRef<HTMLDivElement, MobileExamProblemProps
 
             <OmrMarkingCard
                 problemId={problem.uniqueId}
+                // [수정] isSubjective 대신 problemType 전달
+                problemType={problemType} 
                 currentAnswers={currentAnswers}
                 currentStatus={currentStatus}
                 onMarkAnswer={onMarkAnswer}
                 onCommitAndProceed={onCommitAndProceed}
-                isSubjective={isSubjective}
                 currentSubjectiveAnswer={currentSubjectiveAnswer}
                 onMarkSubjectiveAnswer={onMarkSubjectiveAnswer}
             />

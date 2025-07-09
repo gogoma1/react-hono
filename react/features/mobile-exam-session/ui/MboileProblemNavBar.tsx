@@ -2,6 +2,8 @@
 
 import React, { useMemo } from 'react';
 import type { ProcessedProblem } from '../../problem-publishing';
+// [수정] AnswerNumber 타입을 import 합니다.
+import type { AnswerNumber } from '../../omr-marking';
 
 interface NavButtonState {
     uniqueId: string;
@@ -13,7 +15,8 @@ interface ProblemNavBarProps {
     orderedProblems: ProcessedProblem[];
     activeProblemId: string | null;
     statuses: Map<string, string>;
-    answers: Map<string, Set<number>>;
+    // [핵심 수정] Map의 제네릭 타입을 Set<number>에서 Set<AnswerNumber>로 변경합니다.
+    answers: Map<string, Set<AnswerNumber>>;
     subjectiveAnswers: Map<string, string>;
     skippedProblemIds: Set<string>;
     useSequentialNumbering: boolean;
@@ -36,7 +39,6 @@ export const ProblemNavBar: React.FC<ProblemNavBarProps> = ({
             const finalStatus = statuses.get(problem.uniqueId);
             const isSkipped = skippedProblemIds.has(problem.uniqueId);
             
-            // [핵심 수정] isSubjective와 유사한 로직을 명시적으로 변경하여 OX 문제를 객관식 계열로 처리합니다.
             const hasAnswer = problem.problem_type === '서답형' || problem.problem_type === '논술형'
                 ? (subjectiveAnswers.get(problem.uniqueId) || '').trim() !== ''
                 : (answers.get(problem.uniqueId)?.size ?? 0) > 0;
