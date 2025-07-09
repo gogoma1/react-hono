@@ -3,7 +3,6 @@ import { useProblemPublishing } from '../features/problem-publishing';
 import ProblemSelectionWidget from './ProblemSelectionWidget';
 import type { SuggestionGroup } from '../features/table-search/ui/TableSearch';
 import { useLayoutStore } from '../shared/store/layoutStore';
-import { useUIStore } from '../shared/store/uiStore';
 import { useTableSearch } from '../features/table-search/model/useTableSearch';
 import type { ProcessedProblem } from '../features/problem-publishing/model/problemPublishingStore';
 
@@ -16,6 +15,9 @@ interface ProblemSelectionContainerProps {
     toggleRow: (id: string) => void;
     toggleItems: (ids: string[]) => void;
     clearSelection: () => void;
+    // [추가] 검색창 UI 제어를 위한 props
+    isSearchBoxVisible: boolean;
+    toggleSearchBox: () => void;
 }
 
 const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
@@ -26,6 +28,9 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
     toggleRow,
     toggleItems,
     clearSelection,
+    // [추가] props 받기
+    isSearchBoxVisible,
+    toggleSearchBox,
 }) => {
     const { deleteProblems, isDeletingProblems } = useProblemPublishing();
 
@@ -85,31 +90,8 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
       handleResetHeaderFilters();
     }, [clearSelection, handleResetHeaderFilters]);
 
-    // [수정] .getState() 대신 Hook 사용
+    // [수정] 스토어에서 필요한 부분만 가져오도록 변경
     const setSearchBoxProps = useLayoutStore(state => state.setSearchBoxProps);
-    const registerPageActions = useLayoutStore(state => state.registerPageActions);
-    const setRightSidebarContent = useLayoutStore(state => state.setRightSidebarContent);
-    const setRightSidebarExpanded = useUIStore(state => state.setRightSidebarExpanded);
-    
-    const [isSearchBoxVisible, setIsSearchBoxVisible] = React.useState(true);
-    const toggleSearchBox = React.useCallback(() => setIsSearchBoxVisible(prev => !prev), []);
-
-    const handleOpenJsonView = useCallback(() => {
-        if (selectedProblems.length === 0) {
-            alert('JSON으로 변환할 문제가 선택되지 않았습니다.');
-            return;
-        }
-        // [수정] setRightSidebarConfig -> setRightSidebarContent, 올바른 인자 구조로 변경
-        setRightSidebarContent(
-            { type: 'jsonViewer', props: { problems: selectedProblems } }, 
-            true
-        );
-        setRightSidebarExpanded(true);
-    }, [selectedProblems, setRightSidebarContent, setRightSidebarExpanded]);
-
-    useEffect(() => {
-        registerPageActions({ openJsonViewSidebar: handleOpenJsonView });
-    }, [registerPageActions, handleOpenJsonView]);
 
     const suggestionGroups = useMemo((): SuggestionGroup[] => {
         const getUniqueSortedValues = (items: ProcessedProblem[], key: keyof ProcessedProblem): string[] => {
@@ -137,7 +119,9 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
                     return newFilters;
                 }),
                 onResetFilters: handleResetFilters, suggestionGroups: suggestionGroupsJSON, onToggleFiltered: handleToggleAllInFilter,
-                selectedCount: selectedIds.size, isSelectionComplete: isAllSelectedInFilter, showActionControls: true, onHide: toggleSearchBox,
+                selectedCount: selectedIds.size, isSelectionComplete: isAllSelectedInFilter, showActionControls: true, 
+                // [수정] `onHide`를 prop으로 받은 `toggleSearchBox`와 연결
+                onHide: toggleSearchBox,
             });
         } else {
             setSearchBoxProps(null);

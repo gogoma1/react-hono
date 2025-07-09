@@ -33,6 +33,9 @@ const ProblemPublishingPage: React.FC = () => {
         isPublishing,
         selectedStudentCount,
         selectedProblemCount,
+        // [추가] 검색창 관련 상태와 함수를 가져옴
+        isSearchBoxVisible,
+        toggleSearchBox,
     } = useProblemPublishingPage();
 
     useEffect(() => {
@@ -54,6 +57,9 @@ const ProblemPublishingPage: React.FC = () => {
                         toggleRow={toggleRow}
                         toggleItems={toggleItems}
                         clearSelection={clearSelection}
+                        // [추가] 검색창 관련 상태와 함수를 prop으로 전달
+                        isSearchBoxVisible={isSearchBoxVisible}
+                        toggleSearchBox={toggleSearchBox}
                     />
                 </div>
                 <PublishingToolbarWidget 
@@ -141,7 +147,6 @@ const ProblemPublishingPage: React.FC = () => {
                         아래 <strong>{selectedStudentCount}</strong>명의 학생에게 <strong>{selectedProblemCount}</strong>개의 문제로 구성된 시험지를 출제합니다.
                     </p>
                     
-                    {/* [수정] isLoading prop을 제거합니다. */}
                     <SelectedStudentsPanel 
                         hideTitle={true} 
                         className="in-modal" 

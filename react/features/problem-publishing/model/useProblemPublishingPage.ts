@@ -14,6 +14,9 @@ import { useProblemPublishingSelectionStore } from './problemPublishingSelection
 import { usePublishExamSetMutation } from '../../../entities/exam-set/model/useExamSetMutations';
 
 export function useProblemPublishingPage() {
+    // [추가] 검색창 표시 여부 상태를 페이지 레벨에서 관리
+    const [isSearchBoxVisible, setIsSearchBoxVisible] = useState(true);
+
     const { allProblems, isLoadingProblems } = useProblemPublishing();
     
     const { 
@@ -50,7 +53,6 @@ export function useProblemPublishingPage() {
     const { headerInfo, onHeaderUpdate, setHeaderInfo } = useExamHeaderState();
     const { onProblemClick } = useProblemEditor({ problemBoxMinHeight: displayMinHeight });
     
-    // [수정] .getState() 대신 Hook을 사용하여 액션 함수를 가져옵니다.
     const setRightSidebarContent = useLayoutStore(state => state.setRightSidebarContent);
     const closeRightSidebar = useLayoutStore(state => state.closeRightSidebar);
     const setRightSidebarExpanded = useUIStore(state => state.setRightSidebarExpanded);
@@ -114,8 +116,9 @@ export function useProblemPublishingPage() {
         setRightSidebarExpanded(true);
     }, [setRightSidebarContent, setRightSidebarExpanded]);
 
+    // [수정] 검색창을 토글하는 함수를 페이지 레벨에서 정의
     const handleOpenSearchSidebar = useCallback(() => {
-        console.log("Search sidebar action triggered from page, but handled by child component.");
+        setIsSearchBoxVisible(prev => !prev);
     }, []);
 
     usePublishingPageSetup({ 
@@ -125,7 +128,7 @@ export function useProblemPublishingPage() {
         handleOpenPromptSidebar, 
         handleOpenSelectedStudentsSidebar,
         handleOpenJsonViewSidebar,
-        handleOpenSearchSidebar,
+        handleOpenSearchSidebar, // 등록
     });
     
     useEffect(() => { 
@@ -220,5 +223,9 @@ export function useProblemPublishingPage() {
         isPublishing,
         selectedStudentCount: selectedStudentIds.length,
         selectedProblemCount: selectedProblemIds.size,
+
+        // [추가] 검색창 상태와 토글 함수를 반환
+        isSearchBoxVisible,
+        toggleSearchBox: handleOpenSearchSidebar, 
     };
 }
