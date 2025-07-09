@@ -81,7 +81,16 @@
   padding-bottom: 25px; 
 }
 
-/* --- 모바일 시험지 페이지 레이아웃 재정의 --- */
+/* --- [핵심 수정 시작] --- */
+/* mobile-exam 페이지일 때만 content-body-wrapper에 유리 배경 적용 */
+.app-container.mobile-exam-layout-active .content-body-wrapper {
+    background: var(--sidebar-glass-bg);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+}
+/* --- [핵심 수정 끝] --- */
+
+/* --- MobileExamPage 전용 레이아웃 재정의 --- */
 .app-container.mobile-exam-layout-active {
   height: auto;
   min-height: 100vh;
@@ -97,12 +106,6 @@
 .app-container.mobile-exam-layout-active .content-body-wrapper {
     height: auto;
 }
-
-/* [핵심 수정] 모바일 시험지 페이지에서도 오른쪽 사이드바가 보일 수 있도록 display:none 제거 */
-/* .app-container.mobile-exam-layout-active .glass-sidebar-right {
-  display: none;
-} */
-
 
 .app-container.mobile-exam-layout-active .main-content {
   width: 100%;

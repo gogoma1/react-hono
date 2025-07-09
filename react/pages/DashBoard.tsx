@@ -87,6 +87,7 @@ const DashBoard: React.FC = () => {
         <div className="dashboard-container">
             <StudentTableWidget 
                 key={selectedAcademyId} 
+                className="dashboard-widget" // [핵심] 클래스명 전달
                 students={students} 
                 isLoading={isLoading}
                 onRequestEdit={onRequestEdit}

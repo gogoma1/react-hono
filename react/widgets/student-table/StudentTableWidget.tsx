@@ -5,8 +5,8 @@ import { useStudentDataWithRQ } from '../../entities/student/model/useStudentDat
 import { GRADE_LEVELS, type Student } from '../../entities/student/model/types';
 import type { SortConfig } from '../../shared/ui/glasstable/GlassTable';
 import { useDragToScroll } from '../../shared/hooks/useDragToScroll';
-// [삭제] CSS 파일 임포트 제거
-// import './StudentTableWidget.css'; 
+// [핵심] CSS 파일 임포트
+import './StudentTableWidget.css';
 
 type StatusValue = Student['status'];
 
@@ -25,6 +25,7 @@ interface StudentTableWidgetProps {
     isAllSelected: boolean;
     toggleSelectAll: () => void;
     children?: React.ReactNode;
+    className?: string; // [핵심] className prop 타입 정의 추가
 }
 
 const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({ 
@@ -36,6 +37,7 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({
     isAllSelected,
     toggleSelectAll,
     children,
+    className = '', // [핵심] className prop 받기
 }) => {
     const { ref: scrollContainerRef, onMouseDown, isDragging } = useDragToScroll<HTMLDivElement>();
     const navigate = useNavigate();
@@ -137,9 +139,11 @@ const StudentTableWidget: React.FC<StudentTableWidgetProps> = ({
     const closeActiveCard = () => {
         setActiveCardId(null);
     };
+    
+    const widgetClassName = `student-table-widget ${className}`.trim();
 
     return (
-        <div className="student-table-widget">
+        <div className={widgetClassName}>
             <div className="widget-title-container">
                 {children}
             </div>
