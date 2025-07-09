@@ -11,7 +11,7 @@ import { useLayoutStore } from '../../../shared/store/layoutStore';
 import { useUIStore } from '../../../shared/store/uiStore';
 import { useProblemSetStudentStore } from '../../../shared/store/problemSetStudentStore';
 import { useProblemPublishingSelectionStore } from './problemPublishingSelectionStore';
-import { usePublishExamSetMutation } from '../../../entities/exam-set/model/useExamSetMutations'; // [신규]
+import { usePublishExamSetMutation } from '../../../entities/exam-set/model/useExamSetMutations';
 
 export function useProblemPublishingPage() {
     const { allProblems, isLoadingProblems } = useProblemPublishing();
@@ -28,6 +28,11 @@ export function useProblemPublishingPage() {
     
     const selectedProblems = useMemo(() => allProblems.filter(p => selectedProblemIds.has(p.uniqueId)), [allProblems, selectedProblemIds]);
     
+    const selectedProblemsRef = useRef(selectedProblems);
+    useEffect(() => {
+        selectedProblemsRef.current = selectedProblems;
+    }, [selectedProblems]);
+
     const handleDeselectProblem = useCallback((uniqueId: string) => {
         toggleRow(uniqueId);
     }, [toggleRow]);
@@ -45,8 +50,10 @@ export function useProblemPublishingPage() {
     const { headerInfo, onHeaderUpdate, setHeaderInfo } = useExamHeaderState();
     const { onProblemClick } = useProblemEditor({ problemBoxMinHeight: displayMinHeight });
     
-    const { setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
-    const { setRightSidebarExpanded } = useUIStore.getState();
+    // [수정] .getState() 대신 Hook을 사용하여 액션 함수를 가져옵니다.
+    const setRightSidebarContent = useLayoutStore(state => state.setRightSidebarContent);
+    const closeRightSidebar = useLayoutStore(state => state.closeRightSidebar);
+    const setRightSidebarExpanded = useUIStore(state => state.setRightSidebarExpanded);
 
     const handleCloseSidebar = useCallback(() => {
         closeRightSidebar();
@@ -96,16 +103,16 @@ export function useProblemPublishingPage() {
     }, [setRightSidebarContent, setRightSidebarExpanded]);
     
     const handleOpenJsonViewSidebar = useCallback(() => {
-        if (selectedProblems.length === 0) {
+        if (selectedProblemsRef.current.length === 0) {
             alert('JSON으로 변환할 문제가 선택되지 않았습니다.');
             return;
         }
         setRightSidebarContent({
             type: 'jsonViewer',
-            props: { problems: selectedProblems }
+            props: { problems: selectedProblemsRef.current }
         }, true);
         setRightSidebarExpanded(true);
-    }, [selectedProblems, setRightSidebarContent, setRightSidebarExpanded]);
+    }, [setRightSidebarContent, setRightSidebarExpanded]);
 
     const handleOpenSearchSidebar = useCallback(() => {
         console.log("Search sidebar action triggered from page, but handled by child component.");
@@ -139,7 +146,6 @@ export function useProblemPublishingPage() {
     const handleConfirmPdfDownload = useCallback(() => { setIsPdfModalOpen(false); setTimeout(() => { generatePdf(pdfOptions); }, 100); }, [generatePdf, pdfOptions]);
     const handleClosePdfModal = useCallback(() => { setIsPdfModalOpen(false); }, []);
     
-    // --- [핵심] 모바일 시험지 출제 로직 추가 ---
     const { mutate: publishExam, isPending: isPublishing } = usePublishExamSetMutation();
     const [isMobilePublishModalOpen, setIsMobilePublishModalOpen] = useState(false);
 
@@ -169,7 +175,6 @@ export function useProblemPublishingPage() {
         
         publishExam(payload, {
             onSuccess: () => {
-                // 출제 성공 후, 선택된 학생과 문제 목록을 초기화하여 재출제를 방지합니다.
                 clearStudents();
                 clearSelection();
                 handleCloseMobilePublishModal();
@@ -208,7 +213,6 @@ export function useProblemPublishingPage() {
         onPdfOptionChange: handlePdfOptionChange,
         onConfirmPdfDownload: handleConfirmPdfDownload,
         
-        // [신규] 모바일 출제 관련 상태와 핸들러 반환
         isMobilePublishModalOpen,
         onOpenMobilePublishModal: handleOpenMobilePublishModal,
         onCloseMobilePublishModal: handleCloseMobilePublishModal,

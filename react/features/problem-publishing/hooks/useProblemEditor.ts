@@ -14,49 +14,49 @@ export function useProblemEditor({ problemBoxMinHeight }: ProblemEditorProps) {
         startEditingProblem, setEditingProblemId
     } = useProblemPublishing();
 
-    const { setRightSidebarConfig } = useLayoutStore.getState();
+    // [수정] setRightSidebarConfig를 setRightSidebarContent로 변경합니다.
+    const { setRightSidebarContent } = useLayoutStore.getState();
     const { forceRecalculateLayout } = useExamLayoutStore();
 
-    // [핵심] 사이드바를 닫는 함수를 useCallback으로 감싸서 참조 안정성 확보
     const handleCloseEditor = useCallback(() => {
         setEditingProblemId(null);
-        setRightSidebarConfig({ contentConfig: { type: null } });
+        // [수정] setRightSidebarConfig({ contentConfig: { type: null } }); -> closeRightSidebar로 대체할 수 있으나, 여기서는 빈 콘텐츠를 설정하는 것이 더 명확할 수 있습니다.
+        // 또는 이미 onClose 콜백을 사용하는 페이지 컴포넌트에서 이 로직을 처리하고 있으므로, 여기서는 id만 null로 설정해도 충분할 수 있습니다.
+        // 하지만 명시적으로 닫기 위해 아래 코드를 유지하거나 closeRightSidebar()를 호출합니다.
+        setRightSidebarContent({ type: 'closed' });
         forceRecalculateLayout(problemBoxMinHeight);
-    }, [setEditingProblemId, setRightSidebarConfig, forceRecalculateLayout, problemBoxMinHeight]);
+    }, [setEditingProblemId, setRightSidebarContent, forceRecalculateLayout, problemBoxMinHeight]);
 
-    // [핵심] 저장 후 닫는 함수를 useCallback으로 감싸서 참조 안정성 확보
     const handleSaveAndClose = useCallback(async (problem: ProcessedProblem) => {
         await handleSaveProblem(problem);
         handleCloseEditor();
     }, [handleSaveProblem, handleCloseEditor]);
 
-    // [핵심] 되돌리기 함수를 useCallback으로 감싸서 참조 안정성 확보
     const handleRevertAndKeepOpen = useCallback((problemId: string) => {
         handleRevertProblem(problemId);
     }, [handleRevertProblem]);
 
-    // [핵심] 문제를 클릭해서 사이드바를 여는 메인 함수도 useCallback으로 감싼다.
-    // [이유] 이 함수 자체가 prop으로 다른 컴포넌트에 전달될 경우를 대비하고,
-    // 내부에서 사용하는 콜백들의 의존성을 명확하게 하기 위함입니다.
     const handleProblemClick = useCallback((problem: ProcessedProblem) => {
         startEditingProblem();
         setEditingProblemId(problem.uniqueId);
-        setRightSidebarConfig({
-            contentConfig: {
+        
+        // [수정] setRightSidebarContent 함수를 올바른 인자 구조로 호출합니다.
+        // 첫 번째 인자: content 객체, 두 번째 인자: isExtraWide 불리언
+        setRightSidebarContent(
+            { // content 객체
                 type: 'problemEditor',
                 props: {
-                    // [수정] onProblemChange를 다시 전달하여 실시간 미리보기 활성화
                     onProblemChange: handleLiveProblemChange,
                     onSave: handleSaveAndClose,
                     onRevert: handleRevertAndKeepOpen,
                     onClose: handleCloseEditor,
                     isSaving: false // 이 값은 usePublishingPageSetup에서 동적으로 업데이트됨
                 }
-            },
-            isExtraWide: true
-        });
+            }, 
+            true // isExtraWide 값
+        );
     }, [
-        startEditingProblem, setEditingProblemId, setRightSidebarConfig,
+        startEditingProblem, setEditingProblemId, setRightSidebarContent,
         handleLiveProblemChange, handleSaveAndClose, handleRevertAndKeepOpen, handleCloseEditor
     ]);
 

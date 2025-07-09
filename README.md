@@ -3,26 +3,46 @@
 react-hono
 ├─ api
 │  ├─ db
+│  │  ├─ schema.d1.ts
 │  │  └─ schema.pg.ts
 │  ├─ index.ts
+│  ├─ manage
+│  │  └─ teacher
 │  └─ routes
+│     ├─ account
+│     │  └─ settings.ts
+│     ├─ exam
+│     │  └─ exam.mobile.ts
 │     ├─ manage
+│     │  ├─ academies.ts
+│     │  ├─ permissions.ts
 │     │  ├─ problems.ts
-│     │  └─ student.ts
+│     │  ├─ student.ts
+│     │  └─ teacher.ts
 │     ├─ middleware
-│     │  └─ auth.middleware.ts
+│     │  ├─ auth.middleware.ts
+│     │  └─ permission.ts
 │     ├─ profiles
-│     │  └─ profiles.ts
+│     │  ├─ profiles.ts
+│     │  └─ settings.ts
 │     └─ r2
 │        └─ image.ts
 ├─ drizzle
-│  ├─ 0000_robust_mandroid.sql
-│  ├─ 0001_elite_outlaw_kid.sql
+│  ├─ 0000_mixed_doctor_strange.sql
+│  └─ meta
+│     ├─ 0000_snapshot.json
+│     └─ _journal.json
+├─ drizzle.config.d1.ts
+├─ drizzle.config.pg.ts
+├─ drizzle_d1
+│  ├─ 0000_long_moon_knight.sql
+│  ├─ 0001_thin_blue_marvel.sql
+│  ├─ 0002_spooky_tenebrous.sql
 │  └─ meta
 │     ├─ 0000_snapshot.json
 │     ├─ 0001_snapshot.json
+│     ├─ 0002_snapshot.json
 │     └─ _journal.json
-├─ drizzle.config.ts
 ├─ env-example.txt
 ├─ eslint.config.js
 ├─ index.html
@@ -37,13 +57,31 @@ react-hono
 │  ├─ App.css
 │  ├─ App.tsx
 │  ├─ entities
+│  │  ├─ academy
+│  │  │  ├─ api
+│  │  │  │  └─ academyApi.ts
+│  │  │  └─ model
+│  │  │     ├─ types.ts
+│  │  │     └─ useAcademiesQuery.ts
 │  │  ├─ exam
 │  │  │  └─ ui
 │  │  │     ├─ ExamHeader.tsx
 │  │  │     ├─ ExamPage.css
 │  │  │     ├─ ExamPage.tsx
+│  │  │     ├─ MobileExamProblem.css
+│  │  │     ├─ MobileExamProblem.tsx
 │  │  │     ├─ QuickAnswerPage.tsx
 │  │  │     └─ SolutionPage.tsx
+│  │  ├─ exam-assignment
+│  │  │  ├─ api
+│  │  │  │  └─ examAssignmentApi.ts
+│  │  │  └─ model
+│  │  │     └─ useMyAssignmentQuery.ts
+│  │  ├─ exam-set
+│  │  │  ├─ api
+│  │  │  │  └─ examSetApi.ts
+│  │  │  └─ model
+│  │  │     └─ useExamSetMutations.ts
 │  │  ├─ problem
 │  │  │  ├─ api
 │  │  │  │  └─ problemApi.ts
@@ -51,10 +89,31 @@ react-hono
 │  │  │     ├─ types.ts
 │  │  │     ├─ useProblemMutations.ts
 │  │  │     └─ useProblemsQuery.ts
+│  │  ├─ profile
+│  │  │  ├─ api
+│  │  │  │  └─ profileApi.ts
+│  │  │  ├─ model
+│  │  │  │  ├─ role-groups.ts
+│  │  │  │  ├─ types.ts
+│  │  │  │  ├─ useProfileQuery.ts
+│  │  │  │  └─ useProfileSetup.ts
+│  │  │  └─ ui
+│  │  │     ├─ ProfileSetupForm.css
+│  │  │     ├─ ProfileSetupForm.tsx
+│  │  │     ├─ ProfileSetupInput.css
+│  │  │     ├─ ProfileSetupInput.tsx
+│  │  │     └─ regionData.ts
+│  │  ├─ staff
+│  │  │  ├─ api
+│  │  │  │  └─ staffApi.ts
+│  │  │  └─ model
+│  │  │     ├─ types.ts
+│  │  │     └─ useStaffData.ts
 │  │  └─ student
 │  │     ├─ api
 │  │     │  └─ studentApi.ts
 │  │     ├─ model
+│  │     │  ├─ types.ts
 │  │     │  └─ useStudentDataWithRQ.ts
 │  │     └─ ui
 │  │        ├─ StudentDisplay.tsx
@@ -63,9 +122,30 @@ react-hono
 │  │        ├─ StudentDisplayMobile.css
 │  │        └─ StudentDisplayMobile.tsx
 │  ├─ features
+│  │  ├─ academy-search
+│  │  │  └─ ui
+│  │  │     ├─ AcademySearch.css
+│  │  │     └─ AcademySearch.tsx
+│  │  ├─ account-settings
+│  │  │  ├─ model
+│  │  │  │  └─ useAccountSettings.ts
+│  │  │  └─ ui
+│  │  │     ├─ AccountDeactivationPanel.tsx
+│  │  │     ├─ AccountSettingsModal.css
+│  │  │     ├─ AccountSettingsModal.tsx
+│  │  │     ├─ AccountSettingsPanels.css
+│  │  │     ├─ FormPanels.css
+│  │  │     └─ ProfileInfoPanel.tsx
+│  │  ├─ conditional-nav
+│  │  │  └─ ui
+│  │  │     └─ MobileExamsNavLink.tsx
 │  │  ├─ exam-header-editing
 │  │  │  └─ ui
 │  │  │     └─ ExamHeaderEditPopover.tsx
+│  │  ├─ exam-timer-display
+│  │  │  └─ ui
+│  │  │     ├─ ExamTimerDisplay.css
+│  │  │     └─ ExamTimerDisplay.tsx
 │  │  ├─ image-upload
 │  │  │  ├─ api
 │  │  │  │  └─ imageApi.ts
@@ -80,6 +160,10 @@ react-hono
 │  │  │  │  └─ useJsonProblemImporter.ts
 │  │  │  └─ ui
 │  │  │     └─ EditPopoverContent.tsx
+│  │  ├─ json-viewer
+│  │  │  └─ ui
+│  │  │     ├─ JsonViewerPanel.css
+│  │  │     └─ JsonViewerPanel.tsx
 │  │  ├─ kakaologin
 │  │  │  └─ ui
 │  │  │     ├─ SignInPanel.tsx
@@ -90,24 +174,51 @@ react-hono
 │  │  │  └─ ui
 │  │  │     ├─ LatexHelpPanel.css
 │  │  │     └─ LatexHelpPanel.tsx
+│  │  ├─ mobile-exam-session
+│  │  │  ├─ model
+│  │  │  │  ├─ mobileExamAnswerStore.ts
+│  │  │  │  ├─ mobileExamSessionStore.ts
+│  │  │  │  └─ mobileExamTimeStore.ts
+│  │  │  └─ ui
+│  │  │     └─ MboileProblemNavBar.tsx
+│  │  ├─ omr-marking
+│  │  │  ├─ index.ts
+│  │  │  └─ ui
+│  │  │     ├─ mobileOmrMarkingCard.css
+│  │  │     └─ mobileOmrMarkingCard.tsx
 │  │  ├─ popovermenu
+│  │  │  ├─ ProfileMenuContent.css
 │  │  │  └─ ProfileMenuContent.tsx
 │  │  ├─ problem-publishing
 │  │  │  ├─ hooks
-│  │  │  │  └─ useHeightMeasurer.ts
+│  │  │  │  ├─ useExamHeaderState.ts
+│  │  │  │  ├─ useExamPreviewManager.ts
+│  │  │  │  ├─ useHeightMeasurer.ts
+│  │  │  │  ├─ usePdfGenerator.ts
+│  │  │  │  ├─ useProblemEditor.ts
+│  │  │  │  └─ usePublishingPageSetup.ts
 │  │  │  ├─ index.ts
 │  │  │  └─ model
 │  │  │     ├─ examLayoutEngine.ts
 │  │  │     ├─ examLayoutStore.ts
+│  │  │     ├─ problemPublishingSelectionStore.ts
 │  │  │     ├─ problemPublishingStore.ts
 │  │  │     ├─ useExamLayoutManager.ts
 │  │  │     ├─ useProblemPublishing.ts
-│  │  │     └─ useProblemPublishingPage.ts
+│  │  │     ├─ useProblemPublishingPage.ts
+│  │  │     └─ useProblemSelection.ts
 │  │  ├─ problem-text-editing
 │  │  │  └─ ui
 │  │  │     ├─ ProblemMetadataEditor.tsx
 │  │  │     ├─ ProblemTextEditor.css
 │  │  │     └─ ProblemTextEditor.tsx
+│  │  ├─ profile-role-management
+│  │  │  ├─ model
+│  │  │  │  └─ useAddRole.ts
+│  │  │  └─ ui
+│  │  │     ├─ AddRolePanel.css
+│  │  │     ├─ AddRolePanel.tsx
+│  │  │     └─ RoleAcademyForm.tsx
 │  │  ├─ prompt-collection
 │  │  │  ├─ model
 │  │  │  │  └─ usePromptManager.ts
@@ -118,6 +229,15 @@ react-hono
 │  │  ├─ row-selection
 │  │  │  └─ model
 │  │  │     └─ useRowSelection.ts
+│  │  ├─ selected-students-viewer
+│  │  │  └─ ui
+│  │  │     ├─ SelectedStudentsPanel.css
+│  │  │     └─ SelectedStudentsPanel.tsx
+│  │  ├─ staff-registration
+│  │  │  ├─ model
+│  │  │  │  └─ useStaffRegistration.ts
+│  │  │  └─ ui
+│  │  │     └─ StaffRegistrationForm.tsx
 │  │  ├─ student-actions
 │  │  │  └─ ui
 │  │  │     ├─ StudentActionButtons.css
@@ -152,19 +272,27 @@ react-hono
 │  ├─ index.css
 │  ├─ main.tsx
 │  ├─ pages
+│  │  ├─ DashBoard.css
 │  │  ├─ DashBoard.tsx
+│  │  ├─ HomePage.css
 │  │  ├─ HomePage.tsx
 │  │  ├─ JsonRendererPage.css
 │  │  ├─ JsonRendererPage.tsx
 │  │  ├─ LoginPage.css
 │  │  ├─ LoginPage.tsx
+│  │  ├─ LoginPageWithErrorDisplay.css
 │  │  ├─ LoginPageWithErrorDisplay.tsx
+│  │  ├─ MobileExamPage.css
+│  │  ├─ MobileExamPage.tsx
+│  │  ├─ PdfOptionsModal.css
 │  │  ├─ ProblemPublishingPage.css
 │  │  ├─ ProblemPublishingPage.tsx
 │  │  ├─ ProblemWorkbenchPage.css
 │  │  ├─ ProblemWorkbenchPage.tsx
-│  │  ├─ ProfileSetupPage.css
 │  │  ├─ ProfileSetupPage.tsx
+│  │  ├─ PublishedExamsPage.css
+│  │  ├─ PublishedExamsPage.tsx
+│  │  ├─ StudentDetailPage.css
 │  │  └─ StudentDetailPage.tsx
 │  ├─ shared
 │  │  ├─ api
@@ -181,73 +309,90 @@ react-hono
 │  │  │  ├─ useColumnPermissions.ts
 │  │  │  ├─ useContinuousChange.ts
 │  │  │  ├─ useDragToScroll.ts
+│  │  │  ├─ useFuseSearch.ts
 │  │  │  └─ useVisibleColumns.ts
 │  │  ├─ lib
 │  │  │  ├─ AuthInitializer.tsx
-│  │  │  ├─ axiosInstance.ts
 │  │  │  ├─ ProtectedRoute.tsx
 │  │  │  └─ supabase.ts
 │  │  ├─ store
 │  │  │  ├─ authStore.ts
+│  │  │  ├─ columnSettingsStore.ts
 │  │  │  ├─ layout.config.ts
 │  │  │  ├─ layoutStore.ts
+│  │  │  ├─ modalStore.ts
+│  │  │  ├─ problemSetStudentStore.ts
 │  │  │  └─ uiStore.ts
-│  │  └─ ui
-│  │     ├─ actionbutton
-│  │     │  ├─ ActionButton.css
-│  │     │  └─ ActionButton.tsx
-│  │     ├─ Badge
-│  │     │  ├─ Badge.css
-│  │     │  └─ Badge.tsx
-│  │     ├─ codemirror-editor
-│  │     │  ├─ codemirror-setup
-│  │     │  │  ├─ auto-complete
-│  │     │  │  │  ├─ auto-completions.ts
-│  │     │  │  │  ├─ configure.ts
-│  │     │  │  │  └─ dictionary.ts
-│  │     │  │  ├─ basic-setup.ts
-│  │     │  │  ├─ decorations
-│  │     │  │  │  ├─ index.ts
-│  │     │  │  │  ├─ mark-text.ts
-│  │     │  │  │  └─ math-decorations.ts
-│  │     │  │  ├─ helpers.ts
-│  │     │  │  ├─ interfaces.ts
-│  │     │  │  ├─ markdown-parser
-│  │     │  │  │  ├─ block-math-config.ts
-│  │     │  │  │  ├─ block-multiMath-config.ts
-│  │     │  │  │  ├─ block-yaml-config.ts
-│  │     │  │  │  ├─ consts.ts
-│  │     │  │  │  ├─ index.ts
-│  │     │  │  │  ├─ inline-image-config.ts
-│  │     │  │  │  ├─ inline-latex-config.ts
-│  │     │  │  │  ├─ inline-latex-footnotes.ts
-│  │     │  │  │  ├─ inline-math-config.ts
-│  │     │  │  │  ├─ inline-multiMath-config.ts
-│  │     │  │  │  ├─ markdown.ts
-│  │     │  │  │  └─ wrapped-TeXParser.ts
-│  │     │  │  └─ theme
-│  │     │  │     └─ index.ts
-│  │     │  ├─ editor-style.scss
-│  │     │  └─ Editor.tsx
-│  │     ├─ glasstable
-│  │     │  ├─ GlassTable.css
-│  │     │  └─ GlassTable.tsx
-│  │     ├─ loadingbutton
-│  │     │  ├─ LoadingButton.css
-│  │     │  └─ LoadingButton.tsx
-│  │     ├─ MathpixRenderer.tsx
-│  │     ├─ modal
-│  │     │  ├─ Modal.css
-│  │     │  └─ Modal.tsx
-│  │     ├─ popover-content
-│  │     │  └─ PopoverContent.css
-│  │     └─ TableCellCheckbox
-│  │        └─ TableCellCheckbox.tsx
+│  │  ├─ ui
+│  │  │  ├─ actionbutton
+│  │  │  │  ├─ ActionButton.css
+│  │  │  │  └─ ActionButton.tsx
+│  │  │  ├─ Badge
+│  │  │  │  ├─ Badge.css
+│  │  │  │  └─ Badge.tsx
+│  │  │  ├─ codemirror-editor
+│  │  │  │  ├─ codemirror-setup
+│  │  │  │  │  ├─ auto-complete
+│  │  │  │  │  │  ├─ auto-completions.ts
+│  │  │  │  │  │  ├─ configure.ts
+│  │  │  │  │  │  └─ dictionary.ts
+│  │  │  │  │  ├─ basic-setup.ts
+│  │  │  │  │  ├─ decorations
+│  │  │  │  │  │  ├─ index.ts
+│  │  │  │  │  │  ├─ mark-text.ts
+│  │  │  │  │  │  └─ math-decorations.ts
+│  │  │  │  │  ├─ helpers.ts
+│  │  │  │  │  ├─ interfaces.ts
+│  │  │  │  │  ├─ markdown-parser
+│  │  │  │  │  │  ├─ block-math-config.ts
+│  │  │  │  │  │  ├─ block-multiMath-config.ts
+│  │  │  │  │  │  ├─ block-yaml-config.ts
+│  │  │  │  │  │  ├─ consts.ts
+│  │  │  │  │  │  ├─ index.ts
+│  │  │  │  │  │  ├─ inline-image-config.ts
+│  │  │  │  │  │  ├─ inline-latex-config.ts
+│  │  │  │  │  │  ├─ inline-latex-footnotes.ts
+│  │  │  │  │  │  ├─ inline-math-config.ts
+│  │  │  │  │  │  ├─ inline-multiMath-config.ts
+│  │  │  │  │  │  ├─ markdown.ts
+│  │  │  │  │  │  └─ wrapped-TeXParser.ts
+│  │  │  │  │  └─ theme
+│  │  │  │  │     └─ index.ts
+│  │  │  │  ├─ editor-style.scss
+│  │  │  │  └─ Editor.tsx
+│  │  │  ├─ glasstable
+│  │  │  │  ├─ GlassTable.css
+│  │  │  │  └─ GlassTable.tsx
+│  │  │  ├─ loadingbutton
+│  │  │  │  ├─ LoadingButton.css
+│  │  │  │  └─ LoadingButton.tsx
+│  │  │  ├─ MathpixRenderer.tsx
+│  │  │  ├─ modal
+│  │  │  │  ├─ Modal.css
+│  │  │  │  └─ Modal.tsx
+│  │  │  ├─ popover-content
+│  │  │  │  └─ PopoverContent.css
+│  │  │  └─ TableCellCheckbox
+│  │  │     └─ TableCellCheckbox.tsx
+│  │  └─ utils
+│  │     └─ problem.utils.ts
 │  └─ widgets
 │     ├─ ExamPreviewWidget.css
 │     ├─ ExamPreviewWidget.tsx
+│     ├─ FilteredProblemHeader
+│     │  ├─ FilteredProblemHeader.css
+│     │  └─ FilteredProblemHeader.tsx
 │     ├─ json-problem-importer
 │     │  └─ JsonProblemImporterWidget.tsx
+│     ├─ mobile-exam-loader
+│     │  └─ ui
+│     │     ├─ AssignmentList.css
+│     │     └─ AssignmentList.tsx
+│     ├─ mobile-exam-view
+│     │  ├─ MobileExamView.css
+│     │  ├─ MobileExamView.tsx
+│     │  └─ useMobileExamSync.ts
+│     ├─ ProblemSelectionContainer.tsx
 │     ├─ ProblemSelectionWidget.css
 │     ├─ ProblemSelectionWidget.tsx
 │     ├─ PublishingToolbarWidget.css
@@ -263,7 +408,11 @@ react-hono
 │     │  ├─ GlassSidebarRight.tsx
 │     │  ├─ RootLayout.css
 │     │  └─ RootLayout.tsx
+│     ├─ staff-management
+│     │  ├─ StaffManagementWidget.css
+│     │  └─ StaffManagementWidget.tsx
 │     ├─ student-table
+│     │  ├─ StudentTableWidget.css
 │     │  └─ StudentTableWidget.tsx
 │     └─ UserDetailsButton.tsx
 ├─ tsconfig.app.json

@@ -10,7 +10,7 @@ import type { ProcessedProblem } from '../features/problem-publishing/model/prob
 
 interface ProblemSelectionContainerProps {
     allProblems: ProcessedProblem[];
-    selectedProblems: ProcessedProblem[]; // [추가] 선택된 문제 목록을 props로 받습니다.
+    selectedProblems: ProcessedProblem[];
     isLoading: boolean;
     selectedIds: Set<string>;
     toggleRow: (id: string) => void;
@@ -20,7 +20,7 @@ interface ProblemSelectionContainerProps {
 
 const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
     allProblems,
-    selectedProblems, // [추가]
+    selectedProblems,
     isLoading,
     selectedIds,
     toggleRow,
@@ -85,23 +85,27 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
       handleResetHeaderFilters();
     }, [clearSelection, handleResetHeaderFilters]);
 
-    const { setSearchBoxProps, registerPageActions, setRightSidebarConfig } = useLayoutStore.getState();
-    const { setRightSidebarExpanded } = useUIStore.getState();
+    // [수정] .getState() 대신 Hook 사용
+    const setSearchBoxProps = useLayoutStore(state => state.setSearchBoxProps);
+    const registerPageActions = useLayoutStore(state => state.registerPageActions);
+    const setRightSidebarContent = useLayoutStore(state => state.setRightSidebarContent);
+    const setRightSidebarExpanded = useUIStore(state => state.setRightSidebarExpanded);
+    
     const [isSearchBoxVisible, setIsSearchBoxVisible] = React.useState(true);
     const toggleSearchBox = React.useCallback(() => setIsSearchBoxVisible(prev => !prev), []);
 
-    // [핵심 수정] 핸들러가 props로 받은 selectedProblems를 사용하도록 변경합니다.
     const handleOpenJsonView = useCallback(() => {
         if (selectedProblems.length === 0) {
             alert('JSON으로 변환할 문제가 선택되지 않았습니다.');
             return;
         }
-        setRightSidebarConfig({
-            contentConfig: { type: 'jsonViewer', props: { problems: selectedProblems } },
-            isExtraWide: true
-        });
+        // [수정] setRightSidebarConfig -> setRightSidebarContent, 올바른 인자 구조로 변경
+        setRightSidebarContent(
+            { type: 'jsonViewer', props: { problems: selectedProblems } }, 
+            true
+        );
         setRightSidebarExpanded(true);
-    }, [selectedProblems, setRightSidebarConfig, setRightSidebarExpanded]);
+    }, [selectedProblems, setRightSidebarContent, setRightSidebarExpanded]);
 
     useEffect(() => {
         registerPageActions({ openJsonViewSidebar: handleOpenJsonView });
