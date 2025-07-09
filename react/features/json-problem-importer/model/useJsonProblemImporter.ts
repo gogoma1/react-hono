@@ -1,5 +1,9 @@
+// ----- ./react/features/json-problem-importer/model/useJsonProblemImporter.ts -----
+
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Problem, Column, ComboboxOption } from '../../../entities/problem/model/types';
+// [수정] ProblemType과 PROBLEM_TYPES를 import 합니다.
+import type { Problem, Column, ComboboxOption, ProblemType } from '../../../entities/problem/model/types';
+import { PROBLEM_TYPES } from '../../../entities/problem/model/types';
 import { useUploadProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
 import { produce } from 'immer';
 import * as jsonc from 'jsonc-parser';
@@ -18,6 +22,7 @@ const initialJsonInput = `{
     {
       "question_number": "서답형 1",
       "question_text": "다음 함수의 최댓값을 구하시오: $f(x) = -x^2 + 4x - 1$",
+      "problem_type": "서답형",
       "answer": "$3$",
       "solution_text": "[해설] 완전제곱식으로 변환하면 $f(x) = -(x-2)^2 + 3$ 이므로 최댓값은 $3$이다.",
       "page": 15,
@@ -35,7 +40,7 @@ const initialJsonInput = `{
 }`;
 
 const columns: Column[] = [
-    { key: 'problem_id', label: 'ID', readonly: true }, // [추가] problem_id 컬럼
+    { key: 'problem_id', label: 'ID', readonly: true },
     { key: 'question_number', label: '번호', editType: 'number' },
     { key: 'problem_type', label: '유형(객/주)', editType: 'combobox' },
     { key: 'grade', label: '학년', editType: 'text' },
@@ -163,8 +168,7 @@ export function useJsonProblemImporter() {
                         return null;
                     }
 
-                    // [수정] 기본값을 '주관식'에서 '서답형'으로 변경
-                    const finalProblemType = p.problem_type || parsedProblemType || '서답형';
+                    const finalProblemType = (p.problem_type || parsedProblemType || '서답형') as ProblemType;
 
                     const pageNumRaw = p.page;
                     let pageNum: number | null = null;
@@ -174,7 +178,7 @@ export function useJsonProblemImporter() {
                     }
                     
                     return {
-                        problem_id: p.problem_id || `new-${Date.now()}-${index}`, // ID가 있으면 사용, 없으면 임시 ID 생성
+                        problem_id: p.problem_id || `new-${Date.now()}-${index}`,
                         question_number: finalProblemNum,
                         problem_type: finalProblemType,
                         question_text: String(p.question_text ?? ''),
@@ -221,7 +225,7 @@ export function useJsonProblemImporter() {
         if (Array.isArray(value)) return value.join(', ');
 
         const strValue = String(value);
-        if (strValue.startsWith('new-')) return '(신규)'; // 임시 ID는 '신규'로 표시
+        if (strValue.startsWith('new-')) return '(신규)';
         
         if (strValue.length > 20 && strValue.includes('-')) {
             return `${strValue.substring(0, 8)}...`;
@@ -328,8 +332,10 @@ export function useJsonProblemImporter() {
 
     }, [problems, parseError, uploadMutation]);
     
-    // [수정] '주관식' 제거
-    const problemTypeOptions: ComboboxOption[] = [ { value: '객관식', label: '객관식' }, { value: '서답형', label: '서답형' }, { value: '논술형', label: '논술형' } ];
+    /**
+     * [핵심 수정] 하드코딩된 배열 대신, entities에서 import한 PROBLEM_TYPES를 사용하여 옵션을 동적으로 생성합니다.
+     */
+    const problemTypeOptions: ComboboxOption[] = PROBLEM_TYPES.map(t => ({ value: t, label: t }));
     const difficultyOptions: ComboboxOption[] = [ { value: '최상', label: '최상' }, { value: '상', label: '상' }, { value: '중', label: '중' }, { value: '하', label: '하' }, { value: '최하', label: '최하' } ];
     const answerOptions: ComboboxOption[] = [ { value: '①', label: '①' }, { value: '②', label: '②' }, { value: '③', label: '③' }, { value: '④', label: '④' }, { value: '⑤', label: '⑤' }, { value: '⑥', label: '⑥' } ];
     const gradeOptions: ComboboxOption[] = ['초1', '초2', '초3', '초4', '초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'].map(g => ({ value: g, label: g }));

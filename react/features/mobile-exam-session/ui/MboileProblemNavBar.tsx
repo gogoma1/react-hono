@@ -1,4 +1,5 @@
-// ----- ./react/features/mobile-exam-session/ProblemNavBar.tsx -----
+// ----- ./react/features/mobile-exam-session/ui/MboileProblemNavBar.tsx -----
+
 import React, { useMemo } from 'react';
 import type { ProcessedProblem } from '../../problem-publishing';
 
@@ -35,7 +36,8 @@ export const ProblemNavBar: React.FC<ProblemNavBarProps> = ({
             const finalStatus = statuses.get(problem.uniqueId);
             const isSkipped = skippedProblemIds.has(problem.uniqueId);
             
-            const hasAnswer = problem.problem_type === '서답형'
+            // [핵심 수정] isSubjective와 유사한 로직을 명시적으로 변경하여 OX 문제를 객관식 계열로 처리합니다.
+            const hasAnswer = problem.problem_type === '서답형' || problem.problem_type === '논술형'
                 ? (subjectiveAnswers.get(problem.uniqueId) || '').trim() !== ''
                 : (answers.get(problem.uniqueId)?.size ?? 0) > 0;
             

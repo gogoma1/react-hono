@@ -1,9 +1,13 @@
+// ----- ./react/widgets/FilteredProblemHeader/FilteredProblemHeader.tsx -----
+
 import React, { useMemo, ReactNode, useState, useCallback } from 'react';
 import type { ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 import Badge from '../../shared/ui/Badge/Badge';
 import GlassPopover from '../../shared/components/GlassPopover';
 import { PopoverCombobox } from '../../features/json-problem-importer/ui/EditPopoverContent';
+// [수정] ComboboxOption과 함께 PROBLEM_TYPES를 import 합니다.
 import type { ComboboxOption } from '../../entities/problem/model/types';
+import { PROBLEM_TYPES } from '../../entities/problem/model/types';
 import { LuChevronsUpDown, LuRotateCcw } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 import './FilteredProblemHeader.css';
@@ -21,11 +25,10 @@ interface FilteredProblemHeaderProps {
     onResetHeaderFilters: () => void;
 }
 
+// [핵심 수정] 하드코딩된 배열 대신, entities에서 가져온 PROBLEM_TYPES를 사용해 동적으로 옵션을 생성합니다.
 const TYPE_FILTER_OPTIONS: ComboboxOption[] = [
     { value: 'all', label: '전체 유형' },
-    { value: '객관식', label: '객관식' },
-    { value: '서답형', label: '서답형' },
-    { value: '논술형', label: '논술형' },
+    ...PROBLEM_TYPES.map(type => ({ value: type, label: type })),
 ];
 
 const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({ 
@@ -113,7 +116,6 @@ const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({
                 </div>
                 <div className="filter-controls">
                     <div className="filter-group problem-type-filter">
-                        {/* [핵심] 공통 클래스 추가 */}
                         <button type="button" className="filter-trigger-button filter-control-item" onClick={handleTriggerClick}>
                             <span className={`trigger-text ${problemTypeFilter === 'all' ? 'placeholder' : ''}`}>
                                 {currentFilterLabel}
@@ -122,10 +124,8 @@ const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({
                         </button>
                     </div>
                     <div className="filter-group number-range-filter">
-                        {/* [핵심] 공통 클래스 추가 */}
                         <input type="number" value={startNumber} onChange={onStartNumberChange} placeholder="시작" className="filter-input filter-control-item" aria-label="문제 시작 번호" />
                         <span className="range-separator">~</span>
-                        {/* [핵심] 공통 클래스 추가 */}
                         <input type="number" value={endNumber} onChange={onEndNumberChange} placeholder="끝" className="filter-input filter-control-item" aria-label="문제 끝 번호" />
                          <span className="range-label">번</span>
                          <Tippy content="번호/유형 필터 초기화" theme="custom-glass" placement="top">
