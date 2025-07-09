@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react'; // useState, useCallback, useRef 추가
 import { useProblemPublishingPage } from '../features/problem-publishing';
 import ProblemSelectionContainer from '../widgets/ProblemSelectionContainer';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
@@ -9,105 +9,132 @@ import './ProblemPublishingPage.css';
 import './PdfOptionsModal.css';
 
 const ProblemPublishingPage: React.FC = () => {
-    const {
-        allProblems, isLoadingProblems,
-        selectedIds, toggleRow, toggleItems, clearSelection,
-        selectedProblems, distributedPages, placementMap, distributedSolutionPages, solutionPlacementMap,
-        headerInfo, useSequentialNumbering, baseFontSize, contentFontSizeEm, measuredHeights,
-        onHeightUpdate, onProblemClick, onHeaderUpdate, handleDeselectProblem,
-        onToggleSequentialNumbering, onBaseFontSizeChange, onContentFontSizeEmChange,
-        isGeneratingPdf, onDownloadPdf, pdfProgress,
-        previewAreaRef, 
-        displayMinHeight, 
-        setDisplayMinHeight, 
-        setProblemBoxMinHeight,
-        isPdfModalOpen,
-        onClosePdfModal,
-        pdfOptions,
-        onPdfOptionChange,
-        onConfirmPdfDownload,
-        isMobilePublishModalOpen,
-        onOpenMobilePublishModal,
-        onCloseMobilePublishModal,
-        onConfirmMobilePublish,
-        isPublishing,
-        selectedStudentCount,
-        selectedProblemCount,
-        // [추가] 검색창 관련 상태와 함수를 가져옴
-        isSearchBoxVisible,
-        toggleSearchBox,
-    } = useProblemPublishingPage();
+    const pageLogic = useProblemPublishingPage();
+
+    // [추가 시작] Resizable 로직
+    const [selectionContainerHeight, setSelectionContainerHeight] = useState(300); // 초기 높이 300px
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartRef = useRef({ y: 0, initialHeight: 0 });
+
+    const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDragging(true);
+        dragStartRef.current = {
+            y: e.clientY,
+            initialHeight: selectionContainerHeight,
+        };
+    }, [selectionContainerHeight]);
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isDragging) return;
+        const deltaY = e.clientY - dragStartRef.current.y;
+        const newHeight = dragStartRef.current.initialHeight + deltaY;
+        const clampedHeight = Math.max(200, Math.min(newHeight, window.innerHeight * 0.8)); // 최소 200px, 최대 뷰포트 80%
+        setSelectionContainerHeight(clampedHeight);
+    }, [isDragging]);
+
+    const handleMouseUp = useCallback(() => {
+        setIsDragging(false);
+    }, []);
+
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+            document.body.classList.add('resizing-vertical');
+        } else {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            document.body.classList.remove('resizing-vertical');
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            document.body.classList.remove('resizing-vertical');
+        };
+    }, [isDragging, handleMouseMove, handleMouseUp]);
+    // [추가 끝]
 
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
-
-    const pageClassName = `problem-publishing-page ${isGeneratingPdf || isPublishing ? 'pdf-processing' : ''}`;
+    
+    const pageClassName = `problem-publishing-page ${pageLogic.isGeneratingPdf || pageLogic.isPublishing ? 'pdf-processing' : ''}`;
 
     return (
         <div className={pageClassName}>
-            {(isGeneratingPdf || isPublishing) && <div className="processing-overlay" />}
+            {(pageLogic.isGeneratingPdf || pageLogic.isPublishing) && <div className="processing-overlay" />}
             <div className="sticky-top-container">
-                <div className="selection-widget-container">
+                {/* [수정] 높이를 state와 연결 */}
+                <div className="selection-widget-container" style={{ height: `${selectionContainerHeight}px` }}>
                     <ProblemSelectionContainer
-                        allProblems={allProblems}
-                        selectedProblems={selectedProblems}
-                        isLoading={isLoadingProblems}
-                        selectedIds={selectedIds}
-                        toggleRow={toggleRow}
-                        toggleItems={toggleItems}
-                        clearSelection={clearSelection}
-                        // [추가] 검색창 관련 상태와 함수를 prop으로 전달
-                        isSearchBoxVisible={isSearchBoxVisible}
-                        toggleSearchBox={toggleSearchBox}
+                        allProblems={pageLogic.allProblems}
+                        selectedProblems={pageLogic.selectedProblems}
+                        isLoading={pageLogic.isLoadingProblems}
+                        selectedIds={pageLogic.selectedIds}
+                        toggleRow={pageLogic.toggleRow}
+                        toggleItems={pageLogic.toggleItems}
+                        clearSelection={pageLogic.clearSelection}
+                        isSearchBoxVisible={pageLogic.isSearchBoxVisible}
+                        toggleSearchBox={pageLogic.toggleSearchBox}
                     />
                 </div>
+
+                {/* [추가] 리사이저 요소 */}
+                <div 
+                    className="vertical-resizer" 
+                    onMouseDown={handleMouseDown}
+                    aria-label="상단 패널 높이 조절"
+                    role="separator"
+                />
+
                 <PublishingToolbarWidget 
-                    useSequentialNumbering={useSequentialNumbering}
-                    onToggleSequentialNumbering={onToggleSequentialNumbering}
-                    baseFontSize={baseFontSize}
-                    onBaseFontSizeChange={onBaseFontSizeChange}
-                    contentFontSizeEm={contentFontSizeEm}
-                    onContentFontSizeEmChange={onContentFontSizeEmChange} 
-                    displayMinHeight={displayMinHeight}
-                    onDisplayMinHeightChange={setDisplayMinHeight}
-                    onFinalMinHeightChange={setProblemBoxMinHeight}
-                    onDownloadPdf={onDownloadPdf}
-                    isGeneratingPdf={isGeneratingPdf}
-                    pdfProgress={pdfProgress}
-                    onPublishMobileExam={onOpenMobilePublishModal}
-                    isPublishing={isPublishing}
+                    useSequentialNumbering={pageLogic.useSequentialNumbering}
+                    onToggleSequentialNumbering={pageLogic.onToggleSequentialNumbering}
+                    baseFontSize={pageLogic.baseFontSize}
+                    onBaseFontSizeChange={pageLogic.onBaseFontSizeChange}
+                    contentFontSizeEm={pageLogic.contentFontSizeEm}
+                    onContentFontSizeEmChange={pageLogic.onContentFontSizeEmChange} 
+                    displayMinHeight={pageLogic.displayMinHeight}
+                    onDisplayMinHeightChange={pageLogic.setDisplayMinHeight}
+                    onFinalMinHeightChange={pageLogic.setProblemBoxMinHeight}
+                    onDownloadPdf={pageLogic.onDownloadPdf}
+                    isGeneratingPdf={pageLogic.isGeneratingPdf}
+                    pdfProgress={pageLogic.pdfProgress}
+                    onPublishMobileExam={pageLogic.onOpenMobilePublishModal}
+                    isPublishing={pageLogic.isPublishing}
                 />
             </div>
             <div 
-                ref={previewAreaRef}
+                ref={pageLogic.previewAreaRef}
                 className="scrollable-content-area"
-                style={{ '--problem-box-min-height-em': `${displayMinHeight}em` } as React.CSSProperties}
+                style={{ '--problem-box-min-height-em': `${pageLogic.displayMinHeight}em` } as React.CSSProperties}
             >
                 <ExamPreviewWidget 
-                    distributedPages={distributedPages} 
-                    distributedSolutionPages={distributedSolutionPages}
-                    allProblems={allProblems}
-                    selectedProblems={selectedProblems}
-                    placementMap={placementMap} 
-                    solutionPlacementMap={solutionPlacementMap}
-                    headerInfo={headerInfo} 
-                    useSequentialNumbering={useSequentialNumbering} 
-                    baseFontSize={baseFontSize} 
-                    contentFontSizeEm={contentFontSizeEm} 
-                    contentFontFamily={headerInfo.titleFontFamily} 
-                    onHeightUpdate={onHeightUpdate}
-                    onProblemClick={onProblemClick} 
-                    onHeaderUpdate={onHeaderUpdate} 
-                    onDeselectProblem={handleDeselectProblem}
-                    measuredHeights={measuredHeights}
+                    distributedPages={pageLogic.distributedPages} 
+                    distributedSolutionPages={pageLogic.distributedSolutionPages}
+                    allProblems={pageLogic.allProblems}
+                    selectedProblems={pageLogic.selectedProblems}
+                    placementMap={pageLogic.placementMap} 
+                    solutionPlacementMap={pageLogic.solutionPlacementMap}
+                    headerInfo={pageLogic.headerInfo} 
+                    useSequentialNumbering={pageLogic.useSequentialNumbering} 
+                    baseFontSize={pageLogic.baseFontSize} 
+                    contentFontSizeEm={pageLogic.contentFontSizeEm} 
+                    contentFontFamily={pageLogic.headerInfo.titleFontFamily} 
+                    onHeightUpdate={pageLogic.onHeightUpdate}
+                    onProblemClick={pageLogic.onProblemClick} 
+                    onHeaderUpdate={pageLogic.onHeaderUpdate} 
+                    onDeselectProblem={pageLogic.handleDeselectProblem}
+                    measuredHeights={pageLogic.measuredHeights}
                 />
             </div>
 
             <Modal
-                isOpen={isPdfModalOpen}
-                onClose={onClosePdfModal}
-                onConfirm={onConfirmPdfDownload}
+                isOpen={pageLogic.isPdfModalOpen}
+                onClose={pageLogic.onClosePdfModal}
+                onConfirm={pageLogic.onConfirmPdfDownload}
                 title="PDF 출력 옵션"
                 confirmText="생성하기"
                 size="small"
@@ -116,15 +143,15 @@ const ProblemPublishingPage: React.FC = () => {
                     <p className="options-description">PDF에 포함할 항목을 선택하세요.</p>
                     <div className="options-list">
                         <label className="option-item">
-                            <input type="checkbox" checked={pdfOptions.includeProblems} onChange={() => onPdfOptionChange('includeProblems')} />
+                            <input type="checkbox" checked={pageLogic.pdfOptions.includeProblems} onChange={() => pageLogic.onPdfOptionChange('includeProblems')} />
                             <span className="checkbox-label">문제</span>
                         </label>
                         <label className="option-item">
-                            <input type="checkbox" checked={pdfOptions.includeAnswers} onChange={() => onPdfOptionChange('includeAnswers')} />
+                            <input type="checkbox" checked={pageLogic.pdfOptions.includeAnswers} onChange={() => pageLogic.onPdfOptionChange('includeAnswers')} />
                             <span className="checkbox-label">빠른 정답</span>
                         </label>
                         <label className="option-item">
-                            <input type="checkbox" checked={pdfOptions.includeSolutions} onChange={() => onPdfOptionChange('includeSolutions')} />
+                            <input type="checkbox" checked={pageLogic.pdfOptions.includeSolutions} onChange={() => pageLogic.onPdfOptionChange('includeSolutions')} />
                             <span className="checkbox-label">정답 및 해설</span>
                         </label>
                     </div>
@@ -132,10 +159,10 @@ const ProblemPublishingPage: React.FC = () => {
             </Modal>
 
             <Modal
-                isOpen={isMobilePublishModalOpen}
-                onClose={onCloseMobilePublishModal}
-                onConfirm={onConfirmMobilePublish}
-                isConfirming={isPublishing}
+                isOpen={pageLogic.isMobilePublishModalOpen}
+                onClose={pageLogic.onCloseMobilePublishModal}
+                onConfirm={pageLogic.onConfirmMobilePublish}
+                isConfirming={pageLogic.isPublishing}
                 title="모바일 시험지 출제 확인"
                 confirmText="출제하기"
                 confirmLoadingText="출제 중..."
@@ -144,7 +171,7 @@ const ProblemPublishingPage: React.FC = () => {
             >
                 <div className="publish-confirm-container">
                     <p>
-                        아래 <strong>{selectedStudentCount}</strong>명의 학생에게 <strong>{selectedProblemCount}</strong>개의 문제로 구성된 시험지를 출제합니다.
+                        아래 <strong>{pageLogic.selectedStudentCount}</strong>명의 학생에게 <strong>{pageLogic.selectedProblemCount}</strong>개의 문제로 구성된 시험지를 출제합니다.
                     </p>
                     
                     <SelectedStudentsPanel 
