@@ -27,11 +27,11 @@ const StaffRegistrationForm: React.FC<StaffRegistrationFormProps> = ({ onSuccess
     return (
         <div className="student-registration-container">
             <h4 className="registration-form-title">
-                강사 / 직원 등록
+                강사 | 직원 등록
             </h4>
             
             <p className="registration-form-description">
-                강사 또는 직원의 이름과 전화번호를 등록합니다. 등록된 구성원은 본인 계정으로 로그인 후 학원에 연결할 수 있습니다.
+                등록된 구성원은 본인 계정으로 로그인 후 학원에 연결할 수 있습니다.
             </p>
 
             <form onSubmit={(e) => e.preventDefault()} className="registration-form" noValidate>

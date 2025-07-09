@@ -2,12 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router';
 import './GlassNavbar.css';
 import { useUIStore } from '../../shared/store/uiStore';
-import { useLayoutStore, useSidebarTriggers } from '../../shared/store/layoutStore'; 
+import { useSidebarTriggers } from '../../shared/store/layoutStore'; 
 import { useMobileExamTimeStore } from '../../features/mobile-exam-session/model/mobileExamTimeStore';
 import { 
     LuLayoutDashboard, LuMenu, LuCircleUserRound, LuCirclePlus, 
     LuSettings2, LuSearch, LuClipboardList, LuBookMarked,
-    LuFileJson2, LuUsers
+    LuFileJson2, LuUsers, LuUserCog
 } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 
@@ -21,6 +21,7 @@ const ProfileIcon = () => <LuCircleUserRound size={22} />;
 
 const mobileIconMap: Record<SidebarButtonType, React.FC> = {
     register: () => <LuCirclePlus size={22} />,
+    teacherRegister: () => <LuUserCog size={22} />,
     settings: () => <LuSettings2 size={22} />,
     search: () => <LuSearch size={22} />,
     prompt: () => <LuClipboardList size={22} />,
@@ -48,11 +49,11 @@ const GlassNavbar: React.FC = () => {
     
     const { triggers } = useSidebarTriggers();
 
-    const timerDisplay = useLayoutStore(state => state.timerDisplay);
     const currentProblemTimer = useMobileExamTimeStore(state => state.currentTimer);
 
     const [isProfilePopoverOpen, setIsProfilePopoverOpen] = useState(false);
     const profileButtonRef = useRef<HTMLButtonElement>(null);
+    const prevBreakpointRef = useRef(currentBreakpoint);
 
     const handleProfileButtonClick = () => {
         if (currentBreakpoint === 'mobile' && mobileSidebarType && !isProfilePopoverOpen) {
@@ -66,10 +67,14 @@ const GlassNavbar: React.FC = () => {
     };
 
     useEffect(() => {
-        if (isProfilePopoverOpen && currentBreakpoint !== 'desktop') {
-            handleCloseProfilePopover();
+        if (prevBreakpointRef.current !== currentBreakpoint) {
+            if (isProfilePopoverOpen && currentBreakpoint !== 'desktop') {
+                handleCloseProfilePopover();
+            }
         }
+        prevBreakpointRef.current = currentBreakpoint;
     }, [currentBreakpoint, isProfilePopoverOpen]);
+
 
     const renderMobileExamTimer = () => {
         const isVisible = location.pathname === '/mobile-exam' && currentProblemTimer >= 0;
@@ -120,19 +125,13 @@ const GlassNavbar: React.FC = () => {
             </div>
             
             <div className="navbar-center">
-                {location.pathname !== '/mobile-exam' && timerDisplay?.isVisible && (
-                    <div className="navbar-timer">
-                        <span className="timer-text">{timerDisplay.text}</span>
-                    </div>
-                )}
             </div>
 
             <div className="navbar-right">
                 {currentBreakpoint === 'mobile' && (
                     <div className="mobile-right-actions">
                         {triggers.map((trigger) => {
-                            const IconComponent = mobileIconMap[trigger.type];
-                            if (!IconComponent) return null;
+                            const IconComponent = mobileIconMap[trigger.type] || mobileIconMap.settings;
                             
                             return (
                                 <Tippy key={trigger.type} content={trigger.tooltip} placement="bottom" theme="custom-glass" delay={[300, 0]}>
@@ -159,7 +158,10 @@ const GlassNavbar: React.FC = () => {
                     isOpen={isProfilePopoverOpen}
                     onClose={handleCloseProfilePopover}
                     anchorEl={profileButtonRef.current}
-                    placement="bottom-end"
+                    // [핵심 수정] placement를 'bottom-start'로 변경하여 왼쪽 정렬
+                    placement="bottom-start"
+                    // [핵심 수정] offsetX를 음수 값으로 주어 왼쪽으로 살짝 이동
+                    offsetX={-170}
                     offsetY={10}
                 >
                     <ProfileMenuContent onClose={handleCloseProfilePopover} />

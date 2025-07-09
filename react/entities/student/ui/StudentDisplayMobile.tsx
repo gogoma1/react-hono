@@ -1,13 +1,11 @@
-// ./react/entities/student/ui/StudentDisplayMobile.tsx
-
 import React from 'react';
 import Badge from '../../../shared/ui/Badge/Badge';
 import type { Student } from '../model/types';
 import StudentActionButtons from '../../../features/student-actions/ui/StudentActionButtons';
+import { STUDENT_DASHBOARD_COLUMN_CONFIG } from '../../../shared/hooks/useColumnPermissions';
 import { useVisibleColumns } from '../../../shared/hooks/useVisibleColumns';
 import './StudentDisplayMobile.css';
 
-// [신규] 전화번호 포맷팅 유틸리티 함수 (재사용)
 const formatPhoneNumber = (phone: string | null | undefined): string => {
     if (!phone) return '-';
     const cleaned = ('' + phone).replace(/\D/g, '');
@@ -18,7 +16,6 @@ const formatPhoneNumber = (phone: string | null | undefined): string => {
     return phone;
 };
 
-// [신규] 상태(status) 한글 매핑 객체 (재사용)
 const statusMap: Record<Student['status'], string> = {
     active: '재원',
     inactive: '휴원',
@@ -48,7 +45,7 @@ const MobileStudentCard: React.FC<MobileStudentCardProps> = ({
 }) => {
     const isActive = activeCardId === student.id;
     const isEditingStatus = editingStatusRowId === student.id;
-    const visibleColumns = useVisibleColumns();
+    const visibleColumns = useVisibleColumns(STUDENT_DASHBOARD_COLUMN_CONFIG);
     const isSelected = selectedIds.has(student.id);
 
     const onEditRequest = () => { onEdit(student); closeActiveCard(); };
@@ -95,7 +92,7 @@ const MobileStudentCard: React.FC<MobileStudentCardProps> = ({
                         {visibleColumns.discharge_date && <span>퇴원일: {student.end_date ? new Date(student.end_date).toLocaleDateString() : '-'}</span>}
                     </div>
                     <div className="detail-item teacher-info">
-                        {visibleColumns.teacher && <span>담당 강사: {student.details?.teacher || '-'}</span>}
+                        {visibleColumns.teacher && <span>담당 강사: {student.teacher || '-'}</span>}
                     </div>
                 </div>
             </div>

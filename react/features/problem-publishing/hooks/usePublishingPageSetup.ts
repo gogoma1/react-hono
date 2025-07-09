@@ -1,10 +1,9 @@
+// ./react/features/problem-publishing/hooks/usePublishingPageSetup.ts
+
 import { useEffect } from 'react';
 import { useLayoutStore, type RegisteredPageActions } from '../../../shared/store/layoutStore';
-import { useUIStore } from '../../../shared/store/uiStore';
-import { useColumnPermissions } from '../../../shared/hooks/useColumnPermissions';
 import { useProblemPublishing } from '../model/useProblemPublishing';
 
-// 이 훅이 필요로 하는 모든 액션 핸들러 타입을 명시합니다.
 interface PageSetupActions {
     handleCloseSidebar: () => void;
     handleOpenLatexHelpSidebar: () => void;
@@ -26,24 +25,24 @@ export function usePublishingPageSetup({
     handleOpenJsonViewSidebar,
     handleOpenSearchSidebar,
 }: PublishingPageSetupProps) {
-    // 스토어에서 액션 함수를 가져옵니다.
     const { registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
     const setSearchBoxProps = useLayoutStore(state => state.setSearchBoxProps);
-    const setColumnVisibility = useUIStore(state => state.setColumnVisibility);
-    
-    const { permittedColumnsConfig } = useColumnPermissions();
     const { isSavingProblem } = useProblemPublishing();
 
+    // [수정] 아래의 useEffect 블록은 컬럼의 기본 가시성을 설정하는 로직이었으나,
+    // 이 로직은 useVisibleColumns 훅에서 이미 올바르게 처리하고 있으므로 불필요합니다.
+    // 또한, 존재하지 않는 setColumnVisibility 함수를 호출하여 오류를 발생시키는 원인이므로 완전히 제거합니다.
+    /*
     useEffect(() => {
         const initialVisibility: Record<string, boolean> = {};
-        permittedColumnsConfig.forEach(col => {
+        PROBLEM_PUBLISHING_COLUMN_CONFIG.forEach(col => {
             initialVisibility[col.key] = !col.defaultHidden;
         });
         setColumnVisibility(initialVisibility);
-    }, [permittedColumnsConfig, setColumnVisibility]);
+    }, [setColumnVisibility]);
+    */
 
     useEffect(() => {
-        // 등록할 액션 객체를 생성합니다.
         const pageActionsToRegister: Partial<RegisteredPageActions> = {
             onClose: handleCloseSidebar,
             openLatexHelpSidebar: handleOpenLatexHelpSidebar,
@@ -56,10 +55,8 @@ export function usePublishingPageSetup({
         
         registerPageActions(pageActionsToRegister);
         
-        // 클린업 함수: 이 훅이 등록한 액션들만 초기화합니다.
         return () => {
             unregisterPageActions(Object.keys(pageActionsToRegister) as (keyof RegisteredPageActions)[]);
-            // 페이지를 벗어날 때 사이드바와 검색창을 확실히 닫습니다.
             closeRightSidebar();
             setSearchBoxProps(null);
         };
@@ -77,14 +74,14 @@ export function usePublishingPageSetup({
         handleOpenSearchSidebar,
     ]);
 
-    // 문제 저장 상태가 변경될 때 사이드바 props를 업데이트하는 로직
     useEffect(() => {
-        const { content } = useLayoutStore.getState().rightSidebar;
+        const { rightSidebar } = useLayoutStore.getState();
+        const content = rightSidebar.content;
         if (content.type === 'problemEditor') {
             setRightSidebarContent({
                 ...content,
                 props: { ...content.props, isSaving: isSavingProblem }
-            }, true);
+            }, rightSidebar.isExtraWide); // isExtraWide 상태를 유지하도록 수정
         }
     }, [isSavingProblem, setRightSidebarContent]);
 }

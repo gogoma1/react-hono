@@ -5,16 +5,59 @@ import {
     type UpdateStudentInput,
     type MemberDetails
 } from '../../../entities/student/model/types';
-import { useStudentDataWithRQ } from '../../../entities/student/model/useStudentDataWithRQ';
 import CategoryInput from '../../student-registration/ui/CategoryInput';
 import '../../student-registration/ui/StudentRegistrationForm.css';
+import type { StaffMember } from '../../../entities/staff/model/types';
 
-// [수정] 이 컴포넌트에서만 사용하는 Props 타입을 명확히 정의합니다.
+// 로컬 컴포넌트 정의
+interface ManagerCategoryInputProps {
+    label: string;
+    suggestions: { id: string, name: string }[];
+    selectedIds: Set<string>;
+    onToggle: (id: string) => void;
+    isLoading?: boolean;
+}
+
+const ManagerCategoryInput: React.FC<ManagerCategoryInputProps> = ({
+    label,
+    suggestions,
+    selectedIds,
+    onToggle,
+    isLoading,
+}) => {
+    return (
+        <div className="category-input-group">
+            <label className="form-label">{label}</label>
+            <div className="category-suggestions">
+                {isLoading ? (
+                    <span className="loading-text">강사 목록 로딩 중...</span>
+                ) : (
+                    suggestions.map((suggestion) => (
+                        <button
+                            type="button"
+                            key={suggestion.id}
+                            className={`suggestion-button ${selectedIds.has(suggestion.id) ? 'active' : ''}`}
+                            onClick={() => onToggle(suggestion.id)}
+                        >
+                            {suggestion.name}
+                        </button>
+                    ))
+                )}
+                 { !isLoading && suggestions.length === 0 && <span className="no-suggestion-text">등록된 강사가 없습니다.</span>}
+            </div>
+        </div>
+    );
+};
+
+// 메인 컴포넌트 Props 정의
 interface StudentEditFormProps {
     student: Student;
     onSuccess: () => void;
-    academyId: string;
+    updateStudent: (data: UpdateStudentInput) => Promise<any>; 
+    updateStudentStatus: { isPending: boolean; isError: boolean; error: Error | null; data?: any; };
     allStudents: Student[];
+    allTeachers: StaffMember[];
+    isLoadingStaff: boolean;
 }
 
 const getUniqueValuesFromDetails = (students: Student[], key: keyof MemberDetails): (string | number)[] => {
@@ -31,25 +74,30 @@ const getUniqueValuesFromDetails = (students: Student[], key: keyof MemberDetail
     return uniqueValues.sort();
 };
 
-const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, academyId, allStudents }) => {
-    const { updateStudent, updateStudentStatus } = useStudentDataWithRQ(academyId);
-
+const StudentEditForm: React.FC<StudentEditFormProps> = ({
+    student,
+    onSuccess,
+    updateStudent,
+    updateStudentStatus,
+    allStudents,
+    allTeachers,
+    isLoadingStaff,
+}) => {
     const [name, setName] = useState('');
     const [grade, setGrade] = useState('');
     const [className, setClassName] = useState('');
     const [subject, setSubject] = useState('');
-    const [teacher, setTeacher] = useState('');
     const [status, setStatus] = useState<Student['status']>('active');
     const [studentPhone, setStudentPhone] = useState('');
     const [guardianPhone, setGuardianPhone] = useState('');
     const [schoolName, setSchoolName] = useState('');
     const [tuition, setTuition] = useState('');
-
+    const [selectedManagerIds, setSelectedManagerIds] = useState<Set<string>>(new Set());
+    
     const uniqueClassNames = useMemo(() => getUniqueValuesFromDetails(allStudents, 'class_name'), [allStudents]);
     const uniqueSubjects = useMemo(() => getUniqueValuesFromDetails(allStudents, 'subject'), [allStudents]);
     const uniqueSchoolNames = useMemo(() => getUniqueValuesFromDetails(allStudents, 'school_name'), [allStudents]);
-    const uniqueTeachers = useMemo(() => getUniqueValuesFromDetails(allStudents, 'teacher'), [allStudents]);
-    
+
     useEffect(() => {
         if (student) {
             setName(student.details?.student_name || '');
@@ -57,19 +105,21 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, a
             setClassName(student.details?.class_name || '');
             setSubject(student.details?.subject || '');
             setStatus(student.status);
-            setTeacher(student.details?.teacher || '');
             setStudentPhone(student.details?.student_phone || '');
             setGuardianPhone(student.details?.guardian_phone || '');
             setSchoolName(student.details?.school_name || '');
             setTuition(String(student.details?.tuition || ''));
+            const initialManagerIds = new Set(student.managers?.map(m => m.id).filter(Boolean) || []);
+            setSelectedManagerIds(initialManagerIds);
         }
     }, [student]);
 
     useEffect(() => {
-        if (updateStudentStatus.isSuccess) {
+        // isSuccess 플래그 대신 data 존재 여부로 성공을 판별하여 무한 루프 가능성을 줄입니다.
+        if (!updateStudentStatus.isPending && !updateStudentStatus.isError && updateStudentStatus.data) {
             onSuccess();
         }
-    }, [updateStudentStatus.isSuccess, onSuccess]);
+    }, [updateStudentStatus, onSuccess]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -82,12 +132,12 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, a
                 grade: grade.trim(),
                 subject: subject.trim(),
                 class_name: className.trim() || undefined,
-                teacher: teacher.trim() || undefined,
                 student_phone: studentPhone.trim() || undefined,
                 guardian_phone: guardianPhone.trim() || undefined,
                 school_name: schoolName.trim() || undefined,
                 tuition: tuition ? Number(String(tuition).replace(/,/g, '')) : undefined,
-            }
+            },
+            manager_member_ids: Array.from(selectedManagerIds),
         };
         try {
             await updateStudent(updatedData);
@@ -96,7 +146,27 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, a
         }
     };
     
-    const statusOptions: Student['status'][] = ['active', 'inactive', 'resigned'];
+    const statusOptions = [
+        { value: 'active', label: '재원' },
+        { value: 'inactive', label: '휴원' },
+        { value: 'resigned', label: '퇴원' },
+    ];
+
+    const teacherSuggestions = useMemo(() => {
+        return allTeachers.map(t => ({
+            id: t.id,
+            name: t.details?.student_name || '이름없음'
+        }));
+    }, [allTeachers]);
+
+    const toggleManagerSelection = (managerId: string) => {
+        setSelectedManagerIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(managerId)) newSet.delete(managerId);
+            else newSet.add(managerId);
+            return newSet;
+        });
+    };
 
     return (
         <div className="student-registration-container">
@@ -109,12 +179,21 @@ const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSuccess, a
                 <CategoryInput label="상태" value={status} onChange={(newStatus) => setStatus(newStatus as Student['status'])} suggestions={statusOptions} hideInput={true} />
                 <CategoryInput label="학년" value={grade} onChange={setGrade} suggestions={GRADE_LEVELS} hideInput={true} required={true} />
                 <CategoryInput label="과목" value={subject} onChange={setSubject} suggestions={uniqueSubjects} placeholder="직접 입력 (예: 수학, 영어)" required={true} />
+
+                <ManagerCategoryInput
+                    label="담당 강사"
+                    suggestions={teacherSuggestions}
+                    selectedIds={selectedManagerIds}
+                    onToggle={toggleManagerSelection}
+                    isLoading={isLoadingStaff}
+                />
+                
                 <CategoryInput label="반" value={className} onChange={setClassName} suggestions={uniqueClassNames} placeholder="직접 입력 (예: 1반, 심화반)" />
-                <CategoryInput label="담당 강사" value={teacher} onChange={setTeacher} suggestions={uniqueTeachers} placeholder="직접 입력 (예: 김리액)" />
                 <CategoryInput label="학생 연락처" value={studentPhone} onChange={setStudentPhone} suggestions={[]} placeholder="010-1234-5678" type="tel" />
                 <CategoryInput label="학부모 연락처" value={guardianPhone} onChange={setGuardianPhone} suggestions={[]} placeholder="010-9876-5432" type="tel" />
                 <CategoryInput label="학교명" value={schoolName} onChange={setSchoolName} suggestions={uniqueSchoolNames} placeholder="직접 입력 (예: OO고등학교)" />
                 <CategoryInput label="수강료" value={tuition} onChange={setTuition} suggestions={[]} placeholder="직접 입력 (숫자만)" type="text" />
+                
                 <div className="form-actions">
                     {updateStudentStatus.isError && <p className="form-error-message">수정 실패: {updateStudentStatus.error?.message}</p>}
                     <button type="submit" className="submit-button" disabled={updateStudentStatus.isPending || !name.trim()}>

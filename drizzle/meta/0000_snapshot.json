@@ -1,5 +1,5 @@
 {
-  "id": "1349ce38-b02e-4899-97e7-54b078519a66",
+  "id": "a5ba8333-2acd-4611-b0a6-4abbf2321b3a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -230,8 +230,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "student_id": {
-          "name": "student_id",
+        "student_member_id": {
+          "name": "student_member_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -242,7 +242,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'not_started'"
+          "default": "'assigned'"
         },
         "correct_rate": {
           "name": "correct_rate",
@@ -291,12 +291,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "exam_assignments_student_id_profiles_id_fk": {
-          "name": "exam_assignments_student_id_profiles_id_fk",
+        "exam_assignments_student_member_id_academy_members_id_fk": {
+          "name": "exam_assignments_student_member_id_academy_members_id_fk",
           "tableFrom": "exam_assignments",
-          "tableTo": "profiles",
+          "tableTo": "academy_members",
           "columnsFrom": [
-            "student_id"
+            "student_member_id"
           ],
           "columnsTo": [
             "id"
@@ -625,6 +625,72 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.student_manager_links": {
+      "name": "student_manager_links",
+      "schema": "",
+      "columns": {
+        "student_member_id": {
+          "name": "student_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "manager_member_id": {
+          "name": "manager_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "context": {
+          "name": "context",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "student_manager_links_student_member_id_academy_members_id_fk": {
+          "name": "student_manager_links_student_member_id_academy_members_id_fk",
+          "tableFrom": "student_manager_links",
+          "tableTo": "academy_members",
+          "columnsFrom": [
+            "student_member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "student_manager_links_manager_member_id_academy_members_id_fk": {
+          "name": "student_manager_links_manager_member_id_academy_members_id_fk",
+          "tableFrom": "student_manager_links",
+          "tableTo": "academy_members",
+          "columnsFrom": [
+            "manager_member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "student_manager_links_student_member_id_manager_member_id_pk": {
+          "name": "student_manager_links_student_member_id_manager_member_id_pk",
+          "columns": [
+            "student_member_id",
+            "manager_member_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.subscriptions": {
       "name": "subscriptions",
       "schema": "",
@@ -819,6 +885,7 @@
       "name": "exam_assignment_status_enum",
       "schema": "public",
       "values": [
+        "assigned",
         "not_started",
         "in_progress",
         "completed",
@@ -841,7 +908,8 @@
       "values": [
         "student",
         "teacher",
-        "parent"
+        "parent",
+        "staff"
       ]
     },
     "public.profile_status_enum": {

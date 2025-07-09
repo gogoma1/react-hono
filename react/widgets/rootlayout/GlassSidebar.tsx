@@ -1,3 +1,5 @@
+// ./react/widgets/rootlayout/GlassSidebar.tsx
+
 import React from 'react';
 import { NavLink } from 'react-router';
 import Tippy from '@tippyjs/react';
@@ -8,12 +10,15 @@ import 'tippy.js/animations/perspective.css';
 import './GlassSidebar.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import {
-    LuLayoutDashboard, LuCheck, LuLibrary, LuHeart, LuActivity,
-    LuChartBar, LuFileText, LuChevronLeft, LuChevronRight,
+    LuLayoutDashboard,
+    LuChevronLeft, LuChevronRight,
     LuFile, LuPrinter, LuFileJson2, LuFileClock
 } from 'react-icons/lu';
+// [추가] 새로 만든 동적 링크 컴포넌트를 import 합니다.
+import MobileExamsNavLink from '../../features/conditional-nav/ui/MobileExamsNavLink';
 
-interface MenuItemData {
+// [수정] MenuItemData 타입을 export하여 다른 파일에서 재사용할 수 있게 합니다.
+export interface MenuItemData {
     path: string;
     name: string;
     icon: React.ReactNode;
@@ -44,7 +49,8 @@ export const allMenuItems: MenuItemData[] = [
         icon: <ProblemPublishingIcon />
     },
     {
-        path: '/published-exams',
+        // 경로는 이제 동적으로 결정되므로, 여기서는 고유한 식별자 역할만 합니다.
+        path: '/published-exams', 
         name: '모바일 시험지 목록',
         icon: <PublishedExamsIcon />,
     },
@@ -123,6 +129,21 @@ const GlassSidebar: React.FC = () => {
                         const showFullText = (!sidebarShouldBeCollapsed || isMobileView);
                         const itemAriaLabel = `${item.name}${item.badge ? `, 알림 ${item.badge}개` : ''}`;
 
+                        // --- [핵심 수정] ---
+                        // '모바일 시험지 목록' 메뉴일 경우, 새로 만든 동적 링크 컴포넌트를 렌더링합니다.
+                        if (item.name === '모바일 시험지 목록') {
+                            return (
+                                <MobileExamsNavLink
+                                    key={item.path}
+                                    item={item}
+                                    isCollapsed={sidebarShouldBeCollapsed && !isMobileView}
+                                    onLinkClick={handleLinkClick}
+                                />
+                            );
+                        }
+                        // --- 수정 끝 ---
+
+                        // 나머지 메뉴들은 기존 방식 그대로 렌더링합니다.
                         return (
                             <li key={item.path} className={`${item.isSubItem ? 'sub-menu-item-li' : ''} ${(sidebarShouldBeCollapsed && !isMobileView) ? 'li-collapsed' : ''}`}>
                                 <Tippy

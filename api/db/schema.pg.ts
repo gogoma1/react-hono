@@ -67,8 +67,8 @@ export const academyMembersTable = pgTable("academy_members", {
   start_date: date("start_date"),
   end_date: date("end_date"),
   
-  // managed_by_member_id 컬럼은 여기서 제거합니다.
-
+  // [수정] teacher 필드는 더 이상 사용하지 않으므로 주석 처리하거나 삭제할 수 있습니다.
+  // 이 필드는 새로운 studentManagerLinksTable로 대체됩니다.
   details: jsonb("details").$type<{
     student_name?: string;
     student_phone?: string;
@@ -77,7 +77,7 @@ export const academyMembersTable = pgTable("academy_members", {
     school_name?: string;
     class_name?: string;
     subject?: string;
-    teacher?: string; 
+    // teacher?: string; // 이 필드는 더 이상 주 사용 대상이 아닙니다.
     tuition?: number;
   }>(),
 
@@ -166,15 +166,16 @@ export const academyRelations = relations(academiesTable, ({ one, many }) => ({
   members: many(academyMembersTable),
 }));
 
+/**
+ * [신규] 학생-관리자(강사) 연결 테이블 (다대다 관계)
+ * 한 학생(student_member_id)은 여러 관리자(manager_member_id)를 가질 수 있습니다.
+ * 한 관리자(manager_member_id)는 여러 학생(student_member_id)을 담당할 수 있습니다.
+ */
 export const studentManagerLinksTable = pgTable("student_manager_links", {
-    // 관리 대상이 되는 학생의 member id
     student_member_id: uuid("student_member_id").notNull().references(() => academyMembersTable.id, { onDelete: 'cascade' }),
-    // 관리 주체인 강사/직원의 member id
     manager_member_id: uuid("manager_member_id").notNull().references(() => academyMembersTable.id, { onDelete: 'cascade' }),
-    // (선택적 확장) 담당 과목 등 관계에 대한 추가 정보
-    context: text("context"), 
+    context: text("context"), // 예: "수학 담당", "상담 담당" 등 관계에 대한 설명
 }, (table) => ({
-    // 학생과 담당자의 조합은 유일해야 합니다.
     pk: primaryKey({ columns: [table.student_member_id, table.manager_member_id] }),
 }));
 
@@ -184,23 +185,24 @@ export const academyMembersRelations = relations(academyMembersTable, ({ one, ma
   examAssignments: many(examAssignmentsTable),
 
   /**
-   * [수정] 학생 입장에서 자신의 담당자 목록을 조회하기 위한 관계
+   * [신규] 학생 입장에서 자신의 담당자 목록을 조회하기 위한 관계
    */
   managerLinks: many(studentManagerLinksTable, { relationName: 'studentLinks' }),
   /**
-   * [수정] 담당자 입장에서 자신이 관리하는 학생 목록을 조회하기 위한 관계
+   * [신규] 담당자 입장에서 자신이 관리하는 학생 목록을 조회하기 위한 관계
    */
   managingStudentLinks: many(studentManagerLinksTable, { relationName: 'managerLinks' }),
 }));
 
+/**
+ * [신규] 학생-관리자 연결 테이블의 관계 정의
+ */
 export const studentManagerLinksRelations = relations(studentManagerLinksTable, ({ one }) => ({
-    // 링크의 학생 정보를 가져오기 위함
     student: one(academyMembersTable, {
         fields: [studentManagerLinksTable.student_member_id],
         references: [academyMembersTable.id],
         relationName: 'studentLinks',
     }),
-    // 링크의 담당자 정보를 가져오기 위함
     manager: one(academyMembersTable, {
         fields: [studentManagerLinksTable.manager_member_id],
         references: [academyMembersTable.id],
@@ -242,3 +244,5 @@ export type DbProduct = typeof productsTable.$inferSelect;
 export type DbSubscription = typeof subscriptionsTable.$inferSelect;
 export type DbProblemSetEntitlement = typeof problemSetEntitlementsTable.$inferSelect;
 export type DbAcademyMember = typeof academyMembersTable.$inferSelect;
+// [신규] 새로운 테이블 타입 export
+export type DbStudentManagerLink = typeof studentManagerLinksTable.$inferSelect;

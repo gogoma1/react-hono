@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1751880736682,
-      "tag": "0000_superb_silver_samurai",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1751892833061,
-      "tag": "0001_breezy_naoko",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1751973449505,
-      "tag": "0002_deep_layla_miller",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1751975865503,
-      "tag": "0003_huge_the_executioner",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1751976209621,
-      "tag": "0004_damp_warlock",
+      "when": 1752030235676,
+      "tag": "0000_mixed_doctor_strange",
       "breakpoints": true
     }
   ]

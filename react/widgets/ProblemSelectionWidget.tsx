@@ -3,15 +3,15 @@ import type { Problem } from '../entities/problem/model/types';
 import GlassTable, { type TableColumn } from '../shared/ui/glasstable/GlassTable';
 import TableCellCheckbox from '../shared/ui/TableCellCheckbox/TableCellCheckbox';
 import FilteredProblemHeader from './FilteredProblemHeader/FilteredProblemHeader';
-import { useUIStore } from '../shared/store/uiStore';
+import { useColumnSettingsStore } from '../shared/store/columnSettingsStore';
 import { PROBLEM_PUBLISHING_COLUMN_CONFIG } from '../shared/hooks/useColumnPermissions';
 import ActionButton from '../shared/ui/actionbutton/ActionButton';
 import { LuTrash2 } from 'react-icons/lu';
 import Modal from '../shared/ui/modal/Modal';
-import Badge from '../shared/ui/Badge/Badge'; // [신규] Badge 컴포넌트 임포트
+import Badge from '../shared/ui/Badge/Badge';
 import './ProblemSelectionWidget.css';
 
-type ProcessedProblem = Problem & { display_question_number: string; uniqueId: string; };
+type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
 
 interface ProblemSelectionWidgetProps {
     problems: ProcessedProblem[];
@@ -34,7 +34,6 @@ interface ProblemSelectionWidgetProps {
     onResetHeaderFilters: () => void;
 }
 
-// [신규] 난이도 텍스트를 CSS 클래스로 매핑하는 객체
 const difficultyClassMap: Record<string, string> = {
     '최상': 'difficulty-v-hard',
     '상': 'difficulty-hard',
@@ -63,7 +62,8 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
     onProblemTypeFilterChange,
     onResetHeaderFilters,
 }) => {
-    const { columnVisibility, problemPublishingColumnOrder } = useUIStore();
+    const { visibility: columnVisibility, order } = useColumnSettingsStore();
+    const problemPublishingColumnOrder = order.problemPublishing;
 
     const columns = useMemo((): TableColumn<ProcessedProblem & { id: string }>[] => {
         const baseColumns: TableColumn<ProcessedProblem & { id: string }>[] = [
@@ -94,7 +94,6 @@ const ProblemSelectionWidget: React.FC<ProblemSelectionWidgetProps> = ({
                 const isVisible = columnVisibility[key] ?? !config.defaultHidden;
                 if (!isVisible) return null;
 
-                // [수정] 난이도 컬럼에 대한 특별 렌더링 로직 추가
                 if (config.key === 'difficulty') {
                     return {
                         key: config.key,

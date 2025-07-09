@@ -16,7 +16,6 @@ export interface SuggestionGroup {
 
 export function useStudentDashboard() {
     const navigate = useNavigate();
-    // [수정] useProblemSetStudentStore에서 setStudents를 가져옵니다.
     const { setStudents } = useProblemSetStudentStore();
 
     const { 
@@ -51,11 +50,28 @@ export function useStudentDashboard() {
     const suggestionGroups = useMemo((): SuggestionGroup[] => {
         const getUniqueSortedValues = (items: Student[], key: keyof Student): string[] => {
             if (!items || items.length === 0) return [];
-            const values = items.map(item => item[key]).filter((value): value is string => typeof value === 'string' && value.trim() !== '');
-            return Array.from(new Set(values)).sort();
+
+            const allValuesFlat = items.flatMap(item => {
+                const value = item[key];
+                if (key === 'teacher' && typeof value === 'string' && value.includes(',')) {
+                    return value.split(',').map(name => name.trim());
+                }
+                return [value]; 
+            });
+
+            const validStrings: string[] = allValuesFlat.filter(
+                (value): value is string => 
+                    typeof value === 'string' && value.trim() !== '' && value.trim() !== '-'
+            );
+
+            return Array.from(new Set(validStrings)).sort();
         };
 
-        const uniqueGrades = Array.from(new Set(currentStudents.map(s => s.grade).filter(Boolean)));
+        const validGrades: string[] = currentStudents
+            .map(s => s.grade)
+            .filter((g): g is string => typeof g === 'string' && !!g.trim());
+
+        const uniqueGrades = Array.from(new Set(validGrades));
         const sortedGrades = uniqueGrades.sort((a, b) => GRADE_LEVELS.indexOf(a) - GRADE_LEVELS.indexOf(b));
 
         return [
@@ -89,7 +105,6 @@ export function useStudentDashboard() {
     const filteredStudentIds = useMemo(() => filteredStudents.map(s => s.id), [filteredStudents]);
     const handleToggleAll = useCallback(() => toggleItems(filteredStudentIds), [toggleItems, filteredStudentIds]);
     
-    // [수정] ID 대신 학생 객체를 전역 스토어에 저장합니다.
     const handleCreateProblemSet = useCallback(() => {
         if (selectedIds.size === 0) {
             alert('문제집을 만들 학생을 선택해주세요.');

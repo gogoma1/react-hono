@@ -1,7 +1,5 @@
 import { useMemo } from 'react';
-import { useLocation } from 'react-router';
 
-// [수정] 요청하신 순서대로 컬럼 설정 변경
 export const PROBLEM_PUBLISHING_COLUMN_CONFIG = [
   { key: 'problem_category', label: '유형', defaultHidden: false },
   { key: 'difficulty', label: '난이도', defaultHidden: false },
@@ -21,7 +19,6 @@ export const PROBLEM_PUBLISHING_COLUMN_CONFIG = [
 
 export const STUDENT_DASHBOARD_COLUMN_CONFIG = [
   { key: 'grade', label: '학년', defaultHidden: false },
-  // [추가] class_name이 여기에 정의되어 있어야 합니다.
   { key: 'class_name', label: '반', defaultHidden: false }, 
   { key: 'subject', label: '과목', defaultHidden: false },
   { key: 'status', label: '상태', defaultHidden: false },
@@ -34,7 +31,8 @@ export const STUDENT_DASHBOARD_COLUMN_CONFIG = [
   { key: 'discharge_date', label: '퇴원일', defaultHidden: false },
 ] as const;
 
-const ROLE_PERMISSIONS = {
+// [수정] export 키워드를 추가합니다.
+export const ROLE_PERMISSIONS = {
   '원장': [...STUDENT_DASHBOARD_COLUMN_CONFIG.map(c => c.key), ...PROBLEM_PUBLISHING_COLUMN_CONFIG.map(c => c.key)],
   '강사': [
     'grade', 'subject', 'status', 'teacher', 'student_phone',
@@ -47,35 +45,13 @@ type Role = keyof typeof ROLE_PERMISSIONS;
 
 export function useColumnPermissions() {
   const currentUserRole: Role = '원장';
-  const location = useLocation();
-  const currentPath = location.pathname;
-
-  const { permittedColumnsConfig, allColumnConfig } = useMemo(() => {
-    const roleAllowedKeys = ROLE_PERMISSIONS[currentUserRole] || [];
-    
-    let baseConfig;
-    if (currentPath.startsWith('/problem-publishing')) {
-      baseConfig = PROBLEM_PUBLISHING_COLUMN_CONFIG;
-    } else { 
-      baseConfig = STUDENT_DASHBOARD_COLUMN_CONFIG;
-    }
-    
-    const permittedConfig = baseConfig.filter(col => roleAllowedKeys.includes(col.key));
-
-    return { 
-      permittedColumnsConfig: permittedConfig,
-      allColumnConfig: baseConfig
-    };
-  }, [currentUserRole, currentPath]);
 
   const permittedColumnKeys = useMemo(() => 
-      new Set(permittedColumnsConfig.map(c => c.key)),
-      [permittedColumnsConfig]
+      new Set(ROLE_PERMISSIONS[currentUserRole] || []),
+      [currentUserRole]
   );
 
   return { 
-    permittedColumnsConfig,
-    allColumnConfig,
     permittedColumnKeys,
   };
 }

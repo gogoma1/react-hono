@@ -1,18 +1,14 @@
-// ./api/routes/manage/student.ts 전문
-
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-// [수정] canManageStudent 함수도 import 합니다.
 import { hasAcademyAdminPermission, canManageStudent } from '../middleware/permission';
 
 import type { AppEnv } from '../../index';
 import * as schema from '../../db/schema.pg';
 
-// ... (스키마 정의는 변경 없음) ...
 const memberDetailsSchema = z.object({
     student_name: z.string().min(1, "학생 이름은 필수입니다."),
     grade: z.string().min(1, "학년은 필수입니다."),
@@ -21,7 +17,7 @@ const memberDetailsSchema = z.object({
     guardian_phone: z.string().optional().transform(v => v || undefined),
     school_name: z.string().optional().transform(v => v || undefined),
     class_name: z.string().optional().transform(v => v || undefined),
-    teacher: z.string().optional().transform(v => v || undefined),
+    // teacher 필드는 더 이상 사용하지 않음
     tuition: z.number().nonnegative().optional(),
 });
 
@@ -31,13 +27,13 @@ const createStudentSchema = z.object({
     profile_id: z.string().uuid().optional().nullable(),
 });
 
+// [수정] updateMemberSchema에 담당자 ID 배열(manager_member_ids) 추가
 const updateMemberSchema = z.object({
     status: z.enum(schema.memberStatusEnum.enumValues).optional(),
     details: memberDetailsSchema.partial().optional(),
     start_date: z.string().date("YYYY-MM-DD 형식의 날짜여야 합니다.").optional().nullable(),
     end_date: z.string().date("YYYY-MM-DD 형식의 날짜여야 합니다.").optional().nullable(),
-    // [신규] 담당 강사 목록을 업데이트 하기 위한 필드
-    manager_member_ids: z.array(z.string().uuid()).optional(),
+    manager_member_ids: z.array(z.string().uuid()).optional(), // 담당 강사/관리자 member_id 목록
 });
 
 const bulkUpdateStatusSchema = z.object({
@@ -54,7 +50,7 @@ const bulkDeleteSchema = z.object({
 
 const studentRoutes = new Hono<AppEnv>();
 
-// 학생 목록 조회는 학원 관리자만 가능하도록 유지합니다.
+// [수정] 학생 목록 조회 시, 담당자 정보도 함께 가져오도록 with 옵션 추가
 studentRoutes.get('/:academyId', async (c) => {
     const user = c.get('user')!;
     const academyId = c.req.param('academyId');
@@ -73,18 +69,25 @@ studentRoutes.get('/:academyId', async (c) => {
                 eq(schema.academyMembersTable.member_type, 'student')
             ),
             orderBy: desc(schema.academyMembersTable.created_at),
-            // [개선] 학생의 담당자 목록도 함께 조회할 수 있습니다.
             with: {
-                managerLinks: {
+                managerLinks: { // 학생에게 연결된 담당자 링크를 가져옴
                     with: {
-                        manager: {
-                            columns: { id: true, details: true }
+                        manager: { // 링크를 통해 실제 담당자(manager)의 정보를 가져옴
+                            columns: { id: true, details: true } // 필요한 정보만 선택
                         }
                     }
                 }
             }
         });
-        return c.json(members);
+        
+        // 프론트엔드에서 사용하기 편하도록 데이터 구조 변환
+        const responseData = members.map(member => ({
+            ...member,
+            managers: member.managerLinks.map(link => link.manager)
+        }));
+
+        return c.json(responseData);
+
     } catch (error: any) {
         console.error('Failed to fetch academy students:', error.message);
         return c.json({ error: '데이터베이스 조회에 실패했습니다.' }, 500);
@@ -93,7 +96,6 @@ studentRoutes.get('/:academyId', async (c) => {
     }
 });
 
-// 학생 등록은 학원 관리자만 가능
 studentRoutes.post('/', zValidator('json', createStudentSchema), async (c) => {
     const user = c.get('user')!;
     const { academy_id, details, profile_id } = c.req.valid('json');
@@ -128,10 +130,10 @@ studentRoutes.post('/', zValidator('json', createStudentSchema), async (c) => {
     }
 });
 
-// 학생 정보 수정 (학원 관리자 또는 담당 강사)
+// [수정] 학생 정보 및 담당자 정보 업데이트 로직 변경
 studentRoutes.put('/:memberId', zValidator('json', updateMemberSchema), async (c) => {
     const user = c.get('user')!;
-    const memberId = c.req.param('memberId'); // 이 memberId가 targetStudentMemberId
+    const memberId = c.req.param('memberId');
     const validatedData = c.req.valid('json');
     
     if (Object.keys(validatedData).length === 0) return c.json({ error: '수정할 내용이 없습니다.' }, 400);
@@ -140,7 +142,6 @@ studentRoutes.put('/:memberId', zValidator('json', updateMemberSchema), async (c
     const db = drizzle(sql, { schema });
 
     try {
-        // [수정] canManageStudent 로 권한을 체크합니다!
         const hasPermission = await canManageStudent(db, user.id, memberId);
         if (!hasPermission) {
             return c.json({ error: '학생 정보를 수정할 권한이 없습니다.' }, 403);
@@ -155,6 +156,7 @@ studentRoutes.put('/:memberId', zValidator('json', updateMemberSchema), async (c
             return c.json({ error: '수정할 학생 정보를 찾을 수 없습니다.' }, 404);
         }
 
+        // 트랜잭션을 사용하여 학생 정보와 담당자 연결 정보를 원자적으로 업데이트
         await db.transaction(async (tx) => {
             const dataToUpdate: Partial<schema.DbAcademyMember> = { updated_at: new Date() };
 
@@ -169,19 +171,20 @@ studentRoutes.put('/:memberId', zValidator('json', updateMemberSchema), async (c
                 dataToUpdate.details = { ...member.details, ...transformedDetails };
             }
 
-            if (Object.keys(dataToUpdate).length > 1) { // updated_at 외에 다른 변경사항이 있을 때만
+            // `updated_at` 외에 다른 변경사항이 있을 때만 업데이트 실행
+            if (Object.keys(dataToUpdate).length > 1) { 
                 await tx.update(schema.academyMembersTable)
                     .set(dataToUpdate)
                     .where(eq(schema.academyMembersTable.id, memberId));
             }
             
-            // 담당자 목록 업데이트 로직
+            // `manager_member_ids`가 요청에 포함된 경우에만 담당자 연결 정보 업데이트
             if (validatedData.manager_member_ids) {
-                // 이 학생의 기존 담당자 연결을 모두 삭제
+                // 1. 해당 학생의 기존 연결을 모두 삭제
                 await tx.delete(schema.studentManagerLinksTable)
                     .where(eq(schema.studentManagerLinksTable.student_member_id, memberId));
 
-                // 새로운 담당자 목록으로 재설정
+                // 2. 요청으로 들어온 새로운 담당자 목록이 비어있지 않다면, 다시 insert
                 if (validatedData.manager_member_ids.length > 0) {
                     const newLinks = validatedData.manager_member_ids.map(managerId => ({
                         student_member_id: memberId,
@@ -193,10 +196,24 @@ studentRoutes.put('/:memberId', zValidator('json', updateMemberSchema), async (c
         });
 
         const updatedMember = await db.query.academyMembersTable.findFirst({
-            where: eq(schema.academyMembersTable.id, memberId)
+            where: eq(schema.academyMembersTable.id, memberId),
+            with: { // 업데이트된 담당자 정보까지 포함하여 반환
+                 managerLinks: {
+                    with: {
+                        manager: {
+                            columns: { id: true, details: true }
+                        }
+                    }
+                }
+            }
         });
+        
+        const responseData = {
+            ...updatedMember,
+            managers: updatedMember?.managerLinks.map(link => link.manager)
+        }
 
-        return c.json(updatedMember);
+        return c.json(responseData);
     } catch (error: any) {
         console.error(`Failed to update member ${memberId}:`, error);
         return c.json({ error: '데이터베이스 오류로 업데이트에 실패했습니다.' }, 500);
@@ -205,8 +222,6 @@ studentRoutes.put('/:memberId', zValidator('json', updateMemberSchema), async (c
     }
 });
 
-
-// 학생 퇴원 처리 (학원 관리자 또는 담당 강사)
 studentRoutes.delete('/:memberId', async (c) => {
     const user = c.get('user')!;
     const memberId = c.req.param('memberId');
@@ -214,7 +229,6 @@ studentRoutes.delete('/:memberId', async (c) => {
     const db = drizzle(sql, { schema });
 
     try {
-        // [수정] canManageStudent 로 권한을 체크합니다!
         const hasPermission = await canManageStudent(db, user.id, memberId);
         if (!hasPermission) {
             return c.json({ error: '학생을 퇴원 처리할 권한이 없습니다.' }, 403);
@@ -235,7 +249,9 @@ studentRoutes.delete('/:memberId', async (c) => {
     }
 });
 
-// 벌크 작업들은 학원 관리자만 가능하도록 유지
+// ... (나머지 bulk-update, bulk-delete 코드는 변경 없음)
+// ...
+// ...
 studentRoutes.post('/bulk-update-status', zValidator('json', bulkUpdateStatusSchema), async (c) => {
     const user = c.get('user')!;
     const { member_ids, status, academy_id } = c.req.valid('json');

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
@@ -15,13 +15,12 @@ import JsonViewerPanel from '../../features/json-viewer/ui/JsonViewerPanel';
 import ExamTimerDisplay from '../../features/exam-timer-display/ui/ExamTimerDisplay';
 import SelectedStudentsPanel from '../../features/selected-students-viewer/ui/SelectedStudentsPanel';
 import { useStudentDataWithRQ } from '../../entities/student/model/useStudentDataWithRQ';
+import { useStaffData } from '../../entities/staff/model/useStaffData';
 import type { SidebarButtonType } from '../../shared/store/layout.config';
-// [신규] StaffManagementWidget 임포트
 import StaffManagementWidget from '../staff-management/StaffManagementWidget';
 
 const iconMap: Record<SidebarButtonType, React.FC> = {
     register: () => <LuCirclePlus size={22} />,
-    // [신규] teacherRegister 아이콘 맵핑
     teacherRegister: () => <LuUserPlus size={22} />,
     settings: () => <LuSettings2 size={20} />,
     prompt: () => <LuClipboardList size={20} />,
@@ -51,23 +50,51 @@ const StudentRelatedSidebarContent: React.FC = () => {
     const { pageActions } = useLayoutStore.getState();
 
     const academyId = (content.type === 'register' || content.type === 'edit') ? content.academyId : null;
-    const { students: allStudents } = useStudentDataWithRQ(academyId);
+
+    const { students: allStudents, updateStudent, updateStudentStatus } = useStudentDataWithRQ(academyId);
+    const { staffMembers, isLoadingStaff } = useStaffData(academyId);
+
+    const allTeachers = useMemo(() => 
+        staffMembers.filter(s => s.member_type === 'teacher'), 
+    [staffMembers]);
 
     if (content.type === 'register') {
-        return <StudentRegistrationForm onSuccess={pageActions.onClose || (() => {})} academyId={content.academyId} allStudents={allStudents} />;
+        // [복구] allStudents prop을 다시 전달합니다.
+        return (
+            <StudentRegistrationForm 
+                onSuccess={pageActions.onClose || (() => {})} 
+                academyId={content.academyId} 
+                allStudents={allStudents}
+                allTeachers={allTeachers}
+                isLoadingStaff={isLoadingStaff}
+            />
+        );
     }
+    
     if (content.type === 'edit') {
-        return <StudentEditForm onSuccess={pageActions.onClose || (() => {})} student={content.student} academyId={content.academyId} allStudents={allStudents} />;
+        return (
+            <StudentEditForm 
+                onSuccess={pageActions.onClose || (() => {})} 
+                student={content.student} 
+                updateStudent={updateStudent}
+                updateStudentStatus={updateStudentStatus}
+                allStudents={allStudents}
+                allTeachers={allTeachers}
+                isLoadingStaff={isLoadingStaff}
+            />
+        );
     }
+    
     if (content.type === 'selectedStudents') {
         return <SelectedStudentsPanel />;
     }
+    
     return null;
 }
 
 const SidebarContentRenderer: React.FC = () => {
     const { content } = useLayoutStore(selectRightSidebarConfig);
-    const { pageActions } = useLayoutStore.getState(); // onSuccess 콜백을 위해 추가
+    const { pageActions } = useLayoutStore.getState();
     
     switch(content.type) {
         case 'closed':
@@ -78,15 +105,14 @@ const SidebarContentRenderer: React.FC = () => {
         case 'selectedStudents':
             return <StudentRelatedSidebarContent />;
         
-        // [신규] teacherRegister case 추가
         case 'teacherRegister':
             return <StaffManagementWidget 
                         academyId={content.academyId} 
                         onSuccess={pageActions.onClose || (() => {})} 
                     />;
-
+        
         case 'problemEditor':
-            return <ProblemEditorWrapper {...content.props} />;
+            return <ProblemEditorWrapper {...(content.props as any)} />;
             
         case 'settings': {
              const currentPath = window.location.pathname;
@@ -111,7 +137,7 @@ const SidebarContentRenderer: React.FC = () => {
             return <LatexHelpPanel />;
             
         case 'jsonViewer':
-            return <JsonViewerPanel problems={content.props.problems} />;
+            return <JsonViewerPanel {...(content.props as any)} />;
         
         default:
             return (
@@ -142,7 +168,6 @@ const GlassSidebarRight: React.FC = () => {
     const handleTriggerClick = (type: SidebarButtonType) => {
         const actionMap: Record<SidebarButtonType, (() => void) | undefined> = {
             register: pageActions.openRegisterSidebar,
-            // [신규] teacherRegister 액션 맵핑
             teacherRegister: pageActions.openTeacherRegisterSidebar,
             settings: pageActions.openSettingsSidebar,
             prompt: pageActions.openPromptSidebar,
