@@ -11,6 +11,16 @@
     overflow: hidden;
 }
 
+.problem-text-editor-container.is-dragging {
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: ns-resize;
+}
+.problem-text-editor-container.is-dragging * {
+    pointer-events: none;
+}
+
+
 .editor-header {
     flex-shrink: 0;
     display: flex;
@@ -33,12 +43,10 @@
     gap: 8px;
 }
 
-/* [추가] 아이콘 스타일 */
 .action-icon {
     margin-right: 4px;
 }
 
-/* [추가] 파괴적인(destructive) 액션 버튼 스타일 */
 .editor-actions .action-button.destructive,
 .editor-actions .loading-button.destructive {
     background-color: transparent;
@@ -57,17 +65,49 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 24px;
     padding-right: 10px;
     scrollbar-gutter: stable;
 }
 
+/* [제거] 리사이저 컨테이너 불필요 */
+/* .resizable-editors-container { ... } */
+
+/* [수정] 에디터 섹션 스타일 */
 .editor-section {
     display: flex;
     flex-direction: column;
-    min-height: 250px; 
-    max-height: 45vh; 
+    /* [수정] flex 관련 속성 제거, height는 인라인 스타일로 제어 */
+    flex-shrink: 0; /* 스크롤 컨테이너 내에서 줄어들지 않도록 설정 */
 }
+
+.editor-resizer {
+    flex-shrink: 0;
+    height: 12px;
+    background-color: transparent;
+    cursor: ns-resize;
+    position: relative;
+    transition: background-color 0.2s;
+    margin: 6px 0;
+}
+
+.editor-resizer::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background-color: rgba(0, 0, 0, 0.1);
+    transform: translateY(-50%);
+    transition: background-color 0.2s, height 0.2s;
+}
+
+.editor-resizer:hover::before,
+.problem-text-editor-container.is-dragging .editor-resizer::before {
+    background-color: var(--accent-color);
+    height: 4px;
+}
+
 
 .editor-section-title {
     font-size: 0.9rem;
@@ -94,6 +134,8 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    margin: 24px 0;
+    flex-shrink: 0;
 }
 
 .metadata-field-group {

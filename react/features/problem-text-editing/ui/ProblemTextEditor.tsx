@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import type { Problem } from '../../../entities/problem/model/types';
 import Editor from '../../../shared/ui/codemirror-editor/Editor';
 import LoadingButton from '../../../shared/ui/loadingbutton/LoadingButton';
@@ -9,10 +9,11 @@ import Modal from '../../../shared/ui/modal/Modal';
 import { useDeleteProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
 import './ProblemTextEditor.css';
 
+// [수정] problem_type과 answer를 배열의 맨 앞으로 이동
 const EDITABLE_METADATA_FIELDS: (keyof Problem)[] = [
-    'question_number', 'source', 'grade', 'semester', 'major_chapter_id', 
-    'middle_chapter_id', 'core_concept_id', 'problem_category', 
-    'difficulty', 'score', 'answer', 'page', 'problem_type'
+    'problem_type', 'answer', 'question_number', 'source', 'grade', 'semester', 
+    'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'problem_category', 
+    'difficulty', 'score', 'page'
 ];
 
 type ProcessedProblem = Problem & { uniqueId: string; display_question_number: string; };
@@ -23,7 +24,6 @@ interface ProblemTextEditorProps {
     onSave: (updatedProblem: ProcessedProblem) => void;
     onRevert: (problemId: string) => void; 
     onClose: () => void;
-    // [수정] 실시간 업데이트를 위해 onProblemChange prop을 다시 추가합니다.
     onProblemChange: (updatedProblem: ProcessedProblem) => void;
 }
 
@@ -33,7 +33,6 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     onSave, 
     onRevert,
     onClose,
-    // [수정] prop을 다시 받습니다.
     onProblemChange,
 }) => {
     const [localQuestionText, setLocalQuestionText] = useState(problem.question_text ?? '');
@@ -44,16 +43,20 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     
     const { mutate: deleteProblem, isPending: isDeleting } = useDeleteProblemsMutation();
 
+    // [수정] 초기 높이를 300px로 변경
+    const [questionEditorHeight, setQuestionEditorHeight] = useState(300);
+    const [solutionEditorHeight, setSolutionEditorHeight] = useState(300);
+    const [draggingResizer, setDraggingResizer] = useState<'question' | 'solution' | null>(null);
+    const dragStartRef = useRef({ y: 0, initialHeight: 0 });
+
     useEffect(() => {
         setLocalQuestionText(problem.question_text ?? '');
         setLocalSolutionText(problem.solution_text ?? '');
         setLocalProblemData(problem);
     }, [problem]);
 
-    // [수정] 실시간 미리보기를 위해 debounce 처리된 useEffect를 다시 복원합니다.
     useEffect(() => {
         const handler = setTimeout(() => {
-            // 텍스트가 실제로 변경되었을 때만 상위로 전파
             if (problem.question_text !== localQuestionText || problem.solution_text !== localSolutionText) {
                 onProblemChange({ 
                     ...localProblemData, 
@@ -61,17 +64,61 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                     solution_text: localSolutionText
                 });
             }
-        }, 300); // 300ms 디바운스
+        }, 300);
 
         return () => {
             clearTimeout(handler);
         };
     }, [localQuestionText, localSolutionText, onProblemChange, problem, localProblemData]);
     
+    const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>, type: 'question' | 'solution') => {
+        e.preventDefault();
+        setDraggingResizer(type);
+        dragStartRef.current = {
+            y: e.clientY,
+            initialHeight: type === 'question' ? questionEditorHeight : solutionEditorHeight,
+        };
+    }, [questionEditorHeight, solutionEditorHeight]);
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!draggingResizer) return;
+
+        const deltaY = e.clientY - dragStartRef.current.y;
+        const newHeight = dragStartRef.current.initialHeight + deltaY;
+        const clampedHeight = Math.max(50, newHeight);
+
+        if (draggingResizer === 'question') {
+            setQuestionEditorHeight(clampedHeight);
+        } else if (draggingResizer === 'solution') {
+            setSolutionEditorHeight(clampedHeight);
+        }
+    }, [draggingResizer]);
+
+    const handleMouseUp = useCallback(() => {
+        setDraggingResizer(null);
+    }, []);
+
+    useEffect(() => {
+        if (draggingResizer) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'ns-resize';
+        } else {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+        };
+    }, [draggingResizer, handleMouseMove, handleMouseUp]);
+
     const handleMetadataChange = useCallback((field: keyof Problem, value: string | number) => {
         const updatedProblem = { ...localProblemData, [field]: value };
         setLocalProblemData(updatedProblem);
-        // 메타데이터 변경은 즉시 상위로 전파하여 미리보기(예: 헤더)에 반영
         onProblemChange(updatedProblem);
     }, [localProblemData, onProblemChange]);
 
@@ -105,7 +152,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
 
     return (
         <>
-            <div className="problem-text-editor-container">
+            <div className={`problem-text-editor-container ${draggingResizer ? 'is-dragging' : ''}`}>
                 <div className="editor-header">
                     <h4 className="editor-title">{problem.display_question_number}번 문제 수정</h4>
                     <div className="editor-actions">
@@ -141,7 +188,7 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                 </div>
                 
                 <div className="editor-body-wrapper">
-                    <div className="editor-section">
+                    <div className="editor-section" style={{ height: `${questionEditorHeight}px` }}>
                         <h5 className="editor-section-title">문제 본문</h5>
                         <div className="editor-wrapper-body">
                             <Editor 
@@ -150,14 +197,16 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                             />
                         </div>
                     </div>
-
-                    <ProblemMetadataEditor
-                        fields={EDITABLE_METADATA_FIELDS}
-                        problemData={localProblemData}
-                        onDataChange={handleMetadataChange}
+                    
+                    <div 
+                        className="editor-resizer" 
+                        onMouseDown={(e) => handleMouseDown(e, 'question')}
+                        aria-label="문제 본문 에디터 크기 조절"
+                        role="separator"
+                        tabIndex={0}
                     />
-
-                    <div className="editor-section">
+                    
+                    <div className="editor-section" style={{ height: `${solutionEditorHeight}px` }}>
                         <h5 className="editor-section-title">해설</h5>
                         <div className="editor-wrapper-body">
                             <Editor
@@ -166,6 +215,20 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
                             />
                         </div>
                     </div>
+
+                    <div 
+                        className="editor-resizer" 
+                        onMouseDown={(e) => handleMouseDown(e, 'solution')}
+                        aria-label="해설 에디터 크기 조절"
+                        role="separator"
+                        tabIndex={0}
+                    />
+
+                    <ProblemMetadataEditor
+                        fields={EDITABLE_METADATA_FIELDS}
+                        problemData={localProblemData}
+                        onDataChange={handleMetadataChange}
+                    />
                 </div>
             </div>
 
