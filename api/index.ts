@@ -38,15 +38,17 @@ app.use(supabaseMiddleware());
 
 app.route('/profiles', profileRoutes); 
 app.route('/manage/student', studentRoutes);
-app.route('/manage/teacher', teacherRoutes);         // [신규] 강사 라우트 등록
-app.route('/manage/permissions', permissionRoutes);     // [신규] 권한 라우트 등록
+app.route('/manage/teacher', teacherRoutes);
+app.route('/manage/permissions', permissionRoutes);
 app.route('/manage/problems', problemRoutes); 
 app.route('/r2', r2ImageRoutes);
-
-app.route('/exam', examRoutes);
 app.route('/academies', academyRoutes);
 
+// [수정 제안] exam 관련 라우트를 명확하게 분리하고 순서를 조정합니다.
+// /api/exam/mobile/* 경로를 처리하는 라우터를 먼저 등록합니다.
 app.route('/exam/mobile', mobileExamRoutes); 
+// 그 다음 /api/exam/* 경로를 처리하는 라우터를 등록합니다.
+app.route('/exam', examRoutes);
 
 app.get('/', (c) => c.text('Hono API is running!'));
 

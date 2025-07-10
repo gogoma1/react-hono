@@ -99,7 +99,8 @@
     "db:migrate:pg": "drizzle-kit migrate --config=drizzle.config.pg.ts",
     "db:generate:d1": "drizzle-kit generate --config=drizzle.config.d1.ts",
     "db:push:d1": "drizzle-kit push --config=drizzle.config.d1.ts",
-    "db:migrate:d1": "drizzle-kit migrate --config=drizzle.config.d1.ts"
+    "db:generate:log": "drizzle-kit generate --config=drizzle.config.log.d1.ts",
+    "db:push:log": "drizzle-kit push --config=drizzle.config.log.d1.ts"
   },
   "type": "module"
 }

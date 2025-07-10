@@ -41,7 +41,13 @@
       "database_name": "MY_D1_DB",
       "database_id": "3c392c9b-8ebb-426b-a04f-2c13988f3b57", // 실제 D1 데이터베이스 ID
       // "preview_database_id": "3c392c9b-8ebb-426b-a04f-2c13988f3b57" // 미리보기용 D1 데이터베이스 ID
-    }
+    },
+    
+    {
+      "binding": "D1_DATABASE_LOG",
+      "database_name": "MY_D1_DB_LOG",
+      "database_id": "9a1ace38-b0d7-4bc8-8954-154a49f13ff1"
+    },
   ],
   "vars" :{
     "SUPABASE_URL": "https://jxpwraonjgaetsoqgkxj.supabase.co",

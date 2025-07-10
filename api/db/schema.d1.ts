@@ -55,7 +55,7 @@ export const problemTable = sqliteTable("problem", {
 });
 
 /**
- * 문제집 정보 테이블 (Cloudflare D1)
+ * 문제집 정보 테이블 (Cloudflare D1) 문제들이 그룹핑 되는 상위 테이블
  */
 export const problemSetTable = sqliteTable("problem_set", {
     problem_set_id: text("problem_set_id").primaryKey(),

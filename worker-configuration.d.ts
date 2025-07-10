@@ -15,6 +15,7 @@ declare namespace Cloudflare {
         LOGS_R2_BUCKET: R2Bucket;
         R2_LOGS_URL: string;
         R2_LOGS_URL_PREVIEW: string;
+        D1_DATABASE_LOG: D1Database;
 	}
 }
 interface Env extends Cloudflare.Env {}

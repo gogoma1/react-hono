@@ -14,7 +14,6 @@ import { useProblemPublishingSelectionStore } from './problemPublishingSelection
 import { usePublishExamSetMutation } from '../../../entities/exam-set/model/useExamSetMutations';
 
 export function useProblemPublishingPage() {
-    // [추가] 검색창 표시 여부 상태를 페이지 레벨에서 관리
     const [isSearchBoxVisible, setIsSearchBoxVisible] = useState(true);
 
     const { allProblems, isLoadingProblems } = useProblemPublishing();
@@ -116,7 +115,6 @@ export function useProblemPublishingPage() {
         setRightSidebarExpanded(true);
     }, [setRightSidebarContent, setRightSidebarExpanded]);
 
-    // [수정] 검색창을 토글하는 함수를 페이지 레벨에서 정의
     const handleOpenSearchSidebar = useCallback(() => {
         setIsSearchBoxVisible(prev => !prev);
     }, []);
@@ -128,7 +126,7 @@ export function useProblemPublishingPage() {
         handleOpenPromptSidebar, 
         handleOpenSelectedStudentsSidebar,
         handleOpenJsonViewSidebar,
-        handleOpenSearchSidebar, // 등록
+        handleOpenSearchSidebar,
     });
     
     useEffect(() => { 
@@ -168,13 +166,36 @@ export function useProblemPublishingPage() {
         setIsMobilePublishModalOpen(false);
     }, []);
 
+    // ✨ --- 이 함수가 핵심 수정 부분입니다. --- ✨
     const handleConfirmMobilePublish = useCallback(() => {
-        const payload = {
+        // headerInfo 상태 객체에서 DB에 저장할 순수 데이터만 추출합니다.
+        const headerInfoForPayload = {
             title: headerInfo.title,
+            titleFontSize: headerInfo.titleFontSize,
+            titleFontFamily: headerInfo.titleFontFamily,
+            school: headerInfo.school,
+            schoolFontSize: headerInfo.schoolFontSize,
+            schoolFontFamily: headerInfo.schoolFontFamily,
+            subject: headerInfo.subject,
+            subjectFontSize: headerInfo.subjectFontSize,
+            subjectFontFamily: headerInfo.subjectFontFamily,
+            simplifiedSubjectText: headerInfo.simplifiedSubjectText,
+            simplifiedSubjectFontSize: headerInfo.simplifiedSubjectFontSize,
+            simplifiedSubjectFontFamily: headerInfo.simplifiedSubjectFontFamily,
+            simplifiedGradeText: headerInfo.simplifiedGradeText,
+            source: headerInfo.source,
+        };
+
+        // API로 보낼 최종 페이로드를 구성합니다.
+        const payload = {
+            title: headerInfo.title, // 최상위 title은 여전히 유지
             problem_ids: Array.from(selectedProblemIds),
             student_ids: selectedStudentIds,
-            header_info: headerInfo,
+            header_info: headerInfoForPayload, // 가공된 순수 데이터 객체를 전달
         };
+
+         // console.log로 확인해보세요!
+    console.log("🚀 Publishing Mobile Exam - Payload to be sent:", payload);
         
         publishExam(payload, {
             onSuccess: () => {
@@ -224,7 +245,6 @@ export function useProblemPublishingPage() {
         selectedStudentCount: selectedStudentIds.length,
         selectedProblemCount: selectedProblemIds.size,
 
-        // [추가] 검색창 상태와 토글 함수를 반환
         isSearchBoxVisible,
         toggleSearchBox: handleOpenSearchSidebar, 
     };

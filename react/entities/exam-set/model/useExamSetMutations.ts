@@ -21,10 +21,19 @@ export function usePublishExamSetMutation() {
             alert(data.message);
             queryClient.invalidateQueries({ queryKey: [MY_EXAM_SETS_QUERY_KEY] });
         },
-        onError: (error) => {
-            console.error('Exam set publication failed:', error);
+        // ✨ --- 여기가 핵심 수정 부분입니다 --- ✨
+        onError: (error: any) => { // error 타입을 any로 받아서 커스텀 프로퍼티에 접근합니다.
+            console.error('Exam set publication failed (raw error object):', error);
+            
+            // 백엔드에서 보낸 상세 디버깅 정보가 있다면 콘솔에 별도로 자세히 출력합니다.
+            if (error && error.details) {
+                console.error("🔥 DETAILED BACKEND ERROR:", error.details);
+            }
+
+            // 사용자에게 보여주는 alert은 간결하게 유지합니다.
             alert(`시험지 출제 실패: ${error.message}`);
         },
+        // ✨ --- 여기까지 수정 --- ✨
     });
 }
 

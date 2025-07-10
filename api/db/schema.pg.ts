@@ -88,7 +88,7 @@ export const academyMembersTable = pgTable("academy_members", {
   details_idx: sql`CREATE INDEX IF NOT EXISTS "details_gin_idx" ON "academy_members" USING GIN ("details")`,
 }));
 
-
+//선생님이 발행한 시험지 세트
 export const examSetsTable = pgTable("exam_sets", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   creator_id: uuid("creator_id").notNull().references(() => profilesTable.id, { onDelete: 'cascade' }),
@@ -103,8 +103,15 @@ export const examAssignmentsTable = pgTable("exam_assignments", {
   exam_set_id: uuid("exam_set_id").notNull().references(() => examSetsTable.id, { onDelete: 'cascade' }),
   student_member_id: uuid("student_member_id").notNull().references(() => academyMembersTable.id, { onDelete: 'cascade' }),
   status: examAssignmentStatusEnum("status").default('assigned').notNull(),
+  
+  // --- 요약 정보 컬럼 ---
   correct_rate: real("correct_rate"),
-  total_pure_time_seconds: integer("total_pure_time_seconds"),
+  total_pure_time_seconds: integer("total_pure_time_seconds"), //문제를 푸는 데 순수하게 소요된 시간 (초)
+  //총 시험 시간 제출시간에서 시작시간을 뺀 값
+  total_duration_seconds: integer("total_duration_seconds"),
+  //시험 전체에서 정답을 변경한 총 횟수
+  answer_change_total_count: integer("answer_change_total_count"),
+  
   assigned_at: timestamp("assigned_at", { mode: "date", withTimezone: true }).notNull().default(sql`now()`),
   started_at: timestamp("started_at", { mode: "date", withTimezone: true }),
   completed_at: timestamp("completed_at", { mode: "date", withTimezone: true }),
