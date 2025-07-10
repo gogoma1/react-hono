@@ -1,5 +1,3 @@
-// ./react/pages/MobileExamPage.tsx
-
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
@@ -13,10 +11,10 @@ import { useUIStore } from '../shared/store/uiStore';
 import { useMobileExamSessionStore } from '../features/mobile-exam-session/model/mobileExamSessionStore';
 import { useProblemsByIdsQuery } from '../entities/problem/model/useProblemsQuery';
 import type { ProcessedProblem } from '../features/problem-publishing';
+import { useExamSubmit } from '../features/mobile-exam-session/model/useExamSubmit'; // [추가] useExamSubmit 훅 임포트
 import './MobileExamPage.css';
 
 const MobileExamPage: React.FC = () => {
-    // --- 1. 스토어 및 라우터 훅 ---
     const { registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
     const { resetSession, initializeSession, isSessionActive } = useMobileExamSessionStore();
@@ -24,11 +22,18 @@ const MobileExamPage: React.FC = () => {
 
     const [selectedAssignment, setSelectedAssignment] = useState<ExamAssignmentWithSet | null>(null);
 
-    // --- 2. 모드 구분 ---
     const mode = searchParams.get('mode');
     const isTeacherPreviewMode = mode === 'teacher-preview';
+    
+    // [수정] 제출할 시험 ID를 상태에서 추출합니다.
+    const assignmentIdToSubmit = useMemo(() => {
+        if (isTeacherPreviewMode) return null;
+        return selectedAssignment?.id ?? null;
+    }, [isTeacherPreviewMode, selectedAssignment]);
 
-    // --- 3. 데이터 로딩 ---
+    // [추가] useExamSubmit 훅을 페이지 레벨에서 호출합니다.
+    const { submitExam, isSubmitting } = useExamSubmit(assignmentIdToSubmit);
+
     const { 
         data: assignmentsData, 
         isLoading: isLoadingAssignments, 
@@ -61,7 +66,6 @@ const MobileExamPage: React.FC = () => {
         error: problemsError
     } = useProblemsByIdsQuery(problemIds);
 
-    // --- 4. 데이터 가공 ---
     const orderedProblems = useMemo((): ProcessedProblem[] => {
         if (!problems) return [];
         return problems.map((p): ProcessedProblem => ({
@@ -71,7 +75,6 @@ const MobileExamPage: React.FC = () => {
         }));
     }, [problems]);
     
-    // --- 5. 세션 및 레이아웃 관리 useEffect ---
     useEffect(() => {
         resetSession();
         document.documentElement.classList.add('mobile-exam-layout-active');
@@ -94,7 +97,6 @@ const MobileExamPage: React.FC = () => {
         }
     }, [orderedProblems, isSessionActive, initializeSession, isTeacherPreviewMode]);
     
-    // --- 6. 사이드바 액션 등록 useEffect ---
     useEffect(() => {
         const handleOpenSettingsSidebar = () => {
             setRightSidebarContent({ type: 'settings' });
@@ -117,7 +119,6 @@ const MobileExamPage: React.FC = () => {
         };
     }, [registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar, setRightSidebarExpanded]);
 
-    // --- 7. 로딩 및 에러 처리 ---
     const isLoading = (!isTeacherPreviewMode && isLoadingAssignments) || isLoadingProblems;
     const isError = isAssignmentError || isProblemsError;
     const error = assignmentError || problemsError;
@@ -129,13 +130,17 @@ const MobileExamPage: React.FC = () => {
         return <div className="mobile-exam-page-status error"><h2>오류 발생</h2><p>시험지를 불러오는 데 실패했습니다.</p><pre>{error?.message}</pre></div>;
     }
     
-    // --- 8. 최종 렌더링 ---
     const renderExamView = () => {
         if (orderedProblems.length > 0 && isSessionActive) {
-            // [핵심 수정] isPreview prop 제거
             return (
                 <div className="mobile-exam-page">
-                    <MobileExamView problems={orderedProblems} />
+                    {/* [수정] isTeacherPreviewMode, onSubmitExam, isSubmitting props를 전달합니다. */}
+                    <MobileExamView
+                        problems={orderedProblems}
+                        isTeacherPreview={isTeacherPreviewMode}
+                        onSubmitExam={submitExam}
+                        isSubmitting={isSubmitting}
+                    />
                 </div>
             );
         }

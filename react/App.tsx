@@ -15,8 +15,8 @@ import JsonRendererPage from './pages/JsonRendererPage';
 import ProblemPublishingPage from './pages/ProblemPublishingPage'; 
 import MobileExamPage from './pages/MobileExamPage';
 import AccountSettingsModal from './features/account-settings/ui/AccountSettingsModal';
-// [신규] 생성할 페이지 컴포넌트 임포트
 import PublishedExamsPage from './pages/PublishedExamsPage';
+import ToastContainer from './widgets/toast-container/ToastContainer'; // [추가]
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +33,7 @@ function App() {
     return (
         <QueryClientProvider client={queryClient}>
             <AuthInitializer />
+            <ToastContainer /> {/* [추가] 최상단에 배치 */}
             {isLoadingAuth ? (
                 <div className="app-loading-container">
                     <h1>애플리케이션 로딩 중...</h1>
@@ -55,10 +56,8 @@ function App() {
                                 <Route path="/json-renderer" element={<JsonRendererPage />} /> 
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
                                 
-                                {/* 학생 및 선생님 체험용 공용 시험 페이지 */}
                                 <Route path="/mobile-exam" element={<MobileExamPage />} /> 
 
-                                {/* [신규] 선생님용 출제 목록 페이지 */}
                                 <Route path="/published-exams" element={<PublishedExamsPage />} />
                             </Route>
                         </Route>

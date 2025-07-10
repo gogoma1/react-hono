@@ -1,0 +1,100 @@
+/* ./react/shared/ui/toast/Toast.css */
+
+/* 전체 토스트 메시지들을 담는 컨테이너 */
+.toast-container {
+  position: fixed;
+  top: 65px; /* Navbar 높이(45px) + 여백(20px) */
+  right: 25px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 380px;
+  width: 90%;
+}
+
+/* 개별 토스트 아이템 */
+.toast-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: var(--main-content-border-radius, 18px);
+  color: var(--text-primary);
+  
+  /* Glassmorphism 스타일 적용 */
+  background: var(--sidebar-glass-bg);
+  backdrop-filter: var(--glass-blur-effect);
+  -webkit-backdrop-filter: var(--glass-blur-effect);
+  border: 1px solid rgba(var(--glass-base-bg-rgb), 0.2);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.03);
+
+  /* 애니메이션 설정 */
+  animation: slideInFromRight 0.4s cubic-bezier(0.215, 0.610, 0.355, 1.000) forwards;
+  transform: translateX(110%);
+}
+
+/* 사라질 때 애니메이션 */
+.toast-item.exit {
+  animation: slideOutToRight 0.4s cubic-bezier(0.600, 0.040, 0.980, 0.335) forwards;
+}
+
+@keyframes slideInFromRight {
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutToRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(110%);
+    opacity: 0;
+  }
+}
+
+/* 토스트 내부 아이콘 */
+.toast-icon {
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+/* 타입별 아이콘 색상 */
+.toast-item.success .toast-icon { color: #2ecc71; }
+.toast-item.error .toast-icon { color: #e74c3c; }
+.toast-item.info .toast-icon { color: #3498db; }
+.toast-item.warning .toast-icon { color: #f39c12; }
+
+/* 메시지 텍스트 */
+.toast-message {
+  flex-grow: 1;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* 닫기 버튼 */
+.toast-close-button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 12px;
+  opacity: 0.7;
+  transition: opacity 0.2s, background-color 0.2s;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-close-button:hover {
+  opacity: 1;
+  background-color: rgba(0,0,0,0.08);
+}

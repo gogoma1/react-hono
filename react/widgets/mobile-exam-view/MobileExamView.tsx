@@ -8,14 +8,20 @@ import { ProblemNavBar as MobileProblemNavBar } from '../../features/mobile-exam
 import type { MarkingStatus } from '../../features/omr-marking';
 import type { ProcessedProblem } from '../../features/problem-publishing';
 import { useMobileExamSync } from './useMobileExamSync';
+import LoadingButton from '../../shared/ui/loadingbutton/LoadingButton';
+import { useToast } from '../../shared/store/toastStore'; // [추가] useToast 훅 임포트
 import './MobileExamView.css';
 
 interface MobileExamViewProps {
     problems: ProcessedProblem[];
+    isTeacherPreview: boolean;
+    onSubmitExam: () => void;
+    isSubmitting: boolean;
 }
 
-const MobileExamView: React.FC<MobileExamViewProps> = ({ problems }) => {
-    const { orderedProblems, activeProblemId, skippedProblemIds, setActiveProblemId, skipProblem, completeExam, initializeSession } = useMobileExamSessionStore();
+const MobileExamView: React.FC<MobileExamViewProps> = ({ problems, isTeacherPreview, onSubmitExam, isSubmitting }) => {
+    const toast = useToast(); // [추가] 토스트 훅 사용
+    const { orderedProblems, activeProblemId, skippedProblemIds, setActiveProblemId, skipProblem } = useMobileExamSessionStore();
     const { answers, subjectiveAnswers, statuses, markAnswer, markSubjectiveAnswer, markStatus } = useMobileExamAnswerStore();
     const { baseFontSize, contentFontSizeEm, useSequentialNumbering } = useExamLayoutStore();
     const { finalizeProblemTime } = useMobileExamTimeStore();
@@ -25,7 +31,7 @@ const MobileExamView: React.FC<MobileExamViewProps> = ({ problems }) => {
     
     const isSessionInitialized = useRef(false);
     if (problems && problems.length > 0 && !isSessionInitialized.current) {
-        initializeSession(problems);
+        useMobileExamSessionStore.getState().initializeSession(problems);
         isSessionInitialized.current = true;
     }
 
@@ -40,7 +46,7 @@ const MobileExamView: React.FC<MobileExamViewProps> = ({ problems }) => {
         if (nextIndex < orderedProblems.length) {
             handleNavClick(orderedProblems[nextIndex].uniqueId);
         } else {
-            console.log("마지막 문제입니다.");
+            console.log("마지막 문제입니다. '시험지 제출하기' 버튼을 눌러주세요.");
         }
     }, [orderedProblems, handleNavClick]);
 
@@ -50,7 +56,6 @@ const MobileExamView: React.FC<MobileExamViewProps> = ({ problems }) => {
 
         if (status) {
             markStatus(problemId, status);
-            // [핵심 수정] finalizeProblemTime 호출 시 activeProblemId를 전달
             finalizeProblemTime(problemId, activeProblemId);
         } else {
             if (!statuses.has(problemId)) { 
@@ -59,8 +64,24 @@ const MobileExamView: React.FC<MobileExamViewProps> = ({ problems }) => {
         }
         
         moveToNextProblem(problemId);
-    }, [orderedProblems, statuses, markStatus, finalizeProblemTime, skipProblem, moveToNextProblem, activeProblemId]); // activeProblemId 의존성 추가
+    }, [orderedProblems, statuses, markStatus, finalizeProblemTime, skipProblem, moveToNextProblem, activeProblemId]);
 
+    const handleSubmitButtonClick = () => {
+        const firstUnsolvedProblem = orderedProblems.find(
+            p => !statuses.has(p.uniqueId)
+        );
+
+        if (firstUnsolvedProblem) {
+            // --- [핵심 수정] alert -> toast.warning 으로 교체 ---
+            toast.warning('아직 풀이하지 않은 문제가 있습니다.');
+            handleNavClick(firstUnsolvedProblem.uniqueId);
+        } else {
+            if (window.confirm('모든 문제를 풀었습니다. 시험지를 제출하시겠습니까?')) {
+                onSubmitExam();
+            }
+        }
+    };
+    
     if (orderedProblems.length === 0) {
         return <div className="mobile-exam-status"><h2>모바일 시험지</h2><p>시험 문제를 불러오는 중이거나, 출제된 문제가 없습니다.</p></div>;
     }
@@ -97,7 +118,19 @@ const MobileExamView: React.FC<MobileExamViewProps> = ({ problems }) => {
                         onMarkSubjectiveAnswer={markSubjectiveAnswer}
                     />
                 ))}
-                <button type="button" className="omr-button submit-exam-button" onClick={completeExam}>시험지 제출하기</button>
+                
+                {!isTeacherPreview && (
+                    <LoadingButton
+                        type="button"
+                        className="omr-button submit-exam-button"
+                        onClick={handleSubmitButtonClick}
+                        isLoading={isSubmitting}
+                        loadingText="제출 중..."
+                        disabled={isSubmitting}
+                    >
+                        시험지 제출하기
+                    </LoadingButton>
+                )}
             </div>
         </div>
     );

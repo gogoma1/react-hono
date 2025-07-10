@@ -2,7 +2,6 @@ import type { ProcessedProblem } from '../../problem-publishing';
 import type { MobileExamAnswerState } from '../model/mobileExamAnswerStore';
 import type { MobileExamTimeState } from '../model/mobileExamTimeStore';
 
-// 백엔드 스키마와 일치하는 타입 (나중에 공유 타입으로 분리 가능)
 interface ProblemResultPayload {
     problem_id: string;
     is_correct?: boolean;
@@ -42,22 +41,42 @@ export function analyzeExamResults(
     const problem_results: ProblemResultPayload[] = problems.map(problem => {
         let isCorrect: boolean | undefined = undefined;
         
-        // 채점 가능한 문제 유형만 필터링하여 정답 여부 계산
         if (problem.problem_type === '객관식' || problem.problem_type === 'OX') {
             scorableProblems.push(problem);
             const userAnswers = answers.get(problem.uniqueId);
 
-            // 정답 형식은 단순 문자열 또는 쉼표로 구분된 문자열일 수 있음
             const correctAnswers = new Set(problem.answer.split(',').map(a => a.trim()));
 
-            // 사용자 답안과 정답 비교 (Set을 사용하면 순서에 상관없이 비교 가능)
             if (userAnswers && userAnswers.size === correctAnswers.size) {
-                // 사용자가 선택한 모든 답이 정답 Set에 포함되어 있는지 확인
                 isCorrect = [...userAnswers].every(ans => correctAnswers.has(String(ans)));
             } else {
                 isCorrect = false;
             }
 
+            if (isCorrect) correctCount++;
+        } 
+        // --- [핵심 수정] 서답형 문제 자동 채점 로직 추가 ---
+        else if (problem.problem_type === '서답형') {
+            // 학생이 입력한 답과 문제의 정답을 가져옴 (앞뒤 공백 제거)
+            const userAnswerString = (subjectiveAnswers.get(problem.uniqueId) || '').trim();
+            const correctAnswerString = (problem.answer || '').trim();
+
+            // 두 값 모두 비어있지 않은 경우에만 채점 시도
+            if (userAnswerString && correctAnswerString) {
+                const userAnswerNumber = parseInt(userAnswerString, 10);
+                const correctAnswerNumber = parseInt(correctAnswerString, 10);
+                
+                // 두 값 모두 유효한 숫자인 경우에만 비교
+                if (!isNaN(userAnswerNumber) && !isNaN(correctAnswerNumber)) {
+                    isCorrect = userAnswerNumber === correctAnswerNumber;
+                } else {
+                    isCorrect = false; // 하나라도 숫자로 변환 실패 시 오답 처리
+                }
+            } else {
+                isCorrect = false; // 답을 입력하지 않았거나, 정답이 없는 경우 오답 처리
+            }
+
+            scorableProblems.push(problem); // 채점 가능 문제에 포함
             if (isCorrect) correctCount++;
         }
 
@@ -71,7 +90,7 @@ export function analyzeExamResults(
 
         return {
             problem_id: problem.problem_id,
-            is_correct: isCorrect,
+            is_correct: isCorrect, // 계산된 채점 결과가 반영됨
             time_taken_seconds: Math.round(problemTimes.get(problem.uniqueId) || 0),
             submitted_answer: submittedAnswer,
             meta_cognition_status: statuses.get(problem.uniqueId),
