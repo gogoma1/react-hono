@@ -13,7 +13,6 @@ export interface PublishExamSetResponse {
     assigned_count: number;
 }
 
-// [신규] 내가 출제한 시험지 목록 API의 응답 타입
 export interface MyPublishedExamSet {
     id: string;
     title: string;
@@ -22,7 +21,8 @@ export interface MyPublishedExamSet {
     assigned_student_count: number;
 }
 
-const API_BASE_URL = '/api/exam/mobile';
+// [수정] 백엔드 라우트 통합에 따라 기본 URL을 '/api/exams'로 변경합니다.
+const API_BASE_URL = '/api/exams';
 
 /**
  * 시험지 세트를 생성하고 학생들에게 할당하는 API
@@ -30,7 +30,8 @@ const API_BASE_URL = '/api/exam/mobile';
  * @returns 성공 메시지 및 생성된 시험지 세트 정보
  */
 export const publishExamSetAPI = async (payload: PublishExamSetPayload): Promise<PublishExamSetResponse> => {
-    const res = await fetch(`${API_BASE_URL}/sets`, {
+    // [수정] 경로를 '/sets'에서 '/assign'으로 변경합니다.
+    const res = await fetch(`${API_BASE_URL}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -40,10 +41,11 @@ export const publishExamSetAPI = async (payload: PublishExamSetPayload): Promise
 };
 
 /**
- * [신규] 내가 출제한 모바일 시험지 목록을 가져오는 API
+ * 내가 출제한 모바일 시험지 목록을 가져오는 API
  * @returns 내가 출제한 시험지 요약 정보 배열
  */
 export const fetchMyPublishedExamSetsAPI = async (): Promise<MyPublishedExamSet[]> => {
+    // [수정] 경로가 기본 URL 아래로 통합되었으므로, /sets/my만 남깁니다.
     const res = await fetch(`${API_BASE_URL}/sets/my`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },

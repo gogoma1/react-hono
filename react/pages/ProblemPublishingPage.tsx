@@ -12,7 +12,7 @@ const ProblemPublishingPage: React.FC = () => {
     const pageLogic = useProblemPublishingPage();
 
     // [추가 시작] Resizable 로직
-    const [selectionContainerHeight, setSelectionContainerHeight] = useState(300); // 초기 높이 300px
+    const [selectionContainerHeight, setSelectionContainerHeight] = useState(500); // 초기 높이 500px
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef({ y: 0, initialHeight: 0 });
 

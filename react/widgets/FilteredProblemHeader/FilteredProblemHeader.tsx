@@ -1,11 +1,8 @@
-// ----- ./react/widgets/FilteredProblemHeader/FilteredProblemHeader.tsx -----
-
-import React, { useMemo, ReactNode, useState, useCallback } from 'react';
+import React, { useMemo, ReactNode, useState, useCallback, useRef } from 'react'; // useRef 임포트 추가
 import type { ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 import Badge from '../../shared/ui/Badge/Badge';
 import GlassPopover from '../../shared/components/GlassPopover';
 import { PopoverCombobox } from '../../features/json-problem-importer/ui/EditPopoverContent';
-// [수정] ComboboxOption과 함께 PROBLEM_TYPES를 import 합니다.
 import type { ComboboxOption } from '../../entities/problem/model/types';
 import { PROBLEM_TYPES } from '../../entities/problem/model/types';
 import { LuChevronsUpDown, LuRotateCcw } from 'react-icons/lu';
@@ -25,7 +22,6 @@ interface FilteredProblemHeaderProps {
     onResetHeaderFilters: () => void;
 }
 
-// [핵심 수정] 하드코딩된 배열 대신, entities에서 가져온 PROBLEM_TYPES를 사용해 동적으로 옵션을 생성합니다.
 const TYPE_FILTER_OPTIONS: ComboboxOption[] = [
     { value: 'all', label: '전체 유형' },
     ...PROBLEM_TYPES.map(type => ({ value: type, label: type })),
@@ -46,15 +42,23 @@ const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
+    // [핵심 수정 1] 팝오버를 여는 트리거 버튼에 대한 ref를 생성합니다.
+    const filterTriggerRef = useRef<HTMLButtonElement | null>(null);
+
     const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorEl(event.currentTarget);
         setIsPopoverOpen(true);
     };
 
+    // [핵심 수정 2] 팝오버를 닫을 때, 이전에 저장된 ref로 포커스를 되돌립니다.
     const handleClosePopover = useCallback(() => {
         setIsPopoverOpen(false);
         setAnchorEl(null);
-    }, []);
+        // 상태 변경 후, 원래 버튼으로 포커스를 이동시킵니다.
+        setTimeout(() => {
+            filterTriggerRef.current?.focus();
+        }, 0);
+    }, []); // ref는 의존성 배열에 포함시킬 필요가 없습니다.
 
     const handleFilterSelect = useCallback((value: string) => {
         onProblemTypeFilterChange(value);
@@ -116,7 +120,13 @@ const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({
                 </div>
                 <div className="filter-controls">
                     <div className="filter-group problem-type-filter">
-                        <button type="button" className="filter-trigger-button filter-control-item" onClick={handleTriggerClick}>
+                        <button
+                            // [핵심 수정 3] ref를 버튼에 연결합니다.
+                            ref={filterTriggerRef}
+                            type="button"
+                            className="filter-trigger-button filter-control-item"
+                            onClick={handleTriggerClick}
+                        >
                             <span className={`trigger-text ${problemTypeFilter === 'all' ? 'placeholder' : ''}`}>
                                 {currentFilterLabel}
                             </span>
