@@ -1,5 +1,3 @@
-// ----- ./react/features/omr-marking/ui/mobileOmrMarkingCard.tsx -----
-
 import React from 'react';
 import './mobileOmrMarkingCard.css';
 import type { AnswerNumber } from '../index';
@@ -23,6 +21,11 @@ const statusLabels: Record<MarkingStatus, string> = {
     B: '고민하다 품',
     C: '모름',
     D: '고민 후 못 품'
+};
+
+// [추가] 숫자와 보기 기호를 매핑하는 객체
+const numberToSymbolMap: Record<number, string> = {
+    1: '①', 2: '②', 3: '③', 4: '④', 5: '⑤'
 };
 
 const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
@@ -57,21 +60,27 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
 
         const answerOptions = (problemType === 'OX'
             ? ['O', 'X'] as const
+            // [수정] 객관식은 숫자 배열을 유지합니다.
             : [1, 2, 3, 4, 5] as const);
 
         const buttonExtraClass = problemType === 'OX' ? 'ox-button' : '';
 
         return answerOptions.map(opt => {
-            const isActive = currentAnswers?.has(opt) ?? false;
+            // [수정] 숫자든 문자든, 상태 저장을 위한 최종 '값(value)'을 결정합니다.
+            const answerValue = typeof opt === 'number' ? numberToSymbolMap[opt] : opt;
+            const isActive = currentAnswers?.has(answerValue) ?? false;
+            
             return (
                 <button
                     key={opt}
                     type="button"
                     className={`omr-button number-button ${buttonExtraClass} ${isActive ? 'active' : ''}`}
-                    onClick={() => onMarkAnswer(problemId, opt)}
+                    // [수정] onMarkAnswer에 숫자(opt)가 아닌, 변환된 기호(answerValue)를 전달합니다.
+                    onClick={() => onMarkAnswer(problemId, answerValue)}
                     aria-pressed={isActive}
                     aria-label={`정답 ${opt} 선택`}
                 >
+                    {/* 화면에는 여전히 숫자 또는 O,X가 표시됩니다. */}
                     <span>{opt}</span>
                 </button>
             );
@@ -84,12 +93,9 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
 
     return (
         <div className="omr-marking-card">
-            {/* 1. 정답 입력 행: 문제 유형에 따라 동적으로 렌더링 */}
             <div className="omr-row answer-row">
                 {renderAnswerInput()}
             </div>
-
-            {/* 2. 상태 및 액션 버튼 행: 모든 문제 유형에 공통으로 표시 */}
             <div className="omr-row status-and-actions-row">
                 <div className="status-buttons-group">
                     {statusOptions.map(statusKey => (
@@ -106,7 +112,6 @@ const OmrMarkingCard: React.FC<OmrMarkingCardProps> = ({
                         </button>
                     ))}
                 </div>
-
                 <button
                     type="button"
                     className="omr-button next-button"

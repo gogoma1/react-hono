@@ -48,39 +48,38 @@ export function analyzeExamResults(
             const correctAnswers = new Set(problem.answer.split(',').map(a => a.trim()));
 
             if (userAnswers && userAnswers.size === correctAnswers.size) {
-                isCorrect = [...userAnswers].every(ans => correctAnswers.has(String(ans)));
+                // --- [핵심 수정] ---
+                // 이제 userAnswers의 각 요소(ans)는 '①', 'O' 같은 문자열이므로
+                // String()으로 변환할 필요 없이 직접 비교합니다.
+                isCorrect = [...userAnswers].every(ans => correctAnswers.has(ans));
             } else {
                 isCorrect = false;
             }
 
             if (isCorrect) correctCount++;
         } 
-        // --- [핵심 수정] 서답형 문제 자동 채점 로직 추가 ---
         else if (problem.problem_type === '서답형') {
-            // 학생이 입력한 답과 문제의 정답을 가져옴 (앞뒤 공백 제거)
             const userAnswerString = (subjectiveAnswers.get(problem.uniqueId) || '').trim();
             const correctAnswerString = (problem.answer || '').trim();
 
-            // 두 값 모두 비어있지 않은 경우에만 채점 시도
             if (userAnswerString && correctAnswerString) {
                 const userAnswerNumber = parseInt(userAnswerString, 10);
                 const correctAnswerNumber = parseInt(correctAnswerString, 10);
                 
-                // 두 값 모두 유효한 숫자인 경우에만 비교
                 if (!isNaN(userAnswerNumber) && !isNaN(correctAnswerNumber)) {
                     isCorrect = userAnswerNumber === correctAnswerNumber;
                 } else {
-                    isCorrect = false; // 하나라도 숫자로 변환 실패 시 오답 처리
+                    isCorrect = false;
                 }
             } else {
-                isCorrect = false; // 답을 입력하지 않았거나, 정답이 없는 경우 오답 처리
+                isCorrect = false;
             }
 
-            scorableProblems.push(problem); // 채점 가능 문제에 포함
+            scorableProblems.push(problem);
             if (isCorrect) correctCount++;
         }
 
-        let submittedAnswer: string | (string | number)[] | null = null;
+        let submittedAnswer: string | string[] | null = null; // [타입 수정]
         if (problem.problem_type === '서답형' || problem.problem_type === '논술형') {
             submittedAnswer = subjectiveAnswers.get(problem.uniqueId) || null;
         } else {
@@ -90,7 +89,7 @@ export function analyzeExamResults(
 
         return {
             problem_id: problem.problem_id,
-            is_correct: isCorrect, // 계산된 채점 결과가 반영됨
+            is_correct: isCorrect,
             time_taken_seconds: Math.round(problemTimes.get(problem.uniqueId) || 0),
             submitted_answer: submittedAnswer,
             meta_cognition_status: statuses.get(problem.uniqueId),
