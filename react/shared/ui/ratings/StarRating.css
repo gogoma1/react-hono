@@ -1,0 +1,40 @@
+/* ./react/shared/ui/ratings/StarRating.css */
+
+.star-rating {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.star-icons-wrapper {
+    position: relative;
+    line-height: 1;
+}
+.star-background-layer,
+.star-foreground-layer {
+    display: flex;
+    gap: 4px;
+}
+.star-foreground-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    overflow: hidden;
+}
+.star-foreground-inner {
+    display: flex;
+    gap: 4px;
+    width: fit-content;
+}
+.star-rating .star {
+    font-size: 1.5rem;
+    color: #e0e0e0;
+}
+.star-rating .star.star-filled {
+    color: #f1c40f;
+}
+.star-rating .score-text {
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--text-secondary);
+}

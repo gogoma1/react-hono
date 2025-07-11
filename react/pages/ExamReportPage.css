@@ -1,3 +1,5 @@
+/* ./pages/ExamReportPage.css */
+
 .exam-report-page {
     max-width: 900px;
     margin: 0 auto;
@@ -18,9 +20,13 @@
     text-align: center;
     margin-bottom: 32px;
     position: relative;
+    /* [수정] 버튼이 들어갈 공간을 확보합니다. */
+    padding-top: 40px; 
 }
+
 .report-header .back-button {
     position: absolute;
+    /* [수정] 버튼 위치를 조금 더 위로 조정합니다. */
     top: 0;
     left: 0;
     display: flex;

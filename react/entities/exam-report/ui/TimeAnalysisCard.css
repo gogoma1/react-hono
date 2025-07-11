@@ -1,0 +1,33 @@
+/* ./react/entities/exam-report/ui/TimeAnalysisCard.css */
+
+.custom-chart-tooltip {
+    background-color: rgba(44, 62, 80, 0.9);
+    border-radius: 6px;
+    padding: 12px;
+    color: white;
+    font-size: 0.9em;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.custom-chart-tooltip .tooltip-label {
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.custom-chart-tooltip .tooltip-intro {
+    margin: 0;
+}
+
+.custom-chart-tooltip .tooltip-desc {
+    margin: 4px 0 0;
+    font-weight: 500;
+}
+.custom-chart-tooltip .tooltip-desc.correct {
+    color: #2ecc71;
+}
+.custom-chart-tooltip .tooltip-desc.incorrect {
+    color: #e74c3c;
+}
+
