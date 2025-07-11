@@ -10,6 +10,7 @@
   /* --- 텍스트 색상 --- */
   --text-primary: #2c3e50;
   --text-secondary: #576574;
+  --text-tertiary: #95a5a6; /* [추가] 더 연한 텍스트용 */
   --text-placeholder: #a5b1c2;
   --text-on-accent: #ffffff;
   --text-disabled: #bdc3c7;
@@ -19,6 +20,15 @@
   --accent-color-rgb: 230, 126, 34;
   --accent-color-darker: #d35400;
 
+  /* --- [신규] 차트 및 시스템 색상 --- */
+  --system-color-success: #2ecc71;
+  --system-color-success-dark: #27ae60;
+  --system-color-danger: #e74c3c;
+  --system-color-danger-dark: #c0392b;
+  --system-color-warning: #f1c40f;
+  --system-color-info: #3498db;
+  --system-color-secondary: #95a5a6;
+
   /* --- Glassmorphism UI 공통 스타일 --- */
   --glass-base-bg: rgba(255, 253, 250, 0.8);
   --glass-base-bg-rgb: 255, 253, 250;
@@ -26,6 +36,11 @@
   --glass-bg-opacity-sidebar: 0.5;
   --glass-bg-opacity-mobile-sidebar: 0.90;
   --glass-blur-effect: blur(10px) saturate(150%);
+  --glass-card-bg-color: rgba(255, 255, 255, 0.4);
+  --glass-border-color: rgba(255, 255, 255, 0.6);
+  --glass-border-color-light: rgba(0, 0, 0, 0.1);
+  --glass-bg-solid: rgba(0, 0, 0, 0.03);
+  --glass-card-bg-hover: rgba(0, 0, 0, 0.05);
 
   /* Navbar, Sidebar Glass 배경 (공통 변수 사용) */
   --navbar-glass-bg: rgba(var(--glass-base-bg-rgb), var(--glass-bg-opacity-navbar));
@@ -73,7 +88,7 @@
   --mobile-overlay-blur: 2.5px;
 
   /* --- 기타 공통 UI --- */
-  --border-color-light: rgba(0, 0, 0, 0.1);
+  --border-color: rgba(0, 0, 0, 0.1);
 }
 
 html, body, #root {

@@ -1,3 +1,4 @@
+// File: api/db/schema.log.d1.ts
 import {
     integer,
     sqliteTable,

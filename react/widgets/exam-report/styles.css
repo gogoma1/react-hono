@@ -1,0 +1,51 @@
+/* 파일 경로는 이제 ./react/widgets/exam-report/styles.css 입니다. */
+.exam-report-problem-list-widget {
+    background: transparent;
+}
+.problem-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.problem-list-header h3 {
+    margin: 0;
+    font-size: 1.4em;
+    color: var(--text-primary);
+}
+.filter-buttons {
+    display: flex;
+    gap: 8px;
+    background-color: var(--glass-bg-solid);
+    padding: 4px;
+    border-radius: 8px;
+}
+.filter-buttons button {
+    padding: 6px 14px;
+    border: none;
+    background-color: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+.filter-buttons button.active {
+    background-color: var(--accent-color);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(var(--accent-color-rgb), 0.4);
+}
+
+.problem-list-ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.no-results-message {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    background-color: var(--glass-card-bg-color);
+    border: 1px dashed var(--glass-border-color);
+    border-radius: 12px;
+}

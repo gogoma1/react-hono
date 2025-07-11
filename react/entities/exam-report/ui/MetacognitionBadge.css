@@ -1,0 +1,14 @@
+/* ./react/entities/exam-report/ui/MetacognitionBadge.css */
+/* 메타인지 분석 결과에 따른 뱃지 스타일 */
+
+/* 알고 맞춤 */
+.badge.meta-success { background-color: #2ecc7133; color: #27ae60; border: 1px solid #2ecc7188; }
+/* 찍어서 맞춤 */
+.badge.meta-success-alt { background-color: #3498db33; color: #2980b9; border: 1px solid #3498db88; }
+/* 몰라서 틀림 */
+.badge.meta-info { background-color: #95a5a633; color: #7f8c8d; border: 1px solid #95a5a688; }
+/* 알고 틀림(실수) */
+.badge.meta-danger { background-color: #e74c3c33; color: #c0392b; border: 1px solid #e74c3c88; }
+/* 기타 예외 케이스 */
+.badge.meta-warning { background-color: #f1c40f33; color: #f39c12; border: 1px solid #f1c40f88; }
+.badge.meta-default { background-color: #bdc3c733; color: #95a5a6; border: 1px solid #bdc3c788; }

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router';
 
 import { AssignmentList } from '../widgets/mobile-exam-loader/ui/AssignmentList';
 import { useMyAssignmentsQuery } from '../entities/exam-assignment/model/useMyAssignmentQuery';
@@ -9,31 +9,31 @@ import MobileExamView from '../widgets/mobile-exam-view/MobileExamView';
 import { useLayoutStore, type RegisteredPageActions } from '../shared/store/layoutStore';
 import { useUIStore } from '../shared/store/uiStore';
 import { useMobileExamSessionStore } from '../features/mobile-exam-session/model/mobileExamSessionStore';
+import { useMobileExamAnswerStore } from '../features/mobile-exam-session/model/mobileExamAnswerStore';
+import { useMobileExamTimeStore } from '../features/mobile-exam-session/model/mobileExamTimeStore';
 import { useProblemsByIdsQuery } from '../entities/problem/model/useProblemsQuery';
 import type { ProcessedProblem } from '../features/problem-publishing';
-import { useExamSubmit } from '../features/mobile-exam-session/model/useExamSubmit'; // [추가] useExamSubmit 훅 임포트
+import { useExamSubmit } from '../features/mobile-exam-session/model/useExamSubmit';
+import { useMyProfileQuery } from '../entities/profile/model/useProfileQuery';
+import { analyzeAndBuildReport } from '../entities/exam-report/model/analyzer';
+import { useToast } from '../shared/store/toastStore';
 import './MobileExamPage.css';
 
 const MobileExamPage: React.FC = () => {
+    const navigate = useNavigate();
     const { registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
     const { setRightSidebarExpanded } = useUIStore.getState();
     const { resetSession, initializeSession, isSessionActive } = useMobileExamSessionStore();
     const [searchParams] = useSearchParams();
+    const toast = useToast();
 
     const [selectedAssignment, setSelectedAssignment] = useState<ExamAssignmentWithSet | null>(null);
 
     const mode = searchParams.get('mode');
     const isTeacherPreviewMode = mode === 'teacher-preview';
     
-    // [수정] 제출할 시험 ID를 상태에서 추출합니다.
-    const assignmentIdToSubmit = useMemo(() => {
-        if (isTeacherPreviewMode) return null;
-        return selectedAssignment?.id ?? null;
-    }, [isTeacherPreviewMode, selectedAssignment]);
-
-    // [추가] useExamSubmit 훅을 페이지 레벨에서 호출합니다.
-    const { submitExam, isSubmitting } = useExamSubmit(assignmentIdToSubmit);
-
+    const { data: myProfile, isLoading: isLoadingProfile } = useMyProfileQuery();
+    
     const { 
         data: assignmentsData, 
         isLoading: isLoadingAssignments, 
@@ -43,21 +43,11 @@ const MobileExamPage: React.FC = () => {
         enabled: !isTeacherPreviewMode,
     });
 
-    const teacherPreviewProblemIds = useMemo(() => {
-        if (!isTeacherPreviewMode) return undefined;
-        return searchParams.get('problemIds')?.split(',');
-    }, [isTeacherPreviewMode, searchParams]);
-
     const problemIds = useMemo(() => {
-        if (isTeacherPreviewMode) {
-            return teacherPreviewProblemIds;
-        }
-        if (selectedAssignment) {
-            return selectedAssignment.examSet.problem_ids;
-        }
+        if (isTeacherPreviewMode) return searchParams.get('problemIds')?.split(',');
+        if (selectedAssignment) return selectedAssignment.examSet.problem_ids;
         return undefined;
-    }, [isTeacherPreviewMode, teacherPreviewProblemIds, selectedAssignment]);
-
+    }, [isTeacherPreviewMode, searchParams, selectedAssignment]);
 
     const { 
         data: problems, 
@@ -74,6 +64,55 @@ const MobileExamPage: React.FC = () => {
             display_question_number: p.problem_type === '서답형' ? `서답형 ${p.question_number}` : String(p.question_number),
         }));
     }, [problems]);
+    
+    const { submitExam, isSubmitting } = useExamSubmit(
+        selectedAssignment, 
+        orderedProblems, 
+        myProfile || null
+    );
+
+    const handlePreviewSubmit = useCallback(() => {
+        toast.info("미리보기 모드에서는 결과가 저장되지 않습니다.");
+        
+        useMobileExamSessionStore.getState().completeExam(); 
+
+        const answerState = useMobileExamAnswerStore.getState();
+        const timeState = useMobileExamTimeStore.getState();
+
+        const mockAssignmentInfo: ExamAssignmentWithSet = {
+            id: 'teacher-preview-assignment',
+            examSet: {
+                id: searchParams.get('examSetId') || 'preview-set',
+                title: '시험지 미리보기',
+                problem_ids: problemIds || [],
+                creator_id: myProfile?.id || '',
+                header_info: null
+            },
+            student_member_id: '',
+            status: 'completed',
+            correct_rate: null,
+            total_pure_time_seconds: null,
+            total_duration_seconds: null,
+            answer_change_total_count: null,
+            assigned_at: new Date(),
+            started_at: timeState.examStartTime,
+            completed_at: timeState.examEndTime,
+        };
+        
+        const mockProfile = {
+            name: `${myProfile?.name || '선생님'} (미리보기)`,
+        };
+
+        const fullReport = analyzeAndBuildReport({
+            problems: orderedProblems,
+            answerState,
+            timeState,
+            assignmentInfo: mockAssignmentInfo,
+            studentProfile: mockProfile,
+        });
+
+        navigate(`/exam-report/preview`, { state: { reportData: fullReport } });
+    }, [orderedProblems, myProfile, problemIds, navigate, toast, searchParams]);
     
     useEffect(() => {
         resetSession();
@@ -92,20 +131,13 @@ const MobileExamPage: React.FC = () => {
 
     useEffect(() => {
         if (orderedProblems.length > 0 && !isSessionActive) {
-            console.log(`🚀 Initializing mobile exam session. Mode: ${isTeacherPreviewMode ? 'Teacher Preview' : 'Student'}`);
             initializeSession(orderedProblems);
         }
-    }, [orderedProblems, isSessionActive, initializeSession, isTeacherPreviewMode]);
+    }, [orderedProblems, isSessionActive, initializeSession]);
     
     useEffect(() => {
-        const handleOpenSettingsSidebar = () => {
-            setRightSidebarContent({ type: 'settings' });
-            setRightSidebarExpanded(true);
-        };
-        const handleCloseSidebar = () => {
-            closeRightSidebar();
-            setRightSidebarExpanded(false);
-        };
+        const handleOpenSettingsSidebar = () => setRightSidebarContent({ type: 'settings' });
+        const handleCloseSidebar = () => closeRightSidebar();
         
         const pageActions: Partial<RegisteredPageActions> = {
             openSettingsSidebar: handleOpenSettingsSidebar,
@@ -117,9 +149,9 @@ const MobileExamPage: React.FC = () => {
             unregisterPageActions(Object.keys(pageActions) as Array<keyof RegisteredPageActions>);
             handleCloseSidebar();
         };
-    }, [registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar, setRightSidebarExpanded]);
-
-    const isLoading = (!isTeacherPreviewMode && isLoadingAssignments) || isLoadingProblems;
+    }, [registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar]);
+    
+    const isLoading = (!isTeacherPreviewMode && (isLoadingAssignments || isLoadingProfile)) || isLoadingProblems;
     const isError = isAssignmentError || isProblemsError;
     const error = assignmentError || problemsError;
 
@@ -134,12 +166,11 @@ const MobileExamPage: React.FC = () => {
         if (orderedProblems.length > 0 && isSessionActive) {
             return (
                 <div className="mobile-exam-page">
-                    {/* [수정] isTeacherPreviewMode, onSubmitExam, isSubmitting props를 전달합니다. */}
                     <MobileExamView
                         problems={orderedProblems}
                         isTeacherPreview={isTeacherPreviewMode}
-                        onSubmitExam={submitExam}
-                        isSubmitting={isSubmitting}
+                        onSubmitExam={isTeacherPreviewMode ? handlePreviewSubmit : submitExam}
+                        isSubmitting={isTeacherPreviewMode ? false : isSubmitting}
                     />
                 </div>
             );
@@ -150,12 +181,12 @@ const MobileExamPage: React.FC = () => {
     if (isTeacherPreviewMode) {
         return renderExamView();
     }
-
+    
     if (assignmentsData) {
         if (assignmentsData.length > 1 && !selectedAssignment) {
             return <AssignmentList assignments={assignmentsData} onSelectAssignment={setSelectedAssignment} />;
         }
-        if (assignmentsData.length > 0) {
+        if (assignmentsData.length > 0 || selectedAssignment) {
             return renderExamView();
         }
     }

@@ -1,3 +1,4 @@
+// file: api/db/schema.pg.ts
 import {
   integer,
   real,

@@ -1,0 +1,1 @@
+CREATE INDEX `student_id_idx` ON `student_problem_results` (`student_id`);

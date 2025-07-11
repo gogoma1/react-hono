@@ -1,0 +1,131 @@
+/* ./react/entities/exam-report/ui/ReportProblemItem.css */
+
+.report-problem-item {
+    background-color: var(--glass-card-bg-color);
+    border: 1px solid var(--glass-border-color);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.report-problem-item.correct {
+    border-left: 4px solid var(--system-color-success);
+}
+
+.report-problem-item.incorrect {
+    border-left: 4px solid var(--system-color-danger);
+}
+
+.report-problem-item.not-scored {
+    border-left: 4px solid var(--system-color-secondary);
+}
+
+.problem-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.problem-number {
+    font-weight: 600;
+    font-size: 1.1em;
+    color: var(--text-primary);
+}
+.problem-number.correct { color: var(--system-color-success); }
+.problem-number.incorrect { color: var(--system-color-danger); }
+
+.problem-meta-tags {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.chapter-tag {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    background-color: var(--glass-bg-solid);
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.problem-item-body .mathpix-wrapper {
+    margin-bottom: 16px;
+}
+
+.problem-item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid var(--glass-border-color-light);
+    font-size: 0.9em;
+}
+
+.answer-comparison {
+    display: flex;
+    gap: 20px;
+}
+
+.answer-comparison .label {
+    color: var(--text-secondary);
+    margin-right: 6px;
+}
+
+.answer-comparison .user-answer {
+    font-weight: 600;
+    color: var(--accent-color);
+}
+.answer-comparison .correct-answer {
+    font-weight: 600;
+    color: var(--system-color-success-dark);
+}
+
+.time-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+}
+
+.solution-area {
+    margin-top: 16px;
+}
+
+.solution-toggle-button {
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    background-color: var(--glass-bg-solid);
+    border: 1px solid var(--glass-border-color-light);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s;
+}
+.solution-toggle-button:hover {
+    background-color: var(--glass-card-bg-hover);
+}
+
+.solution-toggle-button .chevron-icon {
+    transition: transform 0.2s ease-in-out;
+}
+.solution-toggle-button .chevron-icon.open {
+    transform: rotate(180deg);
+}
+
+.solution-content {
+    padding: 16px;
+    margin-top: 8px;
+    border-radius: 8px;
+    background-color: rgba(0,0,0,0.02);
+    border: 1px solid var(--glass-border-color-light);
+}

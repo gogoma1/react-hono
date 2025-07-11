@@ -1,0 +1,131 @@
+.exam-report-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px;
+    font-family: 'Pretendard', sans-serif;
+}
+
+.report-page-status {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-secondary);
+}
+.report-page-status.error h2 {
+    color: var(--system-color-danger);
+}
+
+.report-header {
+    text-align: center;
+    margin-bottom: 32px;
+    position: relative;
+}
+.report-header .back-button {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+.report-header .back-button:hover {
+    background-color: var(--glass-bg-solid);
+}
+
+.report-header h1 {
+    font-size: 2em;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+.report-header p {
+    font-size: 1.1em;
+    color: var(--text-secondary);
+    margin: 0;
+}
+.report-header .completion-date {
+    font-size: 0.9em;
+    color: var(--text-tertiary);
+    margin-top: 8px;
+    display: inline-block;
+}
+
+/* 그리드 레이아웃 */
+.report-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.grid-item {
+    min-width: 0;
+}
+.grid-item-span-2 {
+    grid-column: span 2 / span 2;
+}
+
+.report-card.full-width {
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+/* 요약 정보 그리드 */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.summary-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+}
+
+.summary-card .card-icon {
+    color: var(--accent-color);
+    flex-shrink: 0;
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    padding: 10px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.summary-card .card-text {
+    text-align: left;
+}
+
+.summary-card .card-value {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+.summary-card .card-label {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+.report-problem-list {
+    margin-top: 32px;
+}
+
+@media (max-width: 768px) {
+    .report-grid, .summary-grid {
+        grid-template-columns: 1fr;
+    }
+    .grid-item-span-2 {
+        grid-column: span 1 / span 1;
+    }
+}

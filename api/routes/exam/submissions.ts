@@ -4,7 +4,6 @@ import { zValidator } from '@hono/zod-validator';
 import postgres from 'postgres';
 import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
 import { drizzle as drizzleD1 } from 'drizzle-orm/d1';
-// [수정] inArray를 다시 import 합니다.
 import { eq, and, inArray } from 'drizzle-orm';
 
 import type { AppEnv } from '../../index';
@@ -43,6 +42,9 @@ submissionRoutes.post(
     const assignmentId = c.req.param('assignmentId');
     const body = c.req.valid('json');
     
+    console.log(`[SUBMIT_START] Assignment ID: ${assignmentId}, User ID: ${user.id}`);
+    console.log(`[SUBMIT_PAYLOAD] Body contains ${body.problem_results.length} problem results.`);
+
     const sql = postgres(c.env.HYPERDRIVE.connectionString);
     const dbPg = drizzlePg(sql, { schema: pgSchema });
     const dbLogD1 = drizzleD1(c.env.D1_DATABASE_LOG, { schema: logD1Schema });
@@ -52,11 +54,17 @@ submissionRoutes.post(
         with: { studentMember: { columns: { profile_id: true } } }
     });
     
-    if (!assignment || assignment.studentMember?.profile_id !== user.id) {
-        return c.json({ error: '유효하지 않은 시험이거나 제출 권한이 없습니다.' }, 404);
+    if (!assignment) {
+        console.warn(`[SUBMIT_FAIL] Assignment not found. ID: ${assignmentId}`);
+        return c.json({ error: '존재하지 않는 시험입니다.' }, 404);
+    }
+    if (assignment.studentMember?.profile_id !== user.id) {
+        console.warn(`[SUBMIT_FAIL] User mismatch. Requester: ${user.id}, Student in DB: ${assignment.studentMember?.profile_id}`);
+        return c.json({ error: '시험을 제출할 권한이 없습니다.' }, 403);
     }
     if (assignment.status === 'completed' || assignment.status === 'graded') {
-        return c.json({ error: '이미 제출이 완료된 시험입니다.' }, 409);
+        console.log(`[SUBMIT_INFO] Already completed. Status: ${assignment.status}. ID: ${assignmentId}`);
+        return c.json({ message: '이미 제출이 완료된 시험입니다.' }, 200); // 충돌이 아닌 정보성으로 200 OK를 반환할 수도 있습니다.
     }
 
     let pgUpdateSucceeded = false;
@@ -66,18 +74,24 @@ submissionRoutes.post(
         const summary = body.exam_summary;
         const totalDuration = Math.round((new Date(summary.exam_end_time).getTime() - new Date(summary.exam_start_time).getTime()) / 1000);
 
+        const pgUpdateData = {
+            status: 'completed' as const,
+            started_at: new Date(summary.exam_start_time),
+            completed_at: new Date(summary.exam_end_time),
+            total_pure_time_seconds: summary.total_pure_time_seconds,
+            correct_rate: summary.correct_rate,
+            total_duration_seconds: totalDuration,
+            answer_change_total_count: summary.answer_change_total_count,
+        };
+        
+        console.log(`[SUBMIT_PG_DATA] PG update data for ${assignmentId}:`, JSON.stringify(pgUpdateData));
         const pgPromise = dbPg.update(pgSchema.examAssignmentsTable)
-            .set({
-                status: 'completed',
-                started_at: new Date(summary.exam_start_time),
-                completed_at: new Date(summary.exam_end_time),
-                total_pure_time_seconds: summary.total_pure_time_seconds,
-                correct_rate: summary.correct_rate,
-                total_duration_seconds: totalDuration,
-                answer_change_total_count: summary.answer_change_total_count,
-            })
+            .set(pgUpdateData)
             .where(eq(pgSchema.examAssignmentsTable.id, assignmentId))
-            .then(() => { pgUpdateSucceeded = true; });
+            .then(() => { 
+                pgUpdateSucceeded = true;
+                console.log(`[SUBMIT_PG_SUCCESS] PG update successful for ${assignmentId}`);
+             });
 
         let d1Promise = Promise.resolve();
         if (body.problem_results.length > 0) {
@@ -85,43 +99,54 @@ submissionRoutes.post(
                 assignment_id: assignmentId,
                 problem_id: res.problem_id,
                 student_id: user.id,
-                is_correct: res.is_correct,
+                is_correct: res.is_correct ?? null,
                 time_taken_seconds: res.time_taken_seconds,
                 submitted_answer: res.submitted_answer != null ? String(res.submitted_answer) : null,
-                meta_cognition_status: res.meta_cognition_status,
+                meta_cognition_status: res.meta_cognition_status ?? null,
                 answer_change_count: res.answer_change_count,
             }));
             
-            d1Promise = dbLogD1.insert(logD1Schema.studentProblemResultsTable)
-                .values(logValues)
-                .onConflictDoNothing()
-                .then(() => { d1InsertSucceeded = true; });
+            console.log(`[SUBMIT_D1_DATA] Total ${logValues.length} records to insert into D1 for ${assignmentId}.`);
+            
+            d1Promise = (async () => {
+                const CHUNK_SIZE = 10;
+                for (let i = 0; i < logValues.length; i += CHUNK_SIZE) {
+                    const chunk = logValues.slice(i, i + CHUNK_SIZE);
+                    console.log(`[SUBMIT_D1_CHUNK] Inserting chunk ${Math.floor(i / CHUNK_SIZE) + 1} of ${Math.ceil(logValues.length / CHUNK_SIZE)}...`);
+                    await dbLogD1.insert(logD1Schema.studentProblemResultsTable)
+                        .values(chunk)
+                        .onConflictDoNothing();
+                }
+                d1InsertSucceeded = true; 
+                console.log(`[SUBMIT_D1_SUCCESS] All D1 chunks inserted for ${assignmentId}`);
+            })();
+
         } else {
+            console.log(`[SUBMIT_D1_INFO] No problem results to log in D1 for ${assignmentId}.`);
             d1InsertSucceeded = true;
         }
 
         await Promise.all([pgPromise, d1Promise]);
 
     } catch (error: any) {
-        console.error('시험 제출 중 분산 작업 오류 발생:', error.message);
+        console.error(`[SUBMIT_ERROR] Distributed transaction failed for ${assignmentId}.`, error);
+        console.error(`[SUBMIT_ERROR_DETAILS] Name: ${error.name}, Message: ${error.message}, Cause:`, JSON.stringify(error.cause, null, 2));
 
         if (pgUpdateSucceeded && !d1InsertSucceeded) {
-            console.warn(`[보상 트랜잭션] D1 삽입 실패. PG 업데이트를 롤백합니다. Assignment ID: ${assignmentId}`);
+            console.warn(`[SUBMIT_COMPENSATION] D1 insert failed. Rolling back PG update for ${assignmentId}.`);
             try {
                 await dbPg.update(pgSchema.examAssignmentsTable)
                     .set({ status: 'in_progress' }) 
                     .where(eq(pgSchema.examAssignmentsTable.id, assignmentId));
             } catch (rollbackError: any) {
-                console.error(`[CRITICAL] PG 롤백 실패! 데이터 불일치 발생. Assignment ID: ${assignmentId}`, rollbackError.message);
+                console.error(`[SUBMIT_CRITICAL] PG rollback FAILED! Data inconsistency for ${assignmentId}.`, rollbackError);
             }
         }
         
-        // [수정] 롤백 로직을 inArray를 사용하는 방식으로 개선합니다.
-        if (d1InsertSucceeded && !pgUpdateSucceeded && body.problem_results.length > 0) {
-            console.warn(`[보상 트랜잭션] PG 업데이트 실패. D1 삽입을 롤백합니다. Assignment ID: ${assignmentId}`);
+        if (d1InsertSucceeded && !pgUpdateSucceeded) {
+            console.warn(`[SUBMIT_COMPENSATION] PG update failed. Rolling back D1 insert for ${assignmentId}.`);
             try {
                 const problemIds = body.problem_results.map(p => p.problem_id);
-                // 단일 쿼리로 여러 행을 삭제하여 더 효율적입니다.
                 await dbLogD1.delete(logD1Schema.studentProblemResultsTable)
                     .where(
                         and(
@@ -130,15 +155,19 @@ submissionRoutes.post(
                         )
                     );
             } catch (rollbackError: any) {
-                 console.error(`[CRITICAL] D1 롤백 실패! 데이터 불일치 발생. Assignment ID: ${assignmentId}`, rollbackError.message);
+                 console.error(`[SUBMIT_CRITICAL] D1 rollback FAILED! Data inconsistency for ${assignmentId}.`, rollbackError);
             }
         }
 
-        return c.json({ error: '시험 제출 처리 중 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' }, 500);
+        return c.json({ 
+            error: '시험 제출 처리 중 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+            details: { name: error.name, message: error.message, cause: error.cause }
+        }, 500);
     } finally {
         c.executionCtx.waitUntil(sql.end());
     }
 
+    console.log(`[SUBMIT_SUCCESS] Successfully submitted assignment ${assignmentId}.`);
     return c.json({ message: '시험이 성공적으로 제출되었습니다.' }, 200);
   }
 );

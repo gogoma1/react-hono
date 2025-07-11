@@ -1,6 +1,4 @@
-find ./api ./react -type f -exec cat {} +
-find ./api -type f -exec cat {} +
-find ./react -type f -exec cat {} +
+
 
 git add .
 git commit -m "updated"
@@ -24,7 +22,7 @@ find  ./react \( -name "*.css" \) -type f -not -path "./react/pages/LoginPageWit
 
 find ./react \( -name "*.ts" -o -name "*.tsx" \) -type f -not -path "./react/shared/ui/codemirror-editor/*" -not -path "./react/features/kakaologin/*" -not -path "./react/features/latex-help/*" -not -path "./react/pages/LoginPageWithErrorDisplay.tsx" -not -path "./react/pages/LoginPage.tsx" -not -path "./react/widgets/json-problem-importer" -not -path "./react/features/prompt-collection" -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > files.md
 
-find ./react/entities ./react/features ./react/shared ./react/pages \( -name "*.ts" -o -name "*.tsx" \) -type f -not -path "./react/shared/ui/codemirror-editor/*" -not -path "./react/features/kakaologin/*" -not -path "./react/features/latex-help/*" -not -path "./react\pages\LoginPageWithErrorDisplay.tsx" -not -path "./react\widgets\json-problem-importer"  -not -path "./react\pages\LoginPage.tsx" -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > files2.md
+find ./react/entities ./react/features ./react/pages ./react/widgets \( -name "*.ts" -o -name "*.tsx" \) -type f -not -path "./react/shared/ui/codemirror-editor/*" -not -path "./react/features/kakaologin/*" -not -path "./react/features/latex-help/*" -not -path "./react/pages/LoginPageWithErrorDisplay.tsx" -not -path "./react/widgets/json-problem-importer"  -not -path "./react/pages/LoginPage.tsx" -not -path "./react/widgets/json-problem-importer" -not -path "./react/features/prompt-collection" -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > files2.md
 
 find ./react/App.tsx ./react/widgets \( -name "*.ts" -o -name "*.tsx" \) -type f -not -path "./react/shared/ui/codemirror-editor/*" -not -path "./react/features/kakaologin/*"  -not -path "./react/features/latex-help/*" -not -path "./react\pages\LoginPageWithErrorDisplay.tsx" -not -path "./react\widgets\json-problem-importer" -not -path "./react\pages\LoginPage.tsx" -exec echo "----- {} -----" \; -exec grep -v '^\s*//' {} \; > files3.md
 

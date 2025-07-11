@@ -16,7 +16,8 @@ import ProblemPublishingPage from './pages/ProblemPublishingPage';
 import MobileExamPage from './pages/MobileExamPage';
 import AccountSettingsModal from './features/account-settings/ui/AccountSettingsModal';
 import PublishedExamsPage from './pages/PublishedExamsPage';
-import ToastContainer from './widgets/toast-container/ToastContainer'; // [추가]
+import ToastContainer from './widgets/toast-container/ToastContainer'; 
+import ExamReportPage from './pages/ExamReportPage'; 
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,8 +58,11 @@ function App() {
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
                                 
                                 <Route path="/mobile-exam" element={<MobileExamPage />} /> 
+                                
 
                                 <Route path="/published-exams" element={<PublishedExamsPage />} />
+                                <Route path="/exam-report/:assignmentId" element={<ExamReportPage />} />
+                                
                             </Route>
                         </Route>
                         <Route path="*" element={<Navigate to="/" replace />} />
