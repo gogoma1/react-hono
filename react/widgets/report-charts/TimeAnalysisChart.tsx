@@ -1,3 +1,5 @@
+// ./react/widgets/report-charts/TimeAnalysisChart.tsx (수정 후)
+
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, DotProps } from 'recharts';
 import type { ReportAnalytics } from '../../entities/exam-report/model/types';
@@ -9,12 +11,9 @@ interface TimeAnalysisChartProps {
     averageTime: number | null;
 }
 
-// [수정] props에서 key를 명시적으로 분리합니다.
+// [수정 1] props에서 'key'를 제거합니다. key는 React가 사용하며 컴포넌트로 전달되지 않습니다.
 const CustomizedDot: React.FC<DotProps & { is_correct?: boolean | null }> = (props) => {
-    // 1. props 객체에서 `key`를 분리합니다.
-    // 2. 나머지 필요한 props(cx, cy, is_correct)도 분리합니다.
-    // 3. 사용하지 않는 나머지 props는 `...rest`로 받아서 무시합니다.
-    const { cx, cy, is_correct, key, ...rest } = props;
+    const { cx, cy, is_correct, ...rest } = props;
   
     if (is_correct === false) {
       return <circle cx={cx} cy={cy} r={5} stroke="#c0392b" strokeWidth={2} fill="#fff" />;
@@ -77,9 +76,11 @@ const TimeAnalysisChart: React.FC<TimeAnalysisChartProps> = ({ data, averageTime
                             dataKey="time_taken"
                             stroke="#2c3e50"
                             strokeWidth={2}
-                            // [수정] dot prop에 전달하는 함수는 그대로 둡니다.
-                            // CustomizedDot 컴포넌트 내부에서 key를 처리하므로 이 부분은 수정할 필요 없습니다.
-                            dot={(dotProps) => <CustomizedDot {...dotProps} is_correct={dotProps.payload.is_correct} />}
+                            // [수정 2] dotProps에서 key를 분리하고, JSX에 직접 key prop으로 전달합니다.
+                            dot={(dotProps) => {
+                                const { key, ...restProps } = dotProps;
+                                return <CustomizedDot key={key} {...restProps} is_correct={dotProps.payload.is_correct} />;
+                            }}
                             activeDot={{ r: 8, strokeWidth: 2 }}
                         />
                     </LineChart>
