@@ -55,8 +55,8 @@ export const allMenuItems: MenuItemData[] = [
         icon: <PublishedExamsIcon />,
     },
     {
-        path: '/json-renderer',
-        name: 'JSON 렌더러',
+        path: '/problem-sets/create',
+        name: '문제집 제작',
         icon: <JsonIcon />
     },
 ];

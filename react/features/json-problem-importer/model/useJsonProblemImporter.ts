@@ -1,7 +1,6 @@
-// ----- ./react/features/json-problem-importer/model/useJsonProblemImporter.ts -----
+// ./react/features/json-problem-importer/model/useJsonProblemImporter.ts
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-// [수정] ProblemType과 PROBLEM_TYPES를 import 합니다.
 import type { Problem, Column, ComboboxOption, ProblemType } from '../../../entities/problem/model/types';
 import { PROBLEM_TYPES } from '../../../entities/problem/model/types';
 import { useUploadProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
@@ -58,8 +57,13 @@ const columns: Column[] = [
     { key: 'solution_text', label: '해설', editType: 'textarea' },
 ];
 
+// --- [핵심 수정] 훅이 props를 받도록 인터페이스 정의 ---
+interface UseJsonProblemImporterProps {
+    isCreatingNew: boolean;
+    initialProblemSetName: string;
+}
 
-export function useJsonProblemImporter() {
+export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }: UseJsonProblemImporterProps) {
     const [jsonInput, setJsonInput] = useState(initialJsonInput);
     const [problems, setProblems] = useState<Problem[]>([]);
     const [parseError, setParseError] = useState<ParseErrorDetail | null>(null);
@@ -68,6 +72,8 @@ export function useJsonProblemImporter() {
     const [editingValue, setEditingValue] = useState<string | number | null | undefined>('');
     const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
 
+    // --- [핵심 수정] 상태를 훅 내부에서 관리 ---
+    const [problemSetName, setProblemSetName] = useState('');
     const [commonSource, setCommonSource] = useState('');
     const [commonGradeLevel, setCommonGradeLevel] = useState('');
     const [commonSemester, setCommonSemester] = useState('');
@@ -76,6 +82,11 @@ export function useJsonProblemImporter() {
     const isUploading = uploadMutation.isPending;
 
     const previousJsonInputRef = useRef('');
+
+    // --- [핵심 수정] isCreatingNew가 바뀌거나, 외부에서 전달된 이름이 바뀔 때 내부 상태 업데이트 ---
+    useEffect(() => {
+        setProblemSetName(initialProblemSetName);
+    }, [isCreatingNew, initialProblemSetName]);
 
     const getPosition = (offset: number) => {
         const lines = jsonInput.substring(0, offset).split('\n');
@@ -332,9 +343,6 @@ export function useJsonProblemImporter() {
 
     }, [problems, parseError, uploadMutation]);
     
-    /**
-     * [핵심 수정] 하드코딩된 배열 대신, entities에서 import한 PROBLEM_TYPES를 사용하여 옵션을 동적으로 생성합니다.
-     */
     const problemTypeOptions: ComboboxOption[] = PROBLEM_TYPES.map(t => ({ value: t, label: t }));
     const difficultyOptions: ComboboxOption[] = [ { value: '최상', label: '최상' }, { value: '상', label: '상' }, { value: '중', label: '중' }, { value: '하', label: '하' }, { value: '최하', label: '최하' } ];
     const answerOptions: ComboboxOption[] = [ { value: '①', label: '①' }, { value: '②', label: '②' }, { value: '③', label: '③' }, { value: '④', label: '④' }, { value: '⑤', label: '⑤' }, { value: '⑥', label: '⑥' } ];
@@ -349,6 +357,7 @@ export function useJsonProblemImporter() {
         editingValue, setEditingValue,
         popoverAnchor,
         handleInputKeyDown,
+        problemSetName, setProblemSetName, // 내부 상태 반환
         commonSource, setCommonSource,
         commonGradeLevel, setCommonGradeLevel,
         commonSemester, setCommonSemester,

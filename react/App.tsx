@@ -11,7 +11,8 @@ import StudentDetailPage from './pages/StudentDetailPage';
 import AuthInitializer from './shared/lib/AuthInitializer';
 import { useAuthStore, selectIsLoadingAuth } from './shared/store/authStore';
 import ProblemWorkbenchPage from './pages/ProblemWorkbenchPage';
-import JsonRendererPage from './pages/JsonRendererPage';
+// [수정] import 경로와 이름을 변경합니다.
+import ProblemSetCreationPage from './pages/ProblemSetCreationPage'; 
 import ProblemPublishingPage from './pages/ProblemPublishingPage'; 
 import MobileExamPage from './pages/MobileExamPage';
 import AccountSettingsModal from './features/account-settings/ui/AccountSettingsModal';
@@ -34,7 +35,7 @@ function App() {
     return (
         <QueryClientProvider client={queryClient}>
             <AuthInitializer />
-            <ToastContainer /> {/* [추가] 최상단에 배치 */}
+            <ToastContainer />
             {isLoadingAuth ? (
                 <div className="app-loading-container">
                     <h1>애플리케이션 로딩 중...</h1>
@@ -54,7 +55,10 @@ function App() {
                                 <Route path="/dashboard" element={<DashBoard />} />
                                 <Route path="/problem-workbench" element={<ProblemWorkbenchPage />} />
                                 <Route path="/problem-publishing" element={<ProblemPublishingPage />} />
-                                <Route path="/json-renderer" element={<JsonRendererPage />} /> 
+                                
+                                {/* [수정] 경로와 element를 새로운 컴포넌트로 변경합니다. */}
+                                <Route path="/problem-sets/create" element={<ProblemSetCreationPage />} /> 
+
                                 <Route path="/student/:id" element={<StudentDetailPage />} />
                                 
                                 <Route path="/mobile-exam" element={<MobileExamPage />} /> 

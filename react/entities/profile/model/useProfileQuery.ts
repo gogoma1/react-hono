@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { fetchMyProfileAPI, updateMyProfileAPI, deactivateAccountAPI, addRoleAPI, deleteRoleAPI, checkProfileExistsAPI } from '../api/profileApi';
 import type { MyProfile, UpdateProfilePayload, DbProfile, AddRolePayload } from './types';
 import { useAuthStore } from '../../../shared/store/authStore';
+import { useToast } from '../../../shared/store/toastStore';
 
 export const MY_PROFILE_QUERY_KEY = 'myProfile';
 export const PROFILE_EXISTS_QUERY_KEY = 'profileExists'; // [신규] 쿼리 키 정의
@@ -36,14 +37,16 @@ export function useMyProfileQuery() {
  */
 export function useAddRoleMutation() {
     const queryClient = useQueryClient();
+    const toast = useToast(); // [추가] 토스트 훅 사용
+
     return useMutation<DbProfile, Error, AddRolePayload>({
         mutationFn: addRoleAPI,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [MY_PROFILE_QUERY_KEY] });
-            alert('새로운 역할이 성공적으로 추가되었습니다.');
+            toast.success('새로운 역할이 성공적으로 추가되었습니다.');
         },
         onError: (error) => {
-            alert(`역할 추가 실패: ${error.message}`);
+            toast.error(`역할 추가 실패: ${error.message}`);
         }
     });
 }
@@ -53,14 +56,16 @@ export function useAddRoleMutation() {
  */
 export function useDeleteRoleMutation() {
     const queryClient = useQueryClient();
+    const toast = useToast();
+
     return useMutation<{ message: string }, Error, string>({
         mutationFn: deleteRoleAPI,
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: [MY_PROFILE_QUERY_KEY] });
-            alert(data.message);
+            toast.info(data.message);
         },
         onError: (error) => {
-            alert(`역할 삭제 실패: ${error.message}`);
+            toast.error(`역할 삭제 실패: ${error.message}`);
         }
     });
 }
@@ -71,14 +76,16 @@ export function useDeleteRoleMutation() {
  */
 export function useUpdateProfileMutation() {
     const queryClient = useQueryClient();
+    const toast = useToast();
+
     return useMutation<DbProfile, Error, UpdateProfilePayload>({
         mutationFn: updateMyProfileAPI,
         onSuccess: (_data) => {
             queryClient.invalidateQueries({ queryKey: [MY_PROFILE_QUERY_KEY] });
-            alert('프로필 정보가 성공적으로 업데이트되었습니다.');
+            toast.success('프로필 정보가 성공적으로 업데이트되었습니다.');
         },
         onError: (error) => {
-            alert(`프로필 업데이트 실패: ${error.message}`);
+            toast.error(`프로필 업데이트 실패: ${error.message}`);
         }
     });
 }
@@ -89,16 +96,17 @@ export function useUpdateProfileMutation() {
 export function useDeactivateAccountMutation() {
     const navigate = useNavigate();
     const signOut = useAuthStore((state) => state.signOut);
+    const toast = useToast();
 
     return useMutation<{ message: string }, Error, void>({
         mutationFn: deactivateAccountAPI,
         onSuccess: async () => {
-            alert('계정이 비활성화되었습니다. 이용해주셔서 감사합니다.');
+            toast.info('계정이 비활성화되었습니다. 이용해주셔서 감사합니다.');
             await signOut();
             navigate('/login', { replace: true });
         },
         onError: (error) => {
-            alert(`계정 비활성화 실패: ${error.message}`);
+            toast.error(`계정 비활성화 실패: ${error.message}`);
         }
     });
 }

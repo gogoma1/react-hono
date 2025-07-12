@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadProblemsAPI, updateProblemAPI, deleteProblemsAPI } from '../api/problemApi';
 import type { Problem } from './types';
 import { PROBLEMS_QUERY_KEY } from './useProblemsQuery';
+import { useToast } from '../../../shared/store/toastStore';
 
 import type { UploadResponse } from '../api/problemApi';
 
@@ -58,6 +59,8 @@ export function useUpdateProblemMutation() {
  */
 export function useDeleteProblemsMutation() {
     const queryClient = useQueryClient();
+    const toast = useToast(); 
+
     return useMutation<{ message: string, deleted_count: number }, Error, string[], ProblemMutationContext>({
         mutationFn: (problemIds) => deleteProblemsAPI(problemIds),
         
@@ -75,14 +78,14 @@ export function useDeleteProblemsMutation() {
             return { previousProblems };
         },
         onError: (err, _vars, context) => {
-            alert(`문제 삭제 실패: ${err.message}`);
+            toast.error(`문제 삭제 실패: ${err.message}`);
             if(context?.previousProblems) {
                 queryClient.setQueryData([PROBLEMS_QUERY_KEY], context.previousProblems);
             }
         },
         onSettled: (data) => {
             if (data?.message) {
-                alert(data.message);
+                toast.info(data.message);
             }
             queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
         },
@@ -94,6 +97,8 @@ export function useDeleteProblemsMutation() {
  */
 export function useUploadProblemsMutation() {
     const queryClient = useQueryClient();
+    const toast = useToast();
+
     return useMutation<UploadResponse, Error, Problem[]>({
         mutationFn: (problems) => uploadProblemsAPI(problems),
         onSuccess: (data) => {
@@ -105,11 +110,11 @@ export function useUploadProblemsMutation() {
             } else if (data.updated > 0) {
                 message = `${data.updated}개의 문제가 성공적으로 업데이트되었습니다.`;
             }
-            alert(message);
+            toast.success(message);
             queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
         },
         onError: (error) => {
-            alert(`문제 업로드 실패: ${error.message}`);
+            toast.error(`문제 업로드 실패: ${error.message}`);
             console.error('Upload failed:', error);
         },
     });

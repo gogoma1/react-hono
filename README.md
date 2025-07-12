@@ -4,6 +4,7 @@ react-hono
 ├─ api
 │  ├─ db
 │  │  ├─ schema.d1.ts
+│  │  ├─ schema.marketplace.d1.ts
 │  │  └─ schema.pg.ts
 │  ├─ index.ts
 │  ├─ manage
@@ -12,10 +13,13 @@ react-hono
 │     ├─ account
 │     │  └─ settings.ts
 │     ├─ exam
-│     │  └─ exam.mobile.ts
+│     │  ├─ assignments.ts
+│     │  ├─ index.ts
+│     │  └─ submissions.ts
 │     ├─ manage
 │     │  ├─ academies.ts
 │     │  ├─ permissions.ts
+│     │  ├─ problem-sets.ts
 │     │  ├─ problems.ts
 │     │  ├─ student.ts
 │     │  └─ teacher.ts
@@ -29,19 +33,38 @@ react-hono
 │        └─ image.ts
 ├─ drizzle
 │  ├─ 0000_mixed_doctor_strange.sql
+│  ├─ 0001_unique_raza.sql
+│  ├─ 0002_melodic_zeigeist.sql
 │  └─ meta
 │     ├─ 0000_snapshot.json
+│     ├─ 0001_snapshot.json
+│     ├─ 0002_snapshot.json
 │     └─ _journal.json
 ├─ drizzle.config.d1.ts
+├─ drizzle.config.marketplace.d1.ts
 ├─ drizzle.config.pg.ts
 ├─ drizzle_d1
 │  ├─ 0000_long_moon_knight.sql
 │  ├─ 0001_thin_blue_marvel.sql
 │  ├─ 0002_spooky_tenebrous.sql
+│  ├─ 0003_glorious_expediter.sql
 │  └─ meta
 │     ├─ 0000_snapshot.json
 │     ├─ 0001_snapshot.json
 │     ├─ 0002_snapshot.json
+│     ├─ 0003_snapshot.json
+│     └─ _journal.json
+├─ drizzle_d1_log
+│  ├─ 0000_daffy_thena.sql
+│  ├─ 0001_nostalgic_thaddeus_ross.sql
+│  └─ meta
+│     ├─ 0000_snapshot.json
+│     ├─ 0001_snapshot.json
+│     └─ _journal.json
+├─ drizzle_d1_marketplace
+│  ├─ 0000_next_abomination.sql
+│  └─ meta
+│     ├─ 0000_snapshot.json
 │     └─ _journal.json
 ├─ env-example.txt
 ├─ eslint.config.js
@@ -77,6 +100,24 @@ react-hono
 │  │  │  │  └─ examAssignmentApi.ts
 │  │  │  └─ model
 │  │  │     └─ useMyAssignmentQuery.ts
+│  │  ├─ exam-report
+│  │  │  ├─ api
+│  │  │  │  └─ examReportApi.ts
+│  │  │  ├─ model
+│  │  │  │  ├─ analyzer.ts
+│  │  │  │  ├─ types.ts
+│  │  │  │  └─ useExamReportQuery.ts
+│  │  │  └─ ui
+│  │  │     ├─ DifficultyAnalysisCard.css
+│  │  │     ├─ DifficultyAnalysisCard.tsx
+│  │  │     ├─ MetacognitionAnalysisCard.css
+│  │  │     ├─ MetacognitionAnalysisCard.tsx
+│  │  │     ├─ MetacognitionBadge.css
+│  │  │     ├─ MetacognitionBadge.tsx
+│  │  │     ├─ ReportProblemItem.css
+│  │  │     ├─ ReportProblemItem.tsx
+│  │  │     ├─ TimeAnalysisCard.css
+│  │  │     └─ TimeAnalysisCard.tsx
 │  │  ├─ exam-set
 │  │  │  ├─ api
 │  │  │  │  └─ examSetApi.ts
@@ -178,9 +219,12 @@ react-hono
 │  │  │  ├─ model
 │  │  │  │  ├─ mobileExamAnswerStore.ts
 │  │  │  │  ├─ mobileExamSessionStore.ts
-│  │  │  │  └─ mobileExamTimeStore.ts
-│  │  │  └─ ui
-│  │  │     └─ MboileProblemNavBar.tsx
+│  │  │  │  ├─ mobileExamTimeStore.ts
+│  │  │  │  └─ useExamSubmit.ts
+│  │  │  ├─ ui
+│  │  │  │  └─ MboileProblemNavBar.tsx
+│  │  │  └─ utils
+│  │  │     └─ examResultAnalyzer.ts
 │  │  ├─ omr-marking
 │  │  │  ├─ index.ts
 │  │  │  └─ ui
@@ -274,10 +318,10 @@ react-hono
 │  ├─ pages
 │  │  ├─ DashBoard.css
 │  │  ├─ DashBoard.tsx
+│  │  ├─ ExamReportPage.css
+│  │  ├─ ExamReportPage.tsx
 │  │  ├─ HomePage.css
 │  │  ├─ HomePage.tsx
-│  │  ├─ JsonRendererPage.css
-│  │  ├─ JsonRendererPage.tsx
 │  │  ├─ LoginPage.css
 │  │  ├─ LoginPage.tsx
 │  │  ├─ LoginPageWithErrorDisplay.css
@@ -287,6 +331,8 @@ react-hono
 │  │  ├─ PdfOptionsModal.css
 │  │  ├─ ProblemPublishingPage.css
 │  │  ├─ ProblemPublishingPage.tsx
+│  │  ├─ ProblemSetManagerPage.css
+│  │  ├─ ProblemSetManagerPage.tsx
 │  │  ├─ ProblemWorkbenchPage.css
 │  │  ├─ ProblemWorkbenchPage.tsx
 │  │  ├─ ProfileSetupPage.tsx
@@ -322,6 +368,7 @@ react-hono
 │  │  │  ├─ layoutStore.ts
 │  │  │  ├─ modalStore.ts
 │  │  │  ├─ problemSetStudentStore.ts
+│  │  │  ├─ toastStore.ts
 │  │  │  └─ uiStore.ts
 │  │  ├─ ui
 │  │  │  ├─ actionbutton
@@ -330,6 +377,13 @@ react-hono
 │  │  │  ├─ Badge
 │  │  │  │  ├─ Badge.css
 │  │  │  │  └─ Badge.tsx
+│  │  │  ├─ card
+│  │  │  │  ├─ Card.css
+│  │  │  │  └─ Card.tsx
+│  │  │  ├─ charts
+│  │  │  │  ├─ LineChart.tsx
+│  │  │  │  ├─ SimpleBarChart.css
+│  │  │  │  └─ SimpleBarChart.tsx
 │  │  │  ├─ codemirror-editor
 │  │  │  │  ├─ codemirror-setup
 │  │  │  │  │  ├─ auto-complete
@@ -372,11 +426,22 @@ react-hono
 │  │  │  │  └─ Modal.tsx
 │  │  │  ├─ popover-content
 │  │  │  │  └─ PopoverContent.css
-│  │  │  └─ TableCellCheckbox
-│  │  │     └─ TableCellCheckbox.tsx
+│  │  │  ├─ ratings
+│  │  │  │  ├─ StarRating.css
+│  │  │  │  └─ StarRating.tsx
+│  │  │  ├─ TableCellCheckbox
+│  │  │  │  └─ TableCellCheckbox.tsx
+│  │  │  └─ toast
+│  │  │     ├─ Toast.css
+│  │  │     └─ Toast.tsx
 │  │  └─ utils
 │  │     └─ problem.utils.ts
 │  └─ widgets
+│     ├─ exam-report
+│     │  ├─ index.ts
+│     │  ├─ styles.css
+│     │  └─ ui
+│     │     └─ ExamReportProblemListWidget.tsx
 │     ├─ ExamPreviewWidget.css
 │     ├─ ExamPreviewWidget.tsx
 │     ├─ FilteredProblemHeader
@@ -414,7 +479,10 @@ react-hono
 │     ├─ student-table
 │     │  ├─ StudentTableWidget.css
 │     │  └─ StudentTableWidget.tsx
+│     ├─ toast-container
+│     │  └─ ToastContainer.tsx
 │     └─ UserDetailsButton.tsx
+├─ touch
 ├─ tsconfig.app.json
 ├─ tsconfig.json
 ├─ tsconfig.node.json
