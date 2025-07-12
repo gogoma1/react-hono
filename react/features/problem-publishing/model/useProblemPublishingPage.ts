@@ -8,7 +8,8 @@ import { useExamPreviewManager } from '../hooks/useExamPreviewManager';
 import { usePublishingPageSetup } from '../hooks/usePublishingPageSetup';
 import { usePdfGenerator, type PdfExportOptions } from '../hooks/usePdfGenerator';
 import { useLayoutStore } from '../../../shared/store/layoutStore';
-import { useUIStore } from '../../../shared/store/uiStore';
+// [핵심 수정] useUIStore 임포트 제거
+// import { useUIStore } from '../../../shared/store/uiStore';
 import { useProblemSetStudentStore } from '../../../shared/store/problemSetStudentStore';
 import { useProblemPublishingSelectionStore } from './problemPublishingSelectionStore';
 import { usePublishExamSetMutation } from '../../../entities/exam-set/model/useExamSetMutations';
@@ -54,27 +55,28 @@ export function useProblemPublishingPage() {
     
     const setRightSidebarContent = useLayoutStore(state => state.setRightSidebarContent);
     const closeRightSidebar = useLayoutStore(state => state.closeRightSidebar);
-    const setRightSidebarExpanded = useUIStore(state => state.setRightSidebarExpanded);
+    // [핵심 수정] setRightSidebarExpanded 선언 제거
+    // const setRightSidebarExpanded = useUIStore(state => state.setRightSidebarExpanded);
 
     const handleCloseSidebar = useCallback(() => {
         closeRightSidebar();
-        setRightSidebarExpanded(false);
-    }, [closeRightSidebar, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(false) 호출 제거
+    }, [closeRightSidebar]);
 
     const handleOpenLatexHelpSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'latexHelp' });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
 
     const handleOpenSettingsSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'settings' });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
     
     const handleOpenSelectedStudentsSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'selectedStudents' });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
 
     const jsonStringToCombine = useMemo(() => {
         const problemsToConvert = selectedProblems.length > 0 ? selectedProblems : allProblems.slice(0, 1);
@@ -100,8 +102,8 @@ export function useProblemPublishingPage() {
             type: 'prompt', 
             props: { workbenchContent: jsonStringToCombineRef.current }
         });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
     
     const handleOpenJsonViewSidebar = useCallback(() => {
         if (selectedProblemsRef.current.length === 0) {
@@ -112,8 +114,8 @@ export function useProblemPublishingPage() {
             type: 'jsonViewer',
             props: { problems: selectedProblemsRef.current }
         }, true);
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
 
     const handleOpenSearchSidebar = useCallback(() => {
         setIsSearchBoxVisible(prev => !prev);
@@ -166,9 +168,7 @@ export function useProblemPublishingPage() {
         setIsMobilePublishModalOpen(false);
     }, []);
 
-    // ✨ --- 이 함수가 핵심 수정 부분입니다. --- ✨
     const handleConfirmMobilePublish = useCallback(() => {
-        // headerInfo 상태 객체에서 DB에 저장할 순수 데이터만 추출합니다.
         const headerInfoForPayload = {
             title: headerInfo.title,
             titleFontSize: headerInfo.titleFontSize,
@@ -186,17 +186,13 @@ export function useProblemPublishingPage() {
             source: headerInfo.source,
         };
 
-        // API로 보낼 최종 페이로드를 구성합니다.
         const payload = {
-            title: headerInfo.title, // 최상위 title은 여전히 유지
+            title: headerInfo.title,
             problem_ids: Array.from(selectedProblemIds),
             student_ids: selectedStudentIds,
-            header_info: headerInfoForPayload, // 가공된 순수 데이터 객체를 전달
+            header_info: headerInfoForPayload,
         };
 
-         // console.log로 확인해보세요!
-    console.log("🚀 Publishing Mobile Exam - Payload to be sent:", payload);
-        
         publishExam(payload, {
             onSuccess: () => {
                 clearStudents();

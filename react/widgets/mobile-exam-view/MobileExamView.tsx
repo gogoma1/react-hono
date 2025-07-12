@@ -9,7 +9,7 @@ import type { MarkingStatus } from '../../features/omr-marking';
 import type { ProcessedProblem } from '../../features/problem-publishing';
 import { useMobileExamSync } from './useMobileExamSync';
 import LoadingButton from '../../shared/ui/loadingbutton/LoadingButton';
-import { useToast } from '../../shared/store/toastStore'; // [추가] useToast 훅 임포트
+import { useToast } from '../../shared/store/toastStore'; 
 import './MobileExamView.css';
 
 interface MobileExamViewProps {

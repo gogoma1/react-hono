@@ -2,31 +2,29 @@ import React, { useCallback, useEffect } from 'react';
 import JsonProblemImporterWidget from '../widgets/json-problem-importer/JsonProblemImporterWidget';
 import './JsonRendererPage.css';
 import { useLayoutStore, type RegisteredPageActions } from '../shared/store/layoutStore';
-import { useUIStore } from '../shared/store/uiStore';
+// [핵심 수정] useUIStore 임포트 제거
+// import { useUIStore } from '../shared/store/uiStore';
 
 const JsonRendererPage: React.FC = () => {
-    // 스토어에서 액션 함수들을 가져옵니다.
     const { registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
-    const { setRightSidebarExpanded } = useUIStore();
+    // [핵심 수정] setRightSidebarExpanded 선언 제거
+    // const { setRightSidebarExpanded } = useUIStore();
 
-    // 이 페이지에서 필요한 사이드바 액션 핸들러들을 정의합니다.
     const handleOpenPromptSidebar = useCallback(() => {
-        // 이 페이지는 workbenchContent가 없으므로 props를 전달하지 않습니다.
         setRightSidebarContent({ type: 'prompt' });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
 
     const handleOpenSettingsSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'settings' });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
 
     const handleCloseSidebar = useCallback(() => {
         closeRightSidebar();
-        setRightSidebarExpanded(false);
-    }, [closeRightSidebar, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(false) 호출 제거
+    }, [closeRightSidebar]);
 
-    // 페이지가 마운트/언마운트 될 때 액션을 등록/해제합니다.
     useEffect(() => {
         const pageActionsToRegister: Partial<RegisteredPageActions> = {
             openPromptSidebar: handleOpenPromptSidebar,

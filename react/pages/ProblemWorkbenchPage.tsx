@@ -3,7 +3,8 @@ import { useImageUploadManager } from '../features/image-upload/model/useImageUp
 import ImageManager from '../features/image-upload/ui/ImageManager';
 import './ProblemWorkbenchPage.css';
 import { useLayoutStore, type RegisteredPageActions } from '../shared/store/layoutStore';
-import { useUIStore } from '../shared/store/uiStore';
+// [핵심 수정] useUIStore 임포트 제거
+// import { useUIStore } from '../shared/store/uiStore';
 import { LuCopy, LuCopyCheck, LuFilePlus } from 'react-icons/lu';
 import Tippy from '@tippyjs/react';
 import CodeEditorPanel from '../shared/components/workbench/CodeEditorPanel';
@@ -12,14 +13,14 @@ import PreviewPanel from '../shared/components/workbench/PreviewPanel';
 const LOCAL_STORAGE_KEY_PROBLEM_WORKBENCH = 'problem-workbench-draft';
 
 const ProblemWorkbenchPage: React.FC = () => {
-    // [수정] 새로운 액션 함수들을 가져옵니다.
     const { 
         registerPageActions,
         unregisterPageActions,
         setRightSidebarContent, 
         closeRightSidebar 
     } = useLayoutStore.getState();
-    const { setRightSidebarExpanded } = useUIStore.getState();
+    // [핵심 수정] setRightSidebarExpanded 선언 제거
+    // const { setRightSidebarExpanded } = useUIStore.getState();
 
     const initialContent = useMemo(() => `# Mathpix Markdown 에디터에 오신 것을 환영합니다! 👋
 
@@ -78,31 +79,29 @@ const ProblemWorkbenchPage: React.FC = () => {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [markdownContent, initialContent]);
 
-    // [수정] 핸들러 함수들이 새로운 액션을 사용하도록 변경합니다.
     const handleOpenSettingsSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'settings' });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
 
     const handleOpenPromptSidebar = useCallback(() => {
         setRightSidebarContent({ 
             type: 'prompt',
             props: { workbenchContent: markdownContent } 
         });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded, markdownContent]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent, markdownContent]);
 
     const handleOpenLatexHelpSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'latexHelp' });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
 
     const handleCloseSidebar = useCallback(() => {
         closeRightSidebar();
-        setRightSidebarExpanded(false);
-    }, [closeRightSidebar, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(false) 호출 제거
+    }, [closeRightSidebar]);
 
-    // [수정] useEffect 로직을 새로운 액션 등록/해제 방식으로 변경
     useEffect(() => {
         const pageActionsToRegister: Partial<RegisteredPageActions> = {
             openSettingsSidebar: handleOpenSettingsSidebar,

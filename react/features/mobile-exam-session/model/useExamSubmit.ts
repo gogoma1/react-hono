@@ -83,14 +83,13 @@ export function useExamSubmit(
             studentProfile,
         });
 
-        // [수정] analyzer가 생성한 summary 객체에서 직접 값을 가져와 사용
         const payload: SubmitPayload = {
             exam_summary: {
                 exam_start_time: timeState.examStartTime!.toISOString(),
                 exam_end_time: timeState.examEndTime!.toISOString(),
                 total_pure_time_seconds: fullReport.summary.total_pure_time_seconds || 0,
                 correct_rate: fullReport.summary.correct_rate || 0,
-                answer_change_total_count: fullReport.summary.answer_change_total_count, // analyzer에서 계산된 값 사용
+                answer_change_total_count: fullReport.summary.answer_change_total_count,
             },
             problem_results: fullReport.problem_results.map(r => {
                 const finalSubmittedAnswer = Array.isArray(r.submitted_answer)
@@ -109,6 +108,9 @@ export function useExamSubmit(
         };
         
         mutate({ assignmentId: assignmentInfo.id, payload });
+
+        // [핵심 수정] 제출 후 상태 리셋 및 페이지 이동
+        useMobileExamSessionStore.getState().resetSession();
         navigate(`/exam-report/${assignmentInfo.id}`, { state: { reportData: fullReport } });
 
     }, [assignmentInfo, problems, studentProfile, mutate, navigate, toast]);

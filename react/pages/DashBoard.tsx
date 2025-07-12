@@ -5,8 +5,8 @@ import './DashBoard.css';
 import { LuSchool, LuChevronDown } from 'react-icons/lu';
 import GlassPopover from '../shared/components/GlassPopover';
 import { useLayoutStore, type RegisteredPageActions } from '../shared/store/layoutStore';
-import { useUIStore } from '../shared/store/uiStore';
-import type { Student } from '../entities/student/model/types';
+// [핵심 수정] useUIStore 임포트 제거 (직접 사용하지 않음)
+// import { useUIStore } from '../shared/store/uiStore';
 
 const DashBoard: React.FC = () => {
     const {
@@ -25,7 +25,8 @@ const DashBoard: React.FC = () => {
     } = useStudentDashboard();
 
     const { registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
-    const { setRightSidebarExpanded } = useUIStore.getState();
+    // [핵심 수정] setRightSidebarExpanded 상태 직접 제어 로직 제거
+    // const { setRightSidebarExpanded } = useUIStore.getState();
     
     const [isAcademyPopoverOpen, setIsAcademyPopoverOpen] = useState(false);
     const academySelectorRef = useRef<HTMLButtonElement>(null);
@@ -34,25 +35,25 @@ const DashBoard: React.FC = () => {
     
     const handleCloseSidebar = useCallback(() => {
         closeRightSidebar();
-        setRightSidebarExpanded(false);
-    }, [closeRightSidebar, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(false) 호출 제거
+    }, [closeRightSidebar]);
     
     const handleOpenRegisterSidebar = useCallback(() => {
         if (!selectedAcademyId) return alert("학생을 등록할 학원을 먼저 선택해주세요.");
         setRightSidebarContent({ type: 'register', academyId: selectedAcademyId });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded, selectedAcademyId]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent, selectedAcademyId]);
 
     const handleOpenTeacherRegisterSidebar = useCallback(() => {
         if (!selectedAcademyId) return alert("강사를 등록할 학원을 먼저 선택해주세요.");
         setRightSidebarContent({ type: 'teacherRegister', academyId: selectedAcademyId });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded, selectedAcademyId]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent, selectedAcademyId]);
     
     const handleOpenSettingsSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'settings' });
-        setRightSidebarExpanded(true);
-    }, [setRightSidebarContent, setRightSidebarExpanded]);
+        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
 
     useEffect(() => {
         const pageActionsToRegister: Partial<RegisteredPageActions> = {
@@ -87,7 +88,7 @@ const DashBoard: React.FC = () => {
         <div className="dashboard-container">
             <StudentTableWidget 
                 key={selectedAcademyId} 
-                className="dashboard-widget" // [핵심] 클래스명 전달
+                className="dashboard-widget"
                 students={students} 
                 isLoading={isLoading}
                 onRequestEdit={onRequestEdit}

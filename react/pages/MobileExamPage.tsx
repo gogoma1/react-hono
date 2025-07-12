@@ -7,10 +7,11 @@ import type { ExamAssignmentWithSet } from '../entities/exam-assignment/api/exam
 
 import MobileExamView from '../widgets/mobile-exam-view/MobileExamView';
 import { useLayoutStore, type RegisteredPageActions } from '../shared/store/layoutStore';
-import { useUIStore } from '../shared/store/uiStore';
+// [핵심 수정] useUIStore 임포트 제거
+// import { useUIStore } from '../shared/store/uiStore';
 import { useMobileExamSessionStore } from '../features/mobile-exam-session/model/mobileExamSessionStore';
-import { useMobileExamAnswerStore } from '../features/mobile-exam-session/model/mobileExamAnswerStore';
 import { useMobileExamTimeStore } from '../features/mobile-exam-session/model/mobileExamTimeStore';
+import { useMobileExamAnswerStore } from '../features/mobile-exam-session/model/mobileExamAnswerStore';
 import { useProblemsByIdsQuery } from '../entities/problem/model/useProblemsQuery';
 import type { ProcessedProblem } from '../features/problem-publishing';
 import { useExamSubmit } from '../features/mobile-exam-session/model/useExamSubmit';
@@ -19,13 +20,34 @@ import { analyzeAndBuildReport } from '../entities/exam-report/model/analyzer';
 import { useToast } from '../shared/store/toastStore';
 import './MobileExamPage.css';
 
+const useHasHydrated = () => {
+    const [hydrated, setHydrated] = useState(useMobileExamTimeStore.persist.hasHydrated);
+  
+    useEffect(() => {
+      const unsubFinishHydration = useMobileExamTimeStore.persist.onFinishHydration(() => {
+        setHydrated(true);
+      });
+      
+      setHydrated(useMobileExamTimeStore.persist.hasHydrated());
+  
+      return () => {
+        unsubFinishHydration();
+      };
+    }, []);
+  
+    return hydrated;
+};
+
+
 const MobileExamPage: React.FC = () => {
     const navigate = useNavigate();
     const { registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
-    const { setRightSidebarExpanded } = useUIStore.getState();
-    const { resetSession, initializeSession, isSessionActive } = useMobileExamSessionStore();
+    // [핵심 수정] setRightSidebarExpanded 선언 제거
+    // const { setRightSidebarExpanded } = useUIStore.getState();
+    const { resetSession, initializeSession, resumeSession, isSessionActive } = useMobileExamSessionStore();
     const [searchParams] = useSearchParams();
     const toast = useToast();
+    const hasHydrated = useHasHydrated();
 
     const [selectedAssignment, setSelectedAssignment] = useState<ExamAssignmentWithSet | null>(null);
 
@@ -110,12 +132,12 @@ const MobileExamPage: React.FC = () => {
             assignmentInfo: mockAssignmentInfo,
             studentProfile: mockProfile,
         });
-
+        
+        useMobileExamSessionStore.getState().resetSession();
         navigate(`/exam-report/preview`, { state: { reportData: fullReport } });
     }, [orderedProblems, myProfile, problemIds, navigate, toast, searchParams]);
     
     useEffect(() => {
-        resetSession();
         document.documentElement.classList.add('mobile-exam-layout-active');
         return () => {
             resetSession();
@@ -130,10 +152,21 @@ const MobileExamPage: React.FC = () => {
     }, [assignmentsData]);
 
     useEffect(() => {
-        if (orderedProblems.length > 0 && !isSessionActive) {
+        if (!hasHydrated || orderedProblems.length === 0 || isSessionActive) {
+            return;
+        }
+
+        const existingStartTime = useMobileExamTimeStore.getState().examStartTime;
+
+        if (existingStartTime && !isTeacherPreviewMode) {
+            console.log("저장된 세션 데이터를 발견했습니다. 세션을 복원합니다.", { startTime: existingStartTime });
+            resumeSession(orderedProblems);
+        } else {
+            console.log("저장된 세션이 없거나 미리보기 모드입니다. 새 세션을 시작합니다.");
             initializeSession(orderedProblems);
         }
-    }, [orderedProblems, isSessionActive, initializeSession]);
+
+    }, [orderedProblems, isSessionActive, initializeSession, resumeSession, hasHydrated, isTeacherPreviewMode]);
     
     useEffect(() => {
         const handleOpenSettingsSidebar = () => setRightSidebarContent({ type: 'settings' });
@@ -151,7 +184,7 @@ const MobileExamPage: React.FC = () => {
         };
     }, [registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar]);
     
-    const isLoading = (!isTeacherPreviewMode && (isLoadingAssignments || isLoadingProfile)) || isLoadingProblems;
+    const isLoading = (!isTeacherPreviewMode && (isLoadingAssignments || isLoadingProfile)) || isLoadingProblems || !hasHydrated;
     const isError = isAssignmentError || isProblemsError;
     const error = assignmentError || problemsError;
 
