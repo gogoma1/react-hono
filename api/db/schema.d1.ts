@@ -1,5 +1,4 @@
-// ./api/db/schema.d1.ts 전문
-
+// file: api/db/schema.d1.ts
 import {
     integer,
     real,
@@ -10,19 +9,14 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { sql, relations } from "drizzle-orm";
 
+// --- Enum Definitions ---
 
-/**
- * 문제 유형(problem_type)에 대한 Enum 정의
- * 허용된 문제 유형 목록을 미리 정의하여 데이터의 일관성을 보장합니다.
- * 'OX' 유형을 추가합니다.
- */
-export const problemTypeEnum = [
-    "객관식",
-    "서답형",
-    "논술형",
-    "OX",
-] as const;
+export const problemTypeEnum = ["객관식", "서답형", "논술형", "OX"] as const;
+export const problemSetTypeEnum = ["PUBLIC_ADMIN", "PRIVATE_USER"] as const;
+export const problemSetStatusEnum = ["published", "private", "deleted"] as const; // 소프트 삭제를 위한 'deleted' 상태 추가
+export const copyrightTypeEnum = ["ORIGINAL_CREATION", "COPYRIGHTED_MATERIAL"] as const;
 
+// --- Table Definitions ---
 
 /**
  * 문제 원본 데이터 테이블 (Cloudflare D1)
@@ -33,12 +27,7 @@ export const problemTable = sqliteTable("problem", {
     page: integer("page"),
     question_number: real("question_number"),
     answer: text("answer"),
-    
-    /**
-     * problem_type 컬럼을 enum 타입으로 변경합니다.
-     */
     problem_type: text("problem_type", { enum: problemTypeEnum }),
-
     grade: text("grade"),
     semester: text("semester"),
     creator_id: text("creator_id").notNull(),
@@ -55,17 +44,22 @@ export const problemTable = sqliteTable("problem", {
 });
 
 /**
- * 문제집 정보 테이블 (Cloudflare D1) 문제들이 그룹핑 되는 상위 테이블
+ * 문제집 정보 테이블 (Cloudflare D1)
  */
 export const problemSetTable = sqliteTable("problem_set", {
     problem_set_id: text("problem_set_id").primaryKey(),
     name: text("name").notNull(),
+    creator_id: text("creator_id").notNull(), // PG의 profile.id 참조
+    type: text("type", { enum: problemSetTypeEnum }).notNull().default("PRIVATE_USER"),
+    status: text("status", { enum: problemSetStatusEnum }).notNull().default("private"),
+    copyright_type: text("copyright_type", { enum: copyrightTypeEnum }).notNull().default("ORIGINAL_CREATION"),
+    copyright_source: text("copyright_source"),
+    description: text("description"),
+    cover_image: text("cover_image"),
+    published_year: integer("published_year"),
     grade: text("grade"),
     semester: text("semester"),
     avg_difficulty: text("avg_difficulty"),
-    cover_image: text("cover_image"),
-    description: text("description"),
-    published_year: integer("published_year"),
     created_at: text("created_at").default(sql`(strftime('%Y-%m-%d %H:%M:%f', 'now'))`),
     updated_at: text("updated_at").default(sql`(strftime('%Y-%m-%d %H:%M:%f', 'now'))`),
 });
@@ -74,8 +68,8 @@ export const problemSetTable = sqliteTable("problem_set", {
  * 문제-문제집 연결 테이블 (Cloudflare D1)
  */
 export const problemSetProblemsTable = sqliteTable("problem_set_problems", {
-    problem_set_id: text("problem_set_id").notNull(),
-    problem_id: text("problem_id").notNull(),
+    problem_set_id: text("problem_set_id").notNull().references(() => problemSetTable.problem_set_id, { onDelete: 'cascade' }),
+    problem_id: text("problem_id").notNull().references(() => problemTable.problem_id, { onDelete: 'cascade' }),
     order: integer("order").notNull(),
 }, (table) => ({
     pk: primaryKey({ columns: [table.problem_set_id, table.problem_id] }),
@@ -121,8 +115,8 @@ export const tagTable = sqliteTable("tag", {
  * 문제와 태그의 다대다 관계를 위한 연결 테이블 (Cloudflare D1)
  */
 export const problemTagTable = sqliteTable("problem_tag", {
-    problem_id: text("problem_id").notNull(),
-    tag_id: text("tag_id").notNull(),
+    problem_id: text("problem_id").notNull().references(() => problemTable.problem_id, { onDelete: 'cascade' }),
+    tag_id: text("tag_id").notNull().references(() => tagTable.tag_id, { onDelete: 'cascade' }),
 }, (table) => ({
     pk: primaryKey({ columns: [table.problem_id, table.tag_id] }),
 }));
@@ -131,9 +125,9 @@ export const problemTagTable = sqliteTable("problem_tag", {
 // --- Relations ---
 
 export const problemRelations = relations(problemTable, ({ one, many }) => ({
-    majorChapter: one(majorChaptersTable, { fields: [problemTable.major_chapter_id], references: [majorChaptersTable.id], }),
-    middleChapter: one(middleChaptersTable, { fields: [problemTable.middle_chapter_id], references: [middleChaptersTable.id], }),
-    coreConcept: one(coreConceptsTable, { fields: [problemTable.core_concept_id], references: [coreConceptsTable.id], }),
+    majorChapter: one(majorChaptersTable, { fields: [problemTable.major_chapter_id], references: [majorChaptersTable.id] }),
+    middleChapter: one(middleChaptersTable, { fields: [problemTable.middle_chapter_id], references: [middleChaptersTable.id] }),
+    coreConcept: one(coreConceptsTable, { fields: [problemTable.core_concept_id], references: [coreConceptsTable.id] }),
     problemTags: many(problemTagTable),
     problemSetProblems: many(problemSetProblemsTable),
 }));
@@ -144,10 +138,21 @@ export const problemSetRelations = relations(problemSetTable, ({ many }) => ({
 
 export const problemSetProblemsRelations = relations(problemSetProblemsTable, ({ one }) => ({
     problemSet: one(problemSetTable, { fields: [problemSetProblemsTable.problem_set_id], references: [problemSetTable.problem_set_id] }),
-    problem: one(problemTable, { 
-        fields: [problemSetProblemsTable.problem_id], 
-        references: [problemTable.problem_id]
-    }),
+    problem: one(problemTable, { fields: [problemSetProblemsTable.problem_id], references: [problemTable.problem_id] }),
+}));
+
+export const majorChaptersRelations = relations(majorChaptersTable, ({ many }) => ({
+    middleChapters: many(middleChaptersTable),
+    problems: many(problemTable),
+}));
+
+export const middleChaptersRelations = relations(middleChaptersTable, ({ one, many }) => ({
+    majorChapter: one(majorChaptersTable, { fields: [middleChaptersTable.major_chapter_id], references: [majorChaptersTable.id] }),
+    problems: many(problemTable),
+}));
+
+export const coreConceptsRelations = relations(coreConceptsTable, ({ many }) => ({
+    problems: many(problemTable),
 }));
 
 export const tagRelations = relations(tagTable, ({ many }) => ({
@@ -155,23 +160,16 @@ export const tagRelations = relations(tagTable, ({ many }) => ({
 }));
 
 export const problemTagRelations = relations(problemTagTable, ({ one }) => ({
-    problem: one(problemTable, { 
-        fields: [problemTagTable.problem_id], 
-        references: [problemTable.problem_id]
-    }),
-    tag: one(tagTable, { 
-        fields: [problemTagTable.tag_id], 
-        references: [tagTable.tag_id] 
-    }),
+    problem: one(problemTable, { fields: [problemTagTable.problem_id], references: [problemTable.problem_id] }),
+    tag: one(tagTable, { fields: [problemTagTable.tag_id], references: [tagTable.tag_id] }),
 }));
 
 
-// --- Types ---
+// --- Type Exports ---
 
 export type DbProblem = typeof problemTable.$inferSelect;
 export type DbProblemSet = typeof problemSetTable.$inferSelect;
-// [오류 수정] $inferselect -> $inferSelect
-export type DbProblemSetProblems = typeof problemSetProblemsTable.$inferSelect; 
+export type DbProblemSetProblems = typeof problemSetProblemsTable.$inferSelect;
 export type DbMajorChapter = typeof majorChaptersTable.$inferSelect;
 export type DbMiddleChapter = typeof middleChaptersTable.$inferSelect;
 export type DbCoreConcept = typeof coreConceptsTable.$inferSelect;

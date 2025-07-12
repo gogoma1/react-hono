@@ -33,6 +33,7 @@ find ./react/App.tsx ./react/widgets \( -name "*.ts" -o -name "*.tsx" \) -type f
 npx wrangler d1 execute D1_DATABASE --remote --file ./drizzle_d1/0000_long
 
 npx wrangler d1 execute D1_DATABASE_LOG --remote --file ./drizzle_d1_log/0000_daffy_thena.sql
+npx wrangler d1 execute D1_DATABASE_MARKET --remote --file ./
 [오류출력]
 
 find ./react \( -name "*.ts" -o -name "*.tsx" \) -type f -not -path "./react/shared/ui/codemirror-editor/*" -not -path "./react/features/kakaologin/*" -not -path "./react/features/latex-help/*" -exec npx eslint --quiet

@@ -22,6 +22,13 @@
       "when": 1751866655012,
       "tag": "0002_spooky_tenebrous",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1752299749827,
+      "tag": "0003_glorious_expediter",
+      "breakpoints": true
     }
   ]
 }

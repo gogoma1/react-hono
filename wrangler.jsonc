@@ -48,6 +48,11 @@
       "database_name": "MY_D1_DB_LOG",
       "database_id": "9a1ace38-b0d7-4bc8-8954-154a49f13ff1"
     },
+    {
+      "binding": "D1_DATABASE_MARKET",
+      "database_name": "MY_d1_DB_MARKET",
+      "database_id": "b0edad9d-208e-4be1-8ab5-2e7c6de8feca"
+    },
   ],
   "vars" :{
     "SUPABASE_URL": "https://jxpwraonjgaetsoqgkxj.supabase.co",
