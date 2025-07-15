@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import JsonProblemImporterWidget from '../widgets/json-problem-importer/JsonProblemImporterWidget';
 import { ProblemSetSaveModal } from '../entities/problem-set/ui/ProblemSetSaveModal';
@@ -11,11 +11,14 @@ import type { ProblemSetFinalPayload, CreateEntitlementPayload } from '../entiti
 import { useToast } from '../shared/store/toastStore';
 import MyLibrary from '../entities/problem-set/ui/MyLibrary';
 import './ProblemSetCreationPage.css';
+import type { OnUploadPayload } from '../features/json-problem-importer/model/useJsonProblemImporter';
 
+// [수정] 백엔드에 보낼 최종 페이로드 타입에 'grade' 추가
 interface UploadProblemsAndCreateSetPayload {
     problemSetName: string;
     description: string | null;
     problems: Problem[];
+    grade: string | null;
     type: "PUBLIC_ADMIN" | "PRIVATE_USER";
     status: "published" | "private" | "deleted";
     copyright_type: "ORIGINAL_CREATION" | "COPYRIGHTED_MATERIAL";
@@ -32,35 +35,39 @@ const ProblemSetCreationPage: React.FC = () => {
     
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     
-    const [stagedProblems, setStagedProblems] = useState<Problem[]>([]);
-    const [stagedProblemSetName, setStagedProblemSetName] = useState('');
-    const [stagedDescription, setStagedDescription] = useState<string | null>(null);
+    // [수정] 스테이징할 데이터를 OnUploadPayload 타입의 단일 객체로 관리
+    const [stagedUploadData, setStagedUploadData] = useState<OnUploadPayload | null>(null);
 
     const isProcessing = isProcessingD1 || isProcessingPg;
 
-    const handleStageForSave = useCallback((problems: Problem[], problemSetName: string, description: string | null) => {
-        if (!problemSetName.trim()) {
+    // [수정] 위젯에서 받은 payload 객체를 그대로 상태에 저장
+    const handleStageForSave = useCallback((payload: OnUploadPayload) => {
+        if (!payload.problemSetName.trim()) {
             toast.error('새로운 문제집의 이름을 먼저 입력해주세요.');
             return;
         }
-        if (!problems || problems.length === 0) {
+        if (!payload.problems || payload.problems.length === 0) {
             toast.error('업로드할 문제가 없습니다. JSON 데이터에 유효한 문제가 있는지 확인해주세요.');
             return;
         }
-
-        setStagedProblems(problems);
-        setStagedProblemSetName(problemSetName);
-        setStagedDescription(description);
+        setStagedUploadData(payload);
         setIsSaveModalOpen(true);
-    }, []);
+    }, [toast]);
 
     const handleConfirmSave = useCallback(async (modalPayload: ProblemSetFinalPayload) => {
+        if (!stagedUploadData) {
+            toast.error('업로드할 데이터가 없습니다. 다시 시도해주세요.');
+            return;
+        }
+
         setIsSaveModalOpen(false);
         
+        // [수정] 스테이징된 데이터와 모달 데이터를 합쳐 최종 페이로드 생성
         const d1Payload: UploadProblemsAndCreateSetPayload = {
-            problemSetName: stagedProblemSetName,
-            description: stagedDescription,
-            problems: stagedProblems,
+            problemSetName: stagedUploadData.problemSetName,
+            description: stagedUploadData.description,
+            problems: stagedUploadData.problems,
+            grade: stagedUploadData.grade, // 대표 학년 정보 추가
             ...modalPayload,
         };
         
@@ -80,13 +87,14 @@ const ProblemSetCreationPage: React.FC = () => {
             await createEntitlement(pgPayload);
             
             toast.success('모든 작업이 성공적으로 완료되었습니다!');
+            setStagedUploadData(null); // 성공 후 데이터 초기화
             setTimeout(() => navigate('/problem-publishing'), 1500);
 
         } catch (error: any) {
             console.error("문제집 생성 전체 프로세스 실패:", error);
             toast.error(`작업 실패: ${error.message}`);
         }
-    }, [stagedProblems, stagedProblemSetName, stagedDescription, uploadProblemsAndCreateSet, createEntitlement, navigate, toast]);
+    }, [stagedUploadData, uploadProblemsAndCreateSet, createEntitlement, navigate, toast]);
 
     const handleOpenPromptSidebar = useCallback(() => setRightSidebarContent({ type: 'prompt' }), [setRightSidebarContent]);
     const handleOpenSettingsSidebar = useCallback(() => setRightSidebarContent({ type: 'settings' }), [setRightSidebarContent]);
@@ -128,8 +136,8 @@ const ProblemSetCreationPage: React.FC = () => {
                 onClose={() => setIsSaveModalOpen(false)}
                 onConfirm={handleConfirmSave}
                 isConfirming={isProcessing}
-                problemSetName={stagedProblemSetName}
-                problemSetDescription={stagedDescription || undefined}
+                problemSetName={stagedUploadData?.problemSetName || ''}
+                problemSetDescription={stagedUploadData?.description || undefined}
             />
         </div>
     );

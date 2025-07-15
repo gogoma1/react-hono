@@ -1,216 +1,207 @@
-// ./react/entities/problem-set/ui/MyLibrary.tsx
-
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useMyProblemSetsQuery } from '../model/useProblemSetQuery';
+import React, { useState } from 'react';
+import { useGroupedProblemSetsQuery, useCurriculumViewQuery } from '../model/useProblemSetQuery';
 import { 
-    useUpdateProblemSetMutation, 
-    useDeleteProblemSetMutation,
-} from '../model/useProblemSetMutations';
-import { LuBook, LuLoader, LuCircleAlert, LuPencil, LuTrash2, LuFilePlus, LuChevronDown, LuChevronRight } from 'react-icons/lu';
-import { useToast } from '../../../shared/store/toastStore';
-import Modal from '../../../shared/ui/modal/Modal';
+    LuLoader, LuCircleAlert, LuChevronDown, LuChevronRight, 
+    LuBookCopy, LuGraduationCap, LuComponent, LuFolder, LuBook, LuFileText
+} from 'react-icons/lu';
+import SegmentedControl from '../../../shared/ui/segmented-control/SegmentedControl';
 import './MyLibrary.css';
-import type { MyProblemSet } from '../model/types';
 
-interface ProblemSetItemProps {
-    problemSet: MyProblemSet;
+// --- 타입 및 상수 정의 ---
+type ViewMode = 'problemSet' | 'grade' | 'curriculum';
+
+const viewOptions = [
+    { value: 'problemSet' as ViewMode, label: '문제집', icon: <LuBookCopy /> },
+    { value: 'grade' as ViewMode, label: '학년별', icon: <LuGraduationCap /> },
+    { value: 'curriculum' as ViewMode, label: '단원별', icon: <LuComponent /> },
+];
+
+// --- 재사용 가능한 자식 컴포넌트 ---
+interface TreeItemProps {
+    label: string;
+    nodeKey: string;
+    count?: number;
+    level: number;
+    icon?: React.ReactNode;
+    isExpanded: boolean;
     isSelected: boolean;
-    onSelect: (id: string) => void;
-    onStartEdit: (id: string, currentName: string) => void;
-    onDelete: (id: string) => void;
+    isAncestorOfSelected: boolean;
+    onToggle: (key: string) => void;
+    onSelect?: () => void;
+    children?: React.ReactNode;
 }
 
-const ProblemSetItem: React.FC<ProblemSetItemProps> = ({ problemSet, isSelected, onSelect, onStartEdit, onDelete }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    
-    const headerClassName = `problem-set-header ${isSelected ? 'selected' : ''}`;
+const TreeItem: React.FC<TreeItemProps> = React.memo(({ 
+    label, nodeKey, count, level, icon, isExpanded, isSelected, isAncestorOfSelected, onToggle, onSelect, children 
+}) => {
+    const isLeaf = !children;
+    const itemClassName = `tree-item ${isLeaf ? 'leaf' : 'branch'}`;
+    const contentClassName = `tree-item-content ${isLeaf ? 'clickable-leaf' : 'clickable-branch'} ${isSelected ? 'selected' : ''} ${isAncestorOfSelected ? 'ancestor-selected' : ''}`;
+
+    // [핵심] 행 전체에 대한 단일 클릭 이벤트 핸들러
+    const handleContentClick = () => {
+        if (isLeaf && onSelect) {
+            onSelect(); // 최하위 노드(파일)는 선택 동작
+        } else if (!isLeaf) {
+            onToggle(nodeKey); // 중간 노드(폴더)는 확장/축소 동작
+        }
+    };
+
+    const indentStyle = { paddingLeft: `${(level - 1) * 18 + 8}px` }; // 기본 패딩 8px + 레벨당 18px
 
     return (
-        <li className="problem-set-item">
-            <div className={headerClassName} onClick={() => onSelect(problemSet.problem_set_id)} onDoubleClick={() => setIsExpanded(!isExpanded)} aria-expanded={isExpanded}>
-                <button className="expand-button" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}>
-                    {isExpanded ? <LuChevronDown className="expand-icon"/> : <LuChevronRight className="expand-icon" />}
-                </button>
-                <LuBook size={16} />
-                <span className="set-name">
-                    {problemSet.name}
-                </span>
-                <span className="problem-count">({problemSet.problem_count}문제)</span>
-                
-                <div className="item-actions">
-                    <button onClick={(e) => { e.stopPropagation(); onStartEdit(problemSet.problem_set_id, problemSet.name); }} className="action-btn" aria-label="이름 변경">
-                        <LuPencil size={14} />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); onDelete(problemSet.problem_set_id); }} className="action-btn destructive" aria-label="삭제">
-                        <LuTrash2 size={14} />
-                    </button>
+        <li className={itemClassName}>
+            <div className={contentClassName} onClick={handleContentClick} style={indentStyle}>
+                <div className="expand-icon-wrapper">
+                    {isLeaf ? <span className="icon-placeholder"/> : (isExpanded ? <LuChevronDown className="expand-icon"/> : <LuChevronRight className="expand-icon" />)}
                 </div>
+                {icon && <span className="item-type-icon">{icon}</span>}
+                <span className="tree-item-label">{label}</span>
+                {count !== undefined && <span className="tree-item-count">({count})</span>}
             </div>
-            {isExpanded && (
-                <ul className="source-list">
-                    {problemSet.sources.length > 0 ? (
-                        problemSet.sources.map(source => (
-                            <li key={source.source_id} className="source-item">
-                                <span className="source-name">{source.name}</span>
-                                <span className="source-count">{source.count}개</span>
-                            </li>
-                        ))
-                    ) : (
-                        <li className="source-item-empty">포함된 출처 정보가 없습니다.</li>
-                    )}
-                </ul>
-            )}
+            {isExpanded && children && <ul className="tree-group">{children}</ul>}
         </li>
     );
-};
+});
+TreeItem.displayName = 'TreeItem';
 
+
+// --- 메인 컴포넌트 ---
 interface MyLibraryProps {
-    onProblemSetSelect: (id: string) => void;
-    selectedId: string;
-    onInitiateNew: () => void;
+    onSelectionChange: (selection: any) => void;
+    selectedKey: string | null;
 }
 
-const MyLibrary: React.FC<MyLibraryProps> = ({ onProblemSetSelect, selectedId, onInitiateNew }) => {
-    const { data: problemSets, isLoading, isError } = useMyProblemSetsQuery();
-    const { mutate: updateProblemSet } = useUpdateProblemSetMutation();
-    const { mutate: deleteProblemSet, isPending: isDeleting } = useDeleteProblemSetMutation();
-    // [제거] 사용하지 않는 createProblemSet 훅 제거
+const MyLibrary: React.FC<MyLibraryProps> = ({ onSelectionChange, selectedKey }) => {
+    const [viewMode, setViewMode] = useState<ViewMode>('problemSet');
+    const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+
+    const { data: groupedProblemSetData, isLoading: isLoadingProblemSet, isError: isErrorProblemSet } = useGroupedProblemSetsQuery();
+    const { data: curriculumData, isLoading: isLoadingCurriculum, isError: isErrorCurriculum } = useCurriculumViewQuery();
     
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editingName, setEditingName] = useState('');
-    const [deletingId, setDeletingId] = useState<string | null>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
-    
-    const sortedProblemSets = useMemo(() => {
-        if (!problemSets) return [];
-        return [...problemSets].sort((a, b) => {
-            if (a.problem_set_id === editingId) return -1;
-            if (b.problem_set_id === editingId) return 1;
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
-    }, [problemSets, editingId]);
-
-    useEffect(() => {
-        if (editingId && inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
-        }
-    }, [editingId]);
-
-    const handleStartEdit = (id: string, currentName: string) => {
-        setEditingId(id);
-        setEditingName(currentName);
-    };
-
-    const handleCancelEdit = () => {
-        setEditingId(null);
-        setEditingName('');
-    };
-
-    const handleSaveEdit = () => {
-        if (!editingId || !editingName.trim()) {
-            handleCancelEdit();
-            return;
-        }
-        updateProblemSet(
-            { problemSetId: editingId, payload: { name: editingName.trim() } },
-            { onSettled: handleCancelEdit }
-        );
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') handleSaveEdit();
-        else if (e.key === 'Escape') handleCancelEdit();
-    };
-
-    const handleConfirmDelete = () => {
-        if (!deletingId) return;
-        deleteProblemSet(deletingId, {
-            onSettled: () => setDeletingId(null)
+    const handleToggle = (key: string) => {
+        setExpandedKeys(prev => {
+            const newSet = new Set(prev);
+            newSet.has(key) ? newSet.delete(key) : newSet.add(key);
+            return newSet;
         });
     };
-    
-    const handleCreateNewSet = () => {
-        onInitiateNew();
+
+    const handleLeafClick = (selection: any, key: string) => {
+        onSelectionChange({ ...selection, key });
     };
 
     const renderContent = () => {
-        if (isLoading) {
-            return <div className="my-library-status"><LuLoader className="spinner" /> <span>내 서재를 불러오는 중...</span></div>;
+        // ... (이 부분은 이전 답변과 동일하므로 생략)
+        if (viewMode === 'problemSet' || viewMode === 'grade') {
+            if (isLoadingProblemSet) return <div className="my-library-status"><LuLoader className="spinner" /> <span>데이터 로딩 중...</span></div>;
+            if (isErrorProblemSet) return <div className="my-library-status error"><LuCircleAlert /> <span>오류가 발생했습니다.</span></div>;
+            if (!groupedProblemSetData || groupedProblemSetData.length === 0) return <div className="my-library-status"><p>생성된 문제집(브랜드)이 없습니다.</p></div>;
+
+            if (viewMode === 'problemSet') {
+                return (
+                    <ul className="tree-group">
+                        {groupedProblemSetData.map(ps => {
+                             const psKey = `ps-${ps.problem_set_id}`;
+                             return (
+                                <TreeItem key={psKey} nodeKey={psKey} label={ps.problem_set_name} level={1} icon={<LuBook />} isExpanded={expandedKeys.has(psKey)} onToggle={handleToggle} isSelected={false} isAncestorOfSelected={!!(selectedKey && selectedKey.startsWith(psKey))}>
+                                    {ps.grades.map(grade => {
+                                        const gradeKey = `${psKey}-grade-${grade.grade_id}`;
+                                        return (
+                                            <TreeItem key={gradeKey} nodeKey={gradeKey} label={grade.grade_name} level={2} icon={<LuFolder />} isExpanded={expandedKeys.has(gradeKey)} onToggle={handleToggle} isSelected={false} isAncestorOfSelected={!!(selectedKey && selectedKey.startsWith(gradeKey))}>
+                                                {grade.sources.map(source => {
+                                                    const sourceKey = `${gradeKey}-source-${source.source_id}`;
+                                                    return <TreeItem key={sourceKey} nodeKey={sourceKey} label={source.source_name} count={source.problem_count} level={3} icon={<LuFileText />} isExpanded={false} onToggle={()=>{}} isSelected={selectedKey === sourceKey} isAncestorOfSelected={false}
+                                                        onSelect={() => handleLeafClick({type: 'source', problemSetId: ps.problem_set_id, gradeId: grade.grade_id, sourceId: source.source_id}, sourceKey)} />
+                                                })}
+                                            </TreeItem>
+                                        )
+                                    })}
+                                </TreeItem>
+                            )
+                        })}
+                    </ul>
+                );
+            }
+            
+            if (viewMode === 'grade') {
+                const byGrade = groupedProblemSetData.reduce<Record<string, { grade_id: string; grade_order: number; items: any[] }>>((acc, ps) => {
+                    ps.grades.forEach(grade => {
+                        if (!acc[grade.grade_name]) acc[grade.grade_name] = { grade_id: grade.grade_id, grade_order: grade.grade_order, items: [] };
+                        acc[grade.grade_name].items.push({ ...ps, grade });
+                    });
+                    return acc;
+                }, {});
+                const sortedGrades = Object.entries(byGrade).sort(([, a], [, b]) => a.grade_order - b.grade_order);
+                
+                return (
+                     <ul className="tree-group">
+                        {sortedGrades.map(([gradeName, {grade_id, items}]) => {
+                             const gradeKey = `grade-${grade_id}`;
+                             return (
+                                <TreeItem key={gradeKey} nodeKey={gradeKey} label={gradeName} level={1} icon={<LuFolder />} isExpanded={expandedKeys.has(gradeKey)} onToggle={handleToggle} isSelected={false} isAncestorOfSelected={!!(selectedKey && selectedKey.startsWith(gradeKey))}>
+                                   {items.map(item => {
+                                       const psKey = `${gradeKey}-ps-${item.problem_set_id}`;
+                                       return (
+                                           <TreeItem key={psKey} nodeKey={psKey} label={item.problem_set_name} level={2} icon={<LuBook />} isExpanded={expandedKeys.has(psKey)} onToggle={handleToggle} isSelected={false} isAncestorOfSelected={!!(selectedKey && selectedKey.startsWith(psKey))}>
+                                               {item.grade.sources.map((source: any) => {
+                                                    const sourceKey = `${psKey}-source-${source.source_id}`;
+                                                    return <TreeItem key={sourceKey} nodeKey={sourceKey} label={source.source_name} count={source.problem_count} level={3} icon={<LuFileText />} isExpanded={false} onToggle={()=>{}} isSelected={selectedKey === sourceKey} isAncestorOfSelected={false}
+                                                        onSelect={() => handleLeafClick({type: 'source', problemSetId: item.problem_set_id, gradeId: item.grade.grade_id, sourceId: source.source_id}, sourceKey)} />
+                                               })}
+                                           </TreeItem>
+                                       )
+                                   })}
+                                </TreeItem>
+                            )
+                        })}
+                    </ul>
+                );
+            }
         }
-        if (isError) {
-            return <div className="my-library-status error"><LuCircleAlert /> <span>오류가 발생했습니다.</span></div>;
+
+        if (viewMode === 'curriculum') {
+            if (isLoadingCurriculum) return <div className="my-library-status"><LuLoader className="spinner" /> <span>데이터 로딩 중...</span></div>;
+            if (isErrorCurriculum) return <div className="my-library-status error"><LuCircleAlert /> <span>오류가 발생했습니다.</span></div>;
+            if (!curriculumData || curriculumData.length === 0) return <div className="my-library-status"><p>등록된 문제가 없습니다.</p></div>;
+
+            return (
+                <ul className="tree-group">
+                    {curriculumData.map(grade => {
+                        const gradeKey = `curriculum-grade-${grade.grade_id}`;
+                        return (
+                            <TreeItem key={gradeKey} nodeKey={gradeKey} label={grade.grade_name} level={1} icon={<LuFolder />} isExpanded={expandedKeys.has(gradeKey)} onToggle={handleToggle} isSelected={false} isAncestorOfSelected={!!(selectedKey && selectedKey.startsWith(gradeKey))}>
+                                {grade.majorChapters.map(major => {
+                                    const majorKey = `${gradeKey}-major-${major.major_chapter_id}`;
+                                    return (
+                                        <TreeItem key={majorKey} nodeKey={majorKey} label={major.major_chapter_name} level={2} icon={<LuFolder />} isExpanded={expandedKeys.has(majorKey)} onToggle={handleToggle} isSelected={false} isAncestorOfSelected={!!(selectedKey && selectedKey.startsWith(majorKey))}>
+                                            {major.middleChapters.map(middle => {
+                                                const middleKey = `${majorKey}-middle-${middle.middle_chapter_id}`;
+                                                return <TreeItem key={middleKey} nodeKey={middleKey} label={middle.middle_chapter_name} count={middle.problem_count} level={3} icon={<LuFileText />} isExpanded={false} onToggle={()=>{}} isSelected={selectedKey === middleKey} isAncestorOfSelected={false}
+                                                    onSelect={() => handleLeafClick({type: 'curriculum', gradeId: grade.grade_id, majorChapterId: major.major_chapter_id, middleChapterId: middle.middle_chapter_id}, middleKey)} />
+                                            })}
+                                        </TreeItem>
+                                    )
+                                })}
+                            </TreeItem>
+                        )
+                    })}
+                </ul>
+            );
         }
-        if (sortedProblemSets.length === 0) {
-             return <div className="my-library-status"><p>생성된 문제집이 없습니다.</p></div>;
-        }
-        return (
-            <ul className="problem-set-list">
-                {sortedProblemSets.map(ps => (
-                    editingId === ps.problem_set_id ? (
-                        <li key={ps.problem_set_id} className="problem-set-item editing">
-                             <div className="problem-set-header">
-                                <LuBook size={16} />
-                                <input
-                                    ref={inputRef}
-                                    type="text"
-                                    value={editingName}
-                                    onChange={(e) => setEditingName(e.target.value)}
-                                    onBlur={handleSaveEdit}
-                                    onKeyDown={handleKeyDown}
-                                    className="name-input"
-                                />
-                             </div>
-                        </li>
-                    ) : (
-                        <ProblemSetItem
-                            key={ps.problem_set_id}
-                            problemSet={ps}
-                            isSelected={selectedId === ps.problem_set_id}
-                            onSelect={onProblemSetSelect}
-                            onStartEdit={handleStartEdit}
-                            onDelete={() => setDeletingId(ps.problem_set_id)}
-                        />
-                    )
-                ))}
-            </ul>
-        );
+        return null;
     }
 
     return (
         <div className="my-library-widget self-contained">
-            <header className="widget-header">
-                <h4 className="widget-title">작업 대상 선택</h4>
-            </header>
             <div className="widget-content">
-                <button 
-                    className={`new-set-selector ${selectedId === 'new' ? 'selected' : ''}`}
-                    onClick={handleCreateNewSet}
-                >
-                    <LuFilePlus size={18} />
-                    <span>새 문제집 만들기</span>
-                </button>
-                <div className="selection-divider"><span>또는 기존 문제집에 추가</span></div>
+                <div className="view-mode-selector">
+                    <SegmentedControl options={viewOptions} value={viewMode} onChange={setViewMode} />
+                </div>
                 <div className="library-list-wrapper">
                     {renderContent()}
                 </div>
             </div>
-            
-            <Modal
-                isOpen={!!deletingId}
-                onClose={() => setDeletingId(null)}
-                onConfirm={handleConfirmDelete}
-                title="문제집 삭제 확인"
-                confirmText="삭제"
-                isConfirming={isDeleting}
-                isConfirmDestructive
-            >
-                <p>
-                    정말로 이 문제집을 삭제하시겠습니까?
-                    <br />
-                    문제집만 삭제되며, 포함된 문제들은 삭제되지 않습니다.
-                </p>
-            </Modal>
         </div>
     );
 };

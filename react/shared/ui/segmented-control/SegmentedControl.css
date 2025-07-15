@@ -1,0 +1,54 @@
+.segmented-control {
+    display: flex;
+    background-color: var(--glass-card-bg-darker);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    border: 1px solid var(--glass-border-color);
+    box-shadow: var(--shadow-sm);
+    width: 100%;
+}
+
+.control-option {
+    flex: 1;
+    padding: 6px 10px;
+    border: none;
+    background-color: transparent;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap; /* 텍스트가 줄바꿈되지 않도록 */
+}
+
+.control-option:hover:not(.active) {
+    background-color: var(--glass-hover-bg);
+    color: var(--text-primary);
+}
+
+.control-option.active {
+    background-color: var(--background-base);
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    cursor: default;
+}
+
+.option-icon {
+    display: flex;
+    align-items: center;
+}
+
+/* 화면이 매우 좁을 때 아이콘만 보이도록 처리 (선택적) */
+@media (max-width: 400px) {
+    .option-label {
+        display: none;
+    }
+    .control-option {
+        padding: 8px;
+    }
+}

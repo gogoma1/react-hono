@@ -8,6 +8,8 @@ export type ProblemSetType = typeof PROBLEM_SET_TYPE_ENUM[number];
 export type ProblemSetStatus = typeof PROBLEM_SET_STATUS_ENUM[number];
 export type CopyrightType = typeof COPYRIGHT_TYPE_ENUM[number];
 
+// --- 기존 타입들 ---
+
 export interface ProblemSetSourceInfo {
     source_id: string;
     name: string;
@@ -25,7 +27,8 @@ export interface MyProblemSet {
     description: string | null;
     cover_image: string | null;
     published_year: number | null;
-    grade: string | null;
+    grade_id: string | null; // 스키마 변경에 따라 grade -> grade_id 로 변경될 수 있음 (백엔드 응답 확인 필요)
+    grade: string | null; // 호환성을 위해 유지하거나, 백엔드 응답에 따라 제거
     semester: string | null;
     avg_difficulty: string | null;
     created_at: string;
@@ -46,7 +49,7 @@ export interface CreatedProblemSet {
     description: string | null;
     cover_image: string | null;
     published_year: number | null;
-    grade: string | null;
+    grade_id: string | null; // 스키마 변경에 따라 추가
     semester: string | null;
     avg_difficulty: string | null;
     created_at: string;
@@ -54,20 +57,6 @@ export interface CreatedProblemSet {
     problem_count: number;
 }
 
-// [수정] 이 타입은 더 이상 사용되지 않거나, PG 권한 생성용으로 단순화될 수 있습니다.
-// 여기서는 createEntitlementAPI가 자체 타입을 가지므로, 혼동을 피하기 위해 주석 처리하거나 제거할 수 있습니다.
-/*
-export interface CreateProblemSetPayload {
-    name: string;
-    description: string | null;
-    type: ProblemSetType;
-    status: ProblemSetStatus;
-    copyright_type: CopyrightType;
-    copyright_source: string | null;
-}
-*/
-
-// [신규] PG 권한 생성을 위한 명확한 타입
 export interface CreateEntitlementPayload {
     problem_set_id: string;
 }
@@ -83,3 +72,52 @@ export interface UpdateProblemSetPayload {
 }
 
 export type ProblemSetFinalPayload = Pick<MyProblemSet, 'type' | 'status' | 'copyright_type' | 'copyright_source'>;
+
+
+// --- [신규] 계층적 뷰를 위한 API 응답 타입들 ---
+
+/**
+ * GET /my-grouped-view API의 응답 타입
+ * 문제집(브랜드) > 학년 > 소제목(Source) 계층 구조를 나타냅니다.
+ */
+export interface GroupedSource {
+    source_id: string;
+    source_name: string;
+    problem_count: number;
+}
+
+export interface GroupedGrade {
+    grade_id: string;
+    grade_name: string;
+    grade_order: number;
+    sources: GroupedSource[];
+}
+
+export interface GroupedProblemSet {
+    problem_set_id: string;
+    problem_set_name: string;
+    grades: GroupedGrade[];
+}
+
+/**
+ * GET /my-curriculum-view API의 응답 타입
+ * 학년 > 대단원 > 중단원 계층 구조를 나타냅니다.
+ */
+export interface CurriculumMiddleChapter {
+    middle_chapter_id: string;
+    middle_chapter_name: string;
+    problem_count: number;
+}
+
+export interface CurriculumMajorChapter {
+    major_chapter_id: string;
+    major_chapter_name: string;
+    middleChapters: CurriculumMiddleChapter[];
+}
+
+export interface CurriculumGrade {
+    grade_id: string;
+    grade_name: string;
+    grade_order: number;
+    majorChapters: CurriculumMajorChapter[];
+}

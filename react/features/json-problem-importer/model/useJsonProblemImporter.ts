@@ -4,6 +4,8 @@ import { PROBLEM_TYPES } from '../../../entities/problem/model/types';
 import { produce } from 'immer';
 import * as jsonc from 'jsonc-parser';
 
+// --- 타입 정의 ---
+
 interface ParseErrorDetail {
     title: string;
     message: string;
@@ -12,6 +14,28 @@ interface ParseErrorDetail {
     column?: number;
     problemIndex?: number;
 }
+
+/**
+ * [신규] onUpload 콜백 함수의 페이로드 타입을 명시적으로 정의합니다.
+ */
+export interface OnUploadPayload {
+    problems: Problem[];
+    problemSetName: string;
+    description: string | null;
+    grade: string | null; // 문제집 대표 학년
+}
+
+/**
+ * [수정] 훅의 props 타입을 새로운 페이로드 타입으로 교체합니다.
+ */
+interface UseJsonProblemImporterProps {
+    isCreatingNew: boolean;
+    initialProblemSetName: string;
+    onUpload: (payload: OnUploadPayload) => void;
+}
+
+
+// --- 상수 및 초기값 ---
 
 const initialJsonInput = `{
   "problems": [
@@ -41,7 +65,7 @@ const columns: Column[] = [
     { key: 'problem_type', label: '유형', editType: 'combobox' },
     { key: 'grade', label: '학년', editType: 'text' },
     { key: 'semester', label: '학기', editType: 'text' },
-    { key: 'source', label: '출처', editType: 'text' },
+    { key: 'source', label: '출처(소제목)', editType: 'text' },
     { key: 'major_chapter_id', label: '대단원', editType: 'text' },
     { key: 'middle_chapter_id', label: '중단원', editType: 'text' },
     { key: 'core_concept_id', 'label': '핵심개념', editType: 'text' },
@@ -54,16 +78,12 @@ const columns: Column[] = [
     { key: 'solution_text', 'label': '해설', editType: 'textarea' },
 ];
 
-// [2차 수정] 빈 문자열을 null로 변환해야 할 필드 목록
 const NULLABLE_STRING_FIELDS: Set<keyof Problem> = new Set([
     'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'answer', 'solution_text'
 ]);
 
-interface UseJsonProblemImporterProps {
-    isCreatingNew: boolean;
-    initialProblemSetName: string;
-    onUpload: (problems: Problem[], problemSetName: string, description: string | null) => void;
-}
+
+// --- 커스텀 훅 ---
 
 export function useJsonProblemImporter({ 
     isCreatingNew, 
@@ -146,7 +166,6 @@ export function useJsonProblemImporter({
             const transformedProblems = parsedData.problems
                 .map((p: any, index: number): Problem | null => {
                     const problemIndex = index + 1;
-
                     if (typeof p !== 'object' || p === null) {
                         validationErrors.push({ title: "데이터 타입 오류", message: `배열의 ${problemIndex}번째 항목이 객체(Object)가 아닙니다.`, suggestion: "각 문제는 중괄호 `{}`로 감싸야 합니다.", problemIndex });
                         return null;
@@ -162,7 +181,6 @@ export function useJsonProblemImporter({
                     
                     const problemNumRaw = p.question_number;
                     const parsedQuestionNumber = parseFloat(String(problemNumRaw).replace(/[^\d.]/g, ''));
-
                     if(isNaN(parsedQuestionNumber)) {
                         validationErrors.push({ title: "데이터 형식 오류", message: `'question_number' ("${problemNumRaw}")에서 숫자를 찾을 수 없습니다.`, suggestion: "문제 번호에 숫자 부분이 포함되어야 합니다. (예: '서답형 1', '5.2')", problemIndex });
                         return null;
@@ -196,23 +214,16 @@ export function useJsonProblemImporter({
                 .filter((p: Problem | null): p is Problem => p !== null);
             
             setProblems(transformedProblems);
-            if (validationErrors.length > 0) {
-                 setParseError(validationErrors[0]);
-            } else {
-                setParseError(null);
-            }
+            setParseError(validationErrors.length > 0 ? validationErrors[0] : null);
 
         } catch (e: any) {
             setProblems([]);
-            if (e.title && e.message && e.suggestion) {
-                setParseError(e);
-            } else {
-                setParseError({
-                    title: "알 수 없는 오류",
-                    message: e.message || "데이터를 처리하는 중 알 수 없는 오류가 발생했습니다.",
-                    suggestion: "JSON 구조와 내용을 다시 한번 확인해주세요."
-                });
-            }
+            const errorDetail = (e.title && e.message && e.suggestion) ? e : {
+                title: "알 수 없는 오류",
+                message: e.message || "데이터를 처리하는 중 알 수 없는 오류가 발생했습니다.",
+                suggestion: "JSON 구조와 내용을 다시 한번 확인해주세요."
+            };
+            setParseError(errorDetail);
         }
     }, [jsonInput, editingCell]);
 
@@ -241,14 +252,10 @@ export function useJsonProblemImporter({
     const saveEdit = useCallback((valueToSave?: any) => {
         if (!editingCell) return;
         const { rowIndex, colKey } = editingCell;
-        
         let finalValue = valueToSave !== undefined ? valueToSave : editingValue;
-
-        // [2차 수정] 저장 시점에 빈 문자열을 null로 변환
         if (NULLABLE_STRING_FIELDS.has(colKey) && finalValue === '') {
             finalValue = null;
         }
-
         const nextProblems = produce(problems, draft => {
             (draft[rowIndex] as any)[colKey] = finalValue;
         });
@@ -279,6 +286,9 @@ export function useJsonProblemImporter({
         alert('공통 정보가 적용되었습니다.');
     }, [problems, commonSource, commonGradeLevel, commonSemester]);
 
+    /**
+     * [수정] onUpload 호출 시 새로운 페이로드 객체로 감싸서 전달합니다.
+     */
     const handleUpload = useCallback(() => {
         if (problems.length === 0 || parseError) {
             alert('업로드할 문제가 없거나 데이터에 오류가 있습니다.');
@@ -288,8 +298,16 @@ export function useJsonProblemImporter({
             alert('새로운 문제집의 이름을 입력해주세요.');
             return;
         }
-        onUpload(problems, problemSetName, problemSetDescription);
-    }, [problems, parseError, problemSetName, problemSetDescription, isCreatingNew, onUpload]);
+        
+        const payload: OnUploadPayload = {
+            problems,
+            problemSetName,
+            description: problemSetDescription,
+            grade: commonGradeLevel.trim() || null
+        };
+        onUpload(payload);
+
+    }, [problems, parseError, problemSetName, problemSetDescription, commonGradeLevel, isCreatingNew, onUpload]);
     
     const problemTypeOptions: ComboboxOption[] = PROBLEM_TYPES.map(t => ({ value: t, label: t }));
     const difficultyOptions: ComboboxOption[] = [ { value: '최상', label: '최상' }, { value: '상', label: '상' }, { value: '중', label: '중' }, { value: '하', label: '하' }, { value: '최하', label: '최하' } ];

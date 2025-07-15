@@ -8,6 +8,13 @@
       "when": 1752499803010,
       "tag": "0000_natural_polaris",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1752564613107,
+      "tag": "0001_typical_triathlon",
+      "breakpoints": true
     }
   ]
 }
