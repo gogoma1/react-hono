@@ -12,6 +12,7 @@ interface PageSetupActions {
     handleOpenSelectedStudentsSidebar: () => void;
     handleOpenJsonViewSidebar: () => void;
     handleOpenSearchSidebar: () => void;
+    handleOpenMyLibrarySidebar: () => void;
 }
 
 interface PublishingPageSetupProps extends PageSetupActions {}
@@ -24,6 +25,7 @@ export function usePublishingPageSetup({
     handleOpenSelectedStudentsSidebar,
     handleOpenJsonViewSidebar,
     handleOpenSearchSidebar,
+    handleOpenMyLibrarySidebar,
 }: PublishingPageSetupProps) {
     const { registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
     const setSearchBoxProps = useLayoutStore(state => state.setSearchBoxProps);
@@ -51,6 +53,7 @@ export function usePublishingPageSetup({
             openSelectedStudentsSidebar: handleOpenSelectedStudentsSidebar,
             openJsonViewSidebar: handleOpenJsonViewSidebar,
             openSearchSidebar: handleOpenSearchSidebar,
+            openMyLibrarySidebar: handleOpenMyLibrarySidebar,
         };
         
         registerPageActions(pageActionsToRegister);
@@ -72,6 +75,7 @@ export function usePublishingPageSetup({
         handleOpenSelectedStudentsSidebar,
         handleOpenJsonViewSidebar,
         handleOpenSearchSidebar,
+        handleOpenMyLibrarySidebar,
     ]);
 
     useEffect(() => {

@@ -1,9 +1,48 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8cc16f3e-9cd0-4262-bc80-05c75638275e",
+  "id": "5b581c2e-ab30-40f9-9642-9bc9b730a253",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "calculation_skills": {
+      "name": "calculation_skills",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "skill_type": {
+          "name": "skill_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "calculation_skills_name_unique": {
+          "name": "calculation_skills_name_unique",
+          "columns": [
+            "name"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "core_concepts": {
       "name": "core_concepts",
       "columns": {
@@ -93,9 +132,224 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
+      "indexes": {
+        "middle_chapters_major_id_name_unq": {
+          "name": "middle_chapters_major_id_name_unq",
+          "columns": [
+            "major_chapter_id",
+            "name"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "middle_chapters_major_chapter_id_major_chapters_id_fk": {
+          "name": "middle_chapters_major_chapter_id_major_chapters_id_fk",
+          "tableFrom": "middle_chapters",
+          "tableTo": "major_chapters",
+          "columnsFrom": [
+            "major_chapter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "problem_calculation_skills": {
+      "name": "problem_calculation_skills",
+      "columns": {
+        "problem_id": {
+          "name": "problem_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "skill_id": {
+          "name": "skill_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "problem_calculation_skills_problem_id_problem_problem_id_fk": {
+          "name": "problem_calculation_skills_problem_id_problem_problem_id_fk",
+          "tableFrom": "problem_calculation_skills",
+          "tableTo": "problem",
+          "columnsFrom": [
+            "problem_id"
+          ],
+          "columnsTo": [
+            "problem_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "problem_calculation_skills_skill_id_calculation_skills_id_fk": {
+          "name": "problem_calculation_skills_skill_id_calculation_skills_id_fk",
+          "tableFrom": "problem_calculation_skills",
+          "tableTo": "calculation_skills",
+          "columnsFrom": [
+            "skill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "problem_calculation_skills_problem_id_skill_id_pk": {
+          "columns": [
+            "problem_id",
+            "skill_id"
+          ],
+          "name": "problem_calculation_skills_problem_id_skill_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "problem_set_problems": {
+      "name": "problem_set_problems",
+      "columns": {
+        "problem_set_id": {
+          "name": "problem_set_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "problem_id": {
+          "name": "problem_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "problem_set_problems_problem_set_id_problem_set_problem_set_id_fk": {
+          "name": "problem_set_problems_problem_set_id_problem_set_problem_set_id_fk",
+          "tableFrom": "problem_set_problems",
+          "tableTo": "problem_set",
+          "columnsFrom": [
+            "problem_set_id"
+          ],
+          "columnsTo": [
+            "problem_set_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "problem_set_problems_problem_id_problem_problem_id_fk": {
+          "name": "problem_set_problems_problem_id_problem_problem_id_fk",
+          "tableFrom": "problem_set_problems",
+          "tableTo": "problem",
+          "columnsFrom": [
+            "problem_id"
+          ],
+          "columnsTo": [
+            "problem_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "problem_set_problems_problem_set_id_problem_id_pk": {
+          "columns": [
+            "problem_set_id",
+            "problem_id"
+          ],
+          "name": "problem_set_problems_problem_set_id_problem_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "problem_set_sources": {
+      "name": "problem_set_sources",
+      "columns": {
+        "problem_set_id": {
+          "name": "problem_set_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "problem_set_sources_problem_set_id_problem_set_problem_set_id_fk": {
+          "name": "problem_set_sources_problem_set_id_problem_set_problem_set_id_fk",
+          "tableFrom": "problem_set_sources",
+          "tableTo": "problem_set",
+          "columnsFrom": [
+            "problem_set_id"
+          ],
+          "columnsTo": [
+            "problem_set_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "problem_set_sources_source_id_sources_id_fk": {
+          "name": "problem_set_sources_source_id_sources_id_fk",
+          "tableFrom": "problem_set_sources",
+          "tableTo": "sources",
+          "columnsFrom": [
+            "source_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "problem_set_sources_problem_set_id_source_id_pk": {
+          "columns": [
+            "problem_set_id",
+            "source_id"
+          ],
+          "name": "problem_set_sources_problem_set_id_source_id_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -114,6 +368,65 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "creator_id": {
+          "name": "creator_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'PRIVATE_USER'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'private'"
+        },
+        "copyright_type": {
+          "name": "copyright_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ORIGINAL_CREATION'"
+        },
+        "copyright_source": {
+          "name": "copyright_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_image": {
+          "name": "cover_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "published_year": {
+          "name": "published_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "grade": {
@@ -137,26 +450,13 @@
           "notNull": false,
           "autoincrement": false
         },
-        "cover_image": {
-          "name": "cover_image",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "published_year": {
-          "name": "published_year",
+        "problem_count": {
+          "name": "problem_count",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
@@ -191,8 +491,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "source": {
-          "name": "source",
+        "source_id": {
+          "name": "source_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -321,7 +621,60 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "problem_source_id_sources_id_fk": {
+          "name": "problem_source_id_sources_id_fk",
+          "tableFrom": "problem",
+          "tableTo": "sources",
+          "columnsFrom": [
+            "source_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "problem_major_chapter_id_major_chapters_id_fk": {
+          "name": "problem_major_chapter_id_major_chapters_id_fk",
+          "tableFrom": "problem",
+          "tableTo": "major_chapters",
+          "columnsFrom": [
+            "major_chapter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "problem_middle_chapter_id_middle_chapters_id_fk": {
+          "name": "problem_middle_chapter_id_middle_chapters_id_fk",
+          "tableFrom": "problem",
+          "tableTo": "middle_chapters",
+          "columnsFrom": [
+            "middle_chapter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "problem_core_concept_id_core_concepts_id_fk": {
+          "name": "problem_core_concept_id_core_concepts_id_fk",
+          "tableFrom": "problem",
+          "tableTo": "core_concepts",
+          "columnsFrom": [
+            "core_concept_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -345,7 +698,34 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "problem_tag_problem_id_problem_problem_id_fk": {
+          "name": "problem_tag_problem_id_problem_problem_id_fk",
+          "tableFrom": "problem_tag",
+          "tableTo": "problem",
+          "columnsFrom": [
+            "problem_id"
+          ],
+          "columnsTo": [
+            "problem_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "problem_tag_tag_id_tag_tag_id_fk": {
+          "name": "problem_tag_tag_id_tag_tag_id_fk",
+          "tableFrom": "problem_tag",
+          "tableTo": "tag",
+          "columnsFrom": [
+            "tag_id"
+          ],
+          "columnsTo": [
+            "tag_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "problem_tag_problem_id_tag_id_pk": {
           "columns": [
@@ -355,6 +735,30 @@
           "name": "problem_tag_problem_id_tag_id_pk"
         }
       },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "sources": {
+      "name": "sources",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },

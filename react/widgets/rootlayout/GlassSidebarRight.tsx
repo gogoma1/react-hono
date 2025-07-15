@@ -3,7 +3,11 @@ import Tippy from '@tippyjs/react';
 import './GlassSidebarRight.css';
 import { useUIStore } from '../../shared/store/uiStore';
 import { useLayoutStore, selectRightSidebarConfig } from '../../shared/store/layoutStore';
-import { LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, LuClipboardList, LuBookMarked, LuSearch, LuFileJson2, LuUsers, LuUserPlus } from 'react-icons/lu';
+import { 
+    LuSettings2, LuChevronRight, LuCircleX, LuCirclePlus, 
+    LuClipboardList, LuBookMarked, LuSearch, LuFileJson2, 
+    LuUsers, LuUserPlus, LuBookOpenCheck
+} from 'react-icons/lu';
 import ProblemTextEditor from '../../features/problem-text-editing/ui/ProblemTextEditor';
 import StudentRegistrationForm from '../../features/student-registration/ui/StudentRegistrationForm';
 import TableColumnToggler from '../../features/table-column-toggler/ui/TableColumnToggler';
@@ -18,6 +22,7 @@ import { useStudentDataWithRQ } from '../../entities/student/model/useStudentDat
 import { useStaffData } from '../../entities/staff/model/useStaffData';
 import type { SidebarButtonType } from '../../shared/store/layout.config';
 import StaffManagementWidget from '../staff-management/StaffManagementWidget';
+import MyLibrary from '../../entities/problem-set/ui/MyLibrary'; // [경로 수정] entities에서 import
 
 const iconMap: Record<SidebarButtonType, React.FC> = {
     register: () => <LuCirclePlus size={22} />,
@@ -28,6 +33,7 @@ const iconMap: Record<SidebarButtonType, React.FC> = {
     search: () => <LuSearch size={20} />,
     jsonView: () => <LuFileJson2 size={20} />,
     selectedStudents: () => <LuUsers size={20} />,
+    myLibrary: () => <LuBookOpenCheck size={20} />,
 };
 
 interface ProblemEditorWrapperProps {
@@ -59,7 +65,6 @@ const StudentRelatedSidebarContent: React.FC = () => {
     [staffMembers]);
 
     if (content.type === 'register') {
-        // [복구] allStudents prop을 다시 전달합니다.
         return (
             <StudentRegistrationForm 
                 onSuccess={pageActions.onClose || (() => {})} 
@@ -139,6 +144,9 @@ const SidebarContentRenderer: React.FC = () => {
         case 'jsonViewer':
             return <JsonViewerPanel {...(content.props as any)} />;
         
+        case 'myLibrary':
+            return <MyLibrary />; // [수정] props 없이 MyLibrary 컴포넌트 렌더링
+
         default:
             return (
                  <div style={{ padding: '20px', color: 'var(--text-secondary)' }}>
@@ -175,6 +183,7 @@ const GlassSidebarRight: React.FC = () => {
             search: pageActions.openSearchSidebar,
             jsonView: pageActions.openJsonViewSidebar,
             selectedStudents: pageActions.openSelectedStudentsSidebar,
+            myLibrary: pageActions.openMyLibrarySidebar,
         };
         const action = actionMap[type];
         if (action) {

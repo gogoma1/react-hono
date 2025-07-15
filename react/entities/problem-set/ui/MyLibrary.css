@@ -1,0 +1,209 @@
+/* ./react/entities/problem-set/ui/MyLibrary.css */
+.my-library-widget {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--sidebar-bg-color);
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color-light);
+    flex-shrink: 0;
+}
+
+.widget-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.new-set-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: transparent;
+    border: 1px solid var(--accent-color);
+    color: var(--accent-color);
+    padding: 4px 10px;
+    border-radius: var(--rounded-md);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease-in-out;
+}
+
+.new-set-button:hover {
+    background-color: var(--accent-color-translucent);
+    color: var(--accent-color-dark);
+}
+
+.new-set-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.widget-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.problem-set-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.my-library-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    color: var(--text-secondary);
+    height: 100%;
+    text-align: center;
+}
+
+.my-library-status .spinner {
+    animation: spin 1s linear infinite;
+}
+
+.my-library-status.error {
+    color: var(--destructive-color);
+}
+
+.problem-set-item {
+    padding: 4px 0;
+}
+
+.problem-set-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: var(--rounded-md);
+    cursor: pointer;
+    transition: background-color 0.2s;
+    gap: 8px;
+}
+
+.problem-set-header:hover {
+    background-color: var(--bg-hover-light);
+}
+
+.problem-set-item.editing .problem-set-header {
+    background-color: var(--accent-color-translucent);
+}
+
+.expand-icon {
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+}
+
+.set-name {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.name-input {
+    flex-grow: 1;
+    width: 100%;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--accent-color);
+    border-radius: var(--rounded-sm);
+    padding: 4px 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+    outline: none;
+}
+
+.problem-count {
+    font-size: 12px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.item-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.problem-set-header:hover .item-actions,
+.problem-set-header .item-actions:focus-within {
+    opacity: 1;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.action-btn:hover {
+    background-color: var(--bg-hover-dark);
+    color: var(--text-primary);
+}
+
+.action-btn.destructive:hover {
+    background-color: var(--destructive-color-translucent);
+    color: var(--destructive-color);
+}
+
+.source-list {
+    list-style: none;
+    padding-left: 30px;
+    margin: 4px 0;
+    animation: slide-down 0.3s ease-out;
+}
+
+@keyframes slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.source-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.source-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.source-count {
+    flex-shrink: 0;
+}
+
+.source-item-empty {
+    font-style: italic;
+    color: var(--text-tertiary);
+    padding: 4px 8px;
+    font-size: 13px;
+}

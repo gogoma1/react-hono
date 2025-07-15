@@ -8,8 +8,6 @@ import { useExamPreviewManager } from '../hooks/useExamPreviewManager';
 import { usePublishingPageSetup } from '../hooks/usePublishingPageSetup';
 import { usePdfGenerator, type PdfExportOptions } from '../hooks/usePdfGenerator';
 import { useLayoutStore } from '../../../shared/store/layoutStore';
-// [핵심 수정] useUIStore 임포트 제거
-// import { useUIStore } from '../../../shared/store/uiStore';
 import { useProblemSetStudentStore } from '../../../shared/store/problemSetStudentStore';
 import { useProblemPublishingSelectionStore } from './problemPublishingSelectionStore';
 import { usePublishExamSetMutation } from '../../../entities/exam-set/model/useExamSetMutations';
@@ -55,27 +53,26 @@ export function useProblemPublishingPage() {
     
     const setRightSidebarContent = useLayoutStore(state => state.setRightSidebarContent);
     const closeRightSidebar = useLayoutStore(state => state.closeRightSidebar);
-    // [핵심 수정] setRightSidebarExpanded 선언 제거
-    // const setRightSidebarExpanded = useUIStore(state => state.setRightSidebarExpanded);
 
     const handleCloseSidebar = useCallback(() => {
         closeRightSidebar();
-        // [핵심 수정] setRightSidebarExpanded(false) 호출 제거
     }, [closeRightSidebar]);
 
     const handleOpenLatexHelpSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'latexHelp' });
-        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
     }, [setRightSidebarContent]);
 
     const handleOpenSettingsSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'settings' });
-        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
     }, [setRightSidebarContent]);
     
     const handleOpenSelectedStudentsSidebar = useCallback(() => {
         setRightSidebarContent({ type: 'selectedStudents' });
-        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
+    }, [setRightSidebarContent]);
+    
+    // [신규] '내 서재' 사이드바를 여는 핸들러
+    const handleOpenMyLibrarySidebar = useCallback(() => {
+        setRightSidebarContent({ type: 'myLibrary' });
     }, [setRightSidebarContent]);
 
     const jsonStringToCombine = useMemo(() => {
@@ -102,7 +99,6 @@ export function useProblemPublishingPage() {
             type: 'prompt', 
             props: { workbenchContent: jsonStringToCombineRef.current }
         });
-        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
     }, [setRightSidebarContent]);
     
     const handleOpenJsonViewSidebar = useCallback(() => {
@@ -114,7 +110,6 @@ export function useProblemPublishingPage() {
             type: 'jsonViewer',
             props: { problems: selectedProblemsRef.current }
         }, true);
-        // [핵심 수정] setRightSidebarExpanded(true) 호출 제거
     }, [setRightSidebarContent]);
 
     const handleOpenSearchSidebar = useCallback(() => {
@@ -129,6 +124,7 @@ export function useProblemPublishingPage() {
         handleOpenSelectedStudentsSidebar,
         handleOpenJsonViewSidebar,
         handleOpenSearchSidebar,
+        handleOpenMyLibrarySidebar, // [신규] usePublishingPageSetup에 핸들러 전달
     });
     
     useEffect(() => { 

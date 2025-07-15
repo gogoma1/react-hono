@@ -1,3 +1,5 @@
+// ./api/index.ts
+
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
@@ -8,9 +10,11 @@ import permissionRoutes from './routes/manage/permissions';
 import { supabaseMiddleware } from './routes/middleware/auth.middleware';
 import problemRoutes from './routes/manage/problems';
 import r2ImageRoutes from './routes/r2/image';
-// [수정] exam 폴더의 index.ts에서 통합된 라우트를 가져옵니다.
 import examRoutes from './routes/exam';
 import academyRoutes from './routes/manage/academies';
+
+// [핵심 수정 1] 새로 만든 problem-sets 라우트를 import 합니다.
+import problemSetRoutes from './routes/manage/problem-sets';
 
 export type AppEnv = {
     Bindings: Env;
@@ -34,8 +38,10 @@ app.use('*', cors({
   credentials: true,
 }));
 
+// supabaseMiddleware는 모든 라우트 등록 전에 위치하는 것이 좋습니다.
 app.use(supabaseMiddleware());
 
+// API 라우트 등록
 app.route('/profiles', profileRoutes); 
 app.route('/manage/student', studentRoutes);
 app.route('/manage/teacher', teacherRoutes);
@@ -43,9 +49,10 @@ app.route('/manage/permissions', permissionRoutes);
 app.route('/manage/problems', problemRoutes); 
 app.route('/r2', r2ImageRoutes);
 app.route('/academies', academyRoutes);
-
-// [수정] '/exams'라는 일관된 경로로 통합된 라우트를 등록합니다.
 app.route('/exams', examRoutes); 
+
+// [핵심 수정 2] /manage/problem-sets 경로에 problemSetRoutes를 등록합니다.
+app.route('/manage/problem-sets', problemSetRoutes);
 
 app.get('/', (c) => c.text('Hono API is running!'));
 

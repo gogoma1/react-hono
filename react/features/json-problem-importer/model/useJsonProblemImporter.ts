@@ -1,9 +1,6 @@
-// ./react/features/json-problem-importer/model/useJsonProblemImporter.ts
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Problem, Column, ComboboxOption, ProblemType } from '../../../entities/problem/model/types';
 import { PROBLEM_TYPES } from '../../../entities/problem/model/types';
-import { useUploadProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
 import { produce } from 'immer';
 import * as jsonc from 'jsonc-parser';
 
@@ -41,29 +38,38 @@ const initialJsonInput = `{
 const columns: Column[] = [
     { key: 'problem_id', label: 'ID', readonly: true },
     { key: 'question_number', label: '번호', editType: 'number' },
-    { key: 'problem_type', label: '유형(객/주)', editType: 'combobox' },
+    { key: 'problem_type', label: '유형', editType: 'combobox' },
     { key: 'grade', label: '학년', editType: 'text' },
     { key: 'semester', label: '학기', editType: 'text' },
     { key: 'source', label: '출처', editType: 'text' },
     { key: 'major_chapter_id', label: '대단원', editType: 'text' },
     { key: 'middle_chapter_id', label: '중단원', editType: 'text' },
-    { key: 'core_concept_id', label: '핵심개념', editType: 'text' },
-    { key: 'problem_category', label: '문제 유형', editType: 'text' },
+    { key: 'core_concept_id', 'label': '핵심개념', editType: 'text' },
+    { key: 'problem_category', 'label': '문제 유형', editType: 'text' },
     { key: 'difficulty', label: '난이도', editType: 'combobox' },
     { key: 'score', label: '배점', editType: 'text' },
-    { key: 'question_text', label: '문제 본문/보기', editType: 'textarea' },
+    { key: 'question_text', 'label': '문제 본문/보기', editType: 'textarea' },
     { key: 'answer', label: '정답', editType: 'text' },
     { key: 'page', label: '페이지', editType: 'number' },
-    { key: 'solution_text', label: '해설', editType: 'textarea' },
+    { key: 'solution_text', 'label': '해설', editType: 'textarea' },
 ];
 
-// --- [핵심 수정] 훅이 props를 받도록 인터페이스 정의 ---
+// [2차 수정] 빈 문자열을 null로 변환해야 할 필드 목록
+const NULLABLE_STRING_FIELDS: Set<keyof Problem> = new Set([
+    'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'answer', 'solution_text'
+]);
+
 interface UseJsonProblemImporterProps {
     isCreatingNew: boolean;
     initialProblemSetName: string;
+    onUpload: (problems: Problem[], problemSetName: string, description: string | null) => void;
 }
 
-export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }: UseJsonProblemImporterProps) {
+export function useJsonProblemImporter({ 
+    isCreatingNew, 
+    initialProblemSetName,
+    onUpload,
+}: UseJsonProblemImporterProps) {
     const [jsonInput, setJsonInput] = useState(initialJsonInput);
     const [problems, setProblems] = useState<Problem[]>([]);
     const [parseError, setParseError] = useState<ParseErrorDetail | null>(null);
@@ -72,18 +78,14 @@ export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }:
     const [editingValue, setEditingValue] = useState<string | number | null | undefined>('');
     const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
 
-    // --- [핵심 수정] 상태를 훅 내부에서 관리 ---
     const [problemSetName, setProblemSetName] = useState('');
+    const [problemSetDescription, setProblemSetDescription] = useState<string | null>(null);
     const [commonSource, setCommonSource] = useState('');
     const [commonGradeLevel, setCommonGradeLevel] = useState('');
     const [commonSemester, setCommonSemester] = useState('');
 
-    const uploadMutation = useUploadProblemsMutation();
-    const isUploading = uploadMutation.isPending;
-
     const previousJsonInputRef = useRef('');
 
-    // --- [핵심 수정] isCreatingNew가 바뀌거나, 외부에서 전달된 이름이 바뀔 때 내부 상태 업데이트 ---
     useEffect(() => {
         setProblemSetName(initialProblemSetName);
     }, [isCreatingNew, initialProblemSetName]);
@@ -97,7 +99,7 @@ export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }:
 
     const translateJsonError = (error: jsonc.ParseError): ParseErrorDetail => {
         const position = getPosition(error.offset);
-        const commonSuggestions = {
+        const commonSuggestions: { [key: number]: string } = {
             1: "객체 멤버 사이에 쉼표(,)가 빠졌거나, 마지막 멤버 뒤에 불필요한 쉼표가 있는지 확인하세요. (예: `\"key\": \"value\",`)",
             2: "키(key)와 값(value) 사이에 콜론(:)이 빠졌는지 확인하세요. (예: `\"key\": \"value\"`)",
             3: "객체(Object)를 시작하는 여는 중괄호 '{'가 빠졌거나 잘못된 위치에 있는지 확인하세요.",
@@ -113,7 +115,7 @@ export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }:
         return {
             title: "JSON 구문 오류",
             message: jsonc.printParseErrorCode(error.error),
-            suggestion: commonSuggestions[error.error as keyof typeof commonSuggestions] || "JSON 문법을 다시 한번 꼼꼼히 확인해주세요.",
+            suggestion: commonSuggestions[error.error] || "JSON 문법을 다시 한번 꼼꼼히 확인해주세요.",
             line: position.line,
             column: position.column
         };
@@ -149,59 +151,43 @@ export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }:
                         validationErrors.push({ title: "데이터 타입 오류", message: `배열의 ${problemIndex}번째 항목이 객체(Object)가 아닙니다.`, suggestion: "각 문제는 중괄호 `{}`로 감싸야 합니다.", problemIndex });
                         return null;
                     }
-                    if (!('question_number' in p)) {
-                        validationErrors.push({ title: "필수 필드 누락", message: `'question_number' 필드가 없습니다.`, suggestion: "모든 문제에는 `question_number` 필드가 반드시 포함되어야 합니다.", problemIndex });
+                    if (!('question_number' in p) || !p.question_number) {
+                        validationErrors.push({ title: "필수 필드 누락", message: `'question_number' 필드가 없거나 비어있습니다.`, suggestion: "모든 문제에는 `question_number` 필드가 반드시 포함되어야 합니다.", problemIndex });
                         return null;
                     }
-                     if (!('question_text' in p)) {
-                        validationErrors.push({ title: "필수 필드 누락", message: `'question_text' 필드가 없습니다.`, suggestion: "모든 문제에는 `question_text` 필드가 반드시 포함되어야 합니다.", problemIndex });
+                     if (!('question_text' in p) || !p.question_text) {
+                        validationErrors.push({ title: "필수 필드 누락", message: `'question_text' 필드가 없거나 비어있습니다.`, suggestion: "모든 문제에는 `question_text` 필드가 반드시 포함되어야 합니다.", problemIndex });
                         return null;
-                    }
-
-                    const problemNumRaw = p.question_number;
-                    let finalProblemNum: number;
-                    let parsedProblemType: string | null = null;
-
-                    if (typeof problemNumRaw === 'string') {
-                        const numericMatch = problemNumRaw.match(/[\d.]+/);
-                        if (numericMatch) {
-                            finalProblemNum = parseFloat(numericMatch[0]);
-                            const textPart = problemNumRaw.replace(/[\d.]+/, '').trim();
-                            if (textPart) parsedProblemType = textPart;
-                        } else {
-                             validationErrors.push({ title: "데이터 형식 오류", message: `'question_number' ("${problemNumRaw}")에서 숫자를 찾을 수 없습니다.`, suggestion: "문제 번호에 숫자 부분이 포함되어야 합니다. (예: '서답형 1', '5.2')", problemIndex });
-                            return null;
-                        }
-                    } else if (typeof problemNumRaw === 'number') {
-                        finalProblemNum = problemNumRaw;
-                    } else {
-                        validationErrors.push({ title: "데이터 타입 오류", message: `'question_number'가 숫자나 문자열이 아닙니다.`, suggestion: "문제 번호는 숫자(예: 5) 또는 문자열(예: '서답형 1')이어야 합니다.", problemIndex });
-                        return null;
-                    }
-
-                    const finalProblemType = (p.problem_type || parsedProblemType || '서답형') as ProblemType;
-
-                    const pageNumRaw = p.page;
-                    let pageNum: number | null = null;
-                    if (pageNumRaw !== null && pageNumRaw !== undefined && String(pageNumRaw).trim() !== '') {
-                         const pageNumParsed = parseFloat(pageNumRaw);
-                         if (!isNaN(pageNumParsed)) pageNum = pageNumParsed;
                     }
                     
+                    const problemNumRaw = p.question_number;
+                    const parsedQuestionNumber = parseFloat(String(problemNumRaw).replace(/[^\d.]/g, ''));
+
+                    if(isNaN(parsedQuestionNumber)) {
+                        validationErrors.push({ title: "데이터 형식 오류", message: `'question_number' ("${problemNumRaw}")에서 숫자를 찾을 수 없습니다.`, suggestion: "문제 번호에 숫자 부분이 포함되어야 합니다. (예: '서답형 1', '5.2')", problemIndex });
+                        return null;
+                    }
+
+                    const problemTypeValue = (p.problem_type || '서답형') as string;
+                    if (!PROBLEM_TYPES.includes(problemTypeValue as ProblemType)) {
+                         validationErrors.push({ title: "데이터 값 오류", message: `'problem_type' 값이 유효하지 않습니다. (입력값: "${problemTypeValue}")`, suggestion: `허용되는 값: ${PROBLEM_TYPES.join(', ')}`, problemIndex });
+                        return null;
+                    }
+
                     return {
                         problem_id: p.problem_id || `new-${Date.now()}-${index}`,
-                        question_number: finalProblemNum,
-                        problem_type: finalProblemType,
+                        question_number: parsedQuestionNumber,
+                        problem_type: problemTypeValue as ProblemType,
                         question_text: String(p.question_text ?? ''),
                         answer: p.answer ?? null,
                         solution_text: p.solution_text ?? null,
-                        page: pageNum,
+                        page: p.page ?? null,
                         grade: String(p.grade ?? ''),
                         semester: String(p.semester ?? ''),
                         source: String(p.source ?? ''),
-                        major_chapter_id: String(p.major_chapter_id ?? ''),
-                        middle_chapter_id: String(p.middle_chapter_id ?? ''),
-                        core_concept_id: String(p.core_concept_id ?? ''),
+                        major_chapter_id: p.major_chapter_id || null,
+                        middle_chapter_id: p.middle_chapter_id || null,
+                        core_concept_id: p.core_concept_id || null,
                         problem_category: String(p.problem_category ?? ''),
                         difficulty: String(p.difficulty ?? '중'),
                         score: String(p.score ?? ''),
@@ -210,7 +196,6 @@ export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }:
                 .filter((p: Problem | null): p is Problem => p !== null);
             
             setProblems(transformedProblems);
-
             if (validationErrors.length > 0) {
                  setParseError(validationErrors[0]);
             } else {
@@ -234,24 +219,18 @@ export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }:
     const formatValue = useCallback((value: Problem[keyof Problem] | null | undefined): string => {
         if (value === null || value === undefined) return '-';
         if (Array.isArray(value)) return value.join(', ');
-
         const strValue = String(value);
         if (strValue.startsWith('new-')) return '(신규)';
-        
-        if (strValue.length > 20 && strValue.includes('-')) {
-            return `${strValue.substring(0, 8)}...`;
-        }
+        if (strValue.length > 30) return `${strValue.substring(0, 30)}...`;
         return strValue;
     }, []);
 
     const startEdit = useCallback((rowIndex: number, colKey: keyof Problem, currentValue: any, anchorEl: HTMLElement, isReadonly?: boolean) => {
         if (isReadonly) return;
-        if (editingCell?.rowIndex === rowIndex && editingCell?.colKey === colKey) return;
-
         setEditingCell({ rowIndex, colKey });
         setPopoverAnchor(anchorEl);
         setEditingValue(currentValue ?? '');
-    }, [editingCell]);
+    }, []);
 
     const cancelEdit = useCallback(() => {
         setEditingCell(null);
@@ -263,30 +242,17 @@ export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }:
         if (!editingCell) return;
         const { rowIndex, colKey } = editingCell;
         
-        const finalValue = valueToSave !== undefined ? valueToSave : editingValue;
+        let finalValue = valueToSave !== undefined ? valueToSave : editingValue;
+
+        // [2차 수정] 저장 시점에 빈 문자열을 null로 변환
+        if (NULLABLE_STRING_FIELDS.has(colKey) && finalValue === '') {
+            finalValue = null;
+        }
 
         const nextProblems = produce(problems, draft => {
-            const targetProblem = draft[rowIndex];
-            if (!targetProblem) return;
-
-            if (colKey === 'question_number' || colKey === 'page') {
-                const numValue = parseFloat(String(finalValue));
-                (targetProblem as any)[colKey] = isNaN(numValue) ? (finalValue === '' || finalValue === null ? null : (targetProblem as any)[colKey]) : numValue;
-            } else {
-                (targetProblem as any)[colKey] = finalValue;
-            }
+            (draft[rowIndex] as any)[colKey] = finalValue;
         });
-        
         setProblems(nextProblems);
-        const problemsForJson = nextProblems.map(p => {
-            const { ...rest } = p;
-            if (p.problem_id.startsWith('new-')) {
-                delete (rest as any).problem_id;
-            }
-            return rest;
-        });
-        setJsonInput(JSON.stringify({ problems: problemsForJson }, null, 2));
-        
         cancelEdit();
     }, [editingCell, editingValue, problems, cancelEdit]);
 
@@ -302,7 +268,6 @@ export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }:
 
     const applyCommonData = useCallback(() => {
         if (problems.length === 0) return;
-        
         const nextProblems = produce(problems, draft => {
             draft.forEach(problem => {
                 if (commonSource.trim()) problem.source = commonSource;
@@ -310,59 +275,41 @@ export function useJsonProblemImporter({ isCreatingNew, initialProblemSetName }:
                 if (commonSemester.trim()) problem.semester = commonSemester;
             });
         });
-
         setProblems(nextProblems);
-        const problemsForJson = nextProblems.map(p => {
-            const { ...rest } = p;
-            if (p.problem_id.startsWith('new-')) {
-                delete (rest as any).problem_id;
-            }
-            return rest;
-        });
-        setJsonInput(JSON.stringify({ problems: problemsForJson }, null, 2));
         alert('공통 정보가 적용되었습니다.');
     }, [problems, commonSource, commonGradeLevel, commonSemester]);
 
-    const uploadProblems = useCallback(() => {
+    const handleUpload = useCallback(() => {
         if (problems.length === 0 || parseError) {
-            alert('업로드할 문제가 없거나 데이터에 오류가 있습니다. 오류 메시지를 확인해주세요.');
+            alert('업로드할 문제가 없거나 데이터에 오류가 있습니다.');
             return;
         }
-        
-        const problemsToUpload = problems.map(p => {
-            const { ...problemToSend } = p;
-
-            if (problemToSend.problem_id.startsWith('new-')) {
-                delete (problemToSend as Partial<Problem>).problem_id;
-            }
-            
-            return problemToSend;
-        });
-
-        uploadMutation.mutate(problemsToUpload as Problem[]);
-
-    }, [problems, parseError, uploadMutation]);
+        if (isCreatingNew && !problemSetName.trim()) {
+            alert('새로운 문제집의 이름을 입력해주세요.');
+            return;
+        }
+        onUpload(problems, problemSetName, problemSetDescription);
+    }, [problems, parseError, problemSetName, problemSetDescription, isCreatingNew, onUpload]);
     
     const problemTypeOptions: ComboboxOption[] = PROBLEM_TYPES.map(t => ({ value: t, label: t }));
     const difficultyOptions: ComboboxOption[] = [ { value: '최상', label: '최상' }, { value: '상', label: '상' }, { value: '중', label: '중' }, { value: '하', label: '하' }, { value: '최하', label: '최하' } ];
-    const answerOptions: ComboboxOption[] = [ { value: '①', label: '①' }, { value: '②', label: '②' }, { value: '③', label: '③' }, { value: '④', label: '④' }, { value: '⑤', label: '⑤' }, { value: '⑥', label: '⑥' } ];
+    const answerOptions: ComboboxOption[] = [ { value: '①', label: '①' }, { value: '②', label: '②' }, { value: '③', label: '③' }, { value: '④', label: '④' }, { value: '⑤', label: '⑤' } ];
     const gradeOptions: ComboboxOption[] = ['초1', '초2', '초3', '초4', '초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'].map(g => ({ value: g, label: g }));
     const semesterOptions: ComboboxOption[] = ['1학기', '2학기', '공통'].map(s => ({ value: s, label: s }));
 
     return {
         jsonInput, setJsonInput,
-        problems,
-        parseError,
+        problems, parseError,
         editingCell, startEdit, cancelEdit, saveEdit,
-        editingValue, setEditingValue,
-        popoverAnchor,
+        editingValue, setEditingValue, popoverAnchor,
         handleInputKeyDown,
-        problemSetName, setProblemSetName, // 내부 상태 반환
+        problemSetName, setProblemSetName,
+        problemSetDescription, setProblemSetDescription,
         commonSource, setCommonSource,
         commonGradeLevel, setCommonGradeLevel,
         commonSemester, setCommonSemester,
         applyCommonData,
-        uploadProblems, isUploading,
+        handleUpload,
         columns, formatValue,
         problemTypeOptions, difficultyOptions, answerOptions, gradeOptions, semesterOptions,
     };

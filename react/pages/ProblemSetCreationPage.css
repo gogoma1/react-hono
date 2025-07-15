@@ -1,52 +1,87 @@
+/* ./react/pages/ProblemSetCreationPage.css */
+
 /* ==========================================================================
-   1. 페이지 및 위젯 레이아웃
+   1. 페이지 및 위젯 레이아웃 (수정됨)
    ========================================================================== */
 
-/* [수정] 페이지 루트 클래스 이름 변경 */
+/* 페이지 루트 */
 .problem-set-creation-page {
     display: flex;
-    flex-direction: column; /* 세로 정렬로 변경 */
-    gap: 1rem;
+    flex-direction: column; /* 전체 페이지는 수직 정렬 유지 */
     height: 100%;
     width: 100%;
-    padding: 1rem;
+    padding: 1.5rem;
     box-sizing: border-box;
-    overflow-y: auto; /* 페이지 전체 스크롤 */
+    overflow: hidden; /* 페이지 자체의 스크롤은 숨김 */
 }
 
+/* [신규] 메인 콘텐츠 영역 (좌우 패널을 감쌈) */
+.creation-page-main-content {
+    display: flex;
+    flex-direction: row; /* 좌우로 배치 */
+    gap: 1.5rem;
+    flex-grow: 1; /* 남은 공간을 모두 차지 */
+    min-height: 0; /* flex 아이템이 넘칠 때 줄어들 수 있도록 */
+}
+
+/* [신규] 왼쪽 패널 (MyLibrary) */
+.creation-page-left-panel {
+    flex: 0 0 320px; /* 고정 너비 320px */
+    display: flex;
+    flex-direction: column;
+    min-width: 280px; /* 최소 너비 */
+    /* Glassmorphism 스타일 적용 */
+    background: var(--sidebar-glass-bg);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+    border: 1px solid rgba(var(--glass-base-bg-rgb), 0.15);
+    border-radius: var(--main-content-border-radius);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+/* [신규] 오른쪽 패널 (JsonImporter) */
+.creation-page-right-panel {
+    flex-grow: 1; /* 남은 공간을 모두 차지 */
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* flex 아이템이 줄어들 수 있도록 */
+}
+
+/* JSON 임포터 위젯 (기존 스타일 유지) */
 .json-importer-widget {
     display: flex;
-    flex-direction: row;
-    gap: 1rem;
+    flex-direction: column; /* 내부 요소는 수직으로 */
+    gap: 1.5rem;
     width: 100%;
-    /* [수정] 페이지가 스크롤되므로 위젯 자체의 높이는 가변적으로 변경 */
-    flex-grow: 1; 
-    min-height: 500px; /* 최소 높이 지정 */
+    height: 100%; /* 부모에 맞춰 꽉 채움 */
+    flex-grow: 1;
 }
 
 /* ==========================================================================
    2. 패널 공통 스타일 (헤더, 콘텐츠 영역)
    ========================================================================== */
-
 .json-importer-widget .panel {
     display: flex;
     flex-direction: column;
-    background-color: var(--glass-base-bg, rgba(255, 255, 255, 0.8));
-    border: 1px solid var(--border-color-light, rgba(255, 255, 255, 0.2));
-    border-radius: 12px;
+    background: var(--sidebar-glass-bg);
+    backdrop-filter: var(--glass-blur-effect);
+    -webkit-backdrop-filter: var(--glass-blur-effect);
+    border: 1px solid rgba(var(--glass-base-bg-rgb), 0.15);
+    border-radius: var(--main-content-border-radius);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     overflow: hidden;
 }
 
 .json-importer-widget .panel-header {
-    padding: 12px 16px;
+    padding: 14px 20px;
     margin: 0;
-    font-size: 15px;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
-    border-bottom: 1px solid #e0e0e0; 
+    border-bottom: 1px solid rgba(var(--glass-base-bg-rgb), 0.1);
     flex-shrink: 0;
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(var(--glass-base-bg-rgb), 0.1);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -61,29 +96,35 @@
 }
 
 /* ==========================================================================
-   3. 왼쪽/오른쪽 패널 구조
+   3. 오른쪽 패널 내부 구조 (수정됨)
    ========================================================================== */
 
-.json-importer-widget .left-panel {
+/* 이제 JsonImporterWidget이 오른쪽 패널 전체를 차지하므로, .left-panel, .right-panel 선택자는 필요 없음 */
+.json-importer-widget .top-panel { /* 기존 .left-panel 역할 */
     flex: 2;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    min-width: 400px; /* 최소 너비 보장 */
+    gap: 1.5rem;
+    min-height: 250px;
 }
-.json-importer-widget .right-panel {
+.json-importer-widget .bottom-panel { /* 기존 .right-panel 역할 */
     flex: 3;
+    min-height: 0;
 }
 
 /* ==========================================================================
-   4. 왼쪽 패널 내부 요소 (JSON 입력, 공통 정보)
+   4. 오른쪽 패널 내부 요소 (JSON 입력, 공통 정보)
    ========================================================================== */
 
 .json-input-panel {
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
+
 .json-input-panel .panel-content {
-    padding: 0.5rem;
+    padding: 0;
+    position: relative;
 }
 
 .common-data-form {
@@ -92,52 +133,63 @@
     gap: 1rem;
     width: 100%;
 }
+
 .common-data-form .form-group {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
 }
+
 .common-data-form label {
     font-weight: 500;
     font-size: 0.9rem;
     color: var(--text-secondary);
 }
+
 .common-data-form label .required-star {
     color: var(--accent-color);
     margin-left: 2px;
 }
+
 .common-data-form .action-button {
     margin-top: auto;
 }
 
 /* ==========================================================================
-   5. 공통 Input / Textarea 스타일
+   5. 공통 Input / Textarea 및 오류 메시지 스타일
    ========================================================================== */
 
 .json-input-textarea,
-.common-data-form input {
+.common-data-form input,
+.common-data-form .common-textarea {
     width: 100%;
-    background-color: rgba(0, 0, 0, 0.07); 
-    border: 1px solid transparent;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 12px 16px;
     font-size: 0.95rem;
     color: var(--text-primary);
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
-    font-family: var(--base-font-family);
     box-sizing: border-box;
 }
 
+.common-data-form .common-textarea {
+    resize: vertical;
+}
+
+
 .json-input-textarea {
-    font-family: monospace;
+    font-family: 'Fira Code', 'D2Coding', monospace;
     resize: none;
     height: 100%;
+    border-radius: 0;
+    border: none;
 }
 
 .common-data-form input:focus,
+.common-data-form .common-textarea:focus,
 .json-input-textarea:focus {
-    background-color: transparent; 
     border-color: var(--accent-color);
     box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2);
 }
@@ -146,98 +198,99 @@
     background-color: rgba(0, 0, 0, 0.03);
     color: var(--text-placeholder);
     cursor: not-allowed;
+    opacity: 0.6;
 }
 
-
-/* ... (기존 스타일 중략) ... */
+.error-display {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0.5rem;
+    padding: 1rem;
+    border: 1px solid #e53e3e;
+    background-color: rgba(229, 62, 62, 0.2);
+    backdrop-filter: blur(5px);
+    color: #e53e3e;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    z-index: 20;
+}
+.error-display .error-title { font-weight: 600; margin: 0 0 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+.error-display .error-location { font-family: monospace; font-size: 0.8rem; opacity: 0.8; }
+.error-display pre { white-space: pre-wrap; word-break: break-all; margin: 0.5rem 0; font-weight: 500; }
+.error-suggestion { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(229, 62, 62, 0.3); display: flex; gap: 0.75rem; align-items: flex-start; }
+.error-suggestion h5 { margin: 0 0 4px; font-weight: 600; }
+.error-suggestion p { margin: 0; opacity: 0.9; }
 
 /* ==========================================================================
-   [신규 추가] 문제집 선택 UI 스타일
+   6. 오른쪽 패널 테이블 스타일
    ========================================================================== */
-.problem-set-selector-container {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+
+.table-wrapper {
+    flex-grow: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
     border-radius: 12px;
-    padding: 1.5rem;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    flex-shrink: 0; /* 스크롤 시 크기 줄어들지 않도록 */
 }
 
-.problem-set-selector-container h2 {
-    margin-top: 0;
-    margin-bottom: 0.5rem;
-    font-size: 1.5rem;
-    color: var(--text-primary);
+.problem-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
 }
+.problem-table thead th { position: sticky; top: 0; z-index: 10; background: rgba(var(--sidebar-bg-rgb), 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 2px solid rgba(var(--glass-base-bg-rgb), 0.15); }
+.problem-table th, .problem-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(var(--glass-base-bg-rgb), 0.1); vertical-align: middle; white-space: nowrap; min-width: 150px; }
+.problem-table th:nth-child(1), .problem-table td:nth-child(1) { min-width: 120px; }
+.problem-table th:nth-child(2), .problem-table td:nth-child(2) { min-width: 80px; }
+.problem-table th:nth-child(3), .problem-table td:nth-child(3) { min-width: 100px; }
+.problem-table th:nth-child(14), .problem-table td:nth-child(14) { min-width: 400px; }
+.problem-table th:nth-child(16), .problem-table td:nth-child(16) { min-width: 400px; }
+.problem-table th { font-weight: 600; color: var(--text-secondary); }
+.problem-table tr:last-child td { border-bottom: none; }
+.problem-table tr:hover { background-color: rgba(var(--glass-base-bg-rgb), 0.08); }
+.cell-edit-trigger { background: none; border: none; padding: 0; margin: 0; width: 100%; height: 100%; text-align: left; cursor: pointer; display: flex; align-items: center; justify-content: space-between; min-height: 2rem; border-radius: 4px; transition: background-color 0.2s; font-size: inherit; color: inherit; font-family: inherit; }
+.cell-edit-trigger:not(:disabled):hover { background-color: var(--menu-item-hover-bg, rgba(0, 0, 0, 0.05)); }
+.cell-edit-trigger[disabled] { cursor: default; color: var(--text-placeholder); }
+.cell-edit-trigger .chevron-icon { flex-shrink: 0; margin-left: 0.5rem; opacity: 0.5; }
 
-.problem-set-selector-container p {
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    color: var(--text-secondary);
-}
+/* ==========================================================================
+   7. Popover 및 내부 요소 스타일
+   ========================================================================== */
 
-.radio-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
+.edit-popover-content { padding: 1rem; display: flex; flex-direction: column; gap: 1rem; width: auto; min-width: 320px; max-height: 80vh; overflow-y: auto; resize: none; }
+.glass-popover.large .edit-popover-content { width: 600px; height: 400px; resize: both; overflow: hidden; padding-bottom: 0; min-width: 500px; min-height: 250px; }
+.textarea-container { flex-grow: 1; position: relative; display: flex; min-height: 0; background-color: var(--input-bg); border: 1px solid var(--border-color); border-radius: 10px; transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s; }
+.textarea-container:focus-within { background-color: transparent; border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.2); }
+.popover-textarea { resize: none; width: 100%; height: 100%; padding: 12px; padding-bottom: 50px; box-sizing: border-box; color: var(--text-primary); font-size: 0.95rem; font-family: var(--base-font-family); outline: none; border: none; background-color: transparent; min-width: 0; }
+.edit-popover-content label { font-weight: 500; font-size: 0.9rem; color: var(--text-secondary); flex-shrink: 0; }
+.edit-popover-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; flex-shrink: 0; }
+.edit-popover-actions.on-textarea { position: absolute; bottom: 8px; right: 8px; margin-top: 0; z-index: 10; }
+.edit-popover-content.combobox-content { padding: 0.5rem; gap: 0.25rem; width: auto; min-width: 180px; }
+.combobox-label { padding: 0.5rem 0.5rem 0.25rem; font-weight: 600; color: var(--text-primary); }
+.combobox-option { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 8px 12px; border-radius: 6px; border: none; background-color: transparent; text-align: left; cursor: pointer; color: var(--text-secondary); }
+.combobox-option:hover { background-color: var(--menu-item-hover-bg); color: var(--text-primary); }
+.combobox-option[aria-selected="true"] { background-color: rgba(var(--accent-color-rgb), 0.15); color: var(--accent-color); font-weight: 500; }
+.combobox-option[aria-selected="true"] .check-icon { color: var(--accent-color); }
+.combobox-option .check-icon { color: transparent; flex-shrink: 0; }
+.combobox-option .option-label { flex-grow: 1; }
 
-.radio-label {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    transition: background-color 0.2s, border-color 0.2s;
-    border: 1px solid transparent;
-}
+/* ==========================================================================
+   8. 문제집 선택 UI 스타일 (제거됨 - 이 페이지에서는 사용 안 함)
+   ========================================================================== */
 
-.radio-label:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-}
+/* 기존 .problem-set-selector-container 관련 스타일 제거 */
 
-.radio-label.checked {
-    background-color: rgba(var(--accent-color-rgb), 0.15);
-    border-color: rgba(var(--accent-color-rgb), 0.5);
-}
+/* ==========================================================================
+   9. 반응형 레이아웃
+   ========================================================================== */
 
-.radio-label input[type="radio"] {
-    display: none;
-}
-
-.radio-button {
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border-color);
-    border-radius: 50%;
-    margin-right: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: border-color 0.2s;
-    flex-shrink: 0;
-}
-
-.radio-button::after {
-    content: '';
-    width: 10px;
-    height: 10px;
-    background-color: var(--accent-color);
-    border-radius: 50%;
-    transform: scale(0);
-    transition: transform 0.2s ease-in-out;
-}
-
-.radio-label.checked .radio-button {
-    border-color: var(--accent-color);
-}
-
-.radio-label.checked .radio-button::after {
-    transform: scale(1);
-}
-
-.radio-text {
-    color: var(--text-primary);
-    font-weight: 500;
+@media (max-width: 1200px) {
+    .creation-page-main-content {
+        flex-direction: column;
+    }
+    .creation-page-left-panel {
+        flex: 0 0 auto; /* 너비를 내용에 맞게 조절 */
+        min-height: 300px;
+    }
 }

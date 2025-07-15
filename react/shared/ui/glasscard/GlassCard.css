@@ -1,0 +1,127 @@
+/* ./react/shared/ui/glasscard/GlassCard.css (더 밝고 화사한 버전) */
+
+/* [핵심 수정 1] 바깥쪽: 흰색 반투명 오버레이로 변경 */
+.glasscard-overlay {
+  position: fixed;
+  inset: 0;
+  /* 검은색 배경 대신 흰색 배경 사용 */
+  background-color: rgba(248, 249, 250, 0.5); 
+  backdrop-filter: blur(5px) saturate(120%); /* 채도를 살짝 낮춰 차분하게 */
+  -webkit-backdrop-filter: blur(5px) saturate(120%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  opacity: 0;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* 모달의 핵심 컨테이너 */
+.glasscard-container {
+  position: relative;
+  /* [핵심 수정] 배경에 미색(아이보리/크림) 톤 추가 */
+  background: linear-gradient(
+    135deg,
+    rgba(253, 252, 248, 0.8) 0%, /* 아주 연한 아이보리, 위쪽은 더 불투명하게 */
+    rgba(253, 252, 248, 0.6) 100% /* 아래쪽은 조금 더 투명하게 */
+  );
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  
+  /* 테두리도 살짝 미색 톤으로 변경하여 조화롭게 */
+  border: 1px solid rgba(255, 255, 255, 0.8); 
+  
+  border-radius: var(--main-content-border-radius, 20px);
+  box-shadow: 0 16px 40px rgba(80, 50, 20, 0.12); /* 그림자에 아주 살짝 브라운 톤 추가 */
+  
+  display: flex;
+  flex-direction: column;
+  color: #3d3a36; /* 텍스트 색상을 따뜻한 톤에 맞춰 살짝 변경 */
+  min-width: 480px;
+  max-width: 550px;
+  width: 90vw;
+  
+  /* 등장 애니메이션 */
+  transform: translateY(20px) scale(0.98);
+  opacity: 0;
+  animation: slideInFromBottom 0.45s cubic-bezier(0.215, 0.610, 0.355, 1.000) forwards;
+}
+
+/* [제거] 복잡한 내부 광원 효과 제거하여 깔끔하게 */
+.glasscard-container::after {
+  display: none;
+}
+
+/* 퇴장 애니메이션 */
+.glasscard-overlay.exit .glasscard-container {
+  animation: slideOutToBottom 0.35s cubic-bezier(0.600, 0.040, 0.980, 0.335) forwards;
+}
+.glasscard-overlay.exit {
+  animation: fadeOut 0.35s ease-out forwards;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+@keyframes slideInFromBottom {
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+@keyframes slideOutToBottom {
+  from { transform: translateY(0) scale(1); opacity: 1; }
+  to { transform: translateY(20px) scale(0.98); opacity: 0; }
+}
+
+/* 헤더, 본문, 푸터 스타일 */
+.glasscard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.glasscard-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1c2a38;
+}
+
+.glasscard-close-button {
+  background: none;
+  border: none;
+  color: #6c7a89;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.7;
+  transition: opacity 0.2s, background-color 0.2s, transform 0.2s;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.glasscard-close-button:hover {
+  opacity: 1;
+  background-color: rgba(0,0,0,0.08);
+  transform: rotate(90deg);
+}
+
+.glasscard-body {
+  padding: 16px 28px 24px;
+  flex-grow: 1;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+.glasscard-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 28px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+}

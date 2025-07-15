@@ -1,9 +1,11 @@
 CREATE TYPE "public"."academy_status_enum" AS ENUM('운영중', '휴업', '폐업');--> statement-breakpoint
 CREATE TYPE "public"."billing_interval_enum" AS ENUM('month', 'year');--> statement-breakpoint
+CREATE TYPE "public"."entitlement_grant_reason_enum" AS ENUM('purchase', 'subscription', 'free_claim', 'creator');--> statement-breakpoint
 CREATE TYPE "public"."exam_assignment_status_enum" AS ENUM('assigned', 'not_started', 'in_progress', 'completed', 'graded', 'expired');--> statement-breakpoint
 CREATE TYPE "public"."member_status_enum" AS ENUM('active', 'inactive', 'resigned');--> statement-breakpoint
 CREATE TYPE "public"."member_type_enum" AS ENUM('student', 'teacher', 'parent', 'staff');--> statement-breakpoint
 CREATE TYPE "public"."profile_status_enum" AS ENUM('active', 'inactive', 'deleted');--> statement-breakpoint
+CREATE TYPE "public"."seller_status_enum" AS ENUM('none', 'pending_approval', 'approved', 'rejected');--> statement-breakpoint
 CREATE TYPE "public"."subscription_status_enum" AS ENUM('active', 'canceled', 'past_due', 'incomplete');--> statement-breakpoint
 CREATE TABLE "academies" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -35,6 +37,8 @@ CREATE TABLE "exam_assignments" (
 	"status" "exam_assignment_status_enum" DEFAULT 'assigned' NOT NULL,
 	"correct_rate" real,
 	"total_pure_time_seconds" integer,
+	"total_duration_seconds" integer,
+	"answer_change_total_count" integer,
 	"assigned_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"started_at" timestamp with time zone,
 	"completed_at" timestamp with time zone
@@ -53,7 +57,8 @@ CREATE TABLE "problem_set_entitlements" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"problem_set_id" text NOT NULL,
-	"access_granted_by" uuid,
+	"grant_reason" "entitlement_grant_reason_enum" NOT NULL,
+	"source_id" text,
 	"access_expires_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -74,6 +79,8 @@ CREATE TABLE "profiles" (
 	"name" text NOT NULL,
 	"phone" text,
 	"status" "profile_status_enum" DEFAULT 'active' NOT NULL,
+	"seller_status" "seller_status_enum" DEFAULT 'none' NOT NULL,
+	"business_info" jsonb,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -121,11 +128,11 @@ ALTER TABLE "exam_assignments" ADD CONSTRAINT "exam_assignments_exam_set_id_exam
 ALTER TABLE "exam_assignments" ADD CONSTRAINT "exam_assignments_student_member_id_academy_members_id_fk" FOREIGN KEY ("student_member_id") REFERENCES "public"."academy_members"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "exam_sets" ADD CONSTRAINT "exam_sets_creator_id_profiles_id_fk" FOREIGN KEY ("creator_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "problem_set_entitlements" ADD CONSTRAINT "problem_set_entitlements_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "problem_set_entitlements" ADD CONSTRAINT "problem_set_entitlements_access_granted_by_subscriptions_id_fk" FOREIGN KEY ("access_granted_by") REFERENCES "public"."subscriptions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "student_manager_links" ADD CONSTRAINT "student_manager_links_student_member_id_academy_members_id_fk" FOREIGN KEY ("student_member_id") REFERENCES "public"."academy_members"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "student_manager_links" ADD CONSTRAINT "student_manager_links_manager_member_id_academy_members_id_fk" FOREIGN KEY ("manager_member_id") REFERENCES "public"."academy_members"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "unq_academy_member_idx" ON "academy_members" USING btree ("academy_id","profile_id","member_type") WHERE "academy_members"."profile_id" IS NOT NULL;
+CREATE UNIQUE INDEX "unq_academy_member_idx" ON "academy_members" USING btree ("academy_id","profile_id","member_type") WHERE "academy_members"."profile_id" IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "unq_user_problem_set_entitlement_idx" ON "problem_set_entitlements" USING btree ("user_id","problem_set_id");

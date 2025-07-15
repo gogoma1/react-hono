@@ -10,64 +10,79 @@ import LoadingButton from '../../shared/ui/loadingbutton/LoadingButton';
 const COMBOBOX_FIELDS: (keyof Problem)[] = ['problem_type', 'difficulty', 'grade', 'semester'];
 const ANSWER_COMBOBOX_FIELDS: (keyof Problem)[] = ['answer'];
 
-// --- [핵심 수정 1] Widget이 받을 props 타입 정의 ---
 interface JsonProblemImporterWidgetProps {
     isCreatingNew: boolean;
     initialProblemSetName: string;
     selectedProblemSetId: string;
+    onUpload: (problems: Problem[], problemSetName: string, description: string | null) => void;
+    isProcessing: boolean;
 }
 
-// --- [핵심 수정 2] FC 시그니처에서 props를 받도록 수정 ---
 const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
     isCreatingNew,
     initialProblemSetName,
     selectedProblemSetId,
+    onUpload,
+    isProcessing,
 }) => {
-    // --- [핵심 수정 3] 훅에 props를 전달 ---
     const {
-        jsonInput,
-        setJsonInput,
-        problems,
-        parseError,
-        editingCell,
-        startEdit,
-        cancelEdit,
-        saveEdit,
-        editingValue,
-        setEditingValue,
-        handleInputKeyDown,
-        problemSetName,
-        setProblemSetName,
-        commonSource,
-        setCommonSource,
-        commonGradeLevel,
-        setCommonGradeLevel,
-        commonSemester,
-        setCommonSemester,
+        jsonInput, setJsonInput,
+        problems, parseError,
+        editingCell, startEdit, cancelEdit, saveEdit,
+        editingValue, setEditingValue, handleInputKeyDown, popoverAnchor,
+        problemSetName, setProblemSetName,
+        problemSetDescription, setProblemSetDescription, // description 상태 가져오기
+        commonSource, setCommonSource,
+        commonGradeLevel, setCommonGradeLevel,
+        commonSemester, setCommonSemester,
         applyCommonData,
-        isUploading,
-        columns,
-        formatValue,
-        popoverAnchor,
+        handleUpload,
+        columns, formatValue,
         problemTypeOptions, difficultyOptions, answerOptions, gradeOptions, semesterOptions
-    } = useJsonProblemImporter({ isCreatingNew, initialProblemSetName });
+    } = useJsonProblemImporter({ isCreatingNew, initialProblemSetName, onUpload });
 
     const isEditing = !!editingCell;
-
     const uploadButtonText = isCreatingNew ? "문제집 생성 및 문제 업로드" : "선택한 문제집에 문제 추가";
-    
-    // TODO: 이 핸들러는 다음 단계(Modal 구현)에서 구체화됩니다.
-    const handleUpload = () => {
-        if (isCreatingNew) {
-            console.log("새 문제집 생성:", { name: problemSetName, problems, /*...*/ });
-        } else {
-            console.log("기존 문제집에 문제 추가:", { id: selectedProblemSetId, problems, /*...*/ });
-        }
-    };
 
     return (
         <div className="json-importer-widget">
             <div className="left-panel">
+                <div className="panel common-data-panel">
+                    <div className="panel-header">공통 정보</div>
+                    <div className="panel-content common-data-form">
+                        <div className="form-group">
+                            <label htmlFor="problemSetName">
+                                문제집 이름
+                                {isCreatingNew && <span className="required-star">*</span>}
+                            </label>
+                            <input 
+                                id="problemSetName" 
+                                value={problemSetName} 
+                                onChange={e => setProblemSetName(e.target.value)} 
+                                placeholder={isCreatingNew ? "예: 2024년 1학기 중간고사 대비" : "기존 문제집 이름"}
+                                disabled={!isCreatingNew}
+                                required={isCreatingNew}
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="problemSetDescription">문제집 설명 (선택)</label>
+                            <textarea 
+                                id="problemSetDescription" 
+                                className="common-textarea"
+                                value={problemSetDescription || ''} 
+                                onChange={e => setProblemSetDescription(e.target.value)}
+                                placeholder="예: 이 문제집은 고2 학생들의 내신 대비를 위한 고난도 문항으로 구성되어 있습니다."
+                                rows={3}
+                            />
+                        </div>
+                        
+                        <div className="form-group"><label htmlFor="commonSource">공통 출처</label><input id="commonSource" value={commonSource} onChange={e => setCommonSource(e.target.value)} placeholder="예: 2024 수능특강" /></div>
+                        <div className="form-group"><label htmlFor="commonGradeLevel">공통 학년</label><input id="commonGradeLevel" value={commonGradeLevel} onChange={e => setCommonGradeLevel(e.target.value)} placeholder="예: 고3" /></div>
+                        <div className="form-group"><label htmlFor="commonSemester">공통 학기</label><input id="commonSemester" value={commonSemester} onChange={e => setCommonSemester(e.target.value)} placeholder="예: 1학기" /></div>
+                        <ActionButton onClick={applyCommonData} disabled={problems.length === 0} className="primary"><LuCheck style={{ marginRight: '4px' }}/>모든 문제에 적용</ActionButton>
+                    </div>
+                </div>
                 <div className="panel json-input-panel">
                     <div className="panel-header">JSON 데이터 입력</div>
                     <div className="panel-content">
@@ -100,32 +115,6 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                         )}
                     </div>
                 </div>
-                <div className="panel common-data-panel">
-                    <div className="panel-header">공통 정보 일괄 적용</div>
-                    <div className="panel-content common-data-form">
-                        
-                        {/* --- [핵심 수정 4] 문제집 이름 입력란 추가 --- */}
-                        <div className="form-group">
-                            <label htmlFor="problemSetName">
-                                문제집 이름
-                                {isCreatingNew && <span className="required-star">*</span>}
-                            </label>
-                            <input 
-                                id="problemSetName" 
-                                value={problemSetName} 
-                                onChange={e => setProblemSetName(e.target.value)} 
-                                placeholder={isCreatingNew ? "예: 2024년 1학기 중간고사 대비" : "기존 문제집 이름"}
-                                disabled={!isCreatingNew}
-                                required={isCreatingNew}
-                            />
-                        </div>
-
-                        <div className="form-group"><label htmlFor="commonSource">공통 출처</label><input id="commonSource" value={commonSource} onChange={e => setCommonSource(e.target.value)} placeholder="예: 2024 수능특강" /></div>
-                        <div className="form-group"><label htmlFor="commonGradeLevel">공통 학년</label><input id="commonGradeLevel" value={commonGradeLevel} onChange={e => setCommonGradeLevel(e.target.value)} placeholder="예: 고3" /></div>
-                        <div className="form-group"><label htmlFor="commonSemester">공통 학기</label><input id="commonSemester" value={commonSemester} onChange={e => setCommonSemester(e.target.value)} placeholder="예: 1학기" /></div>
-                        <ActionButton onClick={applyCommonData} disabled={problems.length === 0} className="primary"><LuCheck style={{ marginRight: '4px' }}/>모든 문제에 적용</ActionButton>
-                    </div>
-                </div>
             </div>
 
             <div className="panel right-panel">
@@ -133,9 +122,9 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                     <h2>표 미리보기 (클릭하여 수정)</h2>
                     <LoadingButton
                         onClick={handleUpload}
-                        disabled={problems.length === 0 || parseError !== null || (isCreatingNew && !problemSetName.trim())}
-                        isLoading={isUploading}
-                        loadingText="저장 중..."
+                        disabled={problems.length === 0 || parseError !== null || (isCreatingNew && !problemSetName.trim()) || isProcessing}
+                        isLoading={isProcessing}
+                        loadingText="처리 중..."
                         className="primary"
                     >
                         <LuUpload style={{ marginRight: '8px' }} />
@@ -146,12 +135,7 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                     <table className="problem-table">
                         <thead>
                             <tr>
-                                {columns.map(col => (
-                                    <th key={col.key}>
-                                        {col.label}
-                                        {col.readonly && <span style={{fontSize: '0.7rem', marginLeft: '4px'}}>(읽기전용)</span>}
-                                    </th>
-                                ))}
+                                {columns.map(col => (<th key={col.key}>{col.label}</th>))}
                             </tr>
                         </thead>
                         <tbody>
@@ -176,12 +160,7 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                             ) : (
                                 <tr>
                                     <td colSpan={columns.length} style={{ textAlign: 'center', padding: '2rem' }}>
-                                        {jsonInput.trim() === '' 
-                                            ? "왼쪽 텍스트 영역에 JSON 데이터를 붙여넣으세요." 
-                                            : parseError 
-                                                ? "JSON 데이터에 오류가 있습니다. 왼쪽 영역의 오류 메시지를 확인하세요." 
-                                                : "유효한 'problems' 배열이 없거나 데이터가 비어있습니다."
-                                        }
+                                        {jsonInput.trim() === '' ? "왼쪽 텍스트 영역에 JSON 데이터를 붙여넣으세요." : parseError ? "JSON 데이터에 오류가 있습니다." : "유효한 'problems' 배열이 없거나 데이터가 비어있습니다."}
                                     </td>
                                 </tr>
                             )}
@@ -195,16 +174,9 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                     const col = columns.find(c => c.key === editingCell.colKey) as Column;
                     const isAnswerCombobox = ANSWER_COMBOBOX_FIELDS.includes(col.key) && problems[editingCell.rowIndex]?.problem_type === '객관식';
                     const isNormalCombobox = COMBOBOX_FIELDS.includes(col.key);
-
-                    const options = 
-                        col.key === 'problem_type' ? problemTypeOptions :
-                        col.key === 'difficulty' ? difficultyOptions :
-                        col.key === 'grade' ? gradeOptions :
-                        col.key === 'semester' ? semesterOptions :
-                        isAnswerCombobox ? answerOptions : [];
-
+                    const options = col.key === 'problem_type' ? problemTypeOptions : col.key === 'difficulty' ? difficultyOptions : col.key === 'grade' ? gradeOptions : col.key === 'semester' ? semesterOptions : isAnswerCombobox ? answerOptions : [];
                     if (isNormalCombobox || isAnswerCombobox) {
-                        return (<PopoverCombobox label={col.label} value={String(editingValue ?? '')} onValueChange={(val) => { setEditingValue(val); saveEdit(val); }} options={options} />)
+                        return (<PopoverCombobox label={col.label} value={String(editingValue ?? '')} onValueChange={(val) => { saveEdit(val); }} options={options} />)
                     }
                     if (col.editType === 'textarea'){
                         return (<PopoverTextarea label={col.label} value={String(editingValue ?? '')} onChange={(e) => setEditingValue(e.target.value)} onKeyDown={handleInputKeyDown} onSave={() => saveEdit()} onCancel={cancelEdit} />)

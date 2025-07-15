@@ -10,3 +10,5 @@ CREATE TABLE `student_problem_results` (
 	`created_at` text DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
 	PRIMARY KEY(`assignment_id`, `problem_id`)
 );
+--> statement-breakpoint
+CREATE INDEX `student_id_idx` ON `student_problem_results` (`student_id`);

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b3ddb5c5-6e9b-4a3f-90b7-e89e04215b4c",
+  "id": "b9a8aaad-ee33-4549-8e8a-bc9a2a2353d6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "student_problem_results": {
@@ -73,7 +73,15 @@
           "default": "(strftime('%Y-%m-%d %H:%M:%f', 'now'))"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "student_id_idx": {
+          "name": "student_id_idx",
+          "columns": [
+            "student_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "student_problem_results_assignment_id_problem_id_pk": {

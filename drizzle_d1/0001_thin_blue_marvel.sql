@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX `middle_chapters_major_id_name_unq` ON `middle_chapters` (`major_chapter_id`,`name`);
