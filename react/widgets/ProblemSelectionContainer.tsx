@@ -15,7 +15,6 @@ interface ProblemSelectionContainerProps {
     toggleRow: (id: string) => void;
     toggleItems: (ids: string[]) => void;
     clearSelection: () => void;
-    // [추가] 검색창 UI 제어를 위한 props
     isSearchBoxVisible: boolean;
     toggleSearchBox: () => void;
 }
@@ -28,7 +27,6 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
     toggleRow,
     toggleItems,
     clearSelection,
-    // [추가] props 받기
     isSearchBoxVisible,
     toggleSearchBox,
 }) => {
@@ -62,7 +60,7 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
     const filteredProblems = useTableSearch({
         data: problemsFilteredByCustomControls,
         searchTerm,
-        searchableKeys: ['display_question_number', 'source', 'grade', 'semester', 'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'problem_category'],
+        searchableKeys: ['display_question_number', 'subtitle', 'grade', 'semester', 'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'problem_category'],
         activeFilters,
     }) as ProcessedProblem[];
 
@@ -90,7 +88,6 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
       handleResetHeaderFilters();
     }, [clearSelection, handleResetHeaderFilters]);
 
-    // [수정] 스토어에서 필요한 부분만 가져오도록 변경
     const setSearchBoxProps = useLayoutStore(state => state.setSearchBoxProps);
 
     const suggestionGroups = useMemo((): SuggestionGroup[] => {
@@ -100,7 +97,7 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
             return Array.from(new Set(values)).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
         };
         return [
-            { key: 'source', suggestions: getUniqueSortedValues(allProblems, 'source') },
+            { key: 'subtitle', suggestions: getUniqueSortedValues(allProblems, 'subtitle') }, // [수정]
             { key: 'grade', suggestions: getUniqueSortedValues(allProblems, 'grade') },
             { key: 'major_chapter_id', suggestions: getUniqueSortedValues(allProblems, 'major_chapter_id') },
         ];
@@ -120,7 +117,6 @@ const ProblemSelectionContainer: React.FC<ProblemSelectionContainerProps> = ({
                 }),
                 onResetFilters: handleResetFilters, suggestionGroups: suggestionGroupsJSON, onToggleFiltered: handleToggleAllInFilter,
                 selectedCount: selectedIds.size, isSelectionComplete: isAllSelectedInFilter, showActionControls: true, 
-                // [수정] `onHide`를 prop으로 받은 `toggleSearchBox`와 연결
                 onHide: toggleSearchBox,
             });
         } else {

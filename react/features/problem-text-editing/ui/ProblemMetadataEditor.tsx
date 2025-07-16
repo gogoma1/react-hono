@@ -1,7 +1,4 @@
-// ----- ./react/features/problem-text-editing/ui/ProblemMetadataEditor.tsx -----
-
 import React, { useState } from 'react';
-// [수정] PROBLEM_TYPES를 import 합니다.
 import type { Problem, ComboboxOption } from '../../../entities/problem/model/types';
 import { PROBLEM_TYPES } from '../../../entities/problem/model/types';
 import GlassPopover from '../../../shared/components/GlassPopover';
@@ -12,12 +9,9 @@ const GRADE_OPTIONS: ComboboxOption[] = ['초1', '초2', '초3', '초4', '초5',
 const SEMESTER_OPTIONS: ComboboxOption[] = ['1학기', '2학기', '공통'].map(s => ({ value: s, label: s }));
 const DIFFICULTY_OPTIONS: ComboboxOption[] = ['최상', '상', '중', '하', '최하'].map(d => ({ value: d, label: d }));
 
-/**
- * [핵심 수정] 하드코딩된 배열 대신, entities에서 import한 PROBLEM_TYPES를 사용하여 옵션을 동적으로 생성합니다.
- */
 const TYPE_OPTIONS: ComboboxOption[] = PROBLEM_TYPES.map(t => ({ value: t, label: t }));
 
-const ANSWER_OPTIONS: ComboboxOption[] = ['①', '②', '③', '④', '⑤', '⑥', 'O', 'X'].map(a => ({ value: a, label: a })); // [추가] OX 정답 옵션 추가
+const ANSWER_OPTIONS: ComboboxOption[] = ['①', '②', '③', '④', '⑤', '⑥', 'O', 'X'].map(a => ({ value: a, label: a }));
 
 const SELECT_OPTIONS_MAP: Record<string, ComboboxOption[]> = {
     grade: GRADE_OPTIONS,
@@ -29,7 +23,7 @@ const SELECT_OPTIONS_MAP: Record<string, ComboboxOption[]> = {
 
 const FIELD_LABELS: Record<string, string> = {
     question_number: "문제 번호",
-    source: "출처",
+    subtitle: "출처(소제목)", // [수정]
     grade: "학년",
     semester: "학기",
     major_chapter_id: "대단원",
@@ -58,9 +52,6 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
     const [popoverAnchorEl, setPopoverAnchorEl] = useState<HTMLElement | null>(null);
 
     const handleFieldClick = (e: React.MouseEvent<HTMLButtonElement>, field: keyof Problem) => {
-        /**
-         * [수정] 'OX' 문제 유형일 때도 정답 선택 콤보박스를 활성화합니다.
-         */
         const isAnswerCombobox = field === 'answer' && (problemData.problem_type === '객관식' || problemData.problem_type === 'OX');
         const options = SELECT_OPTIONS_MAP[field];
 
@@ -91,9 +82,6 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
         <div className="metadata-fields-section">
             <h5 className="editor-section-title">문제 정보</h5>
             {fields.map(field => {
-                /**
-                 * [수정] 'OX' 유형일 때도 정답 필드가 콤보박스로 렌더링되도록 조건을 수정합니다.
-                 */
                 const isAnswerCombobox = field === 'answer' && (problemData.problem_type === '객관식' || problemData.problem_type === 'OX');
                 const isOtherCombobox = field !== 'answer' && SELECT_OPTIONS_MAP[field];
                 
@@ -140,9 +128,6 @@ const ProblemMetadataEditor: React.FC<ProblemMetadataEditorProps> = ({
                         label={FIELD_LABELS[popoverTargetField]}
                         value={String(problemData[popoverTargetField] ?? '')}
                         onValueChange={handleComboboxSelect}
-                        /**
-                         * [수정] OX 문제일 경우 O, X 옵션만 보여주도록 필터링합니다.
-                         */
                         options={
                             popoverTargetField === 'answer' && problemData.problem_type === 'OX'
                                 ? ANSWER_OPTIONS.filter(opt => opt.value === 'O' || opt.value === 'X')

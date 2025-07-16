@@ -10,12 +10,11 @@ import LoadingButton from '../../shared/ui/loadingbutton/LoadingButton';
 const COMBOBOX_FIELDS: (keyof Problem)[] = ['problem_type', 'difficulty', 'grade', 'semester'];
 const ANSWER_COMBOBOX_FIELDS: (keyof Problem)[] = ['answer'];
 
-// --- [핵심 수정] ---
-// onUpload 프롭의 타입을 useJsonProblemImporter 훅의 시그니처와 일치시킵니다.
 interface JsonProblemImporterWidgetProps {
     isCreatingNew: boolean;
     initialProblemSetName: string;
-    selectedProblemSetId: string;
+    // [수정] 사용하지 않는 prop 제거
+    // selectedProblemSetId: string;
     onUpload: (payload: {
         problems: Problem[];
         problemSetName: string;
@@ -28,11 +27,10 @@ interface JsonProblemImporterWidgetProps {
 const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
     isCreatingNew,
     initialProblemSetName,
-    selectedProblemSetId, // 이 프롭은 현재 사용되지 않으므로 나중에 제거 고려 가능
+    // selectedProblemSetId, // [수정] 제거
     onUpload,
     isProcessing,
 }) => {
-    // useJsonProblemImporter 훅에 onUpload를 그대로 전달합니다.
     const {
         jsonInput, setJsonInput,
         problems, parseError,
@@ -40,7 +38,7 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
         editingValue, setEditingValue, handleInputKeyDown, popoverAnchor,
         problemSetName, setProblemSetName,
         problemSetDescription, setProblemSetDescription,
-        commonSource, setCommonSource,
+        commonSubtitle, setCommonSubtitle, // [수정] commonSource -> commonSubtitle
         commonGradeLevel, setCommonGradeLevel,
         commonSemester, setCommonSemester,
         applyCommonData,
@@ -52,7 +50,6 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
     const isEditing = !!editingCell;
     const uploadButtonText = isCreatingNew ? "문제집 생성 및 문제 업로드" : "선택한 문제집에 문제 추가";
 
-    // --- 이하 렌더링 로직은 원본과 동일 ---
     return (
         <div className="json-importer-widget">
             <div className="left-panel">
@@ -86,7 +83,8 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                             />
                         </div>
                         
-                        <div className="form-group"><label htmlFor="commonSource">공통 출처(소제목)</label><input id="commonSource" value={commonSource} onChange={e => setCommonSource(e.target.value)} placeholder="예: 쎈 중등수학 2-2" /></div>
+                        {/* [수정] commonSource -> commonSubtitle */}
+                        <div className="form-group"><label htmlFor="commonSubtitle">공통 출처(소제목)</label><input id="commonSubtitle" value={commonSubtitle} onChange={e => setCommonSubtitle(e.target.value)} placeholder="예: 쎈 중등수학 2-2" /></div>
                         <div className="form-group"><label htmlFor="commonGradeLevel">공통 학년</label><input id="commonGradeLevel" value={commonGradeLevel} onChange={e => setCommonGradeLevel(e.target.value)} placeholder="예: 고3" /></div>
                         <div className="form-group"><label htmlFor="commonSemester">공통 학기</label><input id="commonSemester" value={commonSemester} onChange={e => setCommonSemester(e.target.value)} placeholder="예: 1학기" /></div>
                         <ActionButton onClick={applyCommonData} disabled={problems.length === 0} className="primary"><LuCheck style={{ marginRight: '4px' }}/>모든 문제에 적용</ActionButton>

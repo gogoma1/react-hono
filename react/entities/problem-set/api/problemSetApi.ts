@@ -1,5 +1,4 @@
 import { handleApiResponse } from '../../../shared/api/api.utils';
-// [수정] 새로 추가된 타입들을 import
 import type { 
     MyProblemSet, 
     UpdateProblemSetPayload, 
@@ -75,7 +74,6 @@ export const deleteProblemSetAPI = async (problemSetId: string): Promise<void> =
     if (response.status === 204) {
         return;
     }
-    // handleApiResponse는 성공 시 JSON 파싱을 시도하므로, 204 외의 성공/실패는 직접 처리
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({ message: '문제집 삭제에 실패했습니다.' }));
         throw new Error(errorBody.message || '알 수 없는 오류');

@@ -1,5 +1,3 @@
-// ----- ./react/entities/problem/model/types.ts -----
-
 /**
  * [신규] 백엔드 D1 스키마의 problemTypeEnum과 동기화된 상수입니다.
  * 문제 유형에 대한 유일한 정보 소스(Single Source of Truth) 역할을 합니다.
@@ -13,7 +11,7 @@ export type ProblemType = typeof PROBLEM_TYPES[number];
 
 export interface Problem {
     problem_id: string; 
-    source: string;
+    subtitle: string; // [수정] source -> subtitle
     page: number | null;
     question_number: number;
     answer: string;

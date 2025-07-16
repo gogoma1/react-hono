@@ -125,9 +125,11 @@ const SolutionPage: React.FC<SolutionPageProps> = (props) => {
                 <ExamHeader 
                     page={pageNumber}
                     totalPages={totalPages}
-                    additionalBoxContent={allProblems[0]?.source ?? '정보 없음'}
+                    additionalBoxContent={allProblems[0]?.subtitle ?? '정보 없음'}
                     {...solutionHeaderInfo}
                     onUpdate={onHeaderUpdate}
+                    // [핵심 수정] 누락되었던 subtitle prop 추가
+                    subtitle={allProblems[0]?.subtitle ?? '정보 없음'}
                 />
                 <div className="exam-columns-container">
                     <div className="exam-column">{renderColumn(leftColumnItems)}</div>

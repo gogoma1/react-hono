@@ -74,7 +74,7 @@ type ExamHeaderInfo = Pick<React.ComponentProps<typeof ExamHeader>,
     | 'simplifiedSubjectFontSize'
     | 'simplifiedSubjectFontFamily'
     | 'simplifiedGradeText'
-    | 'source'
+    | 'subtitle' // [수정] source -> subtitle
 >;
 
 interface ExamPageProps {

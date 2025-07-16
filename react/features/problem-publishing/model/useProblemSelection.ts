@@ -56,7 +56,7 @@ export function useProblemSelection(sourceProblems: ProcessedProblem[]) {
     const filteredProblems = useTableSearch({
         data: problemsFilteredByCustomControls,
         searchTerm,
-        searchableKeys: ['display_question_number', 'source', 'grade', 'semester', 'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'problem_category'],
+        searchableKeys: ['display_question_number', 'subtitle', 'grade', 'semester', 'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'problem_category'], // [수정]
         activeFilters,
     }) as ProcessedProblem[];
 
@@ -92,7 +92,6 @@ export function useProblemSelection(sourceProblems: ProcessedProblem[]) {
       setProblemTypeFilter('all');
     }, [setSelectedIds]);
 
-    // [신규] 헤더의 필터(번호, 유형)만 초기화하는 함수
     const handleResetHeaderFilters = useCallback(() => {
         setStartNumber('');
         setEndNumber('');
@@ -118,6 +117,6 @@ export function useProblemSelection(sourceProblems: ProcessedProblem[]) {
         setEndNumber,
         problemTypeFilter,
         setProblemTypeFilter,
-        handleResetHeaderFilters, // [신규] 부분 초기화 함수 반환
+        handleResetHeaderFilters,
     };
 }

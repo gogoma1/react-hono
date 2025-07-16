@@ -13,7 +13,6 @@ import MyLibrary from '../entities/problem-set/ui/MyLibrary';
 import './ProblemSetCreationPage.css';
 import type { OnUploadPayload } from '../features/json-problem-importer/model/useJsonProblemImporter';
 
-// [수정] 백엔드에 보낼 최종 페이로드 타입에 'grade' 추가
 interface UploadProblemsAndCreateSetPayload {
     problemSetName: string;
     description: string | null;
@@ -34,13 +33,12 @@ const ProblemSetCreationPage: React.FC = () => {
     const { mutateAsync: createEntitlement, isPending: isProcessingPg } = useCreateEntitlementMutation();
     
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [selectedKey, setSelectedKey] = useState<string | null>('new');
     
-    // [수정] 스테이징할 데이터를 OnUploadPayload 타입의 단일 객체로 관리
     const [stagedUploadData, setStagedUploadData] = useState<OnUploadPayload | null>(null);
 
     const isProcessing = isProcessingD1 || isProcessingPg;
 
-    // [수정] 위젯에서 받은 payload 객체를 그대로 상태에 저장
     const handleStageForSave = useCallback((payload: OnUploadPayload) => {
         if (!payload.problemSetName.trim()) {
             toast.error('새로운 문제집의 이름을 먼저 입력해주세요.');
@@ -62,12 +60,11 @@ const ProblemSetCreationPage: React.FC = () => {
 
         setIsSaveModalOpen(false);
         
-        // [수정] 스테이징된 데이터와 모달 데이터를 합쳐 최종 페이로드 생성
         const d1Payload: UploadProblemsAndCreateSetPayload = {
             problemSetName: stagedUploadData.problemSetName,
             description: stagedUploadData.description,
             problems: stagedUploadData.problems,
-            grade: stagedUploadData.grade, // 대표 학년 정보 추가
+            grade: stagedUploadData.grade,
             ...modalPayload,
         };
         
@@ -87,7 +84,7 @@ const ProblemSetCreationPage: React.FC = () => {
             await createEntitlement(pgPayload);
             
             toast.success('모든 작업이 성공적으로 완료되었습니다!');
-            setStagedUploadData(null); // 성공 후 데이터 초기화
+            setStagedUploadData(null);
             setTimeout(() => navigate('/problem-publishing'), 1500);
 
         } catch (error: any) {
@@ -115,9 +112,8 @@ const ProblemSetCreationPage: React.FC = () => {
             <div className="creation-page-main-content">
                 <div className="creation-page-left-panel">
                     <MyLibrary 
-                        onProblemSetSelect={() => toast.info("이 페이지에서는 새로 만들기만 가능합니다.")} 
-                        selectedId={'new'} 
-                        onInitiateNew={() => {}}
+                        onSelectionChange={(selection) => setSelectedKey(selection.key)}
+                        selectedKey={selectedKey}
                     />
                 </div>
                 <div className="creation-page-right-panel">
@@ -126,7 +122,6 @@ const ProblemSetCreationPage: React.FC = () => {
                         initialProblemSetName={''}
                         onUpload={handleStageForSave}
                         isProcessing={isProcessing}
-                        selectedProblemSetId={'new'}
                     />
                 </div>
             </div>

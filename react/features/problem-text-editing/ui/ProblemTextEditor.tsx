@@ -9,9 +9,9 @@ import Modal from '../../../shared/ui/modal/Modal';
 import { useDeleteProblemsMutation } from '../../../entities/problem/model/useProblemMutations';
 import './ProblemTextEditor.css';
 
-// [수정] problem_type과 answer를 배열의 맨 앞으로 이동
+// [수정]
 const EDITABLE_METADATA_FIELDS: (keyof Problem)[] = [
-    'problem_type', 'answer', 'question_number', 'source', 'grade', 'semester', 
+    'problem_type', 'answer', 'question_number', 'subtitle', 'grade', 'semester', 
     'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'problem_category', 
     'difficulty', 'score', 'page'
 ];
@@ -43,7 +43,6 @@ const ProblemTextEditor: React.FC<ProblemTextEditorProps> = ({
     
     const { mutate: deleteProblem, isPending: isDeleting } = useDeleteProblemsMutation();
 
-    // [수정] 초기 높이를 300px로 변경
     const [questionEditorHeight, setQuestionEditorHeight] = useState(300);
     const [solutionEditorHeight, setSolutionEditorHeight] = useState(300);
     const [draggingResizer, setDraggingResizer] = useState<'question' | 'solution' | null>(null);

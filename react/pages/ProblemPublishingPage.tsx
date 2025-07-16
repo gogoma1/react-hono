@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'; // useState, useCallback, useRef 추가
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useProblemPublishingPage } from '../features/problem-publishing';
 import ProblemSelectionContainer from '../widgets/ProblemSelectionContainer';
 import PublishingToolbarWidget from '../widgets/PublishingToolbarWidget';
@@ -11,8 +11,7 @@ import './PdfOptionsModal.css';
 const ProblemPublishingPage: React.FC = () => {
     const pageLogic = useProblemPublishingPage();
 
-    // [추가 시작] Resizable 로직
-    const [selectionContainerHeight, setSelectionContainerHeight] = useState(500); // 초기 높이 500px
+    const [selectionContainerHeight, setSelectionContainerHeight] = useState(500);
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef({ y: 0, initialHeight: 0 });
 
@@ -29,7 +28,7 @@ const ProblemPublishingPage: React.FC = () => {
         if (!isDragging) return;
         const deltaY = e.clientY - dragStartRef.current.y;
         const newHeight = dragStartRef.current.initialHeight + deltaY;
-        const clampedHeight = Math.max(200, Math.min(newHeight, window.innerHeight * 0.8)); // 최소 200px, 최대 뷰포트 80%
+        const clampedHeight = Math.max(200, Math.min(newHeight, window.innerHeight * 0.8));
         setSelectionContainerHeight(clampedHeight);
     }, [isDragging]);
 
@@ -54,7 +53,6 @@ const ProblemPublishingPage: React.FC = () => {
             document.body.classList.remove('resizing-vertical');
         };
     }, [isDragging, handleMouseMove, handleMouseUp]);
-    // [추가 끝]
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -66,7 +64,6 @@ const ProblemPublishingPage: React.FC = () => {
         <div className={pageClassName}>
             {(pageLogic.isGeneratingPdf || pageLogic.isPublishing) && <div className="processing-overlay" />}
             <div className="sticky-top-container">
-                {/* [수정] 높이를 state와 연결 */}
                 <div className="selection-widget-container" style={{ height: `${selectionContainerHeight}px` }}>
                     <ProblemSelectionContainer
                         allProblems={pageLogic.allProblems}
@@ -81,7 +78,6 @@ const ProblemPublishingPage: React.FC = () => {
                     />
                 </div>
 
-                {/* [추가] 리사이저 요소 */}
                 <div 
                     className="vertical-resizer" 
                     onMouseDown={handleMouseDown}

@@ -6,7 +6,6 @@ type HeaderUpdateValue = {
     fontFamily?: string;
 };
 
-// [추가] headerInfo의 타입을 명시적으로 정의
 export type HeaderInfoState = {
     title: string;
     titleFontSize: number;
@@ -21,7 +20,7 @@ export type HeaderInfoState = {
     simplifiedSubjectFontSize: number;
     simplifiedSubjectFontFamily: string;
     simplifiedGradeText: string;
-    source: string;
+    subtitle: string; // [수정] source -> subtitle
 };
 
 export function useExamHeaderState() {
@@ -31,7 +30,7 @@ export function useExamHeaderState() {
         subject: '수학 영역', subjectFontSize: 3, subjectFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
         simplifiedSubjectText: '수학 영역', simplifiedSubjectFontSize: 1.6, simplifiedSubjectFontFamily: "'NanumGothic', 'Malgun Gothic', sans-serif",
         simplifiedGradeText: '고3',
-        source: '정보 없음',
+        subtitle: '정보 없음', // [수정] source -> subtitle
     });
 
     const handleHeaderUpdate = useCallback((targetId: string, _field: string, value: HeaderUpdateValue) => {
@@ -67,7 +66,6 @@ export function useExamHeaderState() {
     return {
         headerInfo,
         onHeaderUpdate: handleHeaderUpdate,
-        // [핵심 수정] setHeaderInfo를 직접 반환하여 상위 컴포넌트가 상태를 제어할 수 있게 합니다.
         setHeaderInfo,
     };
 }

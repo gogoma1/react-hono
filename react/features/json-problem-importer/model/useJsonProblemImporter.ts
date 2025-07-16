@@ -4,7 +4,6 @@ import { PROBLEM_TYPES } from '../../../entities/problem/model/types';
 import { produce } from 'immer';
 import * as jsonc from 'jsonc-parser';
 
-// --- 타입 정의 ---
 
 interface ParseErrorDetail {
     title: string;
@@ -15,19 +14,13 @@ interface ParseErrorDetail {
     problemIndex?: number;
 }
 
-/**
- * [신규] onUpload 콜백 함수의 페이로드 타입을 명시적으로 정의합니다.
- */
 export interface OnUploadPayload {
     problems: Problem[];
     problemSetName: string;
     description: string | null;
-    grade: string | null; // 문제집 대표 학년
+    grade: string | null;
 }
 
-/**
- * [수정] 훅의 props 타입을 새로운 페이로드 타입으로 교체합니다.
- */
 interface UseJsonProblemImporterProps {
     isCreatingNew: boolean;
     initialProblemSetName: string;
@@ -35,7 +28,6 @@ interface UseJsonProblemImporterProps {
 }
 
 
-// --- 상수 및 초기값 ---
 
 const initialJsonInput = `{
   "problems": [
@@ -48,7 +40,7 @@ const initialJsonInput = `{
       "page": 15,
       "grade": "고1",
       "semester": "1학기",
-      "source": "개념원리 수학(상)",
+      "subtitle": "개념원리 수학(상)",
       "major_chapter_id": "이차방정식과 이차함수",
       "middle_chapter_id": "이차함수의 최대, 최소",
       "core_concept_id": "이차함수 표준형 변환",
@@ -65,7 +57,7 @@ const columns: Column[] = [
     { key: 'problem_type', label: '유형', editType: 'combobox' },
     { key: 'grade', label: '학년', editType: 'text' },
     { key: 'semester', label: '학기', editType: 'text' },
-    { key: 'source', label: '출처(소제목)', editType: 'text' },
+    { key: 'subtitle', label: '출처(소제목)', editType: 'text' },
     { key: 'major_chapter_id', label: '대단원', editType: 'text' },
     { key: 'middle_chapter_id', label: '중단원', editType: 'text' },
     { key: 'core_concept_id', 'label': '핵심개념', editType: 'text' },
@@ -83,7 +75,6 @@ const NULLABLE_STRING_FIELDS: Set<keyof Problem> = new Set([
 ]);
 
 
-// --- 커스텀 훅 ---
 
 export function useJsonProblemImporter({ 
     isCreatingNew, 
@@ -100,7 +91,7 @@ export function useJsonProblemImporter({
 
     const [problemSetName, setProblemSetName] = useState('');
     const [problemSetDescription, setProblemSetDescription] = useState<string | null>(null);
-    const [commonSource, setCommonSource] = useState('');
+    const [commonSubtitle, setCommonSubtitle] = useState('');
     const [commonGradeLevel, setCommonGradeLevel] = useState('');
     const [commonSemester, setCommonSemester] = useState('');
 
@@ -202,7 +193,7 @@ export function useJsonProblemImporter({
                         page: p.page ?? null,
                         grade: String(p.grade ?? ''),
                         semester: String(p.semester ?? ''),
-                        source: String(p.source ?? ''),
+                        subtitle: String(p.subtitle ?? ''),
                         major_chapter_id: p.major_chapter_id || null,
                         middle_chapter_id: p.middle_chapter_id || null,
                         core_concept_id: p.core_concept_id || null,
@@ -277,18 +268,15 @@ export function useJsonProblemImporter({
         if (problems.length === 0) return;
         const nextProblems = produce(problems, draft => {
             draft.forEach(problem => {
-                if (commonSource.trim()) problem.source = commonSource;
+                if (commonSubtitle.trim()) problem.subtitle = commonSubtitle;
                 if (commonGradeLevel.trim()) problem.grade = commonGradeLevel;
                 if (commonSemester.trim()) problem.semester = commonSemester;
             });
         });
         setProblems(nextProblems);
         alert('공통 정보가 적용되었습니다.');
-    }, [problems, commonSource, commonGradeLevel, commonSemester]);
+    }, [problems, commonSubtitle, commonGradeLevel, commonSemester]);
 
-    /**
-     * [수정] onUpload 호출 시 새로운 페이로드 객체로 감싸서 전달합니다.
-     */
     const handleUpload = useCallback(() => {
         if (problems.length === 0 || parseError) {
             alert('업로드할 문제가 없거나 데이터에 오류가 있습니다.');
@@ -323,7 +311,7 @@ export function useJsonProblemImporter({
         handleInputKeyDown,
         problemSetName, setProblemSetName,
         problemSetDescription, setProblemSetDescription,
-        commonSource, setCommonSource,
+        commonSubtitle, setCommonSubtitle,
         commonGradeLevel, setCommonGradeLevel,
         commonSemester, setCommonSemester,
         applyCommonData,

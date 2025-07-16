@@ -7,7 +7,6 @@ import {
 import SegmentedControl from '../../../shared/ui/segmented-control/SegmentedControl';
 import './MyLibrary.css';
 
-// --- 타입 및 상수 정의 ---
 type ViewMode = 'problemSet' | 'grade' | 'curriculum';
 
 const viewOptions = [
@@ -16,7 +15,6 @@ const viewOptions = [
     { value: 'curriculum' as ViewMode, label: '단원별', icon: <LuComponent /> },
 ];
 
-// --- 재사용 가능한 자식 컴포넌트 ---
 interface TreeItemProps {
     label: string;
     nodeKey: string;
@@ -38,16 +36,15 @@ const TreeItem: React.FC<TreeItemProps> = React.memo(({
     const itemClassName = `tree-item ${isLeaf ? 'leaf' : 'branch'}`;
     const contentClassName = `tree-item-content ${isLeaf ? 'clickable-leaf' : 'clickable-branch'} ${isSelected ? 'selected' : ''} ${isAncestorOfSelected ? 'ancestor-selected' : ''}`;
 
-    // [핵심] 행 전체에 대한 단일 클릭 이벤트 핸들러
     const handleContentClick = () => {
         if (isLeaf && onSelect) {
-            onSelect(); // 최하위 노드(파일)는 선택 동작
+            onSelect(); 
         } else if (!isLeaf) {
-            onToggle(nodeKey); // 중간 노드(폴더)는 확장/축소 동작
+            onToggle(nodeKey); 
         }
     };
 
-    const indentStyle = { paddingLeft: `${(level - 1) * 18 + 8}px` }; // 기본 패딩 8px + 레벨당 18px
+    const indentStyle = { paddingLeft: `${(level - 1) * 18 + 8}px` };
 
     return (
         <li className={itemClassName}>
@@ -66,7 +63,6 @@ const TreeItem: React.FC<TreeItemProps> = React.memo(({
 TreeItem.displayName = 'TreeItem';
 
 
-// --- 메인 컴포넌트 ---
 interface MyLibraryProps {
     onSelectionChange: (selection: any) => void;
     selectedKey: string | null;
@@ -92,7 +88,6 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ onSelectionChange, selectedKey })
     };
 
     const renderContent = () => {
-        // ... (이 부분은 이전 답변과 동일하므로 생략)
         if (viewMode === 'problemSet' || viewMode === 'grade') {
             if (isLoadingProblemSet) return <div className="my-library-status"><LuLoader className="spinner" /> <span>데이터 로딩 중...</span></div>;
             if (isErrorProblemSet) return <div className="my-library-status error"><LuCircleAlert /> <span>오류가 발생했습니다.</span></div>;
@@ -109,10 +104,10 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ onSelectionChange, selectedKey })
                                         const gradeKey = `${psKey}-grade-${grade.grade_id}`;
                                         return (
                                             <TreeItem key={gradeKey} nodeKey={gradeKey} label={grade.grade_name} level={2} icon={<LuFolder />} isExpanded={expandedKeys.has(gradeKey)} onToggle={handleToggle} isSelected={false} isAncestorOfSelected={!!(selectedKey && selectedKey.startsWith(gradeKey))}>
-                                                {grade.sources.map(source => {
-                                                    const sourceKey = `${gradeKey}-source-${source.source_id}`;
-                                                    return <TreeItem key={sourceKey} nodeKey={sourceKey} label={source.source_name} count={source.problem_count} level={3} icon={<LuFileText />} isExpanded={false} onToggle={()=>{}} isSelected={selectedKey === sourceKey} isAncestorOfSelected={false}
-                                                        onSelect={() => handleLeafClick({type: 'source', problemSetId: ps.problem_set_id, gradeId: grade.grade_id, sourceId: source.source_id}, sourceKey)} />
+                                                {grade.subtitles.map(subtitle => { // [수정] sources -> subtitles
+                                                    const subtitleKey = `${gradeKey}-subtitle-${subtitle.subtitle_id}`; // [수정]
+                                                    return <TreeItem key={subtitleKey} nodeKey={subtitleKey} label={subtitle.subtitle_name} count={subtitle.problem_count} level={3} icon={<LuFileText />} isExpanded={false} onToggle={()=>{}} isSelected={selectedKey === subtitleKey} isAncestorOfSelected={false}
+                                                        onSelect={() => handleLeafClick({type: 'subtitle', problemSetId: ps.problem_set_id, gradeId: grade.grade_id, subtitleId: subtitle.subtitle_id}, subtitleKey)} /> // [수정]
                                                 })}
                                             </TreeItem>
                                         )
@@ -144,10 +139,10 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ onSelectionChange, selectedKey })
                                        const psKey = `${gradeKey}-ps-${item.problem_set_id}`;
                                        return (
                                            <TreeItem key={psKey} nodeKey={psKey} label={item.problem_set_name} level={2} icon={<LuBook />} isExpanded={expandedKeys.has(psKey)} onToggle={handleToggle} isSelected={false} isAncestorOfSelected={!!(selectedKey && selectedKey.startsWith(psKey))}>
-                                               {item.grade.sources.map((source: any) => {
-                                                    const sourceKey = `${psKey}-source-${source.source_id}`;
-                                                    return <TreeItem key={sourceKey} nodeKey={sourceKey} label={source.source_name} count={source.problem_count} level={3} icon={<LuFileText />} isExpanded={false} onToggle={()=>{}} isSelected={selectedKey === sourceKey} isAncestorOfSelected={false}
-                                                        onSelect={() => handleLeafClick({type: 'source', problemSetId: item.problem_set_id, gradeId: item.grade.grade_id, sourceId: source.source_id}, sourceKey)} />
+                                               {item.grade.subtitles.map((subtitle: any) => { // [수정]
+                                                    const subtitleKey = `${psKey}-subtitle-${subtitle.subtitle_id}`; // [수정]
+                                                    return <TreeItem key={subtitleKey} nodeKey={subtitleKey} label={subtitle.subtitle_name} count={subtitle.problem_count} level={3} icon={<LuFileText />} isExpanded={false} onToggle={()=>{}} isSelected={selectedKey === subtitleKey} isAncestorOfSelected={false}
+                                                        onSelect={() => handleLeafClick({type: 'subtitle', problemSetId: item.problem_set_id, gradeId: item.grade.grade_id, subtitleId: subtitle.subtitle_id}, subtitleKey)} /> // [수정]
                                                })}
                                            </TreeItem>
                                        )

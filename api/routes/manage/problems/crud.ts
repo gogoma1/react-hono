@@ -7,8 +7,8 @@ import type { BatchItem } from 'drizzle-orm/batch';
 
 import type { AppEnv } from '../../../index';
 import * as schema from '../../../db/schema.d1';
+import { GRADES_NAME_TO_ID_MAP, GRADES_ID_TO_NAME_MAP } from '../../../shared/curriculum.data'; 
 
-// --- Zod Schemas ---
 const problemSchemaForUpload = z.object({
   problem_id: z.string().optional(),
   question_number: z.number(),
@@ -17,15 +17,16 @@ const problemSchemaForUpload = z.object({
   solution_text: z.string().nullable(),
   page: z.number().nullable(),
   problem_type: z.enum(schema.problemTypeEnum), 
-  grade: z.string(),
+  grade: z.string(), // 이름으로 받음
   semester: z.string().nullable(),
-  source: z.string(),
+  subtitle: z.string(),
   major_chapter_id: z.string().nullable(),
   middle_chapter_id: z.string().nullable(),
   core_concept_id: z.string().nullable(),
   problem_category: z.string().nullable(),
   difficulty: z.string(),
   score: z.string(),
+  calculation_skill_ids: z.array(z.string()).optional(), // 연산 개념 ID 배열
 });
 
 const uploadProblemsAndCreateSetSchema = z.object({
@@ -36,63 +37,48 @@ const uploadProblemsAndCreateSetSchema = z.object({
   status: z.enum(schema.problemSetStatusEnum),
   copyright_type: z.enum(schema.copyrightTypeEnum),
   copyright_source: z.string().nullable().optional(),
-  grade: z.string().optional(),
+  grade: z.string().optional(), // 문제집 대표 학년 (이름)
 });
 
 const updateProblemBodySchema = problemSchemaForUpload.omit({ problem_id: true }).partial();
 const deleteProblemsBodySchema = z.object({ problem_ids: z.array(z.string()).min(1) });
 const getProblemsByIdsSchema = z.object({ problemIds: z.array(z.string()).min(1, "problemIds 배열은 비어있을 수 없습니다.") });
 
-
-// --- Helper Functions ---
-async function ensureSourceId(db: DrizzleD1Database<typeof schema>, sourceName: string): Promise<string> {
-    const trimmedName = sourceName?.trim();
+async function ensureSubtitleId(db: DrizzleD1Database<typeof schema>, subtitleName: string): Promise<string> {
+    const trimmedName = subtitleName?.trim();
     if (!trimmedName) {
-        const defaultSource = await db.query.sourcesTable.findFirst({ where: eq(schema.sourcesTable.name, '미지정') });
-        if (defaultSource) return defaultSource.id;
-        const newId = `src_${crypto.randomUUID()}`;
-        await db.insert(schema.sourcesTable).values({ id: newId, name: '미지정' }).onConflictDoNothing();
-        const result = await db.query.sourcesTable.findFirst({ where: eq(schema.sourcesTable.name, '미지정') });
+        const defaultSubtitle = await db.query.subtitlesTable.findFirst({ where: eq(schema.subtitlesTable.name, '미지정') });
+        if (defaultSubtitle) return defaultSubtitle.id;
+        const newId = `sub_${crypto.randomUUID()}`;
+        await db.insert(schema.subtitlesTable).values({ id: newId, name: '미지정' }).onConflictDoNothing();
+        const result = await db.query.subtitlesTable.findFirst({ where: eq(schema.subtitlesTable.name, '미지정') });
         return result!.id;
     }
-    const existingSource = await db.query.sourcesTable.findFirst({ where: eq(schema.sourcesTable.name, trimmedName) });
-    if (existingSource) return existingSource.id;
-    const newId = `src_${crypto.randomUUID()}`;
-    await db.insert(schema.sourcesTable).values({ id: newId, name: trimmedName });
+    const existingSubtitle = await db.query.subtitlesTable.findFirst({ where: eq(schema.subtitlesTable.name, trimmedName) });
+    if (existingSubtitle) return existingSubtitle.id;
+    const newId = `sub_${crypto.randomUUID()}`;
+    await db.insert(schema.subtitlesTable).values({ id: newId, name: trimmedName });
     return newId;
-}
-
-async function ensureGradeId(db: DrizzleD1Database<typeof schema>, gradeName: string | undefined | null): Promise<string | null> {
-    if (!gradeName) return null;
-    const grade = await db.query.gradesTable.findFirst({ where: eq(schema.gradesTable.name, gradeName) });
-    return grade ? grade.id : null;
 }
 
 const transformProblemData = (problem: any) => {
     const { 
-        major_chapter_id, majorChapter, 
-        middle_chapter_id, middleChapter, 
-        core_concept_id, coreConcept, 
-        source_id, source, 
-        grade_id, grade,
+        subtitle_id, subtitle, 
+        grade_id,
+        problemCalculationSkills,
         ...rest 
     } = problem;
     return {
         ...rest,
-        source: source?.name ?? '미지정',
-        grade: grade?.name ?? '미지정',
-        major_chapter_id,
-        middle_chapter_id,
-        core_concept_id,
-        major_chapter_name: majorChapter?.name,
-        middle_chapter_name: middleChapter?.name,
-        core_concept_name: coreConcept?.name,
+        grade_id,
+        grade: GRADES_ID_TO_NAME_MAP.get(grade_id) ?? '미지정',
+        subtitle: subtitle?.name ?? '미지정',
+        calculation_skill_ids: problemCalculationSkills?.map((s: { skill_id: string }) => s.skill_id) || [],
     };
 };
 
 const crudRoutes = new Hono<AppEnv>();
 
-// --- Routes ---
 crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema), async (c) => {
     const user = c.get('user');
     const body = c.req.valid('json');
@@ -100,13 +86,7 @@ crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema),
 
     try {
         const statements: BatchItem<'sqlite'>[] = [];
-        const gradeNames = [...new Set(body.problems.map(p => p.grade).filter(Boolean)), body.grade];
-        const gradeIdMap = new Map<string, string | null>();
-        for (const name of gradeNames) {
-            if (name) {
-                gradeIdMap.set(name, await ensureGradeId(db, name));
-            }
-        }
+        
         const newProblemSetId = `pset_${crypto.randomUUID()}`;
         const newSetData = {
             problem_set_id: newProblemSetId,
@@ -118,45 +98,45 @@ crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema),
             copyright_type: body.copyright_type,
             copyright_source: body.copyright_source || null,
             problem_count: body.problems.length,
-            grade_id: body.grade ? gradeIdMap.get(body.grade) ?? null : null,
-            cover_image: null,
-            published_year: null,
-            semester: null,
-            avg_difficulty: null,
+            grade_id: body.grade ? (GRADES_NAME_TO_ID_MAP.get(body.grade) ?? null) : null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         };
         statements.push(db.insert(schema.problemSetTable).values(newSetData));
-        const sourceNames = [...new Set(body.problems.map(p => p.source).filter(Boolean))];
-        const sourceIdMap = new Map<string, string>();
-        for (const name of sourceNames) {
-            sourceIdMap.set(name, await ensureSourceId(db, name));
+
+        const subtitleNames = [...new Set(body.problems.map(p => p.subtitle).filter(Boolean))];
+        const subtitleIdMap = new Map<string, string>();
+        for (const name of subtitleNames) {
+            subtitleIdMap.set(name, await ensureSubtitleId(db, name));
         }
-        const sourceCounts = new Map<string, number>();
+        
+        const subtitleCounts = new Map<string, number>();
         body.problems.forEach((problem, index) => {
             const now = new Date().toISOString().replace(/T|Z/g, ' ').trim();
-            const { source, problem_id, grade, ...restOfProblem } = problem;
+            const { subtitle, problem_id, grade, calculation_skill_ids, ...restOfProblem } = problem;
             const newProblemId = `prob_${crypto.randomUUID()}`;
-            const problemData = {
-                ...restOfProblem,
-                grade_id: gradeIdMap.get(grade) ?? null,
-                semester: restOfProblem.semester || null,
-                problem_category: restOfProblem.problem_category || null,
-                problem_id: newProblemId,
-                creator_id: user.id,
-                created_at: now,
-                updated_at: now,
-                source_id: sourceIdMap.get(source) || null,
-            };
+            
+            const grade_id = GRADES_NAME_TO_ID_MAP.get(grade) ?? null;
+            if(grade && !grade_id) throw new Error(`유효하지 않은 학년 이름입니다: ${grade}`);
+
+            const problemData = { ...restOfProblem, grade_id, problem_id: newProblemId, creator_id: user.id, created_at: now, updated_at: now, subtitle_id: subtitleIdMap.get(subtitle) || null, };
             statements.push(db.insert(schema.problemTable).values(problemData as schema.DbProblem));
             statements.push(db.insert(schema.problemSetProblemsTable).values({ problem_set_id: newProblemSetId, problem_id: newProblemId, order: index + 1 }));
-            if (problemData.source_id) {
-                sourceCounts.set(problemData.source_id, (sourceCounts.get(problemData.source_id) || 0) + 1);
+
+            if (calculation_skill_ids && calculation_skill_ids.length > 0) {
+                statements.push(db.insert(schema.problemCalculationSkillsTable).values(
+                    calculation_skill_ids.map(skill_id => ({ problem_id: newProblemId, skill_id }))
+                ));
+            }
+            if (problemData.subtitle_id) {
+                subtitleCounts.set(problemData.subtitle_id, (subtitleCounts.get(problemData.subtitle_id) || 0) + 1);
             }
         });
-        for (const [source_id, count] of sourceCounts.entries()) {
-             statements.push(db.insert(schema.problemSetSourcesTable).values({ problem_set_id: newProblemSetId, source_id: source_id, count: count }));
+        
+        for (const [subtitle_id, count] of subtitleCounts.entries()) {
+             statements.push(db.insert(schema.problemSetSubtitlesTable).values({ problem_set_id: newProblemSetId, subtitle_id: subtitle_id, count: count }));
         }
+        
         if (statements.length > 0) {
             await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
         }
@@ -173,13 +153,10 @@ crudRoutes.get('/', async (c) => {
     try {
         const problemsData = await db.query.problemTable.findMany({
             where: eq(schema.problemTable.creator_id, user.id),
-            orderBy: (problem, { asc }) => [asc(problem.created_at)],
+            orderBy: asc(schema.problemTable.created_at),
             with: {
-                source: { columns: { name: true } },
-                grade: { columns: { name: true } },
-                majorChapter: { columns: { name: true } },
-                middleChapter: { columns: { name: true } },
-                coreConcept: { columns: { name: true } },
+                subtitle: { columns: { name: true } },
+                problemCalculationSkills: { columns: { skill_id: true } },
             }
         });
         return c.json(problemsData.map(transformProblemData));
@@ -197,15 +174,12 @@ crudRoutes.post('/by-ids', zValidator('json', getProblemsByIdsSchema), async (c)
         const problemsData = await db.query.problemTable.findMany({
             where: inArray(schema.problemTable.problem_id, problemIds),
             with: {
-                source: { columns: { name: true } },
-                grade: { columns: { name: true } },
-                majorChapter: { columns: { name: true } },
-                middleChapter: { columns: { name: true } },
-                coreConcept: { columns: { name: true } },
+                subtitle: { columns: { name: true } },
+                problemCalculationSkills: { columns: { skill_id: true } },
             }
         });
         const problemsMap = new Map(problemsData.map(p => [p.problem_id, p]));
-        const orderedProblems = problemIds.map(id => problemsMap.get(id)).filter(Boolean) as (typeof problemsData);
+        const orderedProblems = problemIds.map(id => problemsMap.get(id)).filter(Boolean);
         return c.json(orderedProblems.map(transformProblemData));
     } catch (error: any) {
         console.error('Failed to fetch problems by IDs from D1:', error);
@@ -219,17 +193,48 @@ crudRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) =>
     const problemDataFromClient = c.req.valid('json');
     const db = drizzle(c.env.D1_DATABASE, { schema });
     try {
-        const { source, grade, ...restOfProblem } = problemDataFromClient;
-        let source_id: string | null | undefined = undefined;
-        let grade_id: string | null | undefined = undefined;
-        if (source) { source_id = await ensureSourceId(db, source); }
-        if (grade) { grade_id = await ensureGradeId(db, grade); }
-        const dataToUpdate: Partial<schema.DbProblem> = { ...restOfProblem, semester: restOfProblem.semester || null, problem_category: restOfProblem.problem_category || null, updated_at: new Date().toISOString().replace(/T|Z/g, ' ').trim() };
-        if(source_id !== undefined) { dataToUpdate.source_id = source_id; }
-        if(grade_id !== undefined) { dataToUpdate.grade_id = grade_id; }
-        const [updatedProblem] = await db.update(schema.problemTable).set(dataToUpdate).where(and(eq(schema.problemTable.problem_id, problemId), eq(schema.problemTable.creator_id, user.id))).returning({ id: schema.problemTable.problem_id });
-        if (!updatedProblem) return c.json({ error: '문제를 찾을 수 없거나 업데이트할 권한이 없습니다.' }, 404);
-        const fullUpdatedProblem = await db.query.problemTable.findFirst({ where: eq(schema.problemTable.problem_id, updatedProblem.id), with: { source: { columns: { name: true } }, grade: { columns: { name: true } }, majorChapter: { columns: { name: true } }, middleChapter: { columns: { name: true } }, coreConcept: { columns: { name: true } } } });
+        await db.transaction(async (tx) => {
+            const { subtitle, grade, calculation_skill_ids, ...restOfProblem } = problemDataFromClient;
+            
+            let subtitle_id: string | null | undefined = undefined;
+            if (subtitle !== undefined) subtitle_id = await ensureSubtitleId(db, subtitle);
+
+            let grade_id: string | null | undefined = undefined;
+            if (grade !== undefined) {
+                grade_id = GRADES_NAME_TO_ID_MAP.get(grade) ?? null;
+                if (grade && !grade_id) throw new Error(`유효하지 않은 학년 이름입니다: ${grade}`);
+            }
+
+            const dataToUpdate: Partial<schema.DbProblem> = { ...restOfProblem, updated_at: new Date().toISOString().replace(/T|Z/g, ' ').trim() };
+            if (subtitle_id !== undefined) dataToUpdate.subtitle_id = subtitle_id;
+            if (grade_id !== undefined) dataToUpdate.grade_id = grade_id;
+            
+            if (Object.keys(dataToUpdate).length > 1) { // updated_at 외에 다른 변경사항이 있을 때만
+                await tx.update(schema.problemTable).set(dataToUpdate).where(and(eq(schema.problemTable.problem_id, problemId), eq(schema.problemTable.creator_id, user.id)));
+            }
+
+            if (calculation_skill_ids !== undefined) {
+                await tx.delete(schema.problemCalculationSkillsTable).where(eq(schema.problemCalculationSkillsTable.problem_id, problemId));
+                if (calculation_skill_ids.length > 0) {
+                    await tx.insert(schema.problemCalculationSkillsTable).values(
+                        calculation_skill_ids.map(skill_id => ({ problem_id: problemId, skill_id }))
+                    );
+                }
+            }
+        });
+
+        const fullUpdatedProblem = await db.query.problemTable.findFirst({
+            where: eq(schema.problemTable.problem_id, problemId),
+            with: {
+                subtitle: { columns: { name: true } },
+                problemCalculationSkills: { columns: { skill_id: true } },
+            }
+        });
+        
+        if (!fullUpdatedProblem || fullUpdatedProblem.creator_id !== user.id) {
+             return c.json({ error: '문제를 찾을 수 없거나 업데이트할 권한이 없습니다.' }, 404);
+        }
+
         return c.json(transformProblemData(fullUpdatedProblem));
     } catch (error: any) {
         console.error(`Failed to update problem ${problemId} in D1:`, error.message);

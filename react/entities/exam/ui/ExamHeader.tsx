@@ -68,8 +68,7 @@ interface ExamHeaderProps {
     simplifiedSubjectFontFamily: string;
     simplifiedGradeText: string;
     onUpdate: (targetId: EditableTarget, field: string, value: ExamUpdateValue) => void;
-    // [추가] source prop을 받습니다.
-    source: string;
+    subtitle: string; // [수정] source -> subtitle
 }
 
 
@@ -83,8 +82,7 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
         simplifiedSubjectText, simplifiedSubjectFontSize, simplifiedSubjectFontFamily,
         simplifiedGradeText, 
         onUpdate,
-        // [추가] source prop을 받습니다.
-        source
+        subtitle // [수정] source -> subtitle
     } = props;
     
     const [editingTarget, setEditingTarget] = useState<EditableTarget | null>(null);
@@ -150,11 +148,9 @@ const ExamHeader: React.FC<ExamHeaderProps> = (props) => {
         triggerRefs.current[targetId] = el;
     };
 
-    // [핵심 수정] 렌더링 시점에 제목과 출처를 조합합니다.
-    const displayTitle = `${source}`;
+    const displayTitle = `${subtitle}`; // [수정] source -> subtitle
     
     if (page > 1) {
-        // ... (2페이지 이상 헤더는 변경 없음)
         return (
             <>
                 <div className="exam-header-simplified-container">

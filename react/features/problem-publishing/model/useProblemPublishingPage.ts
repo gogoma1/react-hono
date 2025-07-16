@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { useProblemPublishing } from './useProblemPublishing';
 import { useExamLayoutStore } from './examLayoutStore';
 import { useExamLayoutManager } from './useExamLayoutManager';
@@ -70,7 +70,6 @@ export function useProblemPublishingPage() {
         setRightSidebarContent({ type: 'selectedStudents' });
     }, [setRightSidebarContent]);
     
-    // [신규] '내 서재' 사이드바를 여는 핸들러
     const handleOpenMyLibrarySidebar = useCallback(() => {
         setRightSidebarContent({ type: 'myLibrary' });
     }, [setRightSidebarContent]);
@@ -81,7 +80,7 @@ export function useProblemPublishingPage() {
         const problemsForJson = problemsToConvert.map(p => ({
             problem_id: p.problem_id, question_number: p.question_number, problem_type: p.problem_type,
             question_text: p.question_text, answer: p.answer, solution_text: p.solution_text,
-            page: p.page, grade: p.grade, semester: p.semester, source: p.source,
+            page: p.page, grade: p.grade, semester: p.semester, subtitle: p.subtitle, // [수정] source -> subtitle
             major_chapter_id: p.major_chapter_id, middle_chapter_id: p.middle_chapter_id,
             core_concept_id: p.core_concept_id, problem_category: p.problem_category,
             difficulty: p.difficulty, score: p.score,
@@ -124,15 +123,15 @@ export function useProblemPublishingPage() {
         handleOpenSelectedStudentsSidebar,
         handleOpenJsonViewSidebar,
         handleOpenSearchSidebar,
-        handleOpenMyLibrarySidebar, // [신규] usePublishingPageSetup에 핸들러 전달
+        handleOpenMyLibrarySidebar,
     });
     
     useEffect(() => { 
         if (selectedProblems.length > 0) { 
-            const newSource = selectedProblems[0].source || '정보 없음'; 
-            setHeaderInfo(prev => ({ ...prev, source: newSource })); 
+            const newSubtitle = selectedProblems[0].subtitle || '정보 없음'; // [수정]
+            setHeaderInfo(prev => ({ ...prev, subtitle: newSubtitle })); // [수정]
         } else { 
-            setHeaderInfo(prev => ({ ...prev, source: '정보 없음' })); 
+            setHeaderInfo(prev => ({ ...prev, subtitle: '정보 없음' })); // [수정]
         } 
     }, [selectedProblems, setHeaderInfo]);
 
@@ -179,7 +178,7 @@ export function useProblemPublishingPage() {
             simplifiedSubjectFontSize: headerInfo.simplifiedSubjectFontSize,
             simplifiedSubjectFontFamily: headerInfo.simplifiedSubjectFontFamily,
             simplifiedGradeText: headerInfo.simplifiedGradeText,
-            source: headerInfo.source,
+            subtitle: headerInfo.subtitle, // [수정] source -> subtitle
         };
 
         const payload = {

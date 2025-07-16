@@ -27,8 +27,8 @@ export function useProblemPublishing() {
             const typeOrder: Record<string, number> = { '객관식': 1, '주관식': 2, '서답형': 3, '논술형': 4 };
             const processed = [...rawProblems]
                 .sort((a, b) => {
-                    const sourceCompare = a.source.localeCompare(b.source);
-                    if (sourceCompare !== 0) return sourceCompare;
+                    const subtitleCompare = a.subtitle.localeCompare(b.subtitle); // [수정] source -> subtitle
+                    if (subtitleCompare !== 0) return subtitleCompare;
                     const typeA_Rank = typeOrder[a.problem_type] || 99;
                     const typeB_Rank = typeOrder[b.problem_type] || 99;
                     if (typeA_Rank !== typeB_Rank) return typeA_Rank - typeB_Rank;
@@ -78,7 +78,7 @@ export function useProblemPublishing() {
         handleRevertProblem: revertSingleProblem,
         startEditingProblem: startEditing,
         setEditingProblemId,
-        deleteProblems, // [수정] 반환
-        isDeletingProblems, // [수정] 반환
+        deleteProblems,
+        isDeletingProblems,
     };
 }

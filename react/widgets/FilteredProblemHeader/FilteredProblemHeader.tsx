@@ -1,4 +1,4 @@
-import React, { useMemo, ReactNode, useState, useCallback, useRef } from 'react'; // useRef 임포트 추가
+import React, { useMemo, ReactNode, useState, useCallback, useRef } from 'react';
 import type { ProcessedProblem } from '../../features/problem-publishing/model/problemPublishingStore';
 import Badge from '../../shared/ui/Badge/Badge';
 import GlassPopover from '../../shared/components/GlassPopover';
@@ -42,7 +42,6 @@ const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
-    // [핵심 수정 1] 팝오버를 여는 트리거 버튼에 대한 ref를 생성합니다.
     const filterTriggerRef = useRef<HTMLButtonElement | null>(null);
 
     const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -50,15 +49,13 @@ const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({
         setIsPopoverOpen(true);
     };
 
-    // [핵심 수정 2] 팝오버를 닫을 때, 이전에 저장된 ref로 포커스를 되돌립니다.
     const handleClosePopover = useCallback(() => {
         setIsPopoverOpen(false);
         setAnchorEl(null);
-        // 상태 변경 후, 원래 버튼으로 포커스를 이동시킵니다.
         setTimeout(() => {
             filterTriggerRef.current?.focus();
         }, 0);
-    }, []); // ref는 의존성 배열에 포함시킬 필요가 없습니다.
+    }, []);
 
     const handleFilterSelect = useCallback((value: string) => {
         onProblemTypeFilterChange(value);
@@ -75,28 +72,28 @@ const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({
     const summary = useMemo(() => {
         if (problems.length === 0) {
             return {
-                sources: [],
+                subtitles: [],
                 grades: [],
                 semesters: [],
                 minQuestionNumber: null,
                 maxQuestionNumber: null,
             };
         }
-        const sources = [...new Set(problems.map(p => p.source).filter(Boolean))];
+        const subtitles = [...new Set(problems.map(p => p.subtitle).filter(Boolean))];
         const grades = [...new Set(problems.map(p => p.grade).filter(Boolean))];
         const semesters = [...new Set(problems.map(p => p.semester).filter(Boolean))];
         const questionNumbers = problems.map(p => p.question_number).filter(n => typeof n === 'number');
         const minQuestionNumber = questionNumbers.length > 0 ? Math.min(...questionNumbers) : null;
         const maxQuestionNumber = questionNumbers.length > 0 ? Math.max(...questionNumbers) : null;
-        return { sources, grades, semesters, minQuestionNumber, maxQuestionNumber };
+        return { subtitles, grades, semesters, minQuestionNumber, maxQuestionNumber };
     }, [problems]);
 
-    const renderSourceBadges = (sources: string[]) => {
-        if (sources.length === 0) return null;
-        if (sources.length <= 3) {
-            return sources.map(source => <Badge key={source} className="summary-badge">{source}</Badge>);
+    const renderSubtitleBadges = (subtitles: string[]) => {
+        if (subtitles.length === 0) return null;
+        if (subtitles.length <= 3) {
+            return subtitles.map(subtitle => <Badge key={subtitle} className="summary-badge">{subtitle}</Badge>);
         }
-        return <Badge className="summary-badge">{`${sources.length}개 출처`}</Badge>;
+        return <Badge className="summary-badge">{`${subtitles.length}개 출처`}</Badge>;
     };
 
     const renderGenericBadge = (label: string, values: string[]) => {
@@ -109,7 +106,7 @@ const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({
         <div className="filtered-problem-header">
             <div className="header-left-section">
                 <div className="summary-info">
-                    {renderSourceBadges(summary.sources)}
+                    {renderSubtitleBadges(summary.subtitles)}
                     {renderGenericBadge('학년', summary.grades)}
                     {renderGenericBadge('학기', summary.semesters)}
                     {summary.minQuestionNumber !== null && (
@@ -121,7 +118,6 @@ const FilteredProblemHeader: React.FC<FilteredProblemHeaderProps> = ({
                 <div className="filter-controls">
                     <div className="filter-group problem-type-filter">
                         <button
-                            // [핵심 수정 3] ref를 버튼에 연결합니다.
                             ref={filterTriggerRef}
                             type="button"
                             className="filter-trigger-button filter-control-item"

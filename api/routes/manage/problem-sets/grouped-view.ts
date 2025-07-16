@@ -7,6 +7,7 @@ import postgres from 'postgres';
 import type { AppEnv } from '../../../index';
 import * as schemaD1 from '../../../db/schema.d1';
 import * as schemaPg from '../../../db/schema.pg';
+import { GRADES } from '../../../shared/curriculum.data';
 
 const groupedViewRoutes = new Hono<AppEnv>();
 
@@ -28,38 +29,36 @@ groupedViewRoutes.get('/my-grouped-view', async (c) => {
         const detailedData = await dbD1.select({
             problemSetId: schemaD1.problemSetTable.problem_set_id,
             problemSetName: schemaD1.problemSetTable.name,
-            gradeId: schemaD1.gradesTable.id,
-            gradeName: schemaD1.gradesTable.name,
-            gradeOrder: schemaD1.gradesTable.order,
-            sourceId: schemaD1.sourcesTable.id,
-            sourceName: schemaD1.sourcesTable.name,
+            gradeId: schemaD1.problemTable.grade_id,
+            subtitleId: schemaD1.subtitlesTable.id,
+            subtitleName: schemaD1.subtitlesTable.name,
             problemCount: sql<number>`count(${schemaD1.problemTable.problem_id})`.as('problemCount'),
         })
         .from(schemaD1.problemSetTable)
         .leftJoin(schemaD1.problemSetProblemsTable, eq(schemaD1.problemSetTable.problem_set_id, schemaD1.problemSetProblemsTable.problem_set_id))
         .leftJoin(schemaD1.problemTable, eq(schemaD1.problemSetProblemsTable.problem_id, schemaD1.problemTable.problem_id))
-        .leftJoin(schemaD1.gradesTable, eq(schemaD1.problemTable.grade_id, schemaD1.gradesTable.id))
-        .leftJoin(schemaD1.sourcesTable, eq(schemaD1.problemTable.source_id, schemaD1.sourcesTable.id))
+        .leftJoin(schemaD1.subtitlesTable, eq(schemaD1.problemTable.subtitle_id, schemaD1.subtitlesTable.id))
         .where(inArray(schemaD1.problemSetTable.problem_set_id, problemSetIds))
         .groupBy(
             schemaD1.problemSetTable.problem_set_id,
             schemaD1.problemSetTable.name,
-            schemaD1.gradesTable.id,
-            schemaD1.gradesTable.name,
-            schemaD1.gradesTable.order,
-            schemaD1.sourcesTable.id,
-            schemaD1.sourcesTable.name
+            schemaD1.problemTable.grade_id,
+            schemaD1.subtitlesTable.id,
+            schemaD1.subtitlesTable.name
         )
         .orderBy(
             asc(schemaD1.problemSetTable.name), 
-            asc(schemaD1.gradesTable.order),
-            asc(schemaD1.sourcesTable.name)
+            asc(schemaD1.problemTable.grade_id),
+            asc(schemaD1.subtitlesTable.name)
         );
-
+        
         const problemSetMap = new Map();
 
         for (const row of detailedData) {
-            if (!row.problemSetId || !row.gradeId || !row.sourceId) continue;
+            if (!row.problemSetId || !row.gradeId || !row.subtitleId) continue;
+            
+            const gradeInfo = GRADES[row.gradeId as keyof typeof GRADES];
+            if (!gradeInfo) continue;
 
             if (!problemSetMap.has(row.problemSetId)) {
                 problemSetMap.set(row.problemSetId, {
@@ -73,16 +72,16 @@ groupedViewRoutes.get('/my-grouped-view', async (c) => {
             if (!currentProblemSet.grades.has(row.gradeId)) {
                 currentProblemSet.grades.set(row.gradeId, {
                     grade_id: row.gradeId,
-                    grade_name: row.gradeName,
-                    grade_order: row.gradeOrder,
-                    sources: [],
+                    grade_name: gradeInfo.name,
+                    grade_order: gradeInfo.order,
+                    subtitles: [],
                 });
             }
             const currentGrade = currentProblemSet.grades.get(row.gradeId);
             
-            currentGrade.sources.push({
-                source_id: row.sourceId,
-                source_name: row.sourceName,
+            currentGrade.subtitles.push({
+                subtitle_id: row.subtitleId,
+                subtitle_name: row.subtitleName,
                 problem_count: row.problemCount,
             });
         }
