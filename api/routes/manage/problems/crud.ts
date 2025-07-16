@@ -1,6 +1,8 @@
+// ./api/routes/manage/problems/crud.ts
+
 import { Hono } from 'hono';
 import { drizzle, DrizzleD1Database } from 'drizzle-orm/d1';
-import { eq, and, inArray, sql, asc } from 'drizzle-orm';
+import { eq, and, inArray, sql, asc, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import type { BatchItem } from 'drizzle-orm/batch';
@@ -23,19 +25,26 @@ function extractImageKeysFromText(text: string | null, r2PublicUrl: string): str
 }
 
 async function ensureSubtitleId(db: DrizzleD1Database<typeof schema>, subtitleName: string): Promise<string> {
-    const trimmedName = subtitleName?.trim();
+    const trimmedName = subtitleName.trim();
     if (!trimmedName) {
-        const defaultSubtitle = await db.query.subtitlesTable.findFirst({ where: eq(schema.subtitlesTable.name, '미지정') });
-        if (defaultSubtitle) return defaultSubtitle.id;
-        const newId = `sub_${crypto.randomUUID()}`;
-        await db.insert(schema.subtitlesTable).values({ id: newId, name: '미지정' }).onConflictDoNothing();
-        const result = await db.query.subtitlesTable.findFirst({ where: eq(schema.subtitlesTable.name, '미지정') });
-        return result!.id;
+        throw new Error("Subtitle name cannot be empty.");
     }
-    const existingSubtitle = await db.query.subtitlesTable.findFirst({ where: eq(schema.subtitlesTable.name, trimmedName) });
-    if (existingSubtitle) return existingSubtitle.id;
+
+    const existing = await db.query.subtitlesTable.findFirst({
+        where: eq(schema.subtitlesTable.name, trimmedName)
+    });
+
+    if (existing) {
+        return existing.id;
+    }
+
     const newId = `sub_${crypto.randomUUID()}`;
-    await db.insert(schema.subtitlesTable).values({ id: newId, name: trimmedName });
+    await db.insert(schema.subtitlesTable).values({ 
+        id: newId, 
+        name: trimmedName,
+        folder_id: null
+    });
+    
     return newId;
 }
 
@@ -86,14 +95,12 @@ const uploadProblemsAndCreateSetSchema = z.object({
   copyright_type: z.enum(schema.copyrightTypeEnum),
   copyright_source: z.string().nullable().optional(),
   grade: z.string().optional(),
-  folder_id: z.string().nullable().optional(),
 });
 
 const updateProblemBodySchema = problemSchemaForUpload.omit({ problem_id: true }).partial();
 const deleteProblemsBodySchema = z.object({ problem_ids: z.array(z.string()).min(1) });
 const getProblemsByIdsSchema = z.object({ problemIds: z.array(z.string()).min(1, "problemIds 배열은 비어있을 수 없습니다.") });
 
-// --- Hono Routes ---
 
 const crudRoutes = new Hono<AppEnv>();
 
@@ -104,8 +111,7 @@ crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema),
     const r2PublicUrl = c.env.R2_PUBLIC_URL;
 
     if (!r2PublicUrl) {
-        console.error("R2_PUBLIC_URL 환경 변수가 설정되지 않았습니다.");
-        return c.json({ error: '서버 설정 오류: 이미지 URL을 처리할 수 없습니다.' }, 500);
+        return c.json({ error: '서버 설정 오류: R2 공개 URL을 처리할 수 없습니다.' }, 500);
     }
 
     try {
@@ -117,7 +123,6 @@ crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema),
             creator_id: user.id,
             name: body.problemSetName,
             description: body.description || null,
-            folder_id: body.folder_id || null,
             type: body.type,
             status: body.status,
             copyright_type: body.copyright_type,
@@ -129,29 +134,42 @@ crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema),
         };
         statements.push(db.insert(schema.problemSetTable).values(newSetData));
 
-        const subtitleNames = [...new Set(body.problems.map(p => p.subtitle).filter(Boolean))];
-        const subtitleIdMap = new Map<string, string>();
-        for (const name of subtitleNames) {
-            subtitleIdMap.set(name, await ensureSubtitleId(db, name));
-        }
-        
+        const subtitleIdCache = new Map<string, string>();
         const subtitleCounts = new Map<string, number>();
-        body.problems.forEach((problem, index) => {
-            const now = new Date().toISOString().replace(/T|Z/g, ' ').trim();
-            const { subtitle, problem_id, grade, calculation_skill_ids, ...restOfProblem } = problem;
-            const newProblemId = `prob_${crypto.randomUUID()}`;
+
+        for (const [index, problem] of body.problems.entries()) {
+            const { subtitle, problem_id, grade, calculation_skill_ids, ...restOfProblemDetails } = problem;
             
+            if (!subtitle || !subtitle.trim()) {
+                return c.json({ error: `${index + 1}번째 문제의 'subtitle' 필드가 비어있습니다.` }, 400);
+            }
+
+            const now = new Date().toISOString().replace(/T|Z/g, ' ').trim();
+            const newProblemId = `prob_${crypto.randomUUID()}`;
             const grade_id = GRADES_NAME_TO_ID_MAP.get(grade) ?? null;
             if(grade && !grade_id) throw new Error(`유효하지 않은 학년 이름입니다: ${grade}`);
-
-            const problemData = { ...restOfProblem, grade_id, problem_id: newProblemId, creator_id: user.id, created_at: now, updated_at: now, subtitle_id: subtitleIdMap.get(subtitle) || null, };
+            
+            let subtitleId = subtitleIdCache.get(subtitle);
+            if (!subtitleId) {
+                subtitleId = await ensureSubtitleId(db, subtitle);
+                subtitleIdCache.set(subtitle, subtitleId);
+            }
+            
+            const problemData = { 
+                ...restOfProblemDetails, 
+                grade_id, 
+                problem_id: newProblemId, 
+                creator_id: user.id, 
+                created_at: now, 
+                updated_at: now, 
+                subtitle_id: subtitleId,
+            };
             statements.push(db.insert(schema.problemTable).values(problemData as schema.DbProblem));
             statements.push(db.insert(schema.problemSetProblemsTable).values({ problem_set_id: newProblemSetId, problem_id: newProblemId, order: index + 1 }));
 
             const imageKeys = extractImageKeysFromText(problemData.question_text, r2PublicUrl);
             if (imageKeys.length > 0) {
-                const imageLinks = imageKeys.map(key => ({ problem_id: newProblemId, image_key: key }));
-                statements.push(db.insert(schema.problemImagesTable).values(imageLinks));
+                statements.push(db.insert(schema.problemImagesTable).values(imageKeys.map(key => ({ problem_id: newProblemId, image_key: key }))));
             }
 
             if (calculation_skill_ids && calculation_skill_ids.length > 0) {
@@ -159,10 +177,9 @@ crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema),
                     calculation_skill_ids.map(skill_id => ({ problem_id: newProblemId, skill_id }))
                 ));
             }
-            if (problemData.subtitle_id) {
-                subtitleCounts.set(problemData.subtitle_id, (subtitleCounts.get(problemData.subtitle_id) || 0) + 1);
-            }
-        });
+            
+            subtitleCounts.set(subtitleId, (subtitleCounts.get(subtitleId) || 0) + 1);
+        }
         
         for (const [subtitle_id, count] of subtitleCounts.entries()) {
              statements.push(db.insert(schema.problemSetSubtitlesTable).values({ problem_set_id: newProblemSetId, subtitle_id: subtitle_id, count: count }));
@@ -174,7 +191,7 @@ crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema),
         return c.json({ success: true, message: "문제집과 문제가 D1에 성공적으로 생성되었습니다.", problemSet: newSetData }, 201);
     } catch (error: any) {
         console.error('Failed to upload problems and create set in D1:', error);
-        return c.json({ error: 'D1 데이터베이스 작업에 실패했습니다.', details: error.cause ? error.cause.message : error.message }, 500);
+        return c.json({ error: 'D1 데이터베이스 작업에 실패했습니다.', details: error.message }, 500);
     }
 });
 
@@ -242,7 +259,9 @@ crudRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) =>
             const { subtitle, grade, calculation_skill_ids, ...restOfProblem } = problemDataFromClient;
             
             let subtitle_id: string | null | undefined = undefined;
-            if (subtitle !== undefined) subtitle_id = await ensureSubtitleId(db, subtitle);
+            if (subtitle !== undefined) {
+                 subtitle_id = await ensureSubtitleId(db, subtitle);
+            }
 
             let grade_id: string | null | undefined = undefined;
             if (grade !== undefined) {
@@ -309,32 +328,25 @@ crudRoutes.delete('/', zValidator('json', deleteProblemsBodySchema), async (c) =
     const r2Bucket = c.env.MY_R2_BUCKET;
 
     if (!r2Bucket) {
-        console.error("MY_R2_BUCKET 환경 변수가 설정되지 않았습니다.");
         return c.json({ error: '서버 설정 오류: 이미지 저장소를 찾을 수 없습니다.' }, 500);
     }
 
     try {
-        // 1. 이미지 키 조회
         const imagesToDelete = await db.query.problemImagesTable.findMany({
             where: inArray(schema.problemImagesTable.problem_id, problem_ids),
             columns: { image_key: true }
         });
         const uniqueKeysToDelete = [...new Set(imagesToDelete.map(img => img.image_key))];
 
-        // 2. R2 객체 삭제
         if (uniqueKeysToDelete.length > 0) {
             await r2Bucket.delete(uniqueKeysToDelete);
-            console.log(`R2에서 ${uniqueKeysToDelete.length}개의 이미지 삭제 완료.`);
         }
         
-        // 3. DB 레코드 삭제 (Batch 사용)
         const statements: BatchItem<'sqlite'>[] = [
-            // cascade 옵션에 의존하지 않고 명시적으로 삭제
             db.delete(schema.problemImagesTable).where(inArray(schema.problemImagesTable.problem_id, problem_ids)),
             db.delete(schema.problemTagTable).where(inArray(schema.problemTagTable.problem_id, problem_ids)),
             db.delete(schema.problemCalculationSkillsTable).where(inArray(schema.problemCalculationSkillsTable.problem_id, problem_ids)),
             db.delete(schema.problemSetProblemsTable).where(inArray(schema.problemSetProblemsTable.problem_id, problem_ids)),
-            // 마지막으로 문제 원본 삭제
             db.delete(schema.problemTable).where(and(inArray(schema.problemTable.problem_id, problem_ids), eq(schema.problemTable.creator_id, user.id))),
         ];
 

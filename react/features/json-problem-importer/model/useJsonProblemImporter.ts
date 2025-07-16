@@ -3,9 +3,10 @@ import type { Problem, Column, ComboboxOption, ProblemType } from '../../../enti
 import { PROBLEM_TYPES } from '../../../entities/problem/model/types';
 import { produce } from 'immer';
 import * as jsonc from 'jsonc-parser';
-import type { LibrarySelection } from '../../../pages/ProblemSetCreationPage';
+import type { LibrarySelection } from '../../../entities/problem-set/model/types';
 import { useToast } from '../../../shared/store/toastStore';
 
+// [수정] 누락되었던 ParseErrorDetail 타입 정의 추가
 interface ParseErrorDetail {
     title: string;
     message: string;
@@ -15,16 +16,20 @@ interface ParseErrorDetail {
     problemIndex?: number;
 }
 
+/**
+ * [수정] OnUploadPayload 타입을 백엔드 스펙에 맞게 folderId를 추가합니다.
+ */
 export interface OnUploadPayload {
     problems: Problem[];
     problemSetBrand: string;
     description: string | null;
     grade: string | null;
+    folderId?: string | null;
 }
 
 interface UseJsonProblemImporterProps {
     selectedItem: LibrarySelection | null;
-    onUpload: (payload: OnUploadPayload) => void;
+    onUpload: (payload: OnUploadPayload, isNew: boolean, subtitleName?: string) => void;
 }
 
 const initialJsonInput = `{
@@ -38,10 +43,10 @@ const initialJsonInput = `{
       "page": 15,
       "grade": "고1",
       "semester": "1학기",
-      "subtitle": "개념원리 수학(상)",
-      "major_chapter_id": "이차방정식과 이차함수",
-      "middle_chapter_id": "이차함수의 최대, 최소",
-      "core_concept_id": "이차함수 표준형 변환",
+      "subtitle": "이차함수의 최대, 최소",
+      "major_chapter_id": null,
+      "middle_chapter_id": null,
+      "core_concept_id": null,
       "problem_category": "이차함수 최댓값 구하기",
       "difficulty": "하",
       "score": "5점"
@@ -72,7 +77,7 @@ const NULLABLE_STRING_FIELDS: Set<keyof Problem> = new Set([
     'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'answer', 'solution_text'
 ]);
 
-export function useJsonProblemImporter({ 
+export function useJsonProblemImporter({
     selectedItem,
     onUpload,
 }: UseJsonProblemImporterProps) {
@@ -80,7 +85,7 @@ export function useJsonProblemImporter({
     const [jsonInput, setJsonInput] = useState(initialJsonInput);
     const [problems, setProblems] = useState<Problem[]>([]);
     const [parseError, setParseError] = useState<ParseErrorDetail | null>(null);
-    
+
     const [editingCell, setEditingCell] = useState<{ rowIndex: number; colKey: keyof Problem } | null>(null);
     const [editingValue, setEditingValue] = useState<string | number | null | undefined>('');
     const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
@@ -99,6 +104,12 @@ export function useJsonProblemImporter({
             setProblemSetDescription('');
             setCommonSubtitle('');
             setCommonGradeLevel('');
+            setCommonSemester('');
+        } else if (selectedItem?.type === 'folder') {
+            setProblemSetBrand(selectedItem.problemSetName || '');
+            setProblemSetDescription(null);
+            setCommonSubtitle('');
+            setCommonGradeLevel(selectedItem.gradeName || '');
             setCommonSemester('');
         } else if (selectedItem?.type === 'subtitle') {
             setProblemSetBrand(selectedItem.problemSetName || '');
@@ -145,7 +156,7 @@ export function useJsonProblemImporter({
         if (jsonInput === previousJsonInputRef.current) return;
 
         previousJsonInputRef.current = jsonInput;
-        
+
         const parseErrors: jsonc.ParseError[] = [];
         const parsedData = jsonc.parse(jsonInput, parseErrors, { allowTrailingComma: true });
 
@@ -161,7 +172,7 @@ export function useJsonProblemImporter({
             if (!Array.isArray(parsedData.problems)) throw { title: "데이터 타입 오류", message: "'problems' 키의 값이 배열(Array)이 아닙니다.", suggestion: "'problems'의 값은 대괄호 `[]`로 감싸진 배열이어야 합니다." };
 
             const validationErrors: ParseErrorDetail[] = [];
-            
+
             const transformedProblems = parsedData.problems
                 .map((p: any, index: number): Problem | null => {
                     const problemIndex = index + 1;
@@ -169,25 +180,25 @@ export function useJsonProblemImporter({
                         validationErrors.push({ title: "데이터 타입 오류", message: `배열의 ${problemIndex}번째 항목이 객체(Object)가 아닙니다.`, suggestion: "각 문제는 중괄호 `{}`로 감싸야 합니다.", problemIndex });
                         return null;
                     }
-                     if (!('question_number' in p) || !p.question_number) {
+                    if (!('question_number' in p) || !p.question_number) {
                         validationErrors.push({ title: "필수 필드 누락", message: `'question_number' 필드가 없거나 비어있습니다.`, suggestion: "모든 문제에는 `question_number` 필드가 반드시 포함되어야 합니다.", problemIndex });
                         return null;
                     }
-                     if (!('question_text' in p) || !p.question_text) {
+                    if (!('question_text' in p) || !p.question_text) {
                         validationErrors.push({ title: "필수 필드 누락", message: `'question_text' 필드가 없거나 비어있습니다.`, suggestion: "모든 문제에는 `question_text` 필드가 반드시 포함되어야 합니다.", problemIndex });
                         return null;
                     }
-                    
+
                     const problemNumRaw = p.question_number;
                     const parsedQuestionNumber = parseFloat(String(problemNumRaw).replace(/[^\d.]/g, ''));
-                    if(isNaN(parsedQuestionNumber)) {
+                    if (isNaN(parsedQuestionNumber)) {
                         validationErrors.push({ title: "데이터 형식 오류", message: `'question_number' ("${problemNumRaw}")에서 숫자를 찾을 수 없습니다.`, suggestion: "문제 번호에 숫자 부분이 포함되어야 합니다. (예: '서답형 1', '5.2')", problemIndex });
                         return null;
                     }
 
                     const problemTypeValue = (p.problem_type || '서답형') as string;
                     if (!PROBLEM_TYPES.includes(problemTypeValue as ProblemType)) {
-                         validationErrors.push({ title: "데이터 값 오류", message: `'problem_type' 값이 유효하지 않습니다. (입력값: "${problemTypeValue}")`, suggestion: `허용되는 값: ${PROBLEM_TYPES.join(', ')}`, problemIndex });
+                        validationErrors.push({ title: "데이터 값 오류", message: `'problem_type' 값이 유효하지 않습니다. (입력값: "${problemTypeValue}")`, suggestion: `허용되는 값: ${PROBLEM_TYPES.join(', ')}`, problemIndex });
                         return null;
                     }
 
@@ -211,7 +222,7 @@ export function useJsonProblemImporter({
                     };
                 })
                 .filter((p: Problem | null): p is Problem => p !== null);
-            
+
             setProblems(transformedProblems);
             setParseError(validationErrors.length > 0 ? validationErrors[0] : null);
 
@@ -283,27 +294,36 @@ export function useJsonProblemImporter({
         });
         setProblems(nextProblems);
         toast.success('공통 정보가 모든 문제에 적용되었습니다.');
-    }, [problems, commonSubtitle, commonGradeLevel, commonSemester]);
+    }, [problems, commonSubtitle, commonGradeLevel, commonSemester, toast]);
 
     const handleUpload = useCallback(() => {
         if (problems.length === 0 || parseError) {
             toast.error('업로드할 문제가 없거나 데이터에 오류가 있습니다.');
             return;
         }
-        
+
+        const isNew = selectedItem?.type === 'new';
+
         const payload: OnUploadPayload = {
             problems,
             problemSetBrand: problemSetBrand,
             description: problemSetDescription,
-            grade: commonGradeLevel.trim() || null
+            grade: commonGradeLevel.trim() || null,
+            folderId: selectedItem?.type === 'folder' ? selectedItem.folderId : null,
         };
-        onUpload(payload);
 
-    }, [problems, parseError, problemSetBrand, problemSetDescription, commonGradeLevel, onUpload]);
-    
+        let subtitleName: string | undefined;
+        if (selectedItem?.type === 'subtitle' || selectedItem?.type === 'folder') {
+            subtitleName = commonSubtitle.trim() || problems[0]?.subtitle || '새로운 소제목';
+        }
+
+        onUpload(payload, isNew, subtitleName);
+
+    }, [problems, parseError, problemSetBrand, problemSetDescription, commonGradeLevel, commonSubtitle, onUpload, toast, selectedItem]);
+
     const problemTypeOptions: ComboboxOption[] = PROBLEM_TYPES.map(t => ({ value: t, label: t }));
-    const difficultyOptions: ComboboxOption[] = [ { value: '최상', label: '최상' }, { value: '상', label: '상' }, { value: '중', label: '중' }, { value: '하', label: '하' }, { value: '최하', label: '최하' } ];
-    const answerOptions: ComboboxOption[] = [ { value: '①', label: '①' }, { value: '②', label: '②' }, { value: '③', label: '③' }, { value: '④', label: '④' }, { value: '⑤', label: '⑤' } ];
+    const difficultyOptions: ComboboxOption[] = [{ value: '최상', label: '최상' }, { value: '상', label: '상' }, { value: '중', label: '중' }, { value: '하', label: '하' }, { value: '최하', label: '최하' }];
+    const answerOptions: ComboboxOption[] = [{ value: '①', label: '①' }, { value: '②', label: '②' }, { value: '③', label: '③' }, { value: '④', label: '④' }, { value: '⑤', label: '⑤' }];
     const gradeOptions: ComboboxOption[] = ['초1', '초2', '초3', '초4', '초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'].map(g => ({ value: g, label: g }));
     const semesterOptions: ComboboxOption[] = ['1학기', '2학기', '공통'].map(s => ({ value: s, label: s }));
 

@@ -12,6 +12,7 @@ import problemRoutes from './routes/manage/problems';
 import r2ImageRoutes from './routes/r2/image';
 import examRoutes from './routes/exam';
 import academyRoutes from './routes/manage/academies';
+import folderRoutes from './routes/manage/folders';
 
 // [핵심 수정 1] 새로 만든 problem-sets 라우트를 import 합니다.
 import problemSetRoutes from './routes/manage/problem-sets';
@@ -51,7 +52,7 @@ app.route('/r2', r2ImageRoutes);
 app.route('/academies', academyRoutes);
 app.route('/exams', examRoutes); 
 
-// [핵심 수정 2] /manage/problem-sets 경로에 problemSetRoutes를 등록합니다.
+app.route('/manage/folders', folderRoutes);
 app.route('/manage/problem-sets', problemSetRoutes);
 
 app.get('/', (c) => c.text('Hono API is running!'));

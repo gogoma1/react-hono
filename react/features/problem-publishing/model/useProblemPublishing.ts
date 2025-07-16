@@ -27,11 +27,14 @@ export function useProblemPublishing() {
             const typeOrder: Record<string, number> = { '객관식': 1, '주관식': 2, '서답형': 3, '논술형': 4 };
             const processed = [...rawProblems]
                 .sort((a, b) => {
-                    const subtitleCompare = a.subtitle.localeCompare(b.subtitle); // [수정] source -> subtitle
+                    // [수정] source -> subtitle
+                    const subtitleCompare = a.subtitle.localeCompare(b.subtitle);
                     if (subtitleCompare !== 0) return subtitleCompare;
+                    
                     const typeA_Rank = typeOrder[a.problem_type] || 99;
                     const typeB_Rank = typeOrder[b.problem_type] || 99;
                     if (typeA_Rank !== typeB_Rank) return typeA_Rank - typeB_Rank;
+                    
                     return a.question_number - b.question_number;
                 })
                 .map((p): ProcessedProblem => ({

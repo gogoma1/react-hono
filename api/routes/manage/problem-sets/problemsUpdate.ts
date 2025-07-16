@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { drizzle } from 'drizzle-orm/d1';
+import { drizzle, DrizzleD1Database } from 'drizzle-orm/d1';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
@@ -9,16 +9,34 @@ import type { AppEnv } from '../../../index';
 import * as schema from '../../../db/schema.d1';
 import { GRADES_NAME_TO_ID_MAP } from '../../../shared/curriculum.data'; 
 
-// 중복 사용될 수 있으므로 별도 함수로 분리
-async function ensureSubtitleId(db: import('drizzle-orm/d1').DrizzleD1Database<typeof schema>, name: string): Promise<string> {
-    const trimmedName = name.trim();
-    if (!trimmedName) throw new Error("Subtitle name cannot be empty.");
+/**
+ * [핵심 수정] 소제목 이름으로 subtitle_id를 보장하고, 선택적으로 folder_id를 설정하는 함수.
+ */
+async function ensureSubtitleId(db: DrizzleD1Database<typeof schema>, subtitleName: string, folderId: string | null): Promise<string> {
+    const trimmedName = subtitleName.trim();
+    if (!trimmedName) {
+        throw new Error("Subtitle name cannot be empty.");
+    }
 
-    const existing = await db.query.subtitlesTable.findFirst({ where: eq(schema.subtitlesTable.name, trimmedName) });
-    if (existing) return existing.id;
+    // 이름과 폴더 ID가 모두 일치하는 기존 소제목을 찾습니다.
+    // 하지만 폴더 ID가 다른 동일 이름의 소제목을 허용할지는 정책에 따라 달라질 수 있습니다.
+    // 여기서는 이름으로만 찾고, 생성 시에만 folder_id를 설정하는 것으로 단순화합니다.
+    const existing = await db.query.subtitlesTable.findFirst({
+        where: eq(schema.subtitlesTable.name, trimmedName)
+    });
+
+    if (existing) {
+        // 이미 존재하는 소제목은 폴더를 이동시키지 않고 ID만 반환합니다.
+        // 폴더 이동은 별도의 API(move)를 사용하도록 유도합니다.
+        return existing.id;
+    }
     
     const newId = `sub_${crypto.randomUUID()}`;
-    await db.insert(schema.subtitlesTable).values({ id: newId, name: trimmedName });
+    await db.insert(schema.subtitlesTable).values({ 
+        id: newId, 
+        name: trimmedName,
+        folder_id: folderId, // [수정] 생성 시 folder_id를 설정
+    });
     return newId;
 }
 
@@ -31,7 +49,6 @@ const problemSchemaForAdd = z.object({
   problem_type: z.enum(schema.problemTypeEnum),
   grade: z.string(),
   semester: z.string().nullable(),
-  // [수정] subtitle 필드를 필수로 받도록 변경
   subtitle: z.string().min(1, '문제별 소제목(subtitle)은 필수입니다.'), 
   major_chapter_id: z.string().nullable(),
   middle_chapter_id: z.string().nullable(),
@@ -42,10 +59,11 @@ const problemSchemaForAdd = z.object({
   calculation_skill_ids: z.array(z.string()).optional(),
 });
 
-// [수정] `addProblemsToSetSchema` 수정: `subtitleId` 대신 `subtitleName`을 받도록 함
+// [수정] API 요청 스키마에 folderId 추가
 const addProblemsToSetSchema = z.object({
-  subtitleId: z.string().min(1, '소제목(subtitleId)은 필수입니다.'), // 클라이언트에서는 소제목 이름(string)을 이 필드에 담아 보냅니다.
+  subtitleName: z.string().min(1, '소제목 이름(subtitleName)은 필수입니다.'),
   problems: z.array(problemSchemaForAdd).min(1, '추가할 문제가 하나 이상 필요합니다.'),
+  folderId: z.string().nullable().optional(), // [신규] 폴더 ID (선택 사항)
 });
 
 const problemsUpdateRoutes = new Hono<AppEnv>();
@@ -56,8 +74,8 @@ problemsUpdateRoutes.post(
   async (c) => {
     const user = c.get('user');
     const problemSetId = c.req.param('problemSetId');
-    // [수정] body에서 subtitleId를 subtitleName으로 간주하여 사용
-    const { subtitleId: subtitleName, problems } = c.req.valid('json');
+    // [수정] 요청 본문에서 folderId 추출
+    const { subtitleName, problems, folderId } = c.req.valid('json');
     const db = drizzle(c.env.D1_DATABASE, { schema });
 
     try {
@@ -71,8 +89,8 @@ problemsUpdateRoutes.post(
         return c.json({ error: '문제집을 찾을 수 없거나 접근 권한이 없습니다.' }, 404);
       }
 
-      // [수정] 전달받은 이름으로 subtitleId를 조회하거나 생성
-      const subtitleId = await ensureSubtitleId(db, subtitleName);
+      // [수정] ensureSubtitleId 호출 시 folderId 전달
+      const subtitleId = await ensureSubtitleId(db, subtitleName, folderId ?? null);
 
       const lastProblemInSet = await db.query.problemSetProblemsTable.findFirst({
         where: eq(schema.problemSetProblemsTable.problem_set_id, problemSetId),
@@ -105,7 +123,6 @@ problemsUpdateRoutes.post(
             grade_id,
             problem_id: newProblemId,
             creator_id: user.id,
-            // [수정] 각 문제에 조회/생성된 subtitleId를 할당
             subtitle_id: subtitleId, 
             created_at: now,
             updated_at: now,
@@ -166,7 +183,7 @@ problemsUpdateRoutes.post(
 
     } catch (error: any) {
       console.error('Failed to add problems to set in D1:', error);
-      return c.json({ error: 'D1 데이터베이스 작업에 실패했습니다.', details: error.cause ? error.cause.message : error.message }, 500);
+      return c.json({ error: 'D1 데이터베이스 작업에 실패했습니다.', details: error.message }, 500);
     }
   }
 );

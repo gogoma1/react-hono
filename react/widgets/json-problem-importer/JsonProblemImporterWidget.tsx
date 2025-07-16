@@ -6,7 +6,7 @@ import GlassPopover from '../../shared/components/GlassPopover';
 import type { Problem, Column } from '../../entities/problem/model/types';
 import { PopoverCombobox, PopoverInput, PopoverTextarea } from '../../features/json-problem-importer/ui/EditPopoverContent';
 import LoadingButton from '../../shared/ui/loadingbutton/LoadingButton';
-import type { LibrarySelection } from '../../pages/ProblemSetCreationPage';
+import type { LibrarySelection } from '../../entities/problem-set/model/types';
 import type { OnUploadPayload } from '../../features/json-problem-importer/model/useJsonProblemImporter';
 
 const COMBOBOX_FIELDS: (keyof Problem)[] = ['problem_type', 'difficulty', 'grade', 'semester'];
@@ -14,7 +14,7 @@ const ANSWER_COMBOBOX_FIELDS: (keyof Problem)[] = ['answer'];
 
 interface JsonProblemImporterWidgetProps {
     selectedItem: LibrarySelection | null;
-    onUpload: (payload: OnUploadPayload) => void;
+    onUpload: (payload: OnUploadPayload, isNew: boolean, subtitleName?: string) => void;
     isProcessing: boolean;
 }
 
@@ -42,10 +42,9 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
     } = useJsonProblemImporter({ selectedItem, onUpload });
 
     const isEditing = !!editingCell;
-    const uploadButtonText = isCreatingNew ? "문제집 생성 및 문제 업로드" : "선택한 소제목에 문제 추가";
+    const uploadButtonText = isCreatingNew ? "문제집 생성 및 문제 업로드" : "선택한 위치에 문제 추가";
 
     return (
-        // [수정] 위젯의 최상위 div 구조를 변경합니다.
         <div className="json-importer-widget">
             {/* 1행: 공통 정보 입력 패널 */}
             <div className="panel common-data-panel">
@@ -80,12 +79,13 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                     </div>
                     
                     <div className="form-group">
-                        <label htmlFor="commonSubtitle">소제목 (교재명)</label>
+                        <label htmlFor="commonSubtitle">소제목 (교재명) *</label>
                         <input 
                             id="commonSubtitle" 
                             value={commonSubtitle} 
                             onChange={e => setCommonSubtitle(e.target.value)} 
                             placeholder="예: 쎈 중등수학 2-2" 
+                            required
                         />
                     </div>
                     <div className="form-group">
@@ -150,7 +150,7 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                     <h2>표 미리보기 (클릭하여 수정)</h2>
                     <LoadingButton
                         onClick={handleUpload}
-                        disabled={problems.length === 0 || parseError !== null || (isCreatingNew && !problemSetBrand.trim()) || isProcessing}
+                        disabled={problems.length === 0 || parseError !== null || (isCreatingNew && !problemSetBrand.trim()) || !commonSubtitle.trim() || isProcessing}
                         isLoading={isProcessing}
                         loadingText="처리 중..."
                         className="primary"

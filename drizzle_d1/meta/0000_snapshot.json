@@ -1,9 +1,76 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d3706af4-af76-41b8-9eb7-db0c35fdd650",
+  "id": "0fe85958-cac7-41b4-becd-3544a295f828",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "folders": {
+      "name": "folders",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "creator_id": {
+          "name": "creator_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "problem_set_id": {
+          "name": "problem_set_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "grade_id": {
+          "name": "grade_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%d %H:%M:%f', 'now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "folders_problem_set_id_problem_set_problem_set_id_fk": {
+          "name": "folders_problem_set_id_problem_set_problem_set_id_fk",
+          "tableFrom": "folders",
+          "tableTo": "problem_set",
+          "columnsFrom": [
+            "problem_set_id"
+          ],
+          "columnsTo": [
+            "problem_set_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "problem_calculation_skills": {
       "name": "problem_calculation_skills",
       "columns": {
@@ -45,6 +112,60 @@
             "skill_id"
           ],
           "name": "problem_calculation_skills_problem_id_skill_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "problem_images": {
+      "name": "problem_images",
+      "columns": {
+        "problem_id": {
+          "name": "problem_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "image_key": {
+          "name": "image_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%d %H:%M:%f', 'now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "problem_images_problem_id_problem_problem_id_fk": {
+          "name": "problem_images_problem_id_problem_problem_id_fk",
+          "tableFrom": "problem_images",
+          "tableTo": "problem",
+          "columnsFrom": [
+            "problem_id"
+          ],
+          "columnsTo": [
+            "problem_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "problem_images_problem_id_image_key_pk": {
+          "columns": [
+            "problem_id",
+            "image_key"
+          ],
+          "name": "problem_images_problem_id_image_key_pk"
         }
       },
       "uniqueConstraints": {},
@@ -462,7 +583,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -545,10 +666,31 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "folder_id": {
+          "name": "folder_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "subtitles_folder_id_folders_id_fk": {
+          "name": "subtitles_folder_id_folders_id_fk",
+          "tableFrom": "subtitles",
+          "tableTo": "folders",
+          "columnsFrom": [
+            "folder_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

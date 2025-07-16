@@ -2,11 +2,83 @@ import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
+
 
 import type { AppEnv } from '../../../index';
 import * as schemaD1 from '../../../db/schema.d1';
 
 const subtitleRoutes = new Hono<AppEnv>();
+
+// [신규] 소제목을 다른 폴더로 이동시키기 위한 스키마
+const moveSubtitleSchema = z.object({
+    targetFolderId: z.string().nullable(), // null을 보내면 폴더에서 빼내는 동작
+});
+
+/**
+ * [신규] PUT /subtitles/:subtitleId/move
+ * 특정 소제목을 다른 폴더로 이동시키거나 폴더에서 제외합니다.
+ * 프론트엔드의 드래그 앤 드롭 기능이 이 API를 호출합니다.
+ */
+subtitleRoutes.put(
+    '/subtitles/:subtitleId/move',
+    zValidator('json', moveSubtitleSchema),
+    async (c) => {
+        const user = c.get('user');
+        const { subtitleId } = c.req.param();
+        const { targetFolderId } = c.req.valid('json');
+
+        const db = drizzle(c.env.D1_DATABASE, { schema: schemaD1 });
+
+        try {
+            // 권한 확인: 해당 소제목에 포함된 문제의 생성자가 현재 사용자인지 확인
+            const subtitle = await db.query.subtitlesTable.findFirst({
+                where: eq(schemaD1.subtitlesTable.id, subtitleId),
+                with: {
+                    problems: {
+                        columns: { creator_id: true },
+                        limit: 1, // 1개의 문제만 확인해도 충분
+                    }
+                }
+            });
+
+            if (!subtitle || subtitle.problems[0]?.creator_id !== user.id) {
+                return c.json({ error: '소제목을 찾을 수 없거나 수정할 권한이 없습니다.' }, 404);
+            }
+            
+            // 이동할 대상 폴더가 유효한지, 사용자가 소유한 폴더인지 확인
+            if (targetFolderId) {
+                const folder = await db.query.foldersTable.findFirst({
+                    where: and(
+                        eq(schemaD1.foldersTable.id, targetFolderId),
+                        eq(schemaD1.foldersTable.creator_id, user.id)
+                    )
+                });
+                if (!folder) {
+                    return c.json({ error: '대상 폴더를 찾을 수 없거나 접근 권한이 없습니다.' }, 404);
+                }
+            }
+
+            // subtitles 테이블의 folder_id 업데이트
+            const [updatedSubtitle] = await db.update(schemaD1.subtitlesTable)
+                .set({ folder_id: targetFolderId })
+                .where(eq(schemaD1.subtitlesTable.id, subtitleId))
+                .returning();
+            
+            if (!updatedSubtitle) {
+                return c.json({ error: '소제목 정보 업데이트에 실패했습니다.' }, 500);
+            }
+
+            return c.json(updatedSubtitle);
+
+        } catch (error: any) {
+            console.error(`Failed to move subtitle ${subtitleId}:`, error);
+            return c.json({ error: '소제목 이동 중 데이터베이스 오류가 발생했습니다.', details: error.message }, 500);
+        }
+    }
+);
+
 
 /**
  * DELETE /:problemSetId/subtitles/:subtitleId
@@ -19,7 +91,6 @@ subtitleRoutes.delete('/:problemSetId/subtitles/:subtitleId', async (c) => {
     const db = drizzle(c.env.D1_DATABASE, { schema: schemaD1 });
 
     try {
-        // 1. 권한 확인: 요청자가 문제집의 소유자인지 확인
         const problemSet = await db.query.problemSetTable.findFirst({
             where: and(
                 eq(schemaD1.problemSetTable.problem_set_id, problemSetId),
@@ -31,7 +102,6 @@ subtitleRoutes.delete('/:problemSetId/subtitles/:subtitleId', async (c) => {
             return c.json({ error: '문제집을 찾을 수 없거나 접근 권한이 없습니다.' }, 404);
         }
 
-        // 2. 삭제할 문제들의 ID 목록 조회 (소제목 ID와 생성자 ID로 한정)
         const problemsToDelete = await db.select({
                 problem_id: schemaD1.problemTable.problem_id
             })
@@ -46,24 +116,17 @@ subtitleRoutes.delete('/:problemSetId/subtitles/:subtitleId', async (c) => {
 
         const statements: BatchItem<'sqlite'>[] = [];
 
-        // --- 삭제 순서가 중요합니다 ---
 
-        // Step 1: 문제 원본 데이터 삭제 (가장 먼저)
-        // problemTable 레코드가 삭제되면, 이를 참조하는 다른 테이블(problemSetProblems, etc.)의
-        // 레코드들이 'cascade' 옵션에 의해 연쇄적으로 삭제됩니다.
         if (problemIdsToDelete.length > 0) {
             statements.push(
                 db.delete(schemaD1.problemTable).where(inArray(schemaD1.problemTable.problem_id, problemIdsToDelete))
             );
         }
 
-        // Step 2: 소제목 원본 데이터 삭제
-        // subtitlesTable 레코드가 삭제되면, problemSetSubtitlesTable의 레코드가 'cascade' 옵션에 의해 연쇄 삭제됩니다.
         statements.push(
             db.delete(schemaD1.subtitlesTable).where(eq(schemaD1.subtitlesTable.id, subtitleId))
         );
         
-        // Step 3: 문제집의 총 문제 수 업데이트
         if (deleteCount > 0) {
             statements.push(
                 db.update(schemaD1.problemSetTable)
@@ -75,12 +138,9 @@ subtitleRoutes.delete('/:problemSetId/subtitles/:subtitleId', async (c) => {
             );
         }
 
-        // 3. 트랜잭션 실행
         if (statements.length > 0) {
             await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
         } else {
-             // 삭제할 문제가 없더라도 소제목-문제집 연결은 끊어야 합니다.
-             // 이 경우는 subtitlesTable 레코드를 삭제하는 것만으로 충분합니다 (CASCADE).
              await db.delete(schemaD1.subtitlesTable).where(eq(schemaD1.subtitlesTable.id, subtitleId));
         }
 

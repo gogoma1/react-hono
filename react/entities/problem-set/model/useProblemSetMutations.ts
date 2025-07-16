@@ -1,61 +1,61 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-    createEntitlementAPI, 
-    addProblemsToSetAPI, 
-    updateProblemSetAPI, 
-    deleteProblemSetAPI, 
+import {
+    createEntitlementAPI,
+    addProblemsToSetAPI,
+    updateProblemSetAPI,
+    deleteProblemSetAPI,
     deleteSubtitleFromSetAPI,
-    createFolderAPI, // [신규]
-    updateFolderAPI, // [신규]
-    deleteFolderAPI  // [신규]
+    createFolderAPI,
+    updateFolderAPI,
+    deleteFolderAPI,
+    moveSubtitleAPI // [신규]
 } from '../api/problemSetApi';
-import type { CreateEntitlementPayload, AddProblemsToSetPayload, CreatedProblemSet, UpdateProblemSetPayload, Folder } from './types';
-import { GROUPED_PROBLEM_SETS_QUERY_KEY, MY_PROBLEM_SETS_QUERY_KEY, FOLDERS_QUERY_KEY } from './useProblemSetQuery';
+import type { CreateEntitlementPayload, AddProblemsToSetPayload, CreatedProblemSet, UpdateProblemSetPayload, Folder, UpdatedSubtitle } from './types';
+import { GROUPED_PROBLEM_SETS_QUERY_KEY } from './useProblemSetQuery';
 import { useToast } from '../../../shared/store/toastStore';
 
-// --- Folder Mutations ---
+interface CreateFolderPayload {
+    name: string;
+    problemSetId: string;
+    gradeId: string;
+}
 
-/**
- * [신규] 폴더 생성을 위한 Mutation
- */
+// [신규] 소제목 이동 뮤테이션 타입
+interface MoveSubtitlePayload {
+    subtitleId: string;
+    targetFolderId: string | null;
+}
+
 export function useCreateFolderMutation() {
     const queryClient = useQueryClient();
     const toast = useToast();
-    return useMutation<Folder, Error, string>({
-        mutationFn: (name) => createFolderAPI(name),
+    return useMutation<Folder, Error, CreateFolderPayload>({
+        mutationFn: (payload) => createFolderAPI(payload),
         onSuccess: (data) => {
-            toast.success(`'${data.name}' 폴더가 생성되었습니다.`);
-            queryClient.invalidateQueries({ queryKey: [FOLDERS_QUERY_KEY] });
+            toast.success(`'${data.name}' 그룹이 생성되었습니다.`);
+            queryClient.invalidateQueries({ queryKey: [GROUPED_PROBLEM_SETS_QUERY_KEY] });
         },
         onError: (error) => {
-            toast.error(`폴더 생성 실패: ${error.message}`);
+            toast.error(`그룹 생성 실패: ${error.message}`);
         },
     });
 }
 
-/**
- * [신규] 폴더 수정을 위한 Mutation
- */
 export function useUpdateFolderMutation() {
     const queryClient = useQueryClient();
     const toast = useToast();
     return useMutation<Folder, Error, { folderId: string; name: string }>({
         mutationFn: ({ folderId, name }) => updateFolderAPI(folderId, name),
         onSuccess: (data) => {
-            toast.success(`폴더 이름이 '${data.name}'(으)로 수정되었습니다.`);
-            queryClient.invalidateQueries({ queryKey: [FOLDERS_QUERY_KEY] });
-            // 폴더 이름 변경은 grouped view에도 영향을 줄 수 있음
+            toast.success(`그룹 이름이 '${data.name}'(으)로 수정되었습니다.`);
             queryClient.invalidateQueries({ queryKey: [GROUPED_PROBLEM_SETS_QUERY_KEY] });
         },
         onError: (error) => {
-            toast.error(`폴더 수정 실패: ${error.message}`);
+            toast.error(`그룹 수정 실패: ${error.message}`);
         },
     });
 }
 
-/**
- * [신규] 폴더 삭제를 위한 Mutation
- */
 export function useDeleteFolderMutation() {
     const queryClient = useQueryClient();
     const toast = useToast();
@@ -63,16 +63,32 @@ export function useDeleteFolderMutation() {
         mutationFn: (folderId) => deleteFolderAPI(folderId),
         onSuccess: (data) => {
             toast.info(data.message);
-            queryClient.invalidateQueries({ queryKey: [FOLDERS_QUERY_KEY] });
             queryClient.invalidateQueries({ queryKey: [GROUPED_PROBLEM_SETS_QUERY_KEY] });
         },
         onError: (error) => {
-            toast.error(`폴더 삭제 실패: ${error.message}`);
+            toast.error(`그룹 삭제 실패: ${error.message}`);
         },
     });
 }
 
-// --- ProblemSet Mutations ---
+/**
+ * [신규] 소제목을 폴더로 이동시키는 Mutation
+ */
+export function useMoveSubtitleMutation() {
+    const queryClient = useQueryClient();
+    const toast = useToast();
+    return useMutation<UpdatedSubtitle, Error, MoveSubtitlePayload>({
+        mutationFn: (payload) => moveSubtitleAPI(payload),
+        onSuccess: () => {
+            toast.success('소제목이 그룹으로 이동되었습니다.');
+            queryClient.invalidateQueries({ queryKey: [GROUPED_PROBLEM_SETS_QUERY_KEY] });
+        },
+        onError: (error) => {
+            toast.error(`이동 실패: ${error.message}`);
+            // 필요하다면 optimistic update 롤백
+        },
+    });
+}
 
 export function useCreateEntitlementMutation() {
     const toast = useToast();
@@ -82,7 +98,6 @@ export function useCreateEntitlementMutation() {
         mutationFn: (payload) => createEntitlementAPI(payload),
         onSuccess: (data) => {
             toast.success(data.message || '권한이 성공적으로 설정되었습니다.');
-            queryClient.invalidateQueries({ queryKey: [MY_PROBLEM_SETS_QUERY_KEY] });
             queryClient.invalidateQueries({ queryKey: [GROUPED_PROBLEM_SETS_QUERY_KEY] });
         },
         onError: (error) => {
@@ -92,13 +107,16 @@ export function useCreateEntitlementMutation() {
     });
 }
 
+/**
+ * [핵심 수정] 뮤테이션 훅의 변수 타입을 새로운 API 페이로드에 맞게 수정합니다.
+ */
 export function useAddProblemsToSetMutation() {
     const toast = useToast();
     const queryClient = useQueryClient();
 
     return useMutation<
-        { message: string }, 
-        Error, 
+        { message: string },
+        Error,
         { problemSetId: string; payload: AddProblemsToSetPayload }
     >({
         mutationFn: ({ problemSetId, payload }) => addProblemsToSetAPI(problemSetId, payload),
@@ -113,19 +131,19 @@ export function useAddProblemsToSetMutation() {
     });
 }
 
+
 export function useUpdateProblemSetMutation() {
     const queryClient = useQueryClient();
     const toast = useToast();
 
     return useMutation<
-        CreatedProblemSet, 
-        Error, 
+        CreatedProblemSet,
+        Error,
         { problemSetId: string; payload: UpdateProblemSetPayload }
     >({
         mutationFn: ({ problemSetId, payload }) => updateProblemSetAPI(problemSetId, payload),
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: [GROUPED_PROBLEM_SETS_QUERY_KEY] });
-            queryClient.invalidateQueries({ queryKey: [MY_PROBLEM_SETS_QUERY_KEY] });
             toast.success(`'${data.name}' 정보가 수정되었습니다.`);
         },
         onError: (error) => {
@@ -143,7 +161,6 @@ export function useDeleteProblemSetMutation() {
         onSuccess: () => {
             toast.info('문제집이 삭제되었습니다.');
             queryClient.invalidateQueries({ queryKey: [GROUPED_PROBLEM_SETS_QUERY_KEY] });
-            queryClient.invalidateQueries({ queryKey: [MY_PROBLEM_SETS_QUERY_KEY] });
         },
         onError: (error) => {
             toast.error(`문제집 삭제 실패: ${error.message}`);

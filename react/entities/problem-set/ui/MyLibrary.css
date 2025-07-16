@@ -1,10 +1,7 @@
-/* ./react/entities/problem-set/ui/MyLibrary.css */
-
 .my-library-widget {
     display: flex;
     flex-direction: column;
     height: 100%;
-    /* [변수 수정] --sidebar-glass-bg 사용 */
     background-color: var(--sidebar-glass-bg);
     color: var(--text-primary);
     font-size: 14px;
@@ -45,7 +42,7 @@
 }
 
 .my-library-status.error {
-    color: var(--system-color-danger); /* [변수 수정] */
+    color: var(--system-color-danger);
 }
 
 /* --- Tree View Styles --- */
@@ -73,7 +70,7 @@
 }
 
 .tree-item-content:hover {
-    background-color: var(--menu-item-hover-bg); /* [변수 수정] */
+    background-color: var(--menu-item-hover-bg);
 }
 
 .expand-icon-wrapper {
@@ -126,7 +123,6 @@
 }
 
 .tree-item-content.selected {
-    /* [핵심 수정] 호버와 동일한 배경색 변수 사용 + active 색상 변수 사용 */
     background-color: var(--menu-item-active-bg);
     color: var(--menu-item-active-text);
     font-weight: 600;
@@ -138,7 +134,17 @@
     color: var(--menu-item-active-text);
 }
 
-/* --- Delete Button Styles --- */
+/* --- Action Buttons Group --- */
+.action-buttons-group {
+    display: flex;
+    align-items: center;
+    gap: 4px; /* 버튼 사이의 간격 */
+    margin-left: auto; /* 그룹을 오른쪽 끝으로 밀어냄 */
+    flex-shrink: 0;
+}
+
+/* --- Action Buttons Styles --- */
+.add-subfolder-button,
 .delete-item-button {
     background: none;
     border: none;
@@ -149,17 +155,52 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    opacity: 0;
     transition: opacity 0.2s, background-color 0.2s, color 0.2s;
     z-index: 5;
-    margin-left: auto; 
+}
+
+.add-subfolder-button {
+    opacity: 1; 
+}
+
+.delete-item-button {
+    opacity: 0; 
 }
 
 .tree-item-content:hover .delete-item-button {
     opacity: 1;
 }
 
+/* --- Hover Effects --- */
+.add-subfolder-button:hover {
+    background-color: rgba(var(--accent-color-rgb), 0.15);
+    color: var(--accent-color);
+}
+
 .delete-item-button:hover {
     background-color: rgba(var(--system-color-danger-rgb), 0.1);
     color: var(--system-color-danger);
+}
+
+/* --- [신규] DND Styles --- */
+.drag-handle {
+    cursor: grab;
+    color: var(--text-placeholder);
+    padding: 4px;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tree-item.dragging {
+    opacity: 0.5;
+}
+
+.tree-item-content.drop-over {
+    background-color: var(--accent-color-translucent);
+    outline: 2px solid var(--accent-color);
+    outline-offset: -2px;
 }

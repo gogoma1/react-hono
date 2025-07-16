@@ -1,7 +1,25 @@
+CREATE TABLE `folders` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`creator_id` text NOT NULL,
+	`problem_set_id` text NOT NULL,
+	`grade_id` text NOT NULL,
+	`created_at` text DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+	FOREIGN KEY (`problem_set_id`) REFERENCES `problem_set`(`problem_set_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `problem_calculation_skills` (
 	`problem_id` text NOT NULL,
 	`skill_id` text NOT NULL,
 	PRIMARY KEY(`problem_id`, `skill_id`),
+	FOREIGN KEY (`problem_id`) REFERENCES `problem`(`problem_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `problem_images` (
+	`problem_id` text NOT NULL,
+	`image_key` text NOT NULL,
+	`created_at` text DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+	PRIMARY KEY(`problem_id`, `image_key`),
 	FOREIGN KEY (`problem_id`) REFERENCES `problem`(`problem_id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -62,7 +80,7 @@ CREATE TABLE `problem` (
 	`solution_text` text,
 	`created_at` text DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
 	`updated_at` text DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
-	FOREIGN KEY (`subtitle_id`) REFERENCES `subtitles`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`subtitle_id`) REFERENCES `subtitles`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE TABLE `problem_tag` (
@@ -75,7 +93,9 @@ CREATE TABLE `problem_tag` (
 --> statement-breakpoint
 CREATE TABLE `subtitles` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL
+	`name` text NOT NULL,
+	`folder_id` text,
+	FOREIGN KEY (`folder_id`) REFERENCES `folders`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE TABLE `tag` (
