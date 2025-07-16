@@ -30,4 +30,7 @@ wrangler.jsonc
 *.sw?
 
 /api/shared/
-
+/drizzle
+/drizzle_d1
+/drizzle_d1_log
+/drizzle_d1_marketplace

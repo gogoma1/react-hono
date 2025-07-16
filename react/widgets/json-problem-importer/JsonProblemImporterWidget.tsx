@@ -86,6 +86,7 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                             onChange={e => setCommonSubtitle(e.target.value)} 
                             placeholder="예: 쎈 중등수학 2-2" 
                             required
+                            disabled={!isCreatingNew && selectedItem?.type === 'subtitle'}
                         />
                     </div>
                     <div className="form-group">
@@ -95,6 +96,7 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                             value={commonGradeLevel} 
                             onChange={e => setCommonGradeLevel(e.target.value)} 
                             placeholder="예: 고3, 중2" 
+                            disabled={!isCreatingNew}
                         />
                     </div>
                     <div className="form-group">
@@ -104,6 +106,7 @@ const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
                             value={commonSemester} 
                             onChange={e => setCommonSemester(e.target.value)} 
                             placeholder="예: 1학기, 3월" 
+                            disabled={!isCreatingNew}
                         />
                     </div>
                     <ActionButton onClick={applyCommonData} disabled={problems.length === 0} className="primary"><LuCheck style={{ marginRight: '4px' }}/>모든 문제에 적용</ActionButton>

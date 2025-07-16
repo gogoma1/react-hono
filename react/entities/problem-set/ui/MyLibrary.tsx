@@ -45,7 +45,6 @@ const TreeItem: React.FC<TreeItemProps> = React.memo(({
 }) => {
     
     const isDraggable = itemType === 'subtitle';
-    // [수정] 드래그 핸들이 아닌, 행 전체를 드래그할 수 있도록 listeners와 attributes를 최상위 div에 적용
     const { attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging } = useDraggable({
         id: nodeKey,
         disabled: !isDraggable,
@@ -69,14 +68,16 @@ const TreeItem: React.FC<TreeItemProps> = React.memo(({
     let contentClassName = `tree-item-content ${onSelect ? 'clickable' : ''} ${isSelected ? 'selected' : ''} ${isAncestorOfSelected ? 'ancestor-selected' : ''}`;
     if(isOver && isDroppable) contentClassName += ' drop-over';
     
-    // [핵심 수정] 행 클릭 로직
+    // [핵심 수정] 행 전체 클릭 시 토글과 선택이 모두 가능하도록 로직 변경
     const handleRowClick = (e: React.MouseEvent) => {
         e.stopPropagation();
+        // 선택 기능이 있으면 실행
         if (onSelect) {
             onSelect();
-        } 
-        else if (!isLeaf) {
-            onToggle(nodeKey); // branch 노드는 토글
+        }
+        // 자식이 있는 노드(branch)인 경우, 토글 기능 실행
+        if (!isLeaf) {
+            onToggle(nodeKey);
         }
     };
 
@@ -101,7 +102,6 @@ const TreeItem: React.FC<TreeItemProps> = React.memo(({
 
     return (
         <li className={itemClassName} ref={setDroppableRef} style={style}>
-            {/* [수정] 드래그 리스너와 ref를 content div에 통합 */}
             <div 
                 ref={setDraggableRef} 
                 className={contentClassName} 
@@ -158,7 +158,6 @@ const MyLibrary: React.FC<MyLibraryProps> = ({ onSelectionChange, selectedKey })
         handleDragEnd,
     } = useMyLibrary();
     
-    // [수정] 드래그 민감도를 낮춰서 일반 클릭과 구분
     const sensors = useSensors(useSensor(PointerSensor, { 
         activationConstraint: { distance: 8 }
     }));
