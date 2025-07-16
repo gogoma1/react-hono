@@ -13,12 +13,24 @@ export const problemSetStatusEnum = ["published", "private", "deleted"] as const
 export const copyrightTypeEnum = ["ORIGINAL_CREATION", "COPYRIGHTED_MATERIAL"] as const;
 
 /**
+ * [신규] 폴더 정보 마스터 테이블
+ * 소제목과 문제집을 그룹화하는 1단계 폴더 구조.
+ */
+export const foldersTable = sqliteTable("folders", {
+    id: text("id").primaryKey(), // 예: `fld_${crypto.randomUUID()}`
+    name: text("name").notNull(),
+    creator_id: text("creator_id").notNull(),
+    created_at: text("created_at").default(sql`(strftime('%Y-%m-%d %H:%M:%f', 'now'))`),
+});
+
+/**
  * [수정] 소제목(Subtitle) 정보 마스터 테이블
- * 이름 변경: sourcesTable -> subtitlesTable
+ * folder_id 필드 추가.
  */
 export const subtitlesTable = sqliteTable("subtitles", {
     id: text("id").primaryKey(), // 예: `sub_${crypto.randomUUID()}`
-    name: text("name").notNull(), 
+    name: text("name").notNull(),
+    folder_id: text("folder_id").references(() => foldersTable.id, { onDelete: 'set null' }), // 폴더에 속할 수 있음
 });
 
 /**
@@ -26,7 +38,7 @@ export const subtitlesTable = sqliteTable("subtitles", {
  */
 export const problemTable = sqliteTable("problem", {
     problem_id: text("problem_id").primaryKey(),
-    subtitle_id: text("subtitle_id").references(() => subtitlesTable.id), // [수정] source_id -> subtitle_id
+    subtitle_id: text("subtitle_id").references(() => subtitlesTable.id, { onDelete: 'set null' }),
     page: integer("page"),
     question_number: real("question_number"),
     answer: text("answer"),
@@ -47,10 +59,12 @@ export const problemTable = sqliteTable("problem", {
 });
 
 /**
- * [최종] 문제집 정보 테이블
+ * [수정] 문제집 정보 테이블
+ * folder_id 필드 추가.
  */
 export const problemSetTable = sqliteTable("problem_set", {
     problem_set_id: text("problem_set_id").primaryKey(),
+    folder_id: text("folder_id").references(() => foldersTable.id, { onDelete: 'set null' }), // 폴더에 속할 수 있음
     name: text("name").notNull(),
     creator_id: text("creator_id").notNull(),
     type: text("type", { enum: problemSetTypeEnum }).notNull().default("PRIVATE_USER"),
@@ -77,12 +91,22 @@ export const problemSetProblemsTable = sqliteTable("problem_set_problems", {
 }));
 
 /**
+ * [신규] 문제-이미지 연결 테이블
+ */
+export const problemImagesTable = sqliteTable("problem_images", {
+    problem_id: text("problem_id").notNull().references(() => problemTable.problem_id, { onDelete: 'cascade' }),
+    image_key: text("image_key").notNull(),
+    created_at: text("created_at").default(sql`(strftime('%Y-%m-%d %H:%M:%f', 'now'))`),
+}, (table) => ({
+    pk: primaryKey({ columns: [table.problem_id, table.image_key] }), 
+}));
+
+/**
  * [수정] 문제집-소제목 연결 테이블
- * 이름 변경: problemSetSourcesTable -> problemSetSubtitlesTable
  */
 export const problemSetSubtitlesTable = sqliteTable("problem_set_subtitles", {
     problem_set_id: text("problem_set_id").notNull().references(() => problemSetTable.problem_set_id, { onDelete: 'cascade' }),
-    subtitle_id: text("subtitle_id").notNull().references(() => subtitlesTable.id, { onDelete: 'cascade' }), // [수정] source_id -> subtitle_id
+    subtitle_id: text("subtitle_id").notNull().references(() => subtitlesTable.id, { onDelete: 'cascade' }),
     count: integer("count").notNull().default(0),
 }, (table) => ({
     pk: primaryKey({ columns: [table.problem_set_id, table.subtitle_id] }),
@@ -98,8 +122,15 @@ export const problemCalculationSkillsTable = sqliteTable("problem_calculation_sk
 export const tagTable = sqliteTable("tag", { tag_id: text("tag_id").primaryKey(), name: text("name").notNull().unique(), tag_type: text("tag_type"), });
 export const problemTagTable = sqliteTable("problem_tag", { problem_id: text("problem_id").notNull().references(() => problemTable.problem_id, { onDelete: 'cascade' }), tag_id: text("tag_id").notNull().references(() => tagTable.tag_id, { onDelete: 'cascade' }), }, (table) => ({ pk: primaryKey({ columns: [table.problem_id, table.tag_id] }), }));
 
-// --- Relations 수정 ---
-export const subtitlesRelations = relations(subtitlesTable, ({ many }) => ({
+// --- Relations 정의 ---
+
+export const foldersRelations = relations(foldersTable, ({ many }) => ({
+    subtitles: many(subtitlesTable),
+    problemSets: many(problemSetTable),
+}));
+
+export const subtitlesRelations = relations(subtitlesTable, ({ one, many }) => ({
+    folder: one(foldersTable, { fields: [subtitlesTable.folder_id], references: [foldersTable.id] }),
     problemSetSubtitles: many(problemSetSubtitlesTable),
     problems: many(problemTable),
 }));
@@ -109,9 +140,11 @@ export const problemRelations = relations(problemTable, ({ one, many }) => ({
     problemCalculationSkills: many(problemCalculationSkillsTable),
     problemTags: many(problemTagTable),
     problemSetProblems: many(problemSetProblemsTable),
+    images: many(problemImagesTable),
 }));
 
-export const problemSetRelations = relations(problemSetTable, ({ many }) => ({
+export const problemSetRelations = relations(problemSetTable, ({ one, many }) => ({
+    folder: one(foldersTable, { fields: [problemSetTable.folder_id], references: [foldersTable.id] }),
     problemSetProblems: many(problemSetProblemsTable),
     subtitles: many(problemSetSubtitlesTable), 
 }));
@@ -119,6 +152,13 @@ export const problemSetRelations = relations(problemSetTable, ({ many }) => ({
 export const problemSetProblemsRelations = relations(problemSetProblemsTable, ({ one }) => ({
     problemSet: one(problemSetTable, { fields: [problemSetProblemsTable.problem_set_id], references: [problemSetTable.problem_set_id] }),
     problem: one(problemTable, { fields: [problemSetProblemsTable.problem_id], references: [problemTable.problem_id] }),
+}));
+
+export const problemImagesRelations = relations(problemImagesTable, ({ one }) => ({
+    problem: one(problemTable, {
+        fields: [problemImagesTable.problem_id],
+        references: [problemTable.problem_id],
+    }),
 }));
 
 export const problemSetSubtitlesRelations = relations(problemSetSubtitlesTable, ({ one }) => ({
@@ -133,12 +173,15 @@ export const problemCalculationSkillsRelations = relations(problemCalculationSki
 export const tagRelations = relations(tagTable, ({ many }) => ({ problemTags: many(problemTagTable), }));
 export const problemTagRelations = relations(problemTagTable, ({ one }) => ({ problem: one(problemTable, { fields: [problemTagTable.problem_id], references: [problemTable.problem_id] }), tag: one(tagTable, { fields: [problemTagTable.tag_id], references: [tagTable.tag_id] }), }));
 
-// --- 타입 추론 수정 ---
+// --- 타입 추론 (Type Inference) ---
+
+export type DbFolder = typeof foldersTable.$inferSelect;
 export type DbProblem = typeof problemTable.$inferSelect;
 export type DbProblemSet = typeof problemSetTable.$inferSelect;
 export type DbProblemSetProblems = typeof problemSetProblemsTable.$inferSelect;
 export type DbSubtitle = typeof subtitlesTable.$inferSelect; 
-export type DbProblemSetSubtitle = typeof problemSetSubtitlesTable.$inferSelect; 
+export type DbProblemSetSubtitle = typeof problemSetSubtitlesTable.$inferSelect;
+export type DbProblemImage = typeof problemImagesTable.$inferSelect;
 export type DbProblemCalculationSkill = typeof problemCalculationSkillsTable.$inferSelect;
 export type DbTag = typeof tagTable.$inferSelect;
 export type DbProblemTag = typeof problemTagTable.$inferSelect;

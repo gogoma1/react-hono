@@ -9,40 +9,18 @@ import type { AppEnv } from '../../../index';
 import * as schema from '../../../db/schema.d1';
 import { GRADES_NAME_TO_ID_MAP, GRADES_ID_TO_NAME_MAP } from '../../../shared/curriculum.data'; 
 
-const problemSchemaForUpload = z.object({
-  problem_id: z.string().optional(),
-  question_number: z.number(),
-  question_text: z.string(),
-  answer: z.string().nullable(),
-  solution_text: z.string().nullable(),
-  page: z.number().nullable(),
-  problem_type: z.enum(schema.problemTypeEnum), 
-  grade: z.string(), // 이름으로 받음
-  semester: z.string().nullable(),
-  subtitle: z.string(),
-  major_chapter_id: z.string().nullable(),
-  middle_chapter_id: z.string().nullable(),
-  core_concept_id: z.string().nullable(),
-  problem_category: z.string().nullable(),
-  difficulty: z.string(),
-  score: z.string(),
-  calculation_skill_ids: z.array(z.string()).optional(), // 연산 개념 ID 배열
-});
+// --- Helper Functions ---
 
-const uploadProblemsAndCreateSetSchema = z.object({
-  problemSetName: z.string().min(1, "문제집 이름은 필수입니다."),
-  description: z.string().nullable().optional(),
-  problems: z.array(problemSchemaForUpload).min(1, "업로드할 문제가 하나 이상 필요합니다."),
-  type: z.enum(schema.problemSetTypeEnum),
-  status: z.enum(schema.problemSetStatusEnum),
-  copyright_type: z.enum(schema.copyrightTypeEnum),
-  copyright_source: z.string().nullable().optional(),
-  grade: z.string().optional(), // 문제집 대표 학년 (이름)
-});
-
-const updateProblemBodySchema = problemSchemaForUpload.omit({ problem_id: true }).partial();
-const deleteProblemsBodySchema = z.object({ problem_ids: z.array(z.string()).min(1) });
-const getProblemsByIdsSchema = z.object({ problemIds: z.array(z.string()).min(1, "problemIds 배열은 비어있을 수 없습니다.") });
+function extractImageKeysFromText(text: string | null, r2PublicUrl: string): string[] {
+    if (!text || !r2PublicUrl) return [];
+    const urlRegex = /!\[.*?\]\((https?:\/\/[^\s)]+)\)/g;
+    const matches = text.matchAll(urlRegex);
+    const urls = [...matches].map(match => match[1]);
+    const keys = urls
+        .filter(url => url.startsWith(r2PublicUrl))
+        .map(url => url.substring(r2PublicUrl.length).replace(/^\//, ''));
+    return [...new Set(keys)];
+}
 
 async function ensureSubtitleId(db: DrizzleD1Database<typeof schema>, subtitleName: string): Promise<string> {
     const trimmedName = subtitleName?.trim();
@@ -77,12 +55,58 @@ const transformProblemData = (problem: any) => {
     };
 };
 
+// --- Zod Schemas ---
+
+const problemSchemaForUpload = z.object({
+  problem_id: z.string().optional(),
+  question_number: z.number(),
+  question_text: z.string(),
+  answer: z.string().nullable(),
+  solution_text: z.string().nullable(),
+  page: z.number().nullable(),
+  problem_type: z.enum(schema.problemTypeEnum), 
+  grade: z.string(),
+  semester: z.string().nullable(),
+  subtitle: z.string(),
+  major_chapter_id: z.string().nullable(),
+  middle_chapter_id: z.string().nullable(),
+  core_concept_id: z.string().nullable(),
+  problem_category: z.string().nullable(),
+  difficulty: z.string(),
+  score: z.string(),
+  calculation_skill_ids: z.array(z.string()).optional(),
+});
+
+const uploadProblemsAndCreateSetSchema = z.object({
+  problemSetName: z.string().min(1, "문제집 이름은 필수입니다."),
+  description: z.string().nullable().optional(),
+  problems: z.array(problemSchemaForUpload).min(1, "업로드할 문제가 하나 이상 필요합니다."),
+  type: z.enum(schema.problemSetTypeEnum),
+  status: z.enum(schema.problemSetStatusEnum),
+  copyright_type: z.enum(schema.copyrightTypeEnum),
+  copyright_source: z.string().nullable().optional(),
+  grade: z.string().optional(),
+  folder_id: z.string().nullable().optional(),
+});
+
+const updateProblemBodySchema = problemSchemaForUpload.omit({ problem_id: true }).partial();
+const deleteProblemsBodySchema = z.object({ problem_ids: z.array(z.string()).min(1) });
+const getProblemsByIdsSchema = z.object({ problemIds: z.array(z.string()).min(1, "problemIds 배열은 비어있을 수 없습니다.") });
+
+// --- Hono Routes ---
+
 const crudRoutes = new Hono<AppEnv>();
 
 crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema), async (c) => {
     const user = c.get('user');
     const body = c.req.valid('json');
     const db = drizzle(c.env.D1_DATABASE, { schema });
+    const r2PublicUrl = c.env.R2_PUBLIC_URL;
+
+    if (!r2PublicUrl) {
+        console.error("R2_PUBLIC_URL 환경 변수가 설정되지 않았습니다.");
+        return c.json({ error: '서버 설정 오류: 이미지 URL을 처리할 수 없습니다.' }, 500);
+    }
 
     try {
         const statements: BatchItem<'sqlite'>[] = [];
@@ -93,6 +117,7 @@ crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema),
             creator_id: user.id,
             name: body.problemSetName,
             description: body.description || null,
+            folder_id: body.folder_id || null,
             type: body.type,
             status: body.status,
             copyright_type: body.copyright_type,
@@ -122,6 +147,12 @@ crudRoutes.post('/upload', zValidator('json', uploadProblemsAndCreateSetSchema),
             const problemData = { ...restOfProblem, grade_id, problem_id: newProblemId, creator_id: user.id, created_at: now, updated_at: now, subtitle_id: subtitleIdMap.get(subtitle) || null, };
             statements.push(db.insert(schema.problemTable).values(problemData as schema.DbProblem));
             statements.push(db.insert(schema.problemSetProblemsTable).values({ problem_set_id: newProblemSetId, problem_id: newProblemId, order: index + 1 }));
+
+            const imageKeys = extractImageKeysFromText(problemData.question_text, r2PublicUrl);
+            if (imageKeys.length > 0) {
+                const imageLinks = imageKeys.map(key => ({ problem_id: newProblemId, image_key: key }));
+                statements.push(db.insert(schema.problemImagesTable).values(imageLinks));
+            }
 
             if (calculation_skill_ids && calculation_skill_ids.length > 0) {
                 statements.push(db.insert(schema.problemCalculationSkillsTable).values(
@@ -192,8 +223,22 @@ crudRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) =>
     const problemId = c.req.param('id');
     const problemDataFromClient = c.req.valid('json');
     const db = drizzle(c.env.D1_DATABASE, { schema });
+    const r2PublicUrl = c.env.R2_PUBLIC_URL;
+
+    if (!r2PublicUrl) {
+        return c.json({ error: '서버 설정 오류: 이미지 URL을 처리할 수 없습니다.' }, 500);
+    }
+
     try {
         await db.transaction(async (tx) => {
+            const oldImages = await tx.query.problemImagesTable.findMany({
+                where: eq(schema.problemImagesTable.problem_id, problemId),
+                columns: { image_key: true }
+            });
+            const oldKeys = new Set(oldImages.map(img => img.image_key));
+            
+            const newKeys = new Set(extractImageKeysFromText(problemDataFromClient.question_text || null, r2PublicUrl));
+            
             const { subtitle, grade, calculation_skill_ids, ...restOfProblem } = problemDataFromClient;
             
             let subtitle_id: string | null | undefined = undefined;
@@ -209,8 +254,23 @@ crudRoutes.put('/:id', zValidator('json', updateProblemBodySchema), async (c) =>
             if (subtitle_id !== undefined) dataToUpdate.subtitle_id = subtitle_id;
             if (grade_id !== undefined) dataToUpdate.grade_id = grade_id;
             
-            if (Object.keys(dataToUpdate).length > 1) { // updated_at 외에 다른 변경사항이 있을 때만
+            if (Object.keys(dataToUpdate).length > 1) {
                 await tx.update(schema.problemTable).set(dataToUpdate).where(and(eq(schema.problemTable.problem_id, problemId), eq(schema.problemTable.creator_id, user.id)));
+            }
+
+            const keysToAdd = [...newKeys].filter(key => !oldKeys.has(key));
+            const keysToRemove = [...oldKeys].filter(key => !newKeys.has(key));
+
+            if (keysToRemove.length > 0) {
+                await tx.delete(schema.problemImagesTable).where(and(
+                    eq(schema.problemImagesTable.problem_id, problemId),
+                    inArray(schema.problemImagesTable.image_key, keysToRemove)
+                ));
+            }
+            if (keysToAdd.length > 0) {
+                await tx.insert(schema.problemImagesTable).values(
+                    keysToAdd.map(key => ({ problem_id: problemId, image_key: key }))
+                );
             }
 
             if (calculation_skill_ids !== undefined) {
@@ -246,15 +306,41 @@ crudRoutes.delete('/', zValidator('json', deleteProblemsBodySchema), async (c) =
     const user = c.get('user');
     const { problem_ids } = c.req.valid('json');
     const db = drizzle(c.env.D1_DATABASE, { schema });
+    const r2Bucket = c.env.MY_R2_BUCKET;
+
+    if (!r2Bucket) {
+        console.error("MY_R2_BUCKET 환경 변수가 설정되지 않았습니다.");
+        return c.json({ error: '서버 설정 오류: 이미지 저장소를 찾을 수 없습니다.' }, 500);
+    }
+
     try {
+        // 1. 이미지 키 조회
+        const imagesToDelete = await db.query.problemImagesTable.findMany({
+            where: inArray(schema.problemImagesTable.problem_id, problem_ids),
+            columns: { image_key: true }
+        });
+        const uniqueKeysToDelete = [...new Set(imagesToDelete.map(img => img.image_key))];
+
+        // 2. R2 객체 삭제
+        if (uniqueKeysToDelete.length > 0) {
+            await r2Bucket.delete(uniqueKeysToDelete);
+            console.log(`R2에서 ${uniqueKeysToDelete.length}개의 이미지 삭제 완료.`);
+        }
+        
+        // 3. DB 레코드 삭제 (Batch 사용)
         const statements: BatchItem<'sqlite'>[] = [
+            // cascade 옵션에 의존하지 않고 명시적으로 삭제
+            db.delete(schema.problemImagesTable).where(inArray(schema.problemImagesTable.problem_id, problem_ids)),
             db.delete(schema.problemTagTable).where(inArray(schema.problemTagTable.problem_id, problem_ids)),
             db.delete(schema.problemCalculationSkillsTable).where(inArray(schema.problemCalculationSkillsTable.problem_id, problem_ids)),
             db.delete(schema.problemSetProblemsTable).where(inArray(schema.problemSetProblemsTable.problem_id, problem_ids)),
+            // 마지막으로 문제 원본 삭제
             db.delete(schema.problemTable).where(and(inArray(schema.problemTable.problem_id, problem_ids), eq(schema.problemTable.creator_id, user.id))),
         ];
+
         await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
-        return c.json({ message: `${problem_ids.length}개의 문제에 대한 삭제 요청이 처리되었습니다.` }, 200);
+        
+        return c.json({ message: `${problem_ids.length}개의 문제 및 관련 데이터에 대한 삭제 요청이 처리되었습니다.` }, 200);
     } catch (error: any) {
         console.error(`Failed to delete problems from D1:`, error.message);
         return c.json({ error: 'D1 데이터베이스 삭제 작업에 실패했습니다.', details: error.message }, 500);

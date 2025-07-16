@@ -3,7 +3,8 @@ import type { Problem, Column, ComboboxOption, ProblemType } from '../../../enti
 import { PROBLEM_TYPES } from '../../../entities/problem/model/types';
 import { produce } from 'immer';
 import * as jsonc from 'jsonc-parser';
-
+import type { LibrarySelection } from '../../../pages/ProblemSetCreationPage';
+import { useToast } from '../../../shared/store/toastStore';
 
 interface ParseErrorDetail {
     title: string;
@@ -16,18 +17,15 @@ interface ParseErrorDetail {
 
 export interface OnUploadPayload {
     problems: Problem[];
-    problemSetName: string;
+    problemSetBrand: string;
     description: string | null;
     grade: string | null;
 }
 
 interface UseJsonProblemImporterProps {
-    isCreatingNew: boolean;
-    initialProblemSetName: string;
+    selectedItem: LibrarySelection | null;
     onUpload: (payload: OnUploadPayload) => void;
 }
-
-
 
 const initialJsonInput = `{
   "problems": [
@@ -57,7 +55,7 @@ const columns: Column[] = [
     { key: 'problem_type', label: '유형', editType: 'combobox' },
     { key: 'grade', label: '학년', editType: 'text' },
     { key: 'semester', label: '학기', editType: 'text' },
-    { key: 'subtitle', label: '출처(소제목)', editType: 'text' },
+    { key: 'subtitle', label: '소제목(교재명)', editType: 'text' },
     { key: 'major_chapter_id', label: '대단원', editType: 'text' },
     { key: 'middle_chapter_id', label: '중단원', editType: 'text' },
     { key: 'core_concept_id', 'label': '핵심개념', editType: 'text' },
@@ -74,13 +72,11 @@ const NULLABLE_STRING_FIELDS: Set<keyof Problem> = new Set([
     'major_chapter_id', 'middle_chapter_id', 'core_concept_id', 'answer', 'solution_text'
 ]);
 
-
-
 export function useJsonProblemImporter({ 
-    isCreatingNew, 
-    initialProblemSetName,
+    selectedItem,
     onUpload,
 }: UseJsonProblemImporterProps) {
+    const toast = useToast();
     const [jsonInput, setJsonInput] = useState(initialJsonInput);
     const [problems, setProblems] = useState<Problem[]>([]);
     const [parseError, setParseError] = useState<ParseErrorDetail | null>(null);
@@ -89,7 +85,7 @@ export function useJsonProblemImporter({
     const [editingValue, setEditingValue] = useState<string | number | null | undefined>('');
     const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
 
-    const [problemSetName, setProblemSetName] = useState('');
+    const [problemSetBrand, setProblemSetBrand] = useState('');
     const [problemSetDescription, setProblemSetDescription] = useState<string | null>(null);
     const [commonSubtitle, setCommonSubtitle] = useState('');
     const [commonGradeLevel, setCommonGradeLevel] = useState('');
@@ -98,8 +94,20 @@ export function useJsonProblemImporter({
     const previousJsonInputRef = useRef('');
 
     useEffect(() => {
-        setProblemSetName(initialProblemSetName);
-    }, [isCreatingNew, initialProblemSetName]);
+        if (selectedItem?.type === 'new') {
+            setProblemSetBrand('');
+            setProblemSetDescription('');
+            setCommonSubtitle('');
+            setCommonGradeLevel('');
+            setCommonSemester('');
+        } else if (selectedItem?.type === 'subtitle') {
+            setProblemSetBrand(selectedItem.problemSetName || '');
+            setCommonSubtitle(selectedItem.subtitleName || '');
+            setCommonGradeLevel(selectedItem.gradeName || '');
+            setCommonSemester('');
+        }
+    }, [selectedItem]);
+
 
     const getPosition = (offset: number) => {
         const lines = jsonInput.substring(0, offset).split('\n');
@@ -161,7 +169,7 @@ export function useJsonProblemImporter({
                         validationErrors.push({ title: "데이터 타입 오류", message: `배열의 ${problemIndex}번째 항목이 객체(Object)가 아닙니다.`, suggestion: "각 문제는 중괄호 `{}`로 감싸야 합니다.", problemIndex });
                         return null;
                     }
-                    if (!('question_number' in p) || !p.question_number) {
+                     if (!('question_number' in p) || !p.question_number) {
                         validationErrors.push({ title: "필수 필드 누락", message: `'question_number' 필드가 없거나 비어있습니다.`, suggestion: "모든 문제에는 `question_number` 필드가 반드시 포함되어야 합니다.", problemIndex });
                         return null;
                     }
@@ -274,28 +282,24 @@ export function useJsonProblemImporter({
             });
         });
         setProblems(nextProblems);
-        alert('공통 정보가 적용되었습니다.');
+        toast.success('공통 정보가 모든 문제에 적용되었습니다.');
     }, [problems, commonSubtitle, commonGradeLevel, commonSemester]);
 
     const handleUpload = useCallback(() => {
         if (problems.length === 0 || parseError) {
-            alert('업로드할 문제가 없거나 데이터에 오류가 있습니다.');
-            return;
-        }
-        if (isCreatingNew && !problemSetName.trim()) {
-            alert('새로운 문제집의 이름을 입력해주세요.');
+            toast.error('업로드할 문제가 없거나 데이터에 오류가 있습니다.');
             return;
         }
         
         const payload: OnUploadPayload = {
             problems,
-            problemSetName,
+            problemSetBrand: problemSetBrand,
             description: problemSetDescription,
             grade: commonGradeLevel.trim() || null
         };
         onUpload(payload);
 
-    }, [problems, parseError, problemSetName, problemSetDescription, commonGradeLevel, isCreatingNew, onUpload]);
+    }, [problems, parseError, problemSetBrand, problemSetDescription, commonGradeLevel, onUpload]);
     
     const problemTypeOptions: ComboboxOption[] = PROBLEM_TYPES.map(t => ({ value: t, label: t }));
     const difficultyOptions: ComboboxOption[] = [ { value: '최상', label: '최상' }, { value: '상', label: '상' }, { value: '중', label: '중' }, { value: '하', label: '하' }, { value: '최하', label: '최하' } ];
@@ -309,7 +313,7 @@ export function useJsonProblemImporter({
         editingCell, startEdit, cancelEdit, saveEdit,
         editingValue, setEditingValue, popoverAnchor,
         handleInputKeyDown,
-        problemSetName, setProblemSetName,
+        problemSetBrand, setProblemSetBrand,
         problemSetDescription, setProblemSetDescription,
         commonSubtitle, setCommonSubtitle,
         commonGradeLevel, setCommonGradeLevel,

@@ -6,130 +6,151 @@ import GlassPopover from '../../shared/components/GlassPopover';
 import type { Problem, Column } from '../../entities/problem/model/types';
 import { PopoverCombobox, PopoverInput, PopoverTextarea } from '../../features/json-problem-importer/ui/EditPopoverContent';
 import LoadingButton from '../../shared/ui/loadingbutton/LoadingButton';
+import type { LibrarySelection } from '../../pages/ProblemSetCreationPage';
+import type { OnUploadPayload } from '../../features/json-problem-importer/model/useJsonProblemImporter';
 
 const COMBOBOX_FIELDS: (keyof Problem)[] = ['problem_type', 'difficulty', 'grade', 'semester'];
 const ANSWER_COMBOBOX_FIELDS: (keyof Problem)[] = ['answer'];
 
 interface JsonProblemImporterWidgetProps {
-    isCreatingNew: boolean;
-    initialProblemSetName: string;
-    // [수정] 사용하지 않는 prop 제거
-    // selectedProblemSetId: string;
-    onUpload: (payload: {
-        problems: Problem[];
-        problemSetName: string;
-        description: string | null;
-        grade: string | null;
-    }) => void;
+    selectedItem: LibrarySelection | null;
+    onUpload: (payload: OnUploadPayload) => void;
     isProcessing: boolean;
 }
 
 const JsonProblemImporterWidget: React.FC<JsonProblemImporterWidgetProps> = ({
-    isCreatingNew,
-    initialProblemSetName,
-    // selectedProblemSetId, // [수정] 제거
+    selectedItem,
     onUpload,
     isProcessing,
 }) => {
+    const isCreatingNew = selectedItem?.type === 'new';
+    
     const {
         jsonInput, setJsonInput,
         problems, parseError,
         editingCell, startEdit, cancelEdit, saveEdit,
         editingValue, setEditingValue, handleInputKeyDown, popoverAnchor,
-        problemSetName, setProblemSetName,
+        problemSetBrand, setProblemSetBrand,
         problemSetDescription, setProblemSetDescription,
-        commonSubtitle, setCommonSubtitle, // [수정] commonSource -> commonSubtitle
+        commonSubtitle, setCommonSubtitle,
         commonGradeLevel, setCommonGradeLevel,
         commonSemester, setCommonSemester,
         applyCommonData,
         handleUpload,
         columns, formatValue,
         problemTypeOptions, difficultyOptions, answerOptions, gradeOptions, semesterOptions
-    } = useJsonProblemImporter({ isCreatingNew, initialProblemSetName, onUpload });
+    } = useJsonProblemImporter({ selectedItem, onUpload });
 
     const isEditing = !!editingCell;
-    const uploadButtonText = isCreatingNew ? "문제집 생성 및 문제 업로드" : "선택한 문제집에 문제 추가";
+    const uploadButtonText = isCreatingNew ? "문제집 생성 및 문제 업로드" : "선택한 소제목에 문제 추가";
 
     return (
+        // [수정] 위젯의 최상위 div 구조를 변경합니다.
         <div className="json-importer-widget">
-            <div className="left-panel">
-                <div className="panel common-data-panel">
-                    <div className="panel-header">공통 정보</div>
-                    <div className="panel-content common-data-form">
-                        <div className="form-group">
-                            <label htmlFor="problemSetName">
-                                문제집 이름
-                                {isCreatingNew && <span className="required-star">*</span>}
-                            </label>
-                            <input 
-                                id="problemSetName" 
-                                value={problemSetName} 
-                                onChange={e => setProblemSetName(e.target.value)} 
-                                placeholder={isCreatingNew ? "예: 2024년 1학기 중간고사 대비" : "기존 문제집 이름"}
-                                disabled={!isCreatingNew}
-                                required={isCreatingNew}
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label htmlFor="problemSetDescription">문제집 설명 (선택)</label>
-                            <textarea 
-                                id="problemSetDescription" 
-                                className="common-textarea"
-                                value={problemSetDescription || ''} 
-                                onChange={e => setProblemSetDescription(e.target.value)}
-                                placeholder="예: 이 문제집은 고2 학생들의 내신 대비를 위한 고난도 문항으로 구성되어 있습니다."
-                                rows={3}
-                            />
-                        </div>
-                        
-                        {/* [수정] commonSource -> commonSubtitle */}
-                        <div className="form-group"><label htmlFor="commonSubtitle">공통 출처(소제목)</label><input id="commonSubtitle" value={commonSubtitle} onChange={e => setCommonSubtitle(e.target.value)} placeholder="예: 쎈 중등수학 2-2" /></div>
-                        <div className="form-group"><label htmlFor="commonGradeLevel">공통 학년</label><input id="commonGradeLevel" value={commonGradeLevel} onChange={e => setCommonGradeLevel(e.target.value)} placeholder="예: 고3" /></div>
-                        <div className="form-group"><label htmlFor="commonSemester">공통 학기</label><input id="commonSemester" value={commonSemester} onChange={e => setCommonSemester(e.target.value)} placeholder="예: 1학기" /></div>
-                        <ActionButton onClick={applyCommonData} disabled={problems.length === 0} className="primary"><LuCheck style={{ marginRight: '4px' }}/>모든 문제에 적용</ActionButton>
-                    </div>
-                </div>
-                <div className="panel json-input-panel">
-                    <div className="panel-header">JSON 데이터 입력</div>
-                    <div className="panel-content">
-                        <textarea 
-                            value={jsonInput} 
-                            onChange={(e) => setJsonInput(e.target.value)} 
-                            className="json-input-textarea" 
-                            placeholder="여기에 JSON 데이터를 붙여넣으세요..." 
-                            spellCheck="false" 
-                            readOnly={isEditing} 
-                            aria-label="JSON Input Area" 
-                            aria-invalid={!!parseError}
+            {/* 1행: 공통 정보 입력 패널 */}
+            <div className="panel common-data-panel">
+                <div className="panel-header">공통 정보</div>
+                <div className="panel-content common-data-form">
+                    <div className="form-group">
+                        <label htmlFor="problemSetBrand">
+                            문제집 브랜드
+                            {isCreatingNew && <span className="required-star">*</span>}
+                        </label>
+                        <input 
+                            id="problemSetBrand" 
+                            value={problemSetBrand} 
+                            onChange={e => setProblemSetBrand(e.target.value)} 
+                            placeholder="예: 쎈, 개념원리, 자체 브랜드"
+                            disabled={!isCreatingNew}
+                            required={isCreatingNew}
                         />
-                        {parseError && !isEditing && (
-                            <div className="error-display" role="alert">
-                                <h4 className="error-title"><LuInfo size={16} /> {parseError.title}</h4>
-                                <p className="error-location">
-                                    {parseError.line && parseError.column && `위치: ${parseError.line}번째 줄, ${parseError.column}번째 칸 부근`}
-                                    {parseError.problemIndex && `위치: ${parseError.problemIndex}번째 문제 항목`}
-                                </p>
-                                <pre className="error-message">{parseError.message}</pre>
-                                <div className="error-suggestion">
-                                    <LuLightbulb size={16} />
-                                    <div>
-                                        <h5>수정 제안</h5>
-                                        <p>{parseError.suggestion}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
+
+                    <div className="form-group">
+                        <label htmlFor="problemSetDescription">문제집 설명 (선택)</label>
+                        <textarea 
+                            id="problemSetDescription" 
+                            className="common-textarea"
+                            value={problemSetDescription || ''} 
+                            onChange={e => setProblemSetDescription(e.target.value)}
+                            placeholder="예: 이 문제집은 고2 학생들의 내신 대비를 위한 고난도 문항으로 구성되어 있습니다."
+                            rows={3}
+                            disabled={!isCreatingNew}
+                        />
+                    </div>
+                    
+                    <div className="form-group">
+                        <label htmlFor="commonSubtitle">소제목 (교재명)</label>
+                        <input 
+                            id="commonSubtitle" 
+                            value={commonSubtitle} 
+                            onChange={e => setCommonSubtitle(e.target.value)} 
+                            placeholder="예: 쎈 중등수학 2-2" 
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="commonGradeLevel">학년</label>
+                        <input 
+                            id="commonGradeLevel" 
+                            value={commonGradeLevel} 
+                            onChange={e => setCommonGradeLevel(e.target.value)} 
+                            placeholder="예: 고3, 중2" 
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="commonSemester">학기/월</label>
+                        <input 
+                            id="commonSemester" 
+                            value={commonSemester} 
+                            onChange={e => setCommonSemester(e.target.value)} 
+                            placeholder="예: 1학기, 3월" 
+                        />
+                    </div>
+                    <ActionButton onClick={applyCommonData} disabled={problems.length === 0} className="primary"><LuCheck style={{ marginRight: '4px' }}/>모든 문제에 적용</ActionButton>
                 </div>
             </div>
 
-            <div className="panel right-panel">
+            {/* 2행: JSON 데이터 입력 패널 */}
+            <div className="panel json-input-panel">
+                <div className="panel-header">JSON 데이터 입력</div>
+                <div className="panel-content">
+                    <textarea 
+                        value={jsonInput} 
+                        onChange={(e) => setJsonInput(e.target.value)} 
+                        className="json-input-textarea" 
+                        placeholder="여기에 JSON 데이터를 붙여넣으세요..." 
+                        spellCheck="false" 
+                        readOnly={isEditing} 
+                        aria-label="JSON Input Area" 
+                        aria-invalid={!!parseError}
+                    />
+                    {parseError && !isEditing && (
+                        <div className="error-display" role="alert">
+                            <h4 className="error-title"><LuInfo size={16} /> {parseError.title}</h4>
+                            <p className="error-location">
+                                {parseError.line && parseError.column && `위치: ${parseError.line}번째 줄, ${parseError.column}번째 칸 부근`}
+                                {parseError.problemIndex && `위치: ${parseError.problemIndex}번째 문제 항목`}
+                            </p>
+                            <pre className="error-message">{parseError.message}</pre>
+                            <div className="error-suggestion">
+                                <LuLightbulb size={16} />
+                                <div>
+                                    <h5>수정 제안</h5>
+                                    <p>{parseError.suggestion}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* 3행: 표 미리보기 패널 */}
+            <div className="panel table-preview-panel">
                 <div className="panel-header">
                     <h2>표 미리보기 (클릭하여 수정)</h2>
                     <LoadingButton
                         onClick={handleUpload}
-                        disabled={problems.length === 0 || parseError !== null || (isCreatingNew && !problemSetName.trim()) || isProcessing}
+                        disabled={problems.length === 0 || parseError !== null || (isCreatingNew && !problemSetBrand.trim()) || isProcessing}
                         isLoading={isProcessing}
                         loadingText="처리 중..."
                         className="primary"

@@ -8,8 +8,16 @@ export type ProblemSetType = typeof PROBLEM_SET_TYPE_ENUM[number];
 export type ProblemSetStatus = typeof PROBLEM_SET_STATUS_ENUM[number];
 export type CopyrightType = typeof COPYRIGHT_TYPE_ENUM[number];
 
+/**
+ * [신규] 폴더 정보를 나타내는 타입
+ */
+export interface Folder {
+    id: string;
+    name: string;
+    creator_id: string;
+    created_at: string;
+}
 
-// [수정] 구조적 소제목 정보를 나타내도록 타입명과 필드명 변경
 export interface ProblemSetSubtitleInfo {
     subtitle_id: string;
     name: string;
@@ -20,10 +28,11 @@ export interface MyProblemSet {
     problem_set_id: string;
     name: string;
     creator_id: string;
+    folder_id: string | null; // [신규] 폴더 ID 추가
     type: ProblemSetType;
     status: ProblemSetStatus;
     copyright_type: CopyrightType;
-    copyright_source: string | null; // 저작권 출처는 그대로 유지
+    copyright_source: string | null;
     description: string | null;
     cover_image: string | null;
     published_year: number | null;
@@ -34,7 +43,7 @@ export interface MyProblemSet {
     created_at: string;
     updated_at: string;
     problem_count: number;
-    subtitles: ProblemSetSubtitleInfo[]; // [수정] sources -> subtitles
+    subtitles: ProblemSetSubtitleInfo[];
     marketplace_status: 'draft' | 'in_review' | 'active' | 'inactive' | 'deleted' | 'not_listed';
 }
 
@@ -42,6 +51,7 @@ export interface CreatedProblemSet {
     problem_set_id: string;
     name: string;
     creator_id: string;
+    folder_id: string | null; // [신규] 폴더 ID 추가
     type: ProblemSetType;
     status: ProblemSetStatus;
     copyright_type: CopyrightType;
@@ -63,24 +73,21 @@ export interface CreateEntitlementPayload {
 
 export interface AddProblemsToSetPayload {
     problems: Problem[];
-    subtitleId: string; // [수정] 문제를 추가할 소제목의 ID
+    subtitleId: string;
 }
 
+/**
+ * [수정] 문제집 수정 페이로드에 folder_id 추가
+ */
 export interface UpdateProblemSetPayload {
     name?: string;
     description?: string | null;
     status?: ProblemSetStatus;
+    folder_id?: string | null; // 폴더 ID (null은 폴더 해제)
 }
 
 export type ProblemSetFinalPayload = Pick<MyProblemSet, 'type' | 'status' | 'copyright_type' | 'copyright_source'>;
 
-
-
-/**
- * GET /my-grouped-view API의 응답 타입
- * 문제집(브랜드) > 학년 > 소제목(Subtitle) 계층 구조를 나타냅니다.
- */
-// [수정] GroupedSource -> GroupedSubtitle
 export interface GroupedSubtitle {
     subtitle_id: string;
     subtitle_name: string;
@@ -91,7 +98,7 @@ export interface GroupedGrade {
     grade_id: string;
     grade_name: string;
     grade_order: number;
-    subtitles: GroupedSubtitle[]; // [수정] sources -> subtitles
+    subtitles: GroupedSubtitle[];
 }
 
 export interface GroupedProblemSet {
@@ -100,10 +107,6 @@ export interface GroupedProblemSet {
     grades: GroupedGrade[];
 }
 
-/**
- * GET /my-curriculum-view API의 응답 타입
- * 학년 > 대단원 > 중단원 계층 구조를 나타냅니다.
- */
 export interface CurriculumMiddleChapter {
     middle_chapter_id: string;
     middle_chapter_name: string;

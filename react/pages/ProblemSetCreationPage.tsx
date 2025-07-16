@@ -1,17 +1,31 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
 import JsonProblemImporterWidget from '../widgets/json-problem-importer/JsonProblemImporterWidget';
 import { ProblemSetSaveModal } from '../entities/problem-set/ui/ProblemSetSaveModal';
 import { useLayoutStore, type RegisteredPageActions } from '../shared/store/layoutStore';
-import { useCreateEntitlementMutation } from '../entities/problem-set/model/useProblemSetMutations';
+import { useCreateEntitlementMutation, useAddProblemsToSetMutation } from '../entities/problem-set/model/useProblemSetMutations';
 import { useUploadProblemsMutation } from '../entities/problem/model/useProblemMutations';
 import type { UploadResponse } from '../entities/problem/api/problemApi';
 import type { Problem } from '../entities/problem/model/types';
-import type { ProblemSetFinalPayload, CreateEntitlementPayload } from '../entities/problem-set/model/types';
+import type { ProblemSetFinalPayload, CreateEntitlementPayload, AddProblemsToSetPayload } from '../entities/problem-set/model/types';
 import { useToast } from '../shared/store/toastStore';
 import MyLibrary from '../entities/problem-set/ui/MyLibrary';
 import './ProblemSetCreationPage.css';
 import type { OnUploadPayload } from '../features/json-problem-importer/model/useJsonProblemImporter';
+import { useQueryClient } from '@tanstack/react-query';
+import { GROUPED_PROBLEM_SETS_QUERY_KEY } from '../entities/problem-set/model/useProblemSetQuery';
+
+export interface LibrarySelection {
+    key: string;
+    type: 'new' | 'problemSet' | 'grade' | 'subtitle' | 'curriculum';
+    problemSetId?: string;
+    problemSetName?: string;
+    gradeId?: string;
+    gradeName?: string;
+    subtitleId?: string;
+    subtitleName?: string;
+    majorChapterId?: string;
+    middleChapterId?: string;
+}
 
 interface UploadProblemsAndCreateSetPayload {
     problemSetName: string;
@@ -25,32 +39,79 @@ interface UploadProblemsAndCreateSetPayload {
 }
 
 const ProblemSetCreationPage: React.FC = () => {
-    const navigate = useNavigate();
     const toast = useToast();
+    const queryClient = useQueryClient();
     const { registerPageActions, unregisterPageActions, setRightSidebarContent, closeRightSidebar } = useLayoutStore.getState();
 
     const { mutateAsync: uploadProblemsAndCreateSet, isPending: isProcessingD1 } = useUploadProblemsMutation();
     const { mutateAsync: createEntitlement, isPending: isProcessingPg } = useCreateEntitlementMutation();
-    
+    const { mutateAsync: addProblemsToSet, isPending: isAddingProblems } = useAddProblemsToSetMutation();
+
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-    const [selectedKey, setSelectedKey] = useState<string | null>('new');
+    const [selectedLibraryItem, setSelectedLibraryItem] = useState<LibrarySelection | null>({ key: 'new', type: 'new' });
     
     const [stagedUploadData, setStagedUploadData] = useState<OnUploadPayload | null>(null);
 
-    const isProcessing = isProcessingD1 || isProcessingPg;
+    const isProcessing = isProcessingD1 || isProcessingPg || isAddingProblems;
 
-    const handleStageForSave = useCallback((payload: OnUploadPayload) => {
-        if (!payload.problemSetName.trim()) {
-            toast.error('새로운 문제집의 이름을 먼저 입력해주세요.');
+    const handleSelectionChange = useCallback((selection: LibrarySelection) => {
+        setSelectedLibraryItem(selection);
+    }, []);
+
+    const handleUpload = useCallback((payload: OnUploadPayload) => {
+        if (!selectedLibraryItem) {
+            toast.error('작업 대상을 선택해주세요 (새 문제집 또는 기존 문제집).');
             return;
         }
-        if (!payload.problems || payload.problems.length === 0) {
-            toast.error('업로드할 문제가 없습니다. JSON 데이터에 유효한 문제가 있는지 확인해주세요.');
-            return;
+
+        // 새 문제집 생성
+        if (selectedLibraryItem.type === 'new') {
+            if (!payload.problemSetBrand?.trim()) {
+                toast.error('새로운 문제집의 브랜드를 입력해주세요.');
+                return;
+            }
+             setStagedUploadData(payload);
+             setIsSaveModalOpen(true);
+        } 
+        // 기존 문제집 또는 그 하위 노드에 문제 추가
+        else if (selectedLibraryItem.problemSetId) {
+            const commonSubtitleInput = document.getElementById('commonSubtitle') as HTMLInputElement | null;
+            const subtitleNameFromInput = commonSubtitleInput?.value.trim();
+            const subtitleName = subtitleNameFromInput || payload.problems[0]?.subtitle || '새로운 소제목';
+
+            if (!subtitleName) {
+                toast.error("추가할 문제들의 소제목을 '공통 정보' 섹션에 입력하거나, JSON 데이터 내에 'subtitle' 필드를 포함시켜주세요.");
+                return;
+            }
+            
+            // 모든 문제에 동일한 소제목을 적용하여 일관성 유지
+            const problemsWithCommonSubtitle = payload.problems.map(p => ({
+                ...p,
+                subtitle: subtitleName,
+            }));
+
+            const addProblemsPayload: AddProblemsToSetPayload = {
+                problems: problemsWithCommonSubtitle,
+                // 백엔드는 이 값을 이름으로 간주하여 subtitleId를 찾거나 생성함
+                subtitleId: subtitleName, 
+            };
+            
+            toast.info(`'${selectedLibraryItem.problemSetName}' 문제집에 '${subtitleName}' 소제목으로 문제 ${payload.problems.length}개를 추가합니다...`);
+            
+            addProblemsToSet({ problemSetId: selectedLibraryItem.problemSetId, payload: addProblemsPayload }, {
+                onSuccess: () => {
+                    toast.success('문제가 성공적으로 추가되었습니다.');
+                    queryClient.invalidateQueries({ queryKey: [GROUPED_PROBLEM_SETS_QUERY_KEY] });
+                },
+                onError: (error) => {
+                    toast.error(`문제 추가 실패: ${error.message}`);
+                }
+            });
+
+        } else {
+            toast.warning('문제를 추가할 문제집을 선택해주세요.');
         }
-        setStagedUploadData(payload);
-        setIsSaveModalOpen(true);
-    }, [toast]);
+    }, [selectedLibraryItem, toast, addProblemsToSet, queryClient]);
 
     const handleConfirmSave = useCallback(async (modalPayload: ProblemSetFinalPayload) => {
         if (!stagedUploadData) {
@@ -61,7 +122,7 @@ const ProblemSetCreationPage: React.FC = () => {
         setIsSaveModalOpen(false);
         
         const d1Payload: UploadProblemsAndCreateSetPayload = {
-            problemSetName: stagedUploadData.problemSetName,
+            problemSetName: stagedUploadData.problemSetBrand,
             description: stagedUploadData.description,
             problems: stagedUploadData.problems,
             grade: stagedUploadData.grade,
@@ -84,14 +145,17 @@ const ProblemSetCreationPage: React.FC = () => {
             await createEntitlement(pgPayload);
             
             toast.success('모든 작업이 성공적으로 완료되었습니다!');
+            await queryClient.invalidateQueries({ queryKey: [GROUPED_PROBLEM_SETS_QUERY_KEY] });
             setStagedUploadData(null);
-            setTimeout(() => navigate('/problem-publishing'), 1500);
+            
+            // 새로 생성된 문제집을 선택 상태로 만듦
+            setSelectedLibraryItem({ type: 'problemSet', key: `ps-${pgPayload.problem_set_id}`, problemSetId: pgPayload.problem_set_id, problemSetName: d1Payload.problemSetName });
 
         } catch (error: any) {
             console.error("문제집 생성 전체 프로세스 실패:", error);
             toast.error(`작업 실패: ${error.message}`);
         }
-    }, [stagedUploadData, uploadProblemsAndCreateSet, createEntitlement, navigate, toast]);
+    }, [stagedUploadData, uploadProblemsAndCreateSet, createEntitlement, toast, queryClient]);
 
     const handleOpenPromptSidebar = useCallback(() => setRightSidebarContent({ type: 'prompt' }), [setRightSidebarContent]);
     const handleOpenSettingsSidebar = useCallback(() => setRightSidebarContent({ type: 'settings' }), [setRightSidebarContent]);
@@ -112,15 +176,14 @@ const ProblemSetCreationPage: React.FC = () => {
             <div className="creation-page-main-content">
                 <div className="creation-page-left-panel">
                     <MyLibrary 
-                        onSelectionChange={(selection) => setSelectedKey(selection.key)}
-                        selectedKey={selectedKey}
+                        onSelectionChange={handleSelectionChange}
+                        selectedKey={selectedLibraryItem?.key || null}
                     />
                 </div>
                 <div className="creation-page-right-panel">
                     <JsonProblemImporterWidget
-                        isCreatingNew={true}
-                        initialProblemSetName={''}
-                        onUpload={handleStageForSave}
+                        selectedItem={selectedLibraryItem}
+                        onUpload={handleUpload}
                         isProcessing={isProcessing}
                     />
                 </div>
@@ -131,7 +194,7 @@ const ProblemSetCreationPage: React.FC = () => {
                 onClose={() => setIsSaveModalOpen(false)}
                 onConfirm={handleConfirmSave}
                 isConfirming={isProcessing}
-                problemSetName={stagedUploadData?.problemSetName || ''}
+                problemSetName={stagedUploadData?.problemSetBrand || ''}
                 problemSetDescription={stagedUploadData?.description || undefined}
             />
         </div>

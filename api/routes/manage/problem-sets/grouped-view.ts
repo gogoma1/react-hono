@@ -26,9 +26,16 @@ groupedViewRoutes.get('/my-grouped-view', async (c) => {
         if (entitlements.length === 0) return c.json([]);
         const problemSetIds = entitlements.map(e => e.problem_set_id);
 
+        // [핵심 수정 1] 쿼리를 두 단계로 분리합니다.
+        
+        // 1. 사용자가 권한을 가진 모든 문제집의 기본 정보를 먼저 가져옵니다.
+        const allMyProblemSets = await dbD1.query.problemSetTable.findMany({
+            where: inArray(schemaD1.problemSetTable.problem_set_id, problemSetIds)
+        });
+
+        // 2. 문제가 포함된 상세 데이터만 따로 집계합니다.
         const detailedData = await dbD1.select({
             problemSetId: schemaD1.problemSetTable.problem_set_id,
-            problemSetName: schemaD1.problemSetTable.name,
             gradeId: schemaD1.problemTable.grade_id,
             subtitleId: schemaD1.subtitlesTable.id,
             subtitleName: schemaD1.subtitlesTable.name,
@@ -41,33 +48,32 @@ groupedViewRoutes.get('/my-grouped-view', async (c) => {
         .where(inArray(schemaD1.problemSetTable.problem_set_id, problemSetIds))
         .groupBy(
             schemaD1.problemSetTable.problem_set_id,
-            schemaD1.problemSetTable.name,
             schemaD1.problemTable.grade_id,
             schemaD1.subtitlesTable.id,
             schemaD1.subtitlesTable.name
-        )
-        .orderBy(
-            asc(schemaD1.problemSetTable.name), 
-            asc(schemaD1.problemTable.grade_id),
-            asc(schemaD1.subtitlesTable.name)
         );
         
+        // [핵심 수정 2] 프론트엔드에서 처리하기 쉽도록 데이터를 재구성합니다.
         const problemSetMap = new Map();
 
+        // 먼저 모든 문제집을 맵에 기본 구조로 추가합니다. (문제가 없어도 추가됨)
+        for (const ps of allMyProblemSets) {
+            problemSetMap.set(ps.problem_set_id, {
+                problem_set_id: ps.problem_set_id,
+                problem_set_name: ps.name,
+                grades: new Map(),
+            });
+        }
+
+        // 상세 데이터가 있는 경우에만 등급과 소제목 정보를 채웁니다.
         for (const row of detailedData) {
             if (!row.problemSetId || !row.gradeId || !row.subtitleId) continue;
             
             const gradeInfo = GRADES[row.gradeId as keyof typeof GRADES];
             if (!gradeInfo) continue;
 
-            if (!problemSetMap.has(row.problemSetId)) {
-                problemSetMap.set(row.problemSetId, {
-                    problem_set_id: row.problemSetId,
-                    problem_set_name: row.problemSetName,
-                    grades: new Map(),
-                });
-            }
             const currentProblemSet = problemSetMap.get(row.problemSetId);
+            if (!currentProblemSet) continue;
 
             if (!currentProblemSet.grades.has(row.gradeId)) {
                 currentProblemSet.grades.set(row.gradeId, {
@@ -88,10 +94,13 @@ groupedViewRoutes.get('/my-grouped-view', async (c) => {
         
         const responseData = Array.from(problemSetMap.values()).map(ps => ({
             ...ps,
-            grades: (Array.from(ps.grades.values()) as { grade_order: number }[]).sort(
+            grades: (Array.from(ps.grades.values()) as { grade_order: number; subtitles: any[] }[]).sort(
                 (a, b) => a.grade_order - b.grade_order
-            ),
-        }));
+            ).map(grade => ({
+                ...grade,
+                subtitles: grade.subtitles.sort((a, b) => a.subtitle_name.localeCompare(b.subtitle_name))
+            })),
+        })).sort((a,b) => a.problem_set_name.localeCompare(b.problem_set_name));
 
         return c.json(responseData);
 

@@ -14,13 +14,13 @@ CREATE TABLE `problem_set_problems` (
 	FOREIGN KEY (`problem_id`) REFERENCES `problem`(`problem_id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `problem_set_sources` (
+CREATE TABLE `problem_set_subtitles` (
 	`problem_set_id` text NOT NULL,
-	`source_id` text NOT NULL,
+	`subtitle_id` text NOT NULL,
 	`count` integer DEFAULT 0 NOT NULL,
-	PRIMARY KEY(`problem_set_id`, `source_id`),
+	PRIMARY KEY(`problem_set_id`, `subtitle_id`),
 	FOREIGN KEY (`problem_set_id`) REFERENCES `problem_set`(`problem_set_id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`source_id`) REFERENCES `sources`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`subtitle_id`) REFERENCES `subtitles`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `problem_set` (
@@ -44,7 +44,7 @@ CREATE TABLE `problem_set` (
 --> statement-breakpoint
 CREATE TABLE `problem` (
 	`problem_id` text PRIMARY KEY NOT NULL,
-	`source_id` text,
+	`subtitle_id` text,
 	`page` integer,
 	`question_number` real,
 	`answer` text,
@@ -62,7 +62,7 @@ CREATE TABLE `problem` (
 	`solution_text` text,
 	`created_at` text DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
 	`updated_at` text DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
-	FOREIGN KEY (`source_id`) REFERENCES `sources`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`subtitle_id`) REFERENCES `subtitles`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `problem_tag` (
@@ -73,7 +73,7 @@ CREATE TABLE `problem_tag` (
 	FOREIGN KEY (`tag_id`) REFERENCES `tag`(`tag_id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `sources` (
+CREATE TABLE `subtitles` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL
 );

@@ -1,10 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-// [수정] 새 API 함수 import
 import { uploadProblemsAndCreateSetAPI, updateProblemAPI, deleteProblemsAPI } from '../api/problemApi';
 import type { Problem } from './types';
 import { PROBLEMS_QUERY_KEY } from './useProblemsQuery';
 import { useToast } from '../../../shared/store/toastStore';
-
 import type { UploadResponse } from '../api/problemApi';
 
 interface UpdateProblemVariables {
@@ -16,6 +14,19 @@ interface ProblemMutationContext {
     previousProblems?: Problem[];
 }
 
+// [수정] 문제 업로드 및 문제집 생성 페이로드 타입 정의
+interface UploadProblemsAndCreateSetPayload {
+    problemSetName: string;
+    description: string | null;
+    problems: Problem[];
+    grade: string | null;
+    folder_id?: string | null;
+    type: "PUBLIC_ADMIN" | "PRIVATE_USER";
+    status: "published" | "private" | "deleted";
+    copyright_type: "ORIGINAL_CREATION" | "COPYRIGHTED_MATERIAL";
+    copyright_source: string | null;
+}
+
 export function useUpdateProblemMutation() {
     const queryClient = useQueryClient();
     const queryKey = [PROBLEMS_QUERY_KEY];
@@ -25,7 +36,6 @@ export function useUpdateProblemMutation() {
         onMutate: async (updatedProblem) => {
             await queryClient.cancelQueries({ queryKey });
             const previousProblems = queryClient.getQueryData<Problem[]>(queryKey);
-
             if (previousProblems) {
                 queryClient.setQueryData<Problem[]>(queryKey, old => 
                     old?.map(problem => 
@@ -54,12 +64,10 @@ export function useDeleteProblemsMutation() {
 
     return useMutation<{ message: string, deleted_count: number }, Error, string[], ProblemMutationContext>({
         mutationFn: (problemIds) => deleteProblemsAPI(problemIds),
-        
         onMutate: async (problemIdsToDelete) => {
             const queryKey = [PROBLEMS_QUERY_KEY];
             await queryClient.cancelQueries({ queryKey });
             const previousProblems = queryClient.getQueryData<Problem[]>(queryKey);
-
             if (previousProblems) {
                 const idsToDeleteSet = new Set(problemIdsToDelete);
                 queryClient.setQueryData<Problem[]>(queryKey, old => 
@@ -90,14 +98,13 @@ export function useUploadProblemsMutation() {
     const queryClient = useQueryClient();
     const toast = useToast();
 
-    // [수정] 제네릭 타입의 payload를 any로 하여 유연성 확보
-    return useMutation<UploadResponse, Error, any>({
+    return useMutation<UploadResponse, Error, UploadProblemsAndCreateSetPayload>({
         mutationFn: (payload) => uploadProblemsAndCreateSetAPI(payload),
         onSuccess: (data) => {
             toast.success(data.message);
-            // 성공 시 관련 쿼리 무효화
             queryClient.invalidateQueries({ queryKey: [PROBLEMS_QUERY_KEY] });
             queryClient.invalidateQueries({ queryKey: ['myProblemSets'] });
+            queryClient.invalidateQueries({ queryKey: ['groupedProblemSets'] }); // [신규] 그룹 뷰도 무효화
         },
         onError: (error) => {
             toast.error(`문제집 생성 실패: ${error.message}`);

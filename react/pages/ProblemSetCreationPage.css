@@ -1,90 +1,83 @@
 /* ./react/pages/ProblemSetCreationPage.css */
 
 /* ==========================================================================
-   1. 페이지 및 위젯 레이아웃 (수정됨)
+   1. 페이지 및 위젯 레이아웃 (Grid 레이아웃으로 전면 수정)
    ========================================================================== */
-
-/* 페이지 루트 */
 .problem-set-creation-page {
-    display: flex;
-    flex-direction: column; /* 전체 페이지는 수직 정렬 유지 */
-    height: 100%;
+    display: flex; 
     width: 100%;
+    /* [수정] height를 min-height로 변경하여 콘텐츠 길이에 따라 페이지가 늘어나도록 함 */
+    min-height: 100%; 
     padding: 1.5rem;
     box-sizing: border-box;
-    overflow: hidden; /* 페이지 자체의 스크롤은 숨김 */
+    /* [수정] overflow: hidden 제거하여 스크롤 허용 */
+    /* overflow: hidden; */ 
 }
 
-/* [신규] 메인 콘텐츠 영역 (좌우 패널을 감쌈) */
+/* [핵심 변경 1] 페이지 전체를 3행 2열 기반의 복합 그리드로 재설계 */
 .creation-page-main-content {
-    display: flex;
-    flex-direction: row; /* 좌우로 배치 */
+    display: grid;
+    /* 왼쪽 패널 320px, 오른쪽은 나머지 공간 */
+    grid-template-columns: 320px 1fr; 
+    /* 1행(자동), 2행(자동), 3행(나머지 공간 모두) */
+    grid-template-rows: auto auto 1fr;
+    /* 그리드 영역 이름으로 레이아웃 시각적 정의 */
+    grid-template-areas:
+        "library info"
+        "json    json"
+        "table   table";
     gap: 1.5rem;
-    flex-grow: 1; /* 남은 공간을 모두 차지 */
-    min-height: 0; /* flex 아이템이 넘칠 때 줄어들 수 있도록 */
+    flex-grow: 1;
+    min-height: 0;
 }
 
-/* [신규] 왼쪽 패널 (MyLibrary) */
+/* [핵심 변경 2] 각 컴포넌트를 지정된 그리드 영역에 배치 */
 .creation-page-left-panel {
-    flex: 0 0 320px; /* 고정 너비 320px */
-    display: flex;
-    flex-direction: column;
-    min-width: 280px; /* 최소 너비 */
-    /* Glassmorphism 스타일 적용 */
+    grid-area: library; /* 'library' 영역에 배치 */
     background: var(--sidebar-glass-bg);
-    backdrop-filter: var(--glass-blur-effect);
-    -webkit-backdrop-filter: var(--glass-blur-effect);
     border: 1px solid rgba(var(--glass-base-bg-rgb), 0.15);
     border-radius: var(--main-content-border-radius);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     overflow: hidden;
-}
-
-/* [신규] 오른쪽 패널 (JsonImporter) */
-.creation-page-right-panel {
-    flex-grow: 1; /* 남은 공간을 모두 차지 */
     display: flex;
-    flex-direction: column;
-    min-width: 0; /* flex 아이템이 줄어들 수 있도록 */
+    min-height: 0; /* 그리드 아이템의 넘침 방지 */
 }
 
-/* JSON 임포터 위젯 (기존 스타일 유지) */
+/* 
+  [핵심 변경 3] '껍데기' 컨테이너들을 레이아웃에서 제외시켜
+  내부 요소들이 상위 그리드에 직접 참여하도록 만듦
+*/
+.creation-page-right-panel,
 .json-importer-widget {
-    display: flex;
-    flex-direction: column; /* 내부 요소는 수직으로 */
-    gap: 1.5rem;
-    width: 100%;
-    height: 100%; /* 부모에 맞춰 꽉 채움 */
-    flex-grow: 1;
+    display: contents;
 }
+
 
 /* ==========================================================================
-   2. 패널 공통 스타일 (헤더, 콘텐츠 영역)
+   2. 패널 공통 스타일 (변경 없음)
    ========================================================================== */
+/* 패널 자체의 스타일은 그대로 유지합니다. */
 .json-importer-widget .panel {
     display: flex;
     flex-direction: column;
     background: var(--sidebar-glass-bg);
-    backdrop-filter: var(--glass-blur-effect);
-    -webkit-backdrop-filter: var(--glass-blur-effect);
     border: 1px solid rgba(var(--glass-base-bg-rgb), 0.15);
     border-radius: var(--main-content-border-radius);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     overflow: hidden;
+    min-height: 0; /* 그리드 아이템의 넘침 방지 */
 }
 
 .json-importer-widget .panel-header {
     padding: 14px 20px;
-    margin: 0;
     font-size: 1rem;
     font-weight: 600;
-    color: var(--text-primary);
     border-bottom: 1px solid rgba(var(--glass-base-bg-rgb), 0.1);
-    flex-shrink: 0;
     background-color: rgba(var(--glass-base-bg-rgb), 0.1);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .json-importer-widget .panel-content {
@@ -96,20 +89,18 @@
 }
 
 /* ==========================================================================
-   3. 오른쪽 패널 내부 구조 (수정됨)
+   3. 오른쪽 패널 내부 구조 (Grid 아이템 배치) - 재정의
    ========================================================================== */
-
-/* 이제 JsonImporterWidget이 오른쪽 패널 전체를 차지하므로, .left-panel, .right-panel 선택자는 필요 없음 */
-.json-importer-widget .top-panel { /* 기존 .left-panel 역할 */
-    flex: 2;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    min-height: 250px;
+/* [핵심 변경 4] 각 패널을 grid-area를 사용해 지정된 위치에 배치 */
+.json-importer-widget .common-data-panel {
+    grid-area: info; /* 'info' 영역에 배치 */
 }
-.json-importer-widget .bottom-panel { /* 기존 .right-panel 역할 */
-    flex: 3;
-    min-height: 0;
+.json-importer-widget .json-input-panel {
+    grid-area: json; /* 'json' 영역에 배치 */
+    min-height: 250px; /* 최소 높이 보장 */
+}
+.json-importer-widget .table-preview-panel {
+    grid-area: table; /* 'table' 영역에 배치 */
 }
 
 /* ==========================================================================
@@ -230,8 +221,9 @@
 .table-wrapper {
     flex-grow: 1;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: auto;
     border-radius: 12px;
+    max-height: 500px;
 }
 
 .problem-table {
